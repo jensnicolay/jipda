@@ -1,0 +1,65 @@
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<link rel="stylesheet" href="main.css" type="text/css" media="all"/> 
+	<title>JIPDA - conc</title>
+	<script type="text/javascript" src="../jipda/lib/esprima.js"></script>
+	<script type="text/javascript" src="../jipda/common.js"></script>
+	<script type="text/javascript" src="../jipda/lattice/lattice.js"></script>
+	<script type="text/javascript" src="../jipda/lattice/cpLattice.js"></script>
+	<script type="text/javascript" src="../jipda/address/address.js"></script>
+	<script type="text/javascript" src="../jipda/address/concreteAg.js"></script>
+	<script type="text/javascript" src="../jipda/benv/defaultBenv.js"></script>
+	<script type="text/javascript" src="../jipda/ast.js"></script>
+	<script type="text/javascript" src="../jipda/eval.js"></script>
+	<script type="text/javascript" src="../jipda/jipda2.js"></script>
+	<script type="text/javascript" src="lib/jquery-1.7.2.min.js"></script>
+	<script type="text/javascript" src="lib/ace/ace.js"></script>
+	<script type="text/javascript">
+
+		// define print method for JIPDA
+    var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }		
+		var editor;
+		
+		function doIt()
+		{
+			//$("#depGraph").empty();
+			$("#resultValue").empty();
+		  var src = editor.getSession().getValue();
+	    var ast = Ast.createAst(src);
+	    var lat = new CpLattice();
+	    var result = BOT;
+	    var c = Jipda.context({p: lat, a: concreteAg});
+	    c.e.haltKont =
+	      function (value, store)
+	      {
+	        result = result.join(value);
+	        return [];
+	      }
+	    var state = Jipda.inject(ast, c);
+	    Jipda.run(state, c);
+			$("#resultValue").text(result);
+		}
+			
+		$(function ()
+		{
+		  editor = ace.edit("editor");
+		  editor.getSession().setMode("ace/mode/javascript");
+		})
+		
+	</script>
+</head>
+
+<body>
+	<div id="editor" style="width: 640px; height: 480px;"></div>
+	<div id="manip" style="position: absolute; top:490px;">
+		<button id="eval" name="eval" onClick="doIt()">Eval</button>
+		<span id="resultValue"></span>
+	</div>
+	<div id="params" style="position:absolute; left:400px; width:400px; height:480px;"/>
+</body>
+
+</html>
+</html>
+</html>
