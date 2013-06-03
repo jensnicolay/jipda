@@ -315,15 +315,21 @@ jseval.evalBinaryExpression =
     return c.e.evalNode(node.left, benva, store, kont.addFirst(frame), c);
   }
 
-function LeftKont(node, benva)
+function LeftKont(node, benva, marks)
 {
   this.node = node;
   this.benva = benva;
+  this.marks = marks || [];
 }
 LeftKont.prototype.toString =
   function ()
   {
     return "<left " + this.node.tag + " " + this.benva + ">";
+  }
+LeftKont.prototype.mark =
+  function (mark)
+  {
+    return new LeftKont(this.node, this.benva, this.marks.addUniqueLast(mark));
   }
 LeftKont.prototype.addresses =
   function ()
@@ -339,16 +345,22 @@ LeftKont.prototype.apply =
     return c.e.evalNode(node.right, benva, store, kont.addFirst(frame), c);
   }
 
-function RightKont(node, benva, leftValue)
+function RightKont(node, benva, leftValue, marks)
 {
   this.node = node;
   this.benva = benva;
   this.leftValue = leftValue;
+  this.marks = marks || [];
 }
 RightKont.prototype.toString =
   function ()
   {
     return "<right " + this.node.tag + " " + this.benva + " " + this.leftValue + ">";
+  }
+RightKont.prototype.mark =
+  function (mark)
+  {
+    return new RightKont(this.node, this.benva, this.leftValue, this.marks.addUniqueLast(mark));
   }
 RightKont.prototype.addresses =
   function ()
@@ -609,15 +621,21 @@ jseval.evalCallExpression =
     return c.e.evalNode(calleeNode, benva, store, kont.addFirst(frame), c);      
   }
 
-function OperatorKont(node, benva)
+function OperatorKont(node, benva, marks)
 {
   this.node = node;
   this.benva = benva;
+  this.marks = marks || [];
 }
 OperatorKont.prototype.toString =
   function ()
   {
     return "<rator " + this.node.tag + " " + this.benva + ">";
+  }
+OperatorKont.prototype.mark =
+  function (mark)
+  {
+    return new OperatorKont(this.node, this.benva, this.marks.addUniqueLast(mark));
   }
 OperatorKont.prototype.addresses =
   function ()
@@ -639,7 +657,7 @@ OperatorKont.prototype.apply =
     return c.e.evalNode(operands[0], benva, store, kont.addFirst(frame), c);
   }
 
-function OperandsKont(node, i, benva, operatorValue, operandValues, thisValue)
+function OperandsKont(node, i, benva, operatorValue, operandValues, thisValue, marks)
 {
   this.node = node;
   this.i = i;
@@ -647,11 +665,17 @@ function OperandsKont(node, i, benva, operatorValue, operandValues, thisValue)
   this.operatorValue = operatorValue;
   this.operandValues = operandValues;
   this.thisValue = thisValue;
+  this.marks = marks || [];
 }
 OperandsKont.prototype.toString =
   function ()
   {
     return "<rand " + this.node.tag + " " + this.i + " " + this.benva + " " + this.operatorValue + " " + this.operandValues + " " + this.thisValue + ">";
+  }
+OperandsKont.prototype.mark =
+  function (mark)
+  {
+    return new OperandsKont(this.node, this.i, this.benva, this.operatorValue, this.operandValues, this.thisValue, this.marks.addUniqueLast(mark));
   }
 OperandsKont.prototype.addresses =
   function ()
@@ -740,6 +764,19 @@ ApplyState.prototype.next =
     return this.callable.applyFunction(this.node, this.operandValues, this.thisa, this.benva, this.store, this.returnKont, this.kont, c);
   }
 
+function KontState(value, store, kont)
+{
+  this.value = value;
+  this.store = store;
+  this.kont = kont;
+}
+
+KontState.prototype.next =
+  function (c)
+  {
+    return this.kont[0].apply(this.value, this.store, this.kont.slice(1), c);
+  }
+
 jseval.applyFunction =
   function (applicationNode, funNode, statica, operandValues, thisa, benva, store, kont, c)
   {
@@ -821,15 +858,21 @@ jseval.evalReturnStatement =
     return c.e.evalNode(argumentNode, benva, store, kont.addFirst(frame), c);
   }
 
-function ReturnKont(node, benva)
+function ReturnKont(node, benva, marks)
 {
   this.node = node;
   this.benva = benva;
+  this.marks = marks || [];
 }
 ReturnKont.prototype.toString =
   function ()
   {
     return "<ret " + this.node.tag + " " + this.benva + ">";
+  }
+ReturnKont.prototype.mark =
+  function (mark)
+  {
+    return new ReturnKont(this.node, this.benva, this.marks.addUniqueLast(mark));
   }
 ReturnKont.prototype.addresses =
   function ()
@@ -842,6 +885,80 @@ ReturnKont.prototype.apply =
     var node = this.node;
     var benva = this.benva;    
     return c.e.scanReturn(node, returnValue, store, kont, c);
+  }
+
+jseval.evalIfStatement =
+  function (node, benva, store, kont, c)
+  {
+    var testNode = node.test;
+    var frame = new IfKont(node, benva);
+    return c.e.evalNode(testNode, benva, store, kont.addFirst(frame), c);
+  }
+
+jseval.evalConditionalExpression =
+  function (node, benva, store, kont, c)
+  {
+    var testNode = node.test;
+    var frame = new IfKont(node, benva);
+    return c.e.evalNode(testNode, benva, store, kont.addFirst(frame), c);
+  }
+
+function IfKont(node, benva, marks)
+{
+  this.node = node;
+  this.benva = benva;
+  this.marks = marks || [];
+}
+IfKont.prototype.toString =
+  function ()
+  {
+    return "<if " + this.node.tag + " " + this.benva + ">";
+  }
+IfKont.prototype.mark =
+  function (mark)
+  {
+    return new IfKont(this.node, this.benva, this.marks.addUniqueLast(mark));
+  }
+IfKont.prototype.addresses =
+  function ()
+  {
+    return [this.benva];
+  }
+IfKont.prototype.apply =
+  function (conditionValue, store, kont, c)
+  {
+    var node = this.node;
+    var benva = this.benva;    
+    var consequent = node.consequent;
+    var alternate = node.alternate;
+    // TODO ToBoolean
+    var falseProj = conditionValue.meet(c.L_FALSE);
+    if (falseProj === BOT) // no false in value
+    {
+      return c.e.evalNode(consequent, benva, store, kont, c);
+    }
+    else if (conditionValue.equals(falseProj)) // value is false
+    {
+      if (alternate === null)
+      {
+        return kont[0].apply(c.L_UNDEFINED, store, kont.slice(1), c);
+      }
+      return c.e.evalNode(alternate, benva, store, kont, c);
+    }
+    else // value > false
+    {
+      var consequentState = new EvalState(consequent, benva, store, kont);
+      var alternateState;
+      if (alternate === null)
+      {
+        alternateState = new KontState(c.L_UNDEFINED, store, kont);
+      }
+      else
+      {
+        alternateState = new EvalState(alternate, benva, store, kont);
+      }
+      return [consequentState, alternateState];
+    }
   }
 
 jseval.evalNode =
@@ -939,7 +1056,7 @@ jseval.initialize =
     c.L_0 = c.l.abst1(0);
     c.L_1 = c.l.abst1(1);
 //    c.L_TRUE = c.l.abst1(true);
-//    c.L_FALSE = c.l.abst1(false);
+    c.L_FALSE = c.l.abst1(false);
     c.L_MININFINITY = c.l.abst1(-Infinity);
     c.P_0 = c.p.abst1(0);
     c.P_1 = c.p.abst1(1);

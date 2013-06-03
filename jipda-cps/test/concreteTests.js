@@ -717,12 +717,18 @@ var suiteConcreteTests =
 //      run("'123'.length", 3);
 //    }
 //  
-//  module.test97 =
-//    function ()
-//    {
-//      run(read("test/resources/churchNums.js"), true);    
-//    }
-//  
+    module.test97 =
+      function ()
+      {
+        run(read("test/resources/churchNums.js"), true);    
+      }
+    
+    module.test98 =
+      function ()
+      {
+        run(read("test/resources/gcIpdExample.js"), 36);    
+      }
+    
   return module;
   
 })()
