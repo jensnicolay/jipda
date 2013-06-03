@@ -314,7 +314,7 @@ Benv.prototype.compareTo =
   var module = {};
   
   module.createEnvironment =
-    function (parenta, sourceNode, declarationNode)
+    function (parenta)
     {
       var benv = new Benv(["Env"]); // TODO introduce constant? (need a classifier here because of joining)
       benv.parents = [parenta]; // no ECMA internal property exists for 'outer environment' (10.2)

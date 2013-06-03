@@ -85,20 +85,20 @@ var suiteConcreteTests =
       run("function pi() {return 3;}; pi(); pi();", 3);
     };
     
-//  module.test5 =
-//    function ()
-//    {
-//      run("var sq = function (x) {return x * x;}; sq(5);", 25);
-//      run("function sq(x) {return x * x;}; sq(5);", 25);
-//      run("var sq = function (x) {return x * x;}; sq(5); sq(6);", 36);
-//    };
-//
-//  module.test6 =
-//    function ()
-//    {
-//      run("var f = function () { 123; }; f();", undefined);
-//    };
-//
+  module.test5 =
+    function ()
+    {
+      run("var sq = function (x) {return x * x;}; sq(5);", 25);
+      run("function sq(x) {return x * x;}; sq(5);", 25);
+      run("var sq = function (x) {return x * x;}; sq(5); sq(6);", 36);
+    };
+
+  module.test6 =
+    function ()
+    {
+      run("var f = function () { 123; }; f();", undefined);
+    };
+
 //  module.test15 =
 //    function ()
 //    {

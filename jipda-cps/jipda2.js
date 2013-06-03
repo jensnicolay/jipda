@@ -15,7 +15,11 @@ EvalState.prototype.next =
 function HaltKont()
 {
 }
-
+HaltKont.prototype.toString =
+  function ()
+  {
+    return "<halt>";
+  }
 HaltKont.prototype.apply =
   function (value, store, kont, c)
   {

@@ -1,5 +1,7 @@
 var Ast = (function ()
 {
+  var module = {};
+  
   function nodeToString(node)
   {
     if (node === null)
@@ -147,10 +149,11 @@ var Ast = (function ()
     return n.type === "LabeledStatement";
   }
   
-  function isCallExpression(n)
-  {
-    return n.type === "CallExpression";
-  }
+  module.isCallExpression =
+    function (n)
+    {
+      return n.type === "CallExpression";
+    }
   
   function isVariableDeclaration(n)
   {
@@ -217,10 +220,11 @@ var Ast = (function ()
     return n.type === "ThisExpression";
   }
   
-  function isMemberExpression(n)
-  {
-    return n.type === "MemberExpression";
-  }
+  module.isMemberExpression =
+    function (n)
+    {
+      return n.type === "MemberExpression";
+    }
   
   function isUpdateExpression(n)
   {
@@ -412,7 +416,8 @@ var Ast = (function ()
   //  return prefix + ++__symCounter__; 
   //}
   
-  function createAst(source, config)
+  module.createAst =
+    function (source, config)
   {
     function visitNode(node)
     {
@@ -638,7 +643,8 @@ var Ast = (function ()
     return false;
   }
   
-  function scopeInfo(nodeWithBody)
+  module.scopeInfo =
+    function (nodeWithBody)
     {
       if (nodeWithBody.params)
       {
@@ -698,7 +704,8 @@ var Ast = (function ()
       }
     }
 
-  function hoist(scopeInfo)
+  module.hoist =
+    function (scopeInfo)
     {
       var funs = [];
       var vars = [];
@@ -731,5 +738,5 @@ var Ast = (function ()
       return {funs: funs, vars: vars, scopeInfo: scopeInfo};
     }
   
-  return {createAst:createAst, scopeInfo:scopeInfo, hoist:hoist};  
+  return module;  
 })()

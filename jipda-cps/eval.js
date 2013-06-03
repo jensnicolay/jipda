@@ -1,4 +1,4 @@
-var jseval = {};
+var jseval = {toString:function () {return "jseval"}};
 
 jseval.doScopeLookup =
   function (name, benva, store, c)
@@ -68,6 +68,60 @@ jseval.doScopeSet =
     return store;
   }
 
+jseval.doHoisting =
+  function (node, benva, store, kont, c)
+  {
+    var hoisted = node.hoisted;
+    if (!hoisted)
+    {
+      var scopeInfo = Ast.scopeInfo(node);
+      hoisted = Ast.hoist(scopeInfo);
+      node.hoisted = hoisted;
+    }
+    if (hoisted.funs.length > 0 || hoisted.vars.length > 0)
+    {
+      var benv = store.lookupAval(benva);      
+      hoisted.funs.forEach(
+        function (funDecl)
+        {
+          var node = funDecl.node;
+          var allocateResult = c.e.allocateClosure(node, benva, store, kont, c);
+          var closureRef = allocateResult.ref;
+          store = allocateResult.store;
+          var vr = node.id;
+          benv = benv.add(c.p.abst1(vr.name), closureRef);
+        });
+      hoisted.vars.forEach(
+        function (varDecl)
+        {
+          var vr = varDecl.node.id;    
+          benv = benv.add(c.p.abst1(vr.name), c.L_UNDEFINED);
+        });
+      store = store.updateAval(benva, benv); // side-effect
+    }
+    return store;
+  }
+
+jseval.scanReturn =
+  function (node, returnValue, store, kont, c)
+  {
+    for (var i = 0; i < kont.length; i++)
+    {
+      var frame = kont[i];
+      var marks = frame.marks;
+      print("marks", frame);
+      for (var j = 0; j < marks.length; j++)
+      {
+        var mark = marks[j];
+        if (Ast.isCallExpression(mark))
+        {
+          return frame.apply(returnValue, store, kont.slice(i + 1), c);
+        }
+      }
+    }
+    throw new Error("return not in function: " + node);      
+  }
+
 jseval.evalEmptyStatement =
   function (node, benva, store, kont, c)
   {
@@ -91,32 +145,7 @@ jseval.evalIdentifier =
 jseval.evalProgram =
   function (node, benva, store, kont, c)
   {
-    var hoisted = node.hoisted;
-    if (!hoisted)
-    {
-      var scopeInfo = Ast.scopeInfo(node);
-      hoisted = Ast.hoist(scopeInfo);
-      node.hoisted = hoisted;
-    }
-    if (hoisted.funs.length > 0 || hoisted.vars.length > 0)
-    {
-      var benv = store.lookupAval(benva);      
-      hoisted.funs.forEach(
-        function (funDecl)
-        {
-          var result = c.e.evalHoistedFunctionDeclaration(funDecl.node, stack, benva, benv, store, time, c);
-          benv = result.benv;
-          store = result.store;
-        });
-      hoisted.vars.forEach(
-        function (varDecl)
-        {
-          var vr = varDecl.node.id;    
-          benv = benv.add(c.p.abst1(vr.name), c.L_UNDEFINED);
-        });
-      store = store.updateAval(benva, benv); // side-effect
-    }
-    
+    store = c.e.doHoisting(node, benva, store, kont, c);    
     return c.e.evalStatementList(node, benva, store, kont, c);
   }
 
@@ -136,17 +165,23 @@ jseval.evalStatementList =
     return c.e.evalNode(nodes[0], benva, store, kont.addFirst(frame), c);
   }
 
-function StatementListKont(node, i, benva, lastValue)
+function StatementListKont(node, i, benva, lastValue, marks)
 {
   this.node = node;
   this.i = i;
   this.benva = benva;
   this.lastValue = lastValue;
+  this.marks = marks || [];
 }
+StatementListKont.prototype.mark =
+  function (mark)
+  {
+    return new StatementListKont(this.node, this.i, this.benva, this.lastValue, this.marks.addUniqueLast(mark));
+  }
 StatementListKont.prototype.toString =
   function ()
   {
-    return "<slist " + this.node.tag + " " + this.i + " " + this.benva + " " + lastValue + ">";
+    return "<slist " + this.node.tag + " " + this.i + " " + this.benva + " " + this.lastValue + ">";
   }
 StatementListKont.prototype.addresses =
   function ()
@@ -526,6 +561,289 @@ AssignIdentifierKont.prototype.apply =
 //      });
 //  }
 
+jseval.allocateClosure =
+  function (node, benva, store, kont, c)
+  {
+    var closure = c.createClosure(node, benva);
+    var closurea = c.a.closure(node, benva, store, kont, c);
+  
+    var prototype = c.createObject(c.objectProtoRef);
+    var prototypea = c.a.closureProtoObject(node, benva, store, kont, c);
+    var closureRef = c.l.abst1(closurea);
+    prototype = prototype.add(c.P_CONSTRUCTOR, closureRef);
+    store = store.allocAval(prototypea, prototype);
+  
+    closure = closure.add(c.P_PROTOTYPE, c.l.abst1(prototypea));
+    store = store.allocAval(closurea, closure);
+    return {store: store, ref: closureRef}
+  }
+
+jseval.evalFunctionExpression =
+  function (node, benva, store, kont, c)
+  {
+    var allocateResult = c.e.allocateClosure(node, benva, store, kont, c);
+    var closureRef = allocateResult.ref;
+    store = allocateResult.store;
+    return kont[0].apply(closureRef, store, kont.slice(1), c);
+  }
+
+jseval.evalFunctionDeclaration =
+  function (node, benva, store, kont, c)
+  {
+    // hoisted!
+    return kont[0].apply(c.L_UNDEFINED, store, kont.slice(1), c);
+  }
+
+jseval.evalCallExpression =
+  function (node, benva, store, kont, c)
+  {
+    var calleeNode = node.callee;
+      
+    if (Ast.isMemberExpression(calleeNode))
+    {
+      var cont = new Cont("meth", node, null, benva, c.e.methodOperatorCont);
+      return c.e.evalNode(calleeNode.object, stack.addFirst(cont), benva, store, time, c);
+    }
+    
+    var frame = new OperatorKont(node, benva);
+    return c.e.evalNode(calleeNode, benva, store, kont.addFirst(frame), c);      
+  }
+
+function OperatorKont(node, benva)
+{
+  this.node = node;
+  this.benva = benva;
+}
+OperatorKont.prototype.toString =
+  function ()
+  {
+    return "<rator " + this.node.tag + " " + this.benva + ">";
+  }
+OperatorKont.prototype.addresses =
+  function ()
+  {
+    return [this.benva];
+  }
+OperatorKont.prototype.apply =
+  function (operatorValue, store, kont, c)
+  {
+    var node = this.node;
+    var benva = this.benva;
+    var operands = node.arguments;
+
+    if (operands.length === 0)
+    {
+      return c.e.applyProc(node, operatorValue, [], c.globalRef, benva, store, kont, c);
+    }
+    var frame = new OperandsKont(node, 1, benva, operatorValue, [], c.globalRef);
+    return c.e.evalNode(operands[0], benva, store, kont.addFirst(frame), c);
+  }
+
+function OperandsKont(node, i, benva, operatorValue, operandValues, thisValue)
+{
+  this.node = node;
+  this.i = i;
+  this.benva = benva;
+  this.operatorValue = operatorValue;
+  this.operandValues = operandValues;
+  this.thisValue = thisValue;
+}
+OperandsKont.prototype.toString =
+  function ()
+  {
+    return "<rand " + this.node.tag + " " + this.i + " " + this.benva + " " + this.operatorValue + " " + this.operandValues + " " + this.thisValue + ">";
+  }
+OperandsKont.prototype.addresses =
+  function ()
+  {
+    return this.operatorValue.addresses()
+      .concat(this.operandValues.flatMap(function (value) {return value.addresses()}))
+      .concat(thisValue.addresses())
+      .addLast(this.benva);
+  }
+OperandsKont.prototype.apply =
+  function (operandValue, store, kont, c)
+  {
+    var node = this.node;
+    var benva = this.benva;
+    var i = this.i;
+    var operatorValue = this.operatorValue;
+    var operandValues = this.operandValues;
+    var thisValue = this.thisValue;
+    var operands = node.arguments;
+
+    if (i === operands.length)
+    {
+      return c.e.applyProc(node, operatorValue, operandValues.addLast(operandValue), thisValue, benva, store, kont, c);
+    }
+    var frame = new OperandsKont(node, i + 1, benva, operatorValue, operandValues.addLast(operandValue), thisValue);
+    return c.e.evalNode(operands[i], benva, store, kont.addFirst(frame), c);
+  }
+
+jseval.applyProc =
+  function (node, operatorValue, operandValues, thisValue, benva, store, kont, c)
+  {
+    if (kont.length > 1024)
+    {
+      throw new Error("stack overflow");
+    }
+    
+//    var visitedResult = c.v.visited(application, stack, benva, store, time);
+//    if (visitedResult === null)
+//    {
+//      return [];
+//    }
+//    store = visitedResult.store;
+//    stack = visitedResult.stack;
+    
+    // TODO 'thisValue' handling/type coercions?
+    
+    var operatorPrim = operatorValue.prim;
+    if (operatorPrim === BOT)
+    {
+      // fast path: no type coercions needed
+      var thisAs = thisValue.addresses();
+      var operatorAs = operatorValue.addresses();
+      return thisAs.flatMap(
+        function (thisa)
+        {
+          return operatorAs.flatMap(
+            function (operatora)
+            {
+              var benv = store.lookupAval(operatora);
+              var callables = benv.Call;
+              return callables.map(
+                function (callable)
+                {
+                  return new ApplyState(node, callable, operandValues, thisa, benva, store, kont[0], kont.slice(1));
+                })
+            })
+        })
+    }
+  }
+
+function ApplyState(node, callable, operandValues, thisa, benva, store, returnKont, kont)
+{
+  this.node = node;
+  this.callable = callable;
+  this.operandValues = operandValues;
+  this.thisa = thisa;
+  this.benva = benva;
+  this.store = store;
+  this.returnKont = returnKont;
+  this.kont = kont;
+}
+
+ApplyState.prototype.next =
+  function (c)
+  {
+    return this.callable.applyFunction(this.node, this.operandValues, this.thisa, this.benva, this.store, this.returnKont, this.kont, c);
+  }
+
+jseval.applyFunction =
+  function (applicationNode, funNode, statica, operandValues, thisa, benva, store, kont, c)
+  {
+    var bodyNode = funNode.body;
+    var nodes = bodyNode.body;
+    if (nodes.length === 0)
+    {
+      return kont[0].apply(c.L_UNDEFINED, store, kont, c);
+    }
+    
+    var formalParameters = funNode.params;
+  
+    var extendedBenv = c.createEnvironment(statica);    
+    extendedBenv = extendedBenv.add(c.P_THIS, c.l.abst1(thisa));
+    for (var i = 0; i < formalParameters.length; i++)
+    {
+      var param = formalParameters[i];
+      extendedBenv = extendedBenv.add(c.p.abst1(param.name), operandValues[i]);
+    }    
+    var extendedBenva = c.a.benv(applicationNode, benva, store, kont);
+    
+    store = c.e.doHoisting(funNode, benva, store, kont, c);
+    store = store.allocAval(extendedBenva, extendedBenv);
+    
+    // ECMA 13.2.1(6): [[Code]] cannot be evaluated as StatementList
+    var frame = new BodyKont(bodyNode, 1, extendedBenva);
+    return c.e.evalNode(nodes[0], extendedBenva, store, kont.addFirst(frame), c);
+  }
+
+function BodyKont(node, i, benva, marks)
+{
+  this.node = node;
+  this.i = i;
+  this.benva = benva;
+  this.marks = marks || [];
+}
+BodyKont.prototype.toString =
+  function ()
+  {
+    return "<body " + this.node.tag + " " + this.i + " " + this.benva + ">";
+  }
+BodyKont.prototype.mark =
+  function (mark)
+  {
+    return new BodyKont(this.node, this.i, this.benva, this.marks.addUniqueLast(mark));
+  }
+BodyKont.prototype.addresses =
+  function ()
+  {
+    return [this.benva];
+  }
+BodyKont.prototype.apply =
+  function (ignoredValue, store, kont, c)
+  {
+    var node = this.node;
+    var benva = this.benva;
+    var i = this.i;
+    
+    print("node", node);
+    var nodes = node.body;
+    if (i === nodes.length)
+    {
+      return kont[0].apply(c.L_UNDEFINED, store, kont.slice(1), c);
+    }
+    var frame = new BodyKont(node, i + 1, benva);
+    return c.e.evalNode(nodes[i], benva, store, kont.addFirst(frame), c);
+  }
+
+jseval.evalReturnStatement =
+  function (node, benva, store, kont, c)
+  {
+    var argumentNode = node.argument;
+    if (argumentNode === null)
+    {
+      return c.e.scanReturn(node, c.L_UNDEFINED, store, kont, c);
+    }
+    
+    var frame = new ReturnKont(node, benva);
+    return c.e.evalNode(argumentNode, benva, store, kont.addFirst(frame), c);
+  }
+
+function ReturnKont(node, benva)
+{
+  this.node = node;
+  this.benva = benva;
+}
+ReturnKont.prototype.toString =
+  function ()
+  {
+    return "<ret " + this.node.tag + " " + this.benva + ">";
+  }
+ReturnKont.prototype.addresses =
+  function ()
+  {
+    return [this.benva];
+  }
+ReturnKont.prototype.apply =
+  function (returnValue, store, kont, c)
+  {
+    var node = this.node;
+    var benva = this.benva;    
+    return c.e.scanReturn(node, returnValue, store, kont, c);
+  }
+
 jseval.evalNode =
   function (node, benva, store, kont, c)
   {
@@ -630,6 +948,7 @@ jseval.initialize =
 //    c.P_BOOL = c.P_TRUE.join(c.P_FALSE);
     c.P_THIS = c.p.abst1("this");
     c.P_PROTOTYPE = c.p.abst1("prototype");
+    c.P_CONSTRUCTOR = c.p.abst1("constructor");
     c.P_LENGTH = c.p.abst1("length");
     c.P_NULL = c.p.abst1(null);
     c.P_NUMBER = c.p.NUMBER;
@@ -649,9 +968,9 @@ jseval.initialize =
     var arrayPa = new ContextAddr("Array.prototype", 0);
     c.arrayProtoRef = c.l.abst1(arrayPa);
             
-    c.createEnvironment = function(parenta, sourceNode, declarationNode)
+    c.createEnvironment = function (parenta)
     {
-      var benv = c.b.createEnvironment(parenta, sourceNode, declarationNode);
+      var benv = c.b.createEnvironment(parenta);
       return benv;
     }
 
@@ -1335,14 +1654,6 @@ jseval.initialize =
         return this.applyFunction === other.applyFunction; // this case needed? (finite number of fixed prims)
       }
     
-//    BenvPrimitiveCall.prototype.mark =
-//      function (cont, application, funAddr)
-//      {
-//        var markedCont = cont.addMark(new CallMark(application, funAddr, this));
-//        markedCont.toString = cont.toString; // DEBUG
-//        return markedCont;
-//      }
-
     BenvPrimitiveCall.prototype.addresses =
       function ()
       {
@@ -1376,14 +1687,24 @@ jseval.initialize =
           && this.scope.equals(other.scope);
       }
 
-//    BenvClosureCall.prototype.mark =
-//      function (cont, application, funAddr)
-//      {
-//        var markedCont = cont.addMark(new CallMark(application, funAddr, this));
-//        markedCont.toString = cont.toString; // DEBUG
-//        return markedCont;
-//      }
-            
+    BenvClosureCall.prototype.applyFunction =
+      function (application, operandValues, thisa, benva, store, returnKont, kont, c)
+      {
+//        print("BenvClosureCall.applyFunction", application, "operandValues", operandValues, "ths", ths);
+        var fun = this.node;
+        var statica = this.scope;
+        print("marking", returnKont);
+        var markedKont = returnKont.mark(application);
+        return c.e.applyFunction(application, fun, statica, operandValues, thisa, benva, store, kont.addFirst(markedKont), c);
+      }
+
+    BenvClosureCall.prototype.addresses =
+      function ()
+      {
+        return [this.scope];
+      }
+
+    
     c.store = store;
     return c;
   }
