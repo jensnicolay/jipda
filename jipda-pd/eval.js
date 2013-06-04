@@ -140,6 +140,7 @@ jseval.evalStatementList =
     if (nodes.length === 1)
     {
       return [new EvalState(nodes[0], benva, store, kont)];
+//      return c.e.evalNode(nodes[0], benva, store, kont, c);
     }
     var frame = new StatementListKont(node, 1, benva, c.L_UNDEFINED);
     return [new EvalState(nodes[0], benva, store, kont.addFirst(frame))];
@@ -153,6 +154,25 @@ function StatementListKont(node, i, benva, lastValue, marks)
   this.lastValue = lastValue;
   this.marks = marks || [];
 }
+StatementListKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node
+      && this.i === x.i
+      && Eq.equals(this.benva, x.benva)
+      && Eq.equals(this.lastValue, x.lastValue);
+  }
+StatementListKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + i;
+    result = prime * result + benva.hashCode();
+    result = prime * result + lastValue.hashCode();
+    return result;
+  }
 StatementListKont.prototype.mark =
   function (mark)
   {
@@ -223,6 +243,21 @@ function VariableDeclarationKont(node, i, benva)
   this.i = i;
   this.benva = benva;
 }
+VariableDeclarationKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node && this.i === x.i && Eq.equals(this.benva, x.benva);
+  }
+VariableDeclarationKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + i;
+    result = prime * result + benva.hashCode();
+    return result;
+  }
 VariableDeclarationKont.prototype.toString =
   function ()
   {
@@ -267,6 +302,20 @@ function VariableDeclaratorKont(node, benva)
   this.node = node;
   this.benva = benva;
 }
+VariableDeclaratorKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node && Eq.equals(this.benva, x.benva);
+  }
+VariableDeclaratorKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + benva.hashCode();
+    return result;
+  }
 VariableDeclaratorKont.prototype.toString =
   function ()
   {
@@ -301,6 +350,20 @@ function LeftKont(node, benva, marks)
   this.benva = benva;
   this.marks = marks || [];
 }
+LeftKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node && Eq.equals(this.benva, x.benva);
+  }
+LeftKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + benva.hashCode();
+    return result;
+  }
 LeftKont.prototype.toString =
   function ()
   {
@@ -332,6 +395,21 @@ function RightKont(node, benva, leftValue, marks)
   this.leftValue = leftValue;
   this.marks = marks || [];
 }
+RightKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node && Eq.equals(this.benva, x.benva) && Eq.equals(this.leftValue, x.leftValue);
+  }
+RightKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + benva.hashCode();
+    result = prime * result + leftValue.hashCode();
+    return result;
+  }
 RightKont.prototype.toString =
   function ()
   {
@@ -491,6 +569,20 @@ function AssignIdentifierKont(node, benva)
   this.node = node;
   this.benva = benva;
 }
+AssignIdentifierKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node && Eq.equals(this.benva, x.benva);
+  }
+AssignIdentifierKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + benva.hashCode();
+    return result;
+  }
 AssignIdentifierKont.prototype.toString =
   function ()
   {
@@ -607,6 +699,20 @@ function OperatorKont(node, benva, marks)
   this.benva = benva;
   this.marks = marks || [];
 }
+OperatorKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node && Eq.equals(this.benva, x.benva);
+  }
+OperatorKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + benva.hashCode();
+    return result;
+  }
 OperatorKont.prototype.toString =
   function ()
   {
@@ -647,6 +753,29 @@ function OperandsKont(node, i, benva, operatorValue, operandValues, thisValue, m
   this.thisValue = thisValue;
   this.marks = marks || [];
 }
+OperandsKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node 
+      && this.i === x.i 
+      && Eq.equals(this.benva, x.benva) 
+      && Eq.equals(this.operatorValue, x.operatorValue) 
+      && Eq.equals(this.operandValues, x.operandValues) 
+      && Eq.equals(this.thisValue, x.thisValue);
+  }
+OperandsKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + i;
+    result = prime * result + benva.hashCode();
+    result = prime * result + operatorValue.hashCode();
+    result = prime * result + operandValues.hashCode();
+    result = prime * result + thisValue.hashCode();
+    return result;
+  }
 OperandsKont.prototype.toString =
   function ()
   {
@@ -737,6 +866,39 @@ function ApplyState(node, fun, statica, operandValues, thisa, benva, store, kont
   this.store = store;
   this.kont = kont;
 }
+ApplyState.prototype.toControlState =
+  function ()
+  {
+    return new ApplyState(this.node, this.fun, this.statica, this.operandValues, this.thisa, this.benva, this.store, null);
+  }
+ApplyState.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node 
+      && this.fun === x.fun 
+      && Eq.equals(this.statica, x.statica) 
+      && Eq.equals(this.operandValues, x.operandValues) 
+      && Eq.equals(this.thisa, x.thisa) 
+      && Eq.equals(this.benva, x.benva) 
+      && Eq.equals(this.store, x.store) 
+      && Eq.equals(this.kont, x.kont);
+  }
+ApplyState.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + fun.hashCode();
+    result = prime * result + statica.hashCode();
+    result = prime * result + operandValues.hashCode();
+    result = prime * result + thisa.hashCode();
+    result = prime * result + benva.hashCode();
+    result = prime * result + store.hashCode();
+    result = prime * result + kont.hashCode();
+    return result;
+  }
+
 ApplyState.prototype.toString =
   function ()
   {
@@ -749,7 +911,7 @@ ApplyState.prototype.next =
     return c.e.applyFunction(this.node, this.fun, this.statica, this.operandValues, this.thisa, this.benva, this.store, this.kont, c);
   }
 
-function CallState(node, callable, operandValues, thisa, benva, store, returnKont, kont)
+function CallState(node, callable, operandValues, thisa, benva, store, returnFrame, kont)
 {
   this.node = node;
   this.callable = callable;
@@ -757,19 +919,50 @@ function CallState(node, callable, operandValues, thisa, benva, store, returnKon
   this.thisa = thisa;
   this.benva = benva;
   this.store = store;
-  this.returnKont = returnKont;
+  this.returnFrame = returnFrame;
   this.kont = kont;
 }
+CallState.prototype.toControlState =
+  function ()
+  {
+    return new CallState(this.node, this.callable, this.operandValues, this.thisa, this.benva, this.store, this.returnFrame, null);
+  }
+CallState.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node
+      && Eq.equals(this.callable, x.callable)
+      && Eq.equals(this.operandValues, x.operandValues)
+      && Eq.equals(this.thisa, x.thisa)
+      && Eq.equals(this.benva, x.benva)
+      && Eq.equals(this.store, x.store)
+      && Eq.equals(this.returnFrame, x.returnFrame)
+      && Eq.equals(this.kont, x.kont);
+  }
+CallState.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + callable.hashCode();
+    result = prime * result + oeprandValues.hashCode();
+    result = prime * result + thisa.hashCode();
+    result = prime * result + benva.hashCode();
+    result = prime * result + store.hashCode();
+    result = prime * result + returnFrame.hashCode();
+    result = prime * result + kont.hashCode();
+    return result;
+  }
 CallState.prototype.toString =
   function ()
   {
     return "#call " + this.node.tag;
   }
-
 CallState.prototype.next =
   function (c)
   {
-    return this.callable.applyFunction(this.node, this.operandValues, this.thisa, this.benva, this.store, this.returnKont, this.kont, c);
+    return this.callable.applyFunction(this.node, this.operandValues, this.thisa, this.benva, this.store, this.returnFrame, this.kont, c);
   }
 
 function KontState(frame, value, store, kont)
@@ -779,6 +972,30 @@ function KontState(frame, value, store, kont)
   this.store = store;
   this.kont = kont;
 }
+KontState.prototype.toControlState =
+  function ()
+  {
+    return new KontState(this.frame, this.value, this.store, null);
+  }
+KontState.prototype.equals =
+  function (x)
+  {
+    return Eq.equals(this.frame, x.frame) 
+      && Eq.equals(this.value, x.value) 
+      && Eq.equals(this.store, x.store)
+      && Eq.equals(this.kont, x.kont);
+  }
+KontState.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + frame.hashCode();
+    result = prime * result + value.hashCode();
+    result = prime * result + store.hashCode();
+    result = prime * result + kont.hashCode();
+    return result;
+  }
 KontState.prototype.toString =
   function ()
   {
@@ -827,6 +1044,23 @@ function BodyKont(node, i, benva, marks)
   this.benva = benva;
   this.marks = marks || [];
 }
+BodyKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node
+      && this.i === x.i
+      && Eq.equals(this.benva, x.benva);
+  }
+BodyKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + i;
+    result = prime * result + benva.hashCode();
+    return result;
+  }
 BodyKont.prototype.toString =
   function ()
   {
@@ -877,6 +1111,21 @@ function ReturnKont(node, benva, marks)
   this.benva = benva;
   this.marks = marks || [];
 }
+ReturnKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node 
+      && Eq.equals(this.benva, x.benva);
+  }
+ReturnKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + benva.hashCode();
+    return result;
+  }
 ReturnKont.prototype.toString =
   function ()
   {
@@ -908,6 +1157,32 @@ function ReturnState(node, returnValue, store, frame, kont)
   this.frame = frame;
   this.kont = kont;
 }
+ReturnState.prototype.toControlState =
+  function ()
+  {
+    return new ReturnState(this.node, this.returnValue, this.store, this.frame, null);
+  }
+ReturnState.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node 
+      && Eq.equals(this.returnValue, x.returnValue) 
+      && Eq.equals(this.store, x.store) 
+      && Eq.equals(this.frame, x.frame) 
+      && Eq.equals(this.kont, x.kont);
+  }
+ReturnState.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + returnValue.hashCode();
+    result = prime * result + store.hashCode();
+    result = prime * result + frame.hashCode();
+    result = prime * result + kont.hashCode();
+    return result;
+  }
 ReturnState.prototype.toString =
   function ()
   {
@@ -962,6 +1237,20 @@ function IfKont(node, benva, marks)
   this.benva = benva;
   this.marks = marks || [];
 }
+IfKont.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node && Eq.equals(this.benva, x.benva);
+  }
+IfKont.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + benva.hashCode();
+    return result;
+  }
 IfKont.prototype.toString =
   function ()
   {

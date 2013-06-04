@@ -36,13 +36,9 @@ var Eq =
       {
         return false;
       }
-      if (x.equals)
-      {
-        return x.equals(y);
-      }
-      return false;
+      return x.equals(y);
     }
-  };
+  }
 
 Eq.checker =
   function (x)

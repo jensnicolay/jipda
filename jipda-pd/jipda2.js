@@ -5,12 +5,37 @@ function EvalState(node, benva, store, kont)
   this.store = store;
   this.kont = kont;
 }
+EvalState.prototype.toControlState =
+  function ()
+  {
+    return new EvalState(this.node, this.benva, this.store, null);
+  }
 EvalState.prototype.toString =
   function ()
   {
     return "#eval " + this.node.tag;
   }
-
+EvalState.prototype.equals =
+  function (x)
+  {
+    return this.node === x.node && Eq.equals(this.benva, x.benva) && Eq.equals(this.store, x.store) && Eq.equals(this.kont, x.kont);
+  }
+EvalState.prototype.subsumes =
+  function (x)
+  {
+    return this.node === x.node && this.benva.subsumes(x.benva) && this.store.subsumes(x.store) && this.kont.subsumes(x.kont);
+  }
+EvalState.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + node.hashCode();
+    result = prime * result + benva.hashCode();
+    result = prime * result + store.hashCode();
+    result = prime * result + kont.hashCode();
+    return result;
+  }
 EvalState.prototype.next =
   function (c)
   {
@@ -441,8 +466,11 @@ Jipda.run =
   function (state, c)
   {
     var states = [state];
+    var transitions = [];
+    var counter = 0;
     while (states.length > 0)
     {
+      print(counter++, transitions.length);
       var from = states[0];
       var next = from.next(c);
       var fromKont = from.kont;
@@ -450,24 +478,35 @@ Jipda.run =
       next.forEach(function (to)
       {
         var toKont = to.kont;
-        if (!toKont) { print("***" + to) }
         var tl = toKont.length;
+        var l = transitions.length;
+        var stackAct;
         if (tl - 1 === fl)
         {
-          print(from, "push", toKont[0], to);
+          var frame = toKont[0];
+          stackAct = new Push(frame);
         }
         else if (tl === fl)
         {
-          print(from, "unch***********************", to);
+          stackAct = new Unch();
         }
         else if (tl + 1 === fl)
         {
-          print(from, "pop", fromKont[0], to);
+          var frame = fromKont[0];
+          stackAct = new Pop(frame);
         }
         else
         {
           throw new Error("illegal stack change " + from + "->" + to + "\n" + fromKont + "->" + toKont);
         }
+        var fromControlState = from.toControlState();
+        var toControlState = to.toControlState();
+        transition = new Transition(fromControlState, stackAct, toControlState);
+        transitions = transitions.addUniqueLast(transition);
+//        if (transitions.length === l)
+//        {
+//          print("done?");
+//        }
       });
       states = states.slice(1).concat(next);
     }
