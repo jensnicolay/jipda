@@ -426,8 +426,8 @@ Jipda.run =
     var counter = 0;
     while (states.length > 0)
     {
-      print(counter++, transitions.length);
       var from = states[0];
+      counter++;
       var next = from.next(c);
       var fromKont = from.kont;
       var fl = fromKont.length;
@@ -466,7 +466,7 @@ Jipda.run =
       });
       states = states.slice(1).concat(next);
     }
-    return {};
+    return {numberOfStates:counter};
   }
 
 function repl(config)

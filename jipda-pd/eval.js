@@ -20,7 +20,10 @@ EvalState.prototype.toString =
 EvalState.prototype.equals =
   function (x)
   {
-    return this.node === x.node && Eq.equals(this.benva, x.benva) && Eq.equals(this.store, x.store) && Eq.equals(this.kont, x.kont);
+    return this.node === x.node 
+      && Eq.equals(this.benva, x.benva)
+      && Eq.equals(this.store, x.store)
+      && Eq.equals(this.kont, x.kont);
   }
 EvalState.prototype.subsumes =
   function (x)
@@ -34,8 +37,8 @@ EvalState.prototype.hashCode =
     var result = 1;
     result = prime * result + node.hashCode();
     result = prime * result + benva.hashCode();
-    result = prime * result + store.hashCode();
-    result = prime * result + kont.hashCode();
+//    result = prime * result + store.hashCode();
+//    result = prime * result + kont.hashCode();
     return result;
   }
 EvalState.prototype.next =
@@ -71,8 +74,8 @@ KontState.prototype.hashCode =
     var result = 1;
     result = prime * result + frame.hashCode();
     result = prime * result + value.hashCode();
-    result = prime * result + store.hashCode();
-    result = prime * result + kont.hashCode();
+//    result = prime * result + store.hashCode();
+//    result = prime * result + kont.hashCode();
     return result;
   }
 KontState.prototype.toString =
@@ -125,9 +128,9 @@ CallState.prototype.hashCode =
     result = prime * result + oeprandValues.hashCode();
     result = prime * result + thisa.hashCode();
     result = prime * result + benva.hashCode();
-    result = prime * result + store.hashCode();
+//    result = prime * result + store.hashCode();
     result = prime * result + returnFrame.hashCode();
-    result = prime * result + kont.hashCode();
+//    result = prime * result + kont.hashCode();
     return result;
   }
 CallState.prototype.toString =
@@ -180,8 +183,8 @@ ApplyState.prototype.hashCode =
     result = prime * result + operandValues.hashCode();
     result = prime * result + thisa.hashCode();
     result = prime * result + benva.hashCode();
-    result = prime * result + store.hashCode();
-    result = prime * result + kont.hashCode();
+//    result = prime * result + store.hashCode();
+//    result = prime * result + kont.hashCode();
     return result;
   }
 
@@ -226,9 +229,9 @@ ReturnState.prototype.hashCode =
     var result = 1;
     result = prime * result + node.hashCode();
     result = prime * result + returnValue.hashCode();
-    result = prime * result + store.hashCode();
+//    result = prime * result + store.hashCode();
     result = prime * result + frame.hashCode();
-    result = prime * result + kont.hashCode();
+//    result = prime * result + kont.hashCode();
     return result;
   }
 ReturnState.prototype.toString =
