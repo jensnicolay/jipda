@@ -1,47 +1,3 @@
-function EvalState(node, benva, store, kont)
-{
-  this.node = node;
-  this.benva = benva;
-  this.store = store;
-  this.kont = kont;
-}
-EvalState.prototype.toControlState =
-  function ()
-  {
-    return new EvalState(this.node, this.benva, this.store, null);
-  }
-EvalState.prototype.toString =
-  function ()
-  {
-    return "#eval " + this.node.tag;
-  }
-EvalState.prototype.equals =
-  function (x)
-  {
-    return this.node === x.node && Eq.equals(this.benva, x.benva) && Eq.equals(this.store, x.store) && Eq.equals(this.kont, x.kont);
-  }
-EvalState.prototype.subsumes =
-  function (x)
-  {
-    return this.node === x.node && this.benva.subsumes(x.benva) && this.store.subsumes(x.store) && this.kont.subsumes(x.kont);
-  }
-EvalState.prototype.hashCode =
-  function ()
-  {
-    var prime = 7;
-    var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + benva.hashCode();
-    result = prime * result + store.hashCode();
-    result = prime * result + kont.hashCode();
-    return result;
-  }
-EvalState.prototype.next =
-  function (c)
-  {
-    return c.e.evalNode(this.node, this.benva, this.store, this.kont, c);
-  }
-
 function HaltKont()
 {
 }
@@ -502,7 +458,7 @@ Jipda.run =
         var fromControlState = from.toControlState();
         var toControlState = to.toControlState();
         transition = new Transition(fromControlState, stackAct, toControlState);
-        transitions = transitions.addUniqueLast(transition);
+//        transitions = transitions.addUniqueLast(transition);
 //        if (transitions.length === l)
 //        {
 //          print("done?");
