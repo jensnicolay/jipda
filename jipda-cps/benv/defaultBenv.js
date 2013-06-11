@@ -192,8 +192,8 @@ Benv.prototype.subsumes =
     {
       var thisEntry = this.frame[i];
       var thisName = thisEntry.name;
-      var thisValue = this.lookup(thisName).value;
-      var xValue = x.lookup(thisName).value;
+      var thisValue = this.lookup(thisName);
+      var xValue = x.lookup(thisName);
       if (!thisValue.subsumes(xValue))
       {
         return false;
@@ -230,8 +230,8 @@ Benv.prototype.diff = //DEBUG
     {
       var thisEntry = this.frame[i];
       var thisName = thisEntry.name;
-      var thisValue = this.lookup(thisName).value;
-      var xValue = x.lookup(thisName).value;
+      var thisValue = this.lookup(thisName);
+      var xValue = x.lookup(thisName);
       if (!thisValue.equals(xValue))
       {
         diff.push(thisName + "\t" + thisValue + " -- " + xValue);
@@ -241,8 +241,8 @@ Benv.prototype.diff = //DEBUG
     {
       var xEntry = x.frame[i];
       var xName = xEntry.name;
-      var xValue = x.lookup(xName).value;
-      var thisValue = this.lookup(xName).value;
+      var xValue = x.lookup(xName);
+      var thisValue = this.lookup(xName);
       if (thisValue === BOT)
       {
         diff.push(xName + "\t" + thisValue + " -- " + xValue);

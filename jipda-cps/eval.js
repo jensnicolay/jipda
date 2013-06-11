@@ -951,7 +951,7 @@ IfKont.prototype.apply =
       var alternateState;
       if (alternate === null)
       {
-        alternateState = new KontState(c.L_UNDEFINED, store, kont);
+        alternateState = new KontState(c.L_UNDEFINED, store, kont.slice(1));
       }
       else
       {

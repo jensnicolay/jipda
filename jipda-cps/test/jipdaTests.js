@@ -9,7 +9,7 @@ var suiteJipdaTests =
     {
       var ast = createAst("42");
       var lat = new LatN(1);
-      var jipda = new Jipda({lattice: lat, k:0, ag: timeDefaultAg});
+      var jipda = new Jipda({lattice: lat, k:0, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(jipda.lattice.abst1(42), actual);
@@ -19,7 +19,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("var sq = function (x) {return x * x;}; sq(5); sq(6);");
-  		var lat = new LatN(4);var jipda = new Jipda({lattice: lat, k:0, ag: timeDefaultAg, gc: false});
+  		var lat = new LatN(4);var jipda = new Jipda({lattice: lat, k:0, a; timeDefaultAg, gc: false});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       // property addresses: var allocated as (vr, time)
@@ -32,7 +32,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("var sq = function (x) {return x * x;}; sq(5); sq(6);");
-  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:0, ag: timeDefaultAg});
+  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:0, a: timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(jipda.lattice.abst1(36), actual);
@@ -42,7 +42,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("var sq = function (x) {return x * x;}; sq(5); sq(6);");
-  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:1, ag: timeDefaultAg});
+  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:1, a: timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(jipda.lattice.abst1(36), actual);
@@ -52,7 +52,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("var count = function (n) {if (n===0) {return 'done';} else {return count(n-1);}}; count(200);");
-  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:1, ag: timeDefaultAg});
+  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:1, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(jipda.lattice.abst1("done"), actual);
@@ -62,7 +62,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("var count = function (n) {if (n===0) {return 'done';} else {return count(n-1);}}; count(200);");
-  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:4, ag: timeDefaultAg});
+  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:4, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(jipda.lattice.abst1("done"), actual);
@@ -72,7 +72,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("var t = function (x) {return t(x+1);}; t(0);");
-  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:4, ag: timeDefaultAg});
+  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:4, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(BOT, actual);
@@ -83,7 +83,7 @@ var suiteJipdaTests =
   	{
   		var ast = createAst("var fib = function (n) {if (n<2) {return n;} return fib(n-1)+fib(n-2);}; fib(4);");
   		var lat = new LatN(1);
-  		var jipda = new Jipda({lattice: lat, k:4, ag: timeDefaultAg});
+  		var jipda = new Jipda({lattice: lat, k:4, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(jipda.lattice.abst1(3), actual);
@@ -93,7 +93,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("var z=0; var f=function (i) { if (i<4) {z=z+1;f(i+1);}}; f(0); z;");
-  		var lat = new LatN(4);var jipda = new Jipda({lattice: lat, k:3, ag: timeDefaultAg});
+  		var lat = new LatN(4);var jipda = new Jipda({lattice: lat, k:3, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(jipda.lattice.abst([4,5]), actual); // concrete: 4
@@ -103,7 +103,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("var z=0; var f=function (i) { if (i<4) {z=z+1;f(i+1);}}; f(0); z;");
-  		var lat = new LatN(4);var jipda = new Jipda({lattice: lat, k:4, ag: timeDefaultAg});
+  		var lat = new LatN(4);var jipda = new Jipda({lattice: lat, k:4, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(jipda.lattice.abst1(4), actual);
@@ -113,7 +113,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("var z=0; var s=0; var f=function (i) {if (z === 7) {s=s+1} if (i<10) {z=z+1;f(i+1);}}; f(0); s;");
-  		var lat = new LatN(4);var jipda = new Jipda({lattice: lat, k:0, ag: timeDefaultAg});
+  		var lat = new LatN(4);var jipda = new Jipda({lattice: lat, k:0, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		// concrete: 1 (but k === 0 !!!)
@@ -126,7 +126,7 @@ var suiteJipdaTests =
   	{
   		var ast = createAst("var z=0; var c=false; var f=function (i) {if (z === 7) {c=true} if (i<10) {z=z+1;f(i+1);}}; f(0); c;");
   		var lat = new LatN(4);
-  		var jipda = new Jipda({lattice: lat, k:0, ag: timeDefaultAg});
+  		var jipda = new Jipda({lattice: lat, k:0, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       // concrete: true
@@ -138,7 +138,7 @@ var suiteJipdaTests =
   	{
   		var ast = createAst("var z=0; var c=false; var f=function (i) {if (z === 7) {c=true} if (i<10) {z=z+1;f(i+1);}}; f(0); z;");
   		var lat = new LatN(4);
-  		var jipda = new Jipda({lattice: lat, k:999, ag: timeDefaultAg});
+  		var jipda = new Jipda({lattice: lat, k:999, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(jipda.lattice.abst1(10), actual);
@@ -152,7 +152,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("for (var i=0; i<3; i++) i;");
-  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:3, ag: timeDefaultAg});
+  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:3, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(jipda.lattice.abst1(2), actual);
@@ -162,7 +162,7 @@ var suiteJipdaTests =
   	function ()
   	{
   		var ast = createAst("for (var i=0; i<3; i++) i;");
-  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:2, ag: timeDefaultAg});
+  		var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:2, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(lat.Top, actual.user);
@@ -175,7 +175,7 @@ var suiteJipdaTests =
   	{
   		var ast = createAst("for (var i=0; i<3; i++) i; i;");
   		var lat = new LatN(1);
-  		var jipda = new Jipda({lattice: lat, k:3, ag: timeDefaultAg});
+  		var jipda = new Jipda({lattice: lat, k:3, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
   		assertEquals(jipda.lattice.abst1(3), actual);
@@ -186,7 +186,7 @@ var suiteJipdaTests =
   	{
   		var ast = createAst("for (var i=0; i<3; i++) i; i;");
   		var lat = new LatN(1);
-  		var jipda = new Jipda({lattice: lat, k:2, ag: timeDefaultAg});
+  		var jipda = new Jipda({lattice: lat, k:2, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(lat.Top, actual.user);
@@ -197,7 +197,7 @@ var suiteJipdaTests =
     function ()
     {
       var ast = createAst("for (var i=0; true; i++) i; i;");
-      var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:4, ag: timeDefaultAg});
+      var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:4, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(BOT, actual);
@@ -208,7 +208,7 @@ var suiteJipdaTests =
     {
       var ast = createAst("var ar = []; for (var i = 0; i < 1000; i++) {ar[i] = i;}; ar;");
       var lat = new LatN(1);
-      var jipda = new Jipda({lattice: lat, k:4, ag: timeDefaultAg});
+      var jipda = new Jipda({lattice: lat, k:4, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       //assertEquals("{100}", actual);
@@ -220,7 +220,7 @@ var suiteJipdaTests =
       var src = "var a = new Array(10); a.length";
       var ast = createAst(src);
       var lat = new LatN(1);
-      var jipda = new Jipda({lattice: lat, k:0, ag: timeDefaultAg});
+      var jipda = new Jipda({lattice: lat, k:0, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(jipda.lattice.abst1(10), actual); 
@@ -231,7 +231,7 @@ var suiteJipdaTests =
     {
       var src = "var a = new Array(10); a[3] = 3; a.length";
       var ast = createAst(src);
-      var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:0, ag: timeDefaultAg});
+      var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:0, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(jipda.lattice.abst1(10), actual); 
@@ -243,7 +243,7 @@ var suiteJipdaTests =
       var src = "var a = 0; for (var i = 0; i < 1000; i++); a = 1; a";
       var ast = createAst(src);
       var lat = new LatN(2);
-      var jipda = new Jipda({lattice: lat, k:0, ag: timeDefaultAg});
+      var jipda = new Jipda({lattice: lat, k:0, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       // property addresses:
@@ -257,7 +257,7 @@ var suiteJipdaTests =
       var src = read("test/resources/loopy1.js");
       var ast = createAst(src);
       var lat = new LatN(1);
-      var jipda = new Jipda({lattice: lat, k:4, ag: timeDefaultAg});
+      var jipda = new Jipda({lattice: lat, k:4, a; timeDefaultAg});
 //      var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       var result = jipda.evalNode(ast);
     }
@@ -268,7 +268,7 @@ var suiteJipdaTests =
       var src = read("test/resources/loopy2.js");
       var ast = createAst(src);
       var lat = new LatN(1);
-      var jipda = new Jipda({lattice: lat, k:4, ag: timeDefaultAg});
+      var jipda = new Jipda({lattice: lat, k:4, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(jipda.lattice.abst1(true), actual);
@@ -280,7 +280,7 @@ var suiteJipdaTests =
       var src = read("test/resources/nssetup.js");
       var ast = createAst(src);
       var lat = new LatN(1);
-      var jipda = new Jipda({lattice: lat, k:1, ag: timeDefaultAg});
+      var jipda = new Jipda({lattice: lat, k:1, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(jipda.lattice.abst1(true), actual);
@@ -292,7 +292,7 @@ var suiteJipdaTests =
       // GC bug: primitives should add receiver + operands to root
       var src = "[1,2,3].map(function (x) { return x + 1 })";
       var ast = createAst(src);
-      var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:1, ag: timeDefaultAg});
+      var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:1, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       //assertEquals(jipda.lattice.abst1(true), actual); TODO when abstract printer       
@@ -304,7 +304,7 @@ var suiteJipdaTests =
     // GC bug: primitives should add operator + operands to root
       var src = "[2,3,4].map(function (x) { return x*x*x })[1]";
       var ast = createAst(src);
-      var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:1, ag: timeDefaultAg});
+      var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:1, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(jipda.lattice.abst1(27), actual);       
@@ -315,7 +315,7 @@ var suiteJipdaTests =
     {
       var src = "[2,3,4].reduce(function (x,y) {return x+y})";
       var ast = createAst(src);
-      var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:1, ag: timeDefaultAg});
+      var lat = new LatN(1);var jipda = new Jipda({lattice: lat, k:1, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(jipda.lattice.abst1(9), actual);       
@@ -326,7 +326,7 @@ var suiteJipdaTests =
     {
       var src = "var o1={x:1}; var o2={x:2}; var o=$join(o1,o2); o.x";
       var ast = createAst(src);
-      var lat = new LatN(2);var jipda = new Jipda({lattice: lat, k:1, ag: timeDefaultAg});
+      var lat = new LatN(2);var jipda = new Jipda({lattice: lat, k:1, a; timeDefaultAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(jipda.lattice.abst([1,2]), actual);           
@@ -338,7 +338,7 @@ var suiteJipdaTests =
       var src = "var a=[]; for (var i = 0; i < 1000; i++) { a.push({x:5}) }"; // (bug) should not crash
       var ast = createAst(src);
       var lat = new Lattice1();
-      var jipda = new Jipda({lattice: lat, k:0, ag: tagAg});
+      var jipda = new Jipda({lattice: lat, k:0, a; tagAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(lat.Num, actual.user);           
@@ -350,7 +350,7 @@ var suiteJipdaTests =
       var src = "function f(){for (var i = 0; i < 10; i++){var j = i * i;} return j;}; f()";
       var ast = createAst(src);
       var lat = new Lattice1();
-      var jipda = new Jipda({lattice: lat, k:0, ag: tagAg});
+      var jipda = new Jipda({lattice: lat, k:0, a; tagAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(lat.Num, actual.user);           
@@ -362,7 +362,7 @@ var suiteJipdaTests =
       var src = "var num = $join(1,2); function fib(n) {if (n<2) {return n} else {return fib(n-1)+fib(n-2)}}; fib(num);";
       var ast = createAst(src);
       var lat = new Lattice1(); 
-      var jipda = new Jipda({lattice: lat, k:0, ag: tagAg});
+      var jipda = new Jipda({lattice: lat, k:0, a; tagAg});
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(lat.Num, actual.user);           
@@ -374,7 +374,7 @@ var suiteJipdaTests =
       var src = read("test/resources/nssetup.js");
       var ast = createAst(src);
       var lat = new Lattice1(); 
-      var jipda = new Jipda({lattice: lat, k:2, ag: tagAg}); // for k < 2, we always join same scope (extended benv) for reset()
+      var jipda = new Jipda({lattice: lat, k:2, a; tagAg}); // for k < 2, we always join same scope (extended benv) for reset()
       var result = jipda.evalNode(ast);
       var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
       assertEquals(jipda.lattice.abst1(true), actual);

@@ -385,7 +385,7 @@ var Ast = (function ()
   }
   
   // debug
-  function printTree(n)
+  module.printTree = function (n)
   {
     nodes(n).forEach(
       function (n)
@@ -474,7 +474,7 @@ var Ast = (function ()
     return ast.body[0].expression;
   }
   
-  function tagToNode(ast)
+  module.tagToNode = function (ast)
   {
     return function (tag)
     {
@@ -487,7 +487,7 @@ var Ast = (function ()
     }
   }
   
-  function locToNode(line, col, ast)
+  module.locToNode = function (line, col, ast)
   {
     function covers(n)
     {

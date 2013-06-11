@@ -16,7 +16,7 @@ var suiteConcreteTests =
         actual = actual.join(value);
         return [];
       }
-    var c = Jipda.context({e: e, p: lat, ag: concreteAg});
+    var c = Jipda.context({e: e, p: lat, a: concreteAg});
     var state = Jipda.inject(ast, c);
     Jipda.run(state, c);
     assertEquals(c.l.abst1(expected), actual);    
@@ -26,7 +26,7 @@ var suiteConcreteTests =
   {
     var ast = createAst(src);
     var lat = new CpLattice();
-    var jipda = new Jipda({lattice: lat, k:0, ag: concreteAg, visited: concreteVisited});
+    var jipda = new Jipda({lattice: lat, k:0, a: concreteAg, visited: concreteVisited});
     try
     {
       jipda.evalNode(ast);
@@ -143,11 +143,11 @@ var suiteConcreteTests =
 //      run("var count = function (n) {if (n===0) {return 'done';} else {return count(n-1);}}; count(20);", "done");
 //    };
 //    
-//  module.test21 =
-//    function ()
-//    {
-//      run("var fib = function (n) {if (n<2) {return n;} return fib(n-1)+fib(n-2);}; fib(4);", 3);
-//    };
+  module.test21 =
+    function ()
+    {
+      run("var fib = function (n) {if (n<2) {return n} return fib(n-1)+fib(n-2)}; fib(4)", 3);
+    }
 //    
 //  module.test22a =
 //    function ()

@@ -11,6 +11,12 @@ HaltKont.prototype.apply =
   {
     return c.e.haltKont(value, store, kont, c);
   }
+HaltKont.prototype.hashCode =
+  function ()
+  {
+    return 0;
+  }
+  
 
 function JipdaLattice(primLattice)
 {
@@ -54,6 +60,26 @@ function JipdaValue(prim, as)
   this.as = as;
 }
 JipdaValue.prototype = new LatticeValue();
+JipdaValue.prototype.equals =
+  function (x)
+  {
+    if (x === BOT)
+    {
+      // !! JipdaValue(BOT, []) is NOT valid value, should be encoded as BOT
+      return false;
+    }
+    return this.prim.equals(x.prim)
+      && this.as.setEquals(x.as);
+  }
+JipdaValue.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + this.prim.hashCode();
+    result = prime * result + this.as.hashCode();
+    return result;
+  }
 
 JipdaValue.prototype.accept =
   function (visitor)
@@ -200,7 +226,7 @@ StoreValue.prototype.reset =
   
 function Store(map)
 {
-  this.map = map || new HashMap();
+  this.map = map || new HashMap(new Array(31));
 }
 
 Store.prototype.equals =
@@ -422,51 +448,58 @@ Jipda.run =
   function (state, c)
   {
     var states = [state];
-    var transitions = [];
+    var transitions = new HashSet(new HashMap(new Array(131)));
     var counter = 0;
     while (states.length > 0)
     {
       var from = states[0];
       counter++;
-      var next = from.next(c);
+      if (counter > 32768)
+      {
+        throw new Error("state space overflow");
+      }
+      var candidates = from.next(c);
       var fromKont = from.kont;
       var fl = fromKont.length;
-      next.forEach(function (to)
-      {
-        var toKont = to.kont;
-        var tl = toKont.length;
-        var l = transitions.length;
-        var stackAct;
-        if (tl - 1 === fl)
+      var next = candidates.filter(
+        function (to)
         {
-          var frame = toKont[0];
-          stackAct = new Push(frame);
-        }
-        else if (tl === fl)
-        {
-          stackAct = new Unch();
-        }
-        else if (tl + 1 === fl)
-        {
-          var frame = fromKont[0];
-          stackAct = new Pop(frame);
-        }
-        else
-        {
-          throw new Error("illegal stack change " + from + "->" + to + "\n" + fromKont + "->" + toKont);
-        }
-        var fromControlState = from.toControlState();
-        var toControlState = to.toControlState();
-        transition = new Transition(fromControlState, stackAct, toControlState);
-//        transitions = transitions.addUniqueLast(transition);
-//        if (transitions.length === l)
-//        {
-//          print("done?");
-//        }
-      });
+          var toKont = to.kont;
+          var tl = toKont.length;
+          var stackAct;
+          if (tl - 1 === fl)
+          {
+            var frame = toKont[0];
+            stackAct = new Push(frame);
+          }
+          else if (tl === fl)
+          {
+            stackAct = new Unch();
+          }
+          else if (tl + 1 === fl)
+          {
+            var frame = fromKont[0];
+            stackAct = new Pop(frame);
+          }
+          else
+          {
+            throw new Error("illegal stack change " + from + "->" + to + "\n" + fromKont + "->" + toKont);
+          }
+          var fromControlState = from.toControlState();
+          var toControlState = to.toControlState();
+          transition = new Transition(fromControlState, stackAct, toControlState);
+//          var existing = transitions.get(transition);
+          if (transitions.contains(transition))
+          {
+            print("rejecting", transition);
+            return false;            
+          }
+          transitions = transitions.add(transition);
+          return true;
+        });
       states = states.slice(1).concat(next);
     }
-    return {numberOfStates:counter};
+    return {initial: state, transitions:transitions.values(), counter:counter};
   }
 
 function repl(config)
@@ -476,7 +509,7 @@ function repl(config)
   var c = Jipda.context(config);
   var src = "'I am Jipda!'";
   var store = c.store;
-  c.e.haltKont =
+  c.e.haltKont = // TODO not a good idea: overwrites jseval
     function (hvalue, hstore)
     {
       print(hvalue);
@@ -519,14 +552,31 @@ function Transition(from, label, to)
 Transition.prototype.equals =
   function (x)
   {
-    return Eq.equals(this.from, x.from) && Eq.equals(this.label, x.label) && Eq.equals(this.to, x.to);
+//    if (this.toString() === x.toString())
+//    {
+//      print(this);
+//      print(x);
+//      print();
+//    }
+    return Eq.equals(this.from, x.from)
+      && Eq.equals(this.label, x.label)
+      && Eq.equals(this.to, x.to);
   }
 Transition.prototype.toString =
   function ()
   {
     return this.from + "==(" + this.label + ")==>" + this.to;
   }
-
+Transition.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + this.from.hashCode();
+    result = prime * result + this.label.hashCode();
+    result = prime * result + this.to.hashCode();
+    return result;    
+  }
 function Push(frame)
 {
   this.isPush = true;
@@ -536,6 +586,19 @@ Push.prototype.equals =
   function (x)
   {
     return x.isPush && Eq.equals(this.frame, x.frame);
+  }
+Push.prototype.hashCode =
+  function ()
+  {
+    var prime = 11;
+    var result = 1;
+    result = prime * result + this.frame.hashCode();
+    return result;    
+  }
+Push.prototype.toString =
+  function ()
+  {
+    return "push " + this.frame;
   }
 function Pop(frame)
 {
@@ -547,6 +610,19 @@ Pop.prototype.equals =
   {
     return x.isPop && Eq.equals(this.frame, x.frame);
   }
+Pop.prototype.hashCode =
+  function ()
+  {
+    var prime = 13;
+    var result = 1;
+    result = prime * result + this.frame.hashCode();
+    return result;    
+  }
+Pop.prototype.toString =
+  function ()
+  {
+    return "pop " + this.frame;
+  }
 function Unch()
 {
   this.isUnch = true;
@@ -555,4 +631,17 @@ Unch.prototype.equals =
   function (x)
   {
     return x.isUnch;
+  }
+Unch.prototype.hashCode =
+  function ()
+  {
+    var prime = 17;
+    var result = 1;
+    result = prime * result;
+    return result;    
+  }
+Unch.prototype.toString =
+  function ()
+  {
+    return "unch";
   }

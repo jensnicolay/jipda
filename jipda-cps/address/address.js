@@ -14,7 +14,7 @@ Addr.isAddress =
 function ContextAddr(base, context)
 {
   assertDefinedNotNull(base);
-  assertDefinedNotNull(context);
+//  assertDefinedNotNull(context);
   this.base = base; 
   this.context = context;
 }
@@ -61,5 +61,5 @@ ContextAddr.prototype.equals =
 ContextAddr.prototype.hashCode =
   function ()
   {
-    return this.base.hashCode() * 17 + this.context.hashCode() * 31;
+    return this.base.hashCode() * 17 + HashCode.hashCode(this.context) * 31;
   }

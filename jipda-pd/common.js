@@ -44,7 +44,7 @@ Eq.checker =
   function (x)
   {
     return function (y) { return Eq.equals(x,y); }; 
-  };
+  };  
   
 var HashCode = {};
 HashCode.hashCode =
@@ -53,6 +53,10 @@ HashCode.hashCode =
     if (!x)
     {
       return 0;
+    }
+    if (x === true || typeof x === "number")
+    {
+      return x >>> 0; 
     }
     return x.hashCode();
   }
@@ -603,9 +607,9 @@ Ecma.Class =
     JSON: "JSON"
   };
 
-function HashMap(entries, size)
+function HashMap(entries)
 {
-  this._entries = entries || new Array(size || 13);
+  this._entries = entries;
 }
 
 HashMap.prototype.put =
@@ -671,8 +675,49 @@ HashMap.prototype.keys =
     return this._entries.flatten().map(function (bucket) {return bucket.key});
   }
 
+HashMap.prototype.values =
+  function ()
+  {
+    return this._entries.flatten().map(function (bucket) {return bucket.value});
+  }
+
 HashMap.prototype.toString =
   function ()
   {
     return this.entries().map(function (entry) {return entry.key + " -> " + entry.value}).toString();
+  }
+
+HashMap.prototype.nice =
+  function ()
+  {
+    return this.entries().map(function (entry) {return entry.key + " -> " + entry.value}).join("\n");
+  }
+
+function HashSet(map)
+{
+  this._map = map;
+}
+
+HashSet.prototype.add =
+  function (value)
+  {
+    var existing = this._map.get(value);
+    if (existing)
+    {
+      return this;
+    }
+    return new HashSet(this._map.put(value, value));
+  }
+
+HashSet.prototype.contains =
+  function (value)
+  {
+    var existing = this._map.get(value);
+    return existing;
+  }
+
+HashSet.prototype.values =
+  function ()
+  {
+    return this._map.values();
   }

@@ -28,15 +28,23 @@ EvalState.prototype.equals =
 EvalState.prototype.subsumes =
   function (x)
   {
-    return this.node === x.node && this.benva.subsumes(x.benva) && this.store.subsumes(x.store) && this.kont.subsumes(x.kont);
+    return this.node === x.node
+      && this.benva.subsumes(x.benva)
+      && this.store.subsumes(x.store)
+      && this.kont.subsumes(x.kont);
+  }
+EvalState.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.benva];
   }
 EvalState.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.benva.hashCode();
 //    result = prime * result + store.hashCode();
 //    result = prime * result + kont.hashCode();
     return result;
@@ -67,13 +75,18 @@ KontState.prototype.equals =
       && Eq.equals(this.store, x.store)
       && Eq.equals(this.kont, x.kont);
   }
+KontState.prototype.key =
+  function ()
+  {
+    return this.frame.key();
+  }
 KontState.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + frame.hashCode();
-    result = prime * result + value.hashCode();
+    result = prime * result + this.frame.hashCode();
+    result = prime * result + this.value.hashCode();
 //    result = prime * result + store.hashCode();
 //    result = prime * result + kont.hashCode();
     return result;
@@ -118,18 +131,24 @@ CallState.prototype.equals =
       && Eq.equals(this.returnFrame, x.returnFrame)
       && Eq.equals(this.kont, x.kont);
   }
+CallState.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.benva];
+  }
+
 CallState.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + callable.hashCode();
-    result = prime * result + oeprandValues.hashCode();
-    result = prime * result + thisa.hashCode();
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.callable.hashCode();
+    result = prime * result + this.operandValues.hashCode();
+    result = prime * result + this.thisa.hashCode();
+    result = prime * result + this.benva.hashCode();
 //    result = prime * result + store.hashCode();
-    result = prime * result + returnFrame.hashCode();
+    result = prime * result + this.returnFrame.hashCode();
 //    result = prime * result + kont.hashCode();
     return result;
   }
@@ -172,17 +191,23 @@ ApplyState.prototype.equals =
       && Eq.equals(this.store, x.store) 
       && Eq.equals(this.kont, x.kont);
   }
+ApplyState.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.benva];
+  }
+
 ApplyState.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + fun.hashCode();
-    result = prime * result + statica.hashCode();
-    result = prime * result + operandValues.hashCode();
-    result = prime * result + thisa.hashCode();
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.fun.hashCode();
+    result = prime * result + this.statica.hashCode();
+    result = prime * result + this.operandValues.hashCode();
+    result = prime * result + this.thisa.hashCode();
+    result = prime * result + this.benva.hashCode();
 //    result = prime * result + store.hashCode();
 //    result = prime * result + kont.hashCode();
     return result;
@@ -222,15 +247,20 @@ ReturnState.prototype.equals =
       && Eq.equals(this.frame, x.frame) 
       && Eq.equals(this.kont, x.kont);
   }
+ReturnState.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.frame.key()];
+  }
 ReturnState.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + returnValue.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.returnValue.hashCode();
 //    result = prime * result + store.hashCode();
-    result = prime * result + frame.hashCode();
+    result = prime * result + this.frame.hashCode();
 //    result = prime * result + kont.hashCode();
     return result;
   }
@@ -261,15 +291,20 @@ StatementListKont.prototype.equals =
       && Eq.equals(this.benva, x.benva)
       && Eq.equals(this.lastValue, x.lastValue);
   }
+StatementListKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.i, this.benva];
+  }
 StatementListKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + i;
-    result = prime * result + benva.hashCode();
-    result = prime * result + lastValue.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.i;
+    result = prime * result + this.benva.hashCode();
+    result = prime * result + this.lastValue.hashCode();
     return result;
   }
 StatementListKont.prototype.mark =
@@ -331,14 +366,19 @@ VariableDeclarationKont.prototype.equals =
   {
     return this.node === x.node && this.i === x.i && Eq.equals(this.benva, x.benva);
   }
+VariableDeclarationKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.i, this.benva];
+  }
 VariableDeclarationKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + i;
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.i;
+    result = prime * result + this.benva.hashCode();
     return result;
   }
 VariableDeclarationKont.prototype.toString =
@@ -377,13 +417,18 @@ VariableDeclaratorKont.prototype.equals =
   {
     return this.node === x.node && Eq.equals(this.benva, x.benva);
   }
+VariableDeclaratorKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.benva];
+  }
 VariableDeclaratorKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.benva.hashCode();
     return result;
   }
 VariableDeclaratorKont.prototype.toString =
@@ -418,13 +463,18 @@ LeftKont.prototype.equals =
   {
     return this.node === x.node && Eq.equals(this.benva, x.benva);
   }
+LeftKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.benva];
+  }
 LeftKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.benva.hashCode();
     return result;
   }
 LeftKont.prototype.toString =
@@ -463,14 +513,19 @@ RightKont.prototype.equals =
   {
     return this.node === x.node && Eq.equals(this.benva, x.benva) && Eq.equals(this.leftValue, x.leftValue);
   }
+RightKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.benva];
+  }
 RightKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + benva.hashCode();
-    result = prime * result + leftValue.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.benva.hashCode();
+    result = prime * result + this.leftValue.hashCode();
     return result;
   }
 RightKont.prototype.toString =
@@ -514,15 +569,21 @@ function AssignIdentifierKont(node, benva)
 AssignIdentifierKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node && Eq.equals(this.benva, x.benva);
+    return this.node === x.node 
+      && Eq.equals(this.benva, x.benva);
+  }
+AssignIdentifierKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.benva];
   }
 AssignIdentifierKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.benva.hashCode();
     return result;
   }
 AssignIdentifierKont.prototype.toString =
@@ -542,7 +603,7 @@ AssignIdentifierKont.prototype.apply =
     var benva = this.benva;
     var id = node.left;
     store = c.e.doScopeSet(c.p.abst1(id.name), value, benva, store, c);
-    return [new KontState(kont[0], value, store, kont)];
+    return [new KontState(kont[0], value, store, kont.slice(1))];
   }
 
 function OperatorKont(node, benva, marks)
@@ -556,13 +617,18 @@ OperatorKont.prototype.equals =
   {
     return this.node === x.node && Eq.equals(this.benva, x.benva);
   }
+OperatorKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.benva];
+  }
 OperatorKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.benva.hashCode();
     return result;
   }
 OperatorKont.prototype.toString =
@@ -600,8 +666,8 @@ function OperandsKont(node, i, benva, operatorValue, operandValues, thisValue, m
   this.node = node;
   this.i = i;
   this.benva = benva;
-  this.operatorValue = operatorValue;
-  this.operandValues = operandValues;
+  this.operatorValue = operatorValue; 
+  this.operandValues = operandValues; 
   this.thisValue = thisValue;
   this.marks = marks || [];
 }
@@ -615,17 +681,22 @@ OperandsKont.prototype.equals =
       && Eq.equals(this.operandValues, x.operandValues) 
       && Eq.equals(this.thisValue, x.thisValue);
   }
+OperandsKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.i, this.benva];
+  }
 OperandsKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + i;
-    result = prime * result + benva.hashCode();
-    result = prime * result + operatorValue.hashCode();
-    result = prime * result + operandValues.hashCode();
-    result = prime * result + thisValue.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.i;
+    result = prime * result + this.benva.hashCode();
+    result = prime * result + this.operatorValue.hashCode();
+    result = prime * result + this.operandValues.hashCode();
+    result = prime * result + this.thisValue.hashCode();
     return result;
   }
 OperandsKont.prototype.toString =
@@ -679,14 +750,19 @@ BodyKont.prototype.equals =
       && this.i === x.i
       && Eq.equals(this.benva, x.benva);
   }
+BodyKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.i, this.benva];
+  }
 BodyKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + i;
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.i;
+    result = prime * result + this.benva.hashCode();
     return result;
   }
 BodyKont.prototype.toString =
@@ -732,13 +808,18 @@ ReturnKont.prototype.equals =
     return this.node === x.node 
       && Eq.equals(this.benva, x.benva);
   }
+ReturnKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.benva];
+  }
 ReturnKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.benva.hashCode();
     return result;
   }
 ReturnKont.prototype.toString =
@@ -775,13 +856,18 @@ IfKont.prototype.equals =
   {
     return this.node === x.node && Eq.equals(this.benva, x.benva);
   }
+IfKont.prototype.key =
+  function ()
+  {
+    return [this.node.tag, this.benva];
+  }
 IfKont.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + node.hashCode();
-    result = prime * result + benva.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.benva.hashCode();
     return result;
   }
 IfKont.prototype.toString =
@@ -1234,7 +1320,7 @@ jseval.evalCallExpression =
 jseval.applyProc =
   function (node, operatorValue, operandValues, thisValue, benva, store, kont, c)
   {
-    if (kont.length > 1024)
+    if (kont.length > 256)
     {
       throw new Error("stack overflow");
     }
@@ -2195,6 +2281,16 @@ jseval.initialize =
         return this.node === other.node
           && this.scope.equals(other.scope);
       }
+    BenvClosureCall.prototype.hashCode =
+      function (x)
+      {
+        var prime = 7;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.scope.hashCode();
+        return result;      
+      }
+
 
     BenvClosureCall.prototype.applyFunction =
       function (application, operandValues, thisa, benva, store, returnKont, kont, c)

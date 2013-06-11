@@ -214,6 +214,7 @@ BOT.ToUInt32 = function () { return BOT };
 BOT.ToInt32 = function () { return BOT };
 BOT.ToNumber = function () { return BOT };
 BOT.accept = function (visitor) { return visitor.visitBOT(this) };
+BOT.hashCode = function () { return 0 };
 
 ///////////////////////////////////////////////////////
 
