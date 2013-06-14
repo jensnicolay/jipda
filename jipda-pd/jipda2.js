@@ -1,10 +1,16 @@
-function HaltKont()
+function HaltKont(marks)
 {
+  this.marks = marks || [];
 }
 HaltKont.prototype.toString =
   function ()
   {
     return "halt";
+  }
+HaltKont.prototype.mark =
+  function (mark)
+  {
+    return new HaltKont(this.marks.addUniqueLast(mark));
   }
 HaltKont.prototype.apply =
   function (value, store, kont, c)
@@ -15,6 +21,11 @@ HaltKont.prototype.hashCode =
   function ()
   {
     return 0;
+  }
+HaltKont.prototype.equals =
+  function (x)
+  {
+    return this === x;
   }
   
 
@@ -149,10 +160,6 @@ JipdaValue.prototype.compareTo =
 
 function StoreValue(aval, fresh)
 {
-  assertDefinedNotNull(aval);
-  assertDefinedNotNull(aval.join);
-  assertDefinedNotNull(aval.equals); 
-  assertDefinedNotNull(aval.compareTo); 
   this.aval = aval;
   this.fresh = (fresh === undefined) ? 1 : fresh;
 }
@@ -488,7 +495,7 @@ Jipda.run =
           var fromControlState = from.toControlState();
           var toControlState = to.toControlState();
           transition = new Transition(fromControlState, stackAct, toControlState);
-//          var existing = transitions.get(transition);
+  //        var existing = transitions.get(transition);
           if (transitions.contains(transition))
           {
             print("rejecting", transition);

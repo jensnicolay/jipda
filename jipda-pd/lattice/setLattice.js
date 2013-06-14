@@ -1,4 +1,4 @@
-function LatN(n)
+function SetLattice(n)
 {
 	return (function ()
 	{
@@ -6,6 +6,7 @@ function LatN(n)
 		
 		function Some(cvalues)
 		{
+		  if (cvalues.length > 3 && cvalues.memberAt(undefined) > -1) {throw new Error(cvalues.toString())};
 			this.cvalues = cvalues;
 			//this.lattice = module;
 		}
@@ -18,12 +19,16 @@ function LatN(n)
 		    {
 		      return -1;
 		    }
-		    
-		    if (!x || !x.cvalues)
+		    if (x === BOT)
 		    {
-//		      throw new Error("cannot compare " + this + " with " + x);
-		      return undefined; // when comparing values on stack, not sure whether types match
+		      return 1;
 		    }
+		    
+//		    if (!x || !x.cvalues)
+//		    {
+////		      throw new Error("cannot compare " + this + " with " + x);
+//		      return undefined; // when comparing values on stack, not sure whether types match
+//		    }
 		    
 		    var c = this.cvalues.length - x.cvalues.length;
 
@@ -47,10 +52,6 @@ function LatN(n)
 		Some.prototype.toString =
 			function (printer)
 			{
-		    if (printer)
-		    {
-	        return "{" + this.cvalues.map(printer).join(",") + "}";		      
-		    }
 		    return "{" + this.cvalues.join(",") + "}";
 			};
 			
@@ -72,6 +73,25 @@ function LatN(n)
 				}
 				return new Some(cvalues);
 			};
+			
+		Some.prototype.meet =
+		  function (x)
+		  {
+		    if (x === Top)
+		    {
+		      return this;
+		    }
+		    if (x === BOT)
+		    {
+		      return BOT;
+		    }
+		    var cvalues = this.cvalues.keepAll(x.cvalues);
+		    if (cvalues.length === 0)
+		    {
+		      return BOT;
+		    }
+		    return new Some(this.cvalues.keepAll(x.cvalues));
+		  }
 
     Some.prototype.conc =
       function ()
@@ -121,74 +141,9 @@ function LatN(n)
         return new Some(this.cvalues.map(LatticeValue.ToBoolean).toSet());
       };
       
-      Some.prototype.projectStringNumber =
-        function ()
-        {
-          var newValues = this.cvalues.filter(function (x) {return typeof x === "string" || typeof x === "number"});
-          if (newValues.length === 0)
-          {
-            return BOT;
-          }
-          return new Some(newValues);
-        }
-        
-      Some.prototype.projectUndefined =
-        function ()
-        {
-          var newValues = this.cvalues.filter(function (x) {return x === undefined});
-          if (newValues.length === 0)
-          {
-            return BOT;
-          }
-          return new Some(newValues);
-        }
-        
-      Some.prototype.projectNull =
-        function ()
-        {
-          var newValues = this.cvalues.filter(function (x) {return x === null});
-          if (newValues.length === 0)
-          {
-            return BOT;
-          }
-          return new Some(newValues);
-        }
-        
-      Some.prototype.projectString =
-        function ()
-        {
-          var newValues = this.cvalues.filter(function (x) {return typeof x === "string"});
-          if (newValues.length === 0)
-          {
-            return BOT;
-          }
-          return new Some(newValues);
-        }
-        
-      Some.prototype.projectNumber =
-        function ()
-        {
-          var newValues = this.cvalues.filter(function (x) {return typeof x === "number"});
-          if (newValues.length === 0)
-          {
-            return BOT;
-          }
-          return new Some(newValues);
-        }
-        
-      Some.prototype.projectBoolean =
-        function ()
-        {
-          var newValues = this.cvalues.filter(function (x) {return typeof x === "boolean"});
-          if (newValues.length === 0)
-          {
-            return BOT;
-          }
-          return new Some(newValues);
-        }
-        
     var Top = Object.create(new LatticeValue()); 
     Top.join = function (other) { return Top };
+    Top.meet = function (x) {return x};
     Top.compareTo = function (other) { return other === Top ? 0 : 1 };
     Top.hashCode = function () { return 7 };
     Top.isAddress = function () { return false };
@@ -201,12 +156,6 @@ function LatN(n)
     Top.ToUInt32 = function () { return Top };
     Top.ToInt32 = function () { return Top };
     Top.ToNumber = function () { return Top };
-    Top.projectStringNumber = function () { return Top };
-    Top.projectString = function () { return Top };
-    Top.projectNumber = function () { return Top };
-    Top.projectBoolean = function () { return Top };
-    Top.projectUndefined = function () { return Top };
-    Top.projectNull = function () { return Top };
       
       module.Top = Top;
     
@@ -571,6 +520,9 @@ function LatN(n)
 //      return module.abst(vals.map(rator));                  
 //    } 
       
+    module.NUMBER = Top;
+    module.STRING = Top;    
+    
 		return module;
 	})();
 }

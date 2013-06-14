@@ -359,16 +359,6 @@ function Lattice1()
         return new Some(LatticeValue.ToBoolean(this.cvalue));
       };
       
-    Some.prototype.projectBoolean =
-      function ()
-      {
-        if (typeof this.cvalue === "boolean")
-        {
-          return this;
-        }
-        return BOT;
-      };
-        
     Some.prototype.accept =
       function (visitor)
       {

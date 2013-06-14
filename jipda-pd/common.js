@@ -36,6 +36,10 @@ var Eq =
       {
         return false;
       }
+      if (!x.equals)
+      {
+        throw new Error("argh: " + x);
+      }
       return x.equals(y);
     }
   }
@@ -224,7 +228,7 @@ Array.prototype.hashCode =
     if (this.length == 0) return hash;
     for (i = 0; i < this.length; i++)
     {
-      val = this[i].hashCode();
+      val = HashCode.hashCode(this[i]);
       hash = ((hash<<5) - hash) + val;
       hash = hash & hash;
     }
@@ -698,6 +702,18 @@ function HashSet(map)
   this._map = map;
 }
 
+HashSet.prototype.equals =
+  function (x)
+  {
+    if (this === x)
+    {
+      return true;
+    }
+    var thisValues = this.values();
+    var xValues = x.values();
+    return thisValues.setEquals(xValues);
+  }
+
 HashSet.prototype.add =
   function (value)
   {
@@ -720,4 +736,45 @@ HashSet.prototype.values =
   function ()
   {
     return this._map.values();
+  }
+
+function ArraySet(arr)
+{
+  this._arr = arr;
+}
+
+ArraySet.prototype.equals =
+  function (x)
+  {
+    if (this === x)
+    {
+      return true;
+    }
+    var thisValues = this.values();
+    var xValues = x.values();
+    return thisValues.setEquals(xValues);
+  }
+
+ArraySet.prototype.add =
+  function (value)
+  {
+    var index = Arrays.indexOf(value, this._arr, Eq.equals);
+    if (index > -1)
+    {
+      return this;
+    }
+    return new ArraySet(this._arr.concat([value]));
+  }
+
+ArraySet.prototype.contains =
+  function (value)
+  {
+    var index = Arrays.indexOf(value, this._arr, Eq.equals);
+    return index > -1;
+  }
+
+ArraySet.prototype.values =
+  function ()
+  {
+    return this._arr.slice(0);
   }

@@ -13,6 +13,7 @@ var suiteJipdaTests =
       function (value, store)
       {
         actual = actual.join(value);
+        print(">>>", value, actual);
         return [];
       }
     c.e = e;
@@ -98,7 +99,7 @@ var suiteJipdaTests =
   	{
   		var src = "var fib = function (n) {if (n<2) {return n} return fib(n-1)+fib(n-2)}; fib(4)";
       var c = Jipda.context({p:new Lattice1(), a:tagAg});
-  		run(src, c, c.l.abst1(3));
+  		run(src, c, c.l.join(c.p.NUMBER, []));
   	};
   	
 //  module.test26a =
@@ -395,7 +396,39 @@ var suiteJipdaTests =
 //      assertTrue(slv.addresses().length === 1);
 //      assertTrue(slv.user === BOT);
 //    }
-  
+  	
+//    module.testChurchNums =
+//      function ()
+//      {
+//        var src = read("test/resources/churchNums.js");
+//        var c = Jipda.context({p:new Lattice1(), a:tagAg});
+//        run(src, c, c.l.abst([true, false]));
+//      }
+    
+    module.testGcIpd =
+      function ()
+      {
+        var src = read("test/resources/gcIpdExample.js");
+        var c = Jipda.context({p:new Lattice1(), a:tagAg});
+        run(src, c, c.l.join(c.p.NUMBER, []));
+      }  	
+  	
+    module.testRotate =
+      function ()
+      {
+        var src = read("test/resources/rotate.js");
+        var c = Jipda.context({p:new SetLattice(3), a:tagAg});
+        run(src, c, c.l.abst([5, true, "hallo"]));
+      }
+      
+    module.test100 =
+      function ()
+      {
+        var src = "var z=false; function f(n) {if (n===10) {g()}; if (n>0) {f(n-1)}}; function g() {z=true}; f(20); z"
+        var c = Jipda.context({p:new Lattice1(), a:tagAg});
+        run(src, c, c.l.abst([true, false]));
+      }
+      
   return module;
 
 })()

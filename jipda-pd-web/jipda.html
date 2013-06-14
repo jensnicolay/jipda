@@ -8,6 +8,7 @@
 	<script type="text/javascript" src="../jipda-pd/common.js"></script>
 	<script type="text/javascript" src="../jipda-pd/lattice/lattice.js"></script>
 	<script type="text/javascript" src="../jipda-pd/lattice/lattice1.js"></script>
+	<script type="text/javascript" src="../jipda-pd/lattice/setLattice.js"></script>
 	<script type="text/javascript" src="../jipda-pd/address/address.js"></script>
 	<script type="text/javascript" src="../jipda-pd/address/tagAg.js"></script>
 	<script type="text/javascript" src="../jipda-pd/benv/defaultBenv.js"></script>
@@ -30,6 +31,7 @@
 	  var src = editor.getSession().getValue();
     var ast = Ast.createAst(src);
     var lat = new Lattice1();
+    //var lat = new SetLattice(3);
     var result = BOT;
     var c = Jipda.context({p: lat, a: tagAg});
     c.e.haltKont =

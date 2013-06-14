@@ -12,6 +12,11 @@ EvalState.prototype.toControlState =
   {
     return new EvalState(this.node, this.benva, this.store, null);
   }
+EvalState.prototype.setKont =
+  function (kont)
+  {
+    return new EvalState(this.node, this.benva, this.store, kont);
+  }
 EvalState.prototype.toString =
   function ()
   {
@@ -54,6 +59,39 @@ EvalState.prototype.next =
   {
     return c.e.evalNode(this.node, this.benva, this.store, this.kont, c);
   }
+EvalState.prototype.gc =
+  function ()
+  {
+    var reachable = valuesReachable(this.kont, this.store, addressReachable(benva, this.store, []));
+    var store = this.store.narrow(reachable);
+    return new EvalState(this.node, this.benva, store, this.kont);
+  }
+
+function addressReachable(address, store, reachable)
+{
+  if (Arrays.indexOf(address, reachable, Eq.equals) > -1)
+  {
+    return reachable;
+  }
+  var value = store.lookupAval(address);
+  return valueReachable(value, store, address);
+}
+
+function addressesReachable(addresses, store, reachable)
+{
+  return addresses.reduce(function (reachable, address) {return addressReachable(address, store, reachable)}, reachable);
+}
+
+function valueReachable(value, store, reachable)
+{
+  var addresses = value.addresses();
+  return addressesReachable(addresses, store, reachable);  
+}
+
+function valuesReachable(values, store, reachable)
+{
+  return values.reduce(function (reachable, value) {return valueReachable(value, store, reachable)}, reachable);
+}
 
 function KontState(frame, value, store, kont)
 {
@@ -66,6 +104,11 @@ KontState.prototype.toControlState =
   function ()
   {
     return new KontState(this.frame, this.value, this.store, null);
+  }
+KontState.prototype.setKont =
+  function (kont)
+  {
+    return new KontState(this.frame, this.value, this.store, kont);
   }
 KontState.prototype.equals =
   function (x)
@@ -118,6 +161,11 @@ CallState.prototype.toControlState =
   function ()
   {
     return new CallState(this.node, this.callable, this.operandValues, this.thisa, this.benva, this.store, this.returnFrame, null);
+  }
+CallState.prototype.setKont =
+  function (kont)
+  {
+    return new CallState(this.node, this.callable, this.operandValues, this.thisa, this.benva, this.store, this.returnFrame, kont);
   }
 CallState.prototype.equals =
   function (x)
@@ -179,6 +227,11 @@ ApplyState.prototype.toControlState =
   {
     return new ApplyState(this.node, this.fun, this.statica, this.operandValues, this.thisa, this.benva, this.store, null);
   }
+ApplyState.prototype.setKont =
+  function (kont)
+  {
+    return new ApplyState(this.node, this.fun, this.statica, this.operandValues, this.thisa, this.benva, this.store, kont);
+  }
 ApplyState.prototype.equals =
   function (x)
   {
@@ -237,6 +290,11 @@ ReturnState.prototype.toControlState =
   function ()
   {
     return new ReturnState(this.node, this.returnValue, this.store, this.frame, null);
+  }
+ReturnState.prototype.setKont =
+  function (kont)
+  {
+    return new ReturnState(this.node, this.returnValue, this.store, this.frame, kont);
   }
 ReturnState.prototype.equals =
   function (x)
@@ -1320,7 +1378,7 @@ jseval.evalCallExpression =
 jseval.applyProc =
   function (node, operatorValue, operandValues, thisValue, benva, store, kont, c)
   {
-    if (kont.length > 256)
+    if (kont.length > 512)
     {
       throw new Error("stack overflow");
     }
@@ -1360,7 +1418,7 @@ jseval.applyProc =
   }
 
 
-jseval.applyFunction =
+jseval.applyFunction =// applyClosure
   function (applicationNode, funNode, statica, operandValues, thisa, benva, store, kont, c)
   {
     var bodyNode = funNode.body;
@@ -2298,7 +2356,7 @@ jseval.initialize =
 //        print("BenvClosureCall.applyFunction", application, "operandValues", operandValues, "ths", ths);
         var fun = this.node;
         var statica = this.scope;
-//        print("marking", returnKont);
+//       print("marking", returnKont);
         var markedKont = returnKont.mark(application);
         return [new ApplyState(application, fun, statica, operandValues, thisa, benva, store, kont.addFirst(markedKont))];
       }
