@@ -2,7 +2,7 @@
 
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<link rel="stylesheet" href="main.css" type="text/css" media="all"/> 
+	<link rel="stylesheet" href="jipda.css" type="text/css" media="all"/> 
 	<title>JIPDA</title>
 	<script type="text/javascript" src="../jipda-pd/lib/esprima.js"></script>
 	<script type="text/javascript" src="../jipda-pd/common.js"></script>
@@ -16,9 +16,9 @@
 	<script type="text/javascript" src="../jipda-pd/eval.js"></script>
 	<script type="text/javascript" src="../jipda-pd/jipda2.js"></script>
 	<script type="text/javascript" src="lib/jquery-1.7.2.min.js"></script>
-	<script type="text/javascript" src="lib/d3.v2.min.js"></script>
 	<script type="text/javascript" src="lib/ace/ace.js"></script>
-	<script type="text/javascript" src="graph.js"></script>
+	<script type="text/javascript" src="lib/viz.js"></script>
+	<script type="text/javascript" src="graph3.js"></script>
 	<script type="text/javascript">
 
 	// define print method for JIPDA
@@ -28,6 +28,7 @@
 	function doIt()
 	{
 		$("#resultValue").empty();
+		$("#graph").empty();
 	  var src = editor.getSession().getValue();
     var ast = Ast.createAst(src);
     var lat = new Lattice1();
@@ -41,8 +42,8 @@
         return [];
       }
     var state = Jipda.inject(ast, c);
-    Jipda.run(state, c);
-		$("#resultValue").text(result);
+    var jipda = Jipda.run(state, c);
+		drawLinks(jipda.transitions, "#graph");
 	}
 		
 	$(function ()
@@ -56,11 +57,11 @@
 
 <body>
 	<div id="editor" style="width: 640px; height: 480px;"></div>
-	<div id="manip" style="position: absolute; top:490px;">
+	<div id="manip" style="">
 		<button id="eval" name="eval" onClick="doIt()">Eval</button>
 		<span id="resultValue"></span>
 	</div>
-	<div id="params" style="position:absolute; left:400px; width:400px; height:480px;"/>
+	<div id="graph"/>
 </body>
 
 </html>

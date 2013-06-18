@@ -460,7 +460,6 @@ Jipda.run =
     while (states.length > 0)
     {
       var from = states[0];
-      counter++;
       if (counter > 32768)
       {
         throw new Error("state space overflow");
@@ -550,11 +549,11 @@ function concRepl(config)
   return repl({name: "conc", p:new CpLattice(), a:concreteAg, k:config.k});
 }
 
-function Transition(from, label, to)
+function Transition(source, label, target)
 {
-  this.from = from;
+  this.source = source;
   this.label = label;
-  this.to = to;
+  this.target = target;
 }
 Transition.prototype.equals =
   function (x)
@@ -565,23 +564,23 @@ Transition.prototype.equals =
 //      print(x);
 //      print();
 //    }
-    return Eq.equals(this.from, x.from)
+    return Eq.equals(this.source, x.source)
       && Eq.equals(this.label, x.label)
-      && Eq.equals(this.to, x.to);
+      && Eq.equals(this.target, x.target);
   }
 Transition.prototype.toString =
   function ()
   {
-    return this.from + "==(" + this.label + ")==>" + this.to;
+    return this.source + "==(" + this.label + ")==>" + this.target;
   }
 Transition.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + this.from.hashCode();
+    result = prime * result + this.source.hashCode();
     result = prime * result + this.label.hashCode();
-    result = prime * result + this.to.hashCode();
+    result = prime * result + this.target.hashCode();
     return result;    
   }
 function Push(frame)
@@ -605,7 +604,7 @@ Push.prototype.hashCode =
 Push.prototype.toString =
   function ()
   {
-    return "push " + this.frame;
+    return "+" + this.frame;
   }
 function Pop(frame)
 {
@@ -628,7 +627,7 @@ Pop.prototype.hashCode =
 Pop.prototype.toString =
   function ()
   {
-    return "pop " + this.frame;
+    return "-" + this.frame;
   }
 function Unch()
 {
@@ -650,5 +649,32 @@ Unch.prototype.hashCode =
 Unch.prototype.toString =
   function ()
   {
-    return "unch";
+    return "\u03B5";
   }
+
+function addressReachable(address, store, reachable)
+{
+  if (Arrays.indexOf(address, reachable, Eq.equals) > -1)
+  {
+    return reachable;
+  }
+  var value = store.lookupAval(address);
+  return valueReachable(value, store, address);
+}
+
+function addressesReachable(addresses, store, reachable)
+{
+  return addresses.reduce(function (reachable, address) {return addressReachable(address, store, reachable)}, reachable);
+}
+
+function valueReachable(value, store, reachable)
+{
+  var addresses = value.addresses();
+  return addressesReachable(addresses, store, reachable);  
+}
+
+function valuesReachable(values, store, reachable)
+{
+  return values.reduce(function (reachable, value) {return valueReachable(value, store, reachable)}, reachable);
+}
+

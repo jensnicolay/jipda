@@ -20,6 +20,11 @@ EvalState.prototype.setKont =
 EvalState.prototype.toString =
   function ()
   {
+    return "(eval " + this.node + " " + this.benva + ")";
+  }
+EvalState.prototype.nice =
+  function ()
+  {
     return "#eval " + this.node.tag;
   }
 EvalState.prototype.equals =
@@ -67,32 +72,6 @@ EvalState.prototype.gc =
     return new EvalState(this.node, this.benva, store, this.kont);
   }
 
-function addressReachable(address, store, reachable)
-{
-  if (Arrays.indexOf(address, reachable, Eq.equals) > -1)
-  {
-    return reachable;
-  }
-  var value = store.lookupAval(address);
-  return valueReachable(value, store, address);
-}
-
-function addressesReachable(addresses, store, reachable)
-{
-  return addresses.reduce(function (reachable, address) {return addressReachable(address, store, reachable)}, reachable);
-}
-
-function valueReachable(value, store, reachable)
-{
-  var addresses = value.addresses();
-  return addressesReachable(addresses, store, reachable);  
-}
-
-function valuesReachable(values, store, reachable)
-{
-  return values.reduce(function (reachable, value) {return valueReachable(value, store, reachable)}, reachable);
-}
-
 function KontState(frame, value, store, kont)
 {
   this.frame = frame;
@@ -135,6 +114,11 @@ KontState.prototype.hashCode =
     return result;
   }
 KontState.prototype.toString =
+  function ()
+  {
+    return "(kont " + this.frame + " " + this.value + ")";
+  }
+KontState.prototype.nice =
   function ()
   {
     return "#kont-" + this.frame.constructor;
@@ -203,6 +187,11 @@ CallState.prototype.hashCode =
 CallState.prototype.toString =
   function ()
   {
+    return "(call " + this.node + " " + this.callable.nice() + " " + this.operandValues + " " + this.thisa + " " + this.benva + " " + this.returnFrame + ")"; 
+  }
+CallState.prototype.nice =
+  function ()
+  {
     return "#call " + this.node.tag;
   }
 CallState.prototype.next =
@@ -269,6 +258,11 @@ ApplyState.prototype.hashCode =
 ApplyState.prototype.toString =
   function ()
   {
+    return "(apply " + this.node + " " + this.fun.tag + " " + this.statica + " " + this.operandValue + " " + this.thisa + " " + this.benva + ")";
+  }
+ApplyState.prototype.nice =
+  function ()
+  {
     return "#apply-" + this.node.tag;
   }
 
@@ -325,6 +319,11 @@ ReturnState.prototype.hashCode =
 ReturnState.prototype.toString =
   function ()
   {
+    return "(return " + this.node + " " + this.returnValue + " " + this.frame + ")";
+  }
+ReturnState.prototype.nice =
+  function ()
+  {
     return "#return-" + this.node.tag;
   }
 ReturnState.prototype.next =
@@ -371,6 +370,11 @@ StatementListKont.prototype.mark =
     return new StatementListKont(this.node, this.i, this.benva, this.lastValue, this.marks.addUniqueLast(mark));
   }
 StatementListKont.prototype.toString =
+  function ()
+  {
+    return "(slist " + this.node + " " + this.i + " " + this.benva + " " + this.lastValue + ")";
+  }
+StatementListKont.prototype.nice =
   function ()
   {
     return "slist-" + this.node.tag + "-" + this.i;
@@ -442,6 +446,11 @@ VariableDeclarationKont.prototype.hashCode =
 VariableDeclarationKont.prototype.toString =
   function ()
   {
+    return "(vdecl " + this.node + " " + this.i + " " +  this.benva + ")";
+  }
+VariableDeclarationKont.prototype.nice =
+  function ()
+  {
     return "vdecl-" + this.node.tag + "-" + this.i;
   }
 VariableDeclarationKont.prototype.addresses =
@@ -492,6 +501,11 @@ VariableDeclaratorKont.prototype.hashCode =
 VariableDeclaratorKont.prototype.toString =
   function ()
   {
+    return "(vrator " + this.node + " " + this.benva + ")";
+  }
+VariableDeclaratorKont.prototype.nice =
+  function ()
+  {
     return "vrator " + this.node.tag;
   }
 VariableDeclaratorKont.prototype.addresses =
@@ -536,6 +550,11 @@ LeftKont.prototype.hashCode =
     return result;
   }
 LeftKont.prototype.toString =
+  function ()
+  {
+    return "(left " + this.node + " " + this.benva + ")";
+  }
+LeftKont.prototype.nice =
   function ()
   {
     return "left-" + this.node.tag;
@@ -587,6 +606,11 @@ RightKont.prototype.hashCode =
     return result;
   }
 RightKont.prototype.toString =
+  function ()
+  {
+    return "(right " + this.node + " " + this.benva + " " + this.leftValue + ")";
+  }
+RightKont.prototype.nice =
   function ()
   {
     return "right-" + this.node.tag;
@@ -647,6 +671,11 @@ AssignIdentifierKont.prototype.hashCode =
 AssignIdentifierKont.prototype.toString =
   function ()
   {
+    return "(asid " + this.node + " " + this.benva + ")";
+  }
+AssignIdentifierKont.prototype.nice =
+  function ()
+  {
     return "asid-" + this.node.tag;
   }
 AssignIdentifierKont.prototype.addresses =
@@ -690,6 +719,11 @@ OperatorKont.prototype.hashCode =
     return result;
   }
 OperatorKont.prototype.toString =
+  function ()
+  {
+    return "(rator-" + this.node + " " + this.benva + ")";
+  }
+OperatorKont.prototype.nice =
   function ()
   {
     return "rator-" + this.node.tag;
@@ -760,6 +794,11 @@ OperandsKont.prototype.hashCode =
 OperandsKont.prototype.toString =
   function ()
   {
+    return "(rand " + this.node + " " + this.i + " " + this.benva + " " + this.operatorValue + " " + this.operandValues + " " + this.thisValue + ")";
+  }
+OperandsKont.prototype.nice =
+  function ()
+  {
     return "rand-" + this.node.tag + "-" + this.i;
   }
 OperandsKont.prototype.mark =
@@ -826,6 +865,11 @@ BodyKont.prototype.hashCode =
 BodyKont.prototype.toString =
   function ()
   {
+    return "(body " + this.node + " " + this.i + " " + this.benva + ")";
+  }
+BodyKont.prototype.nice =
+  function ()
+  {
     return "body-" + this.node.tag + "-" + this.i;
   }
 BodyKont.prototype.mark =
@@ -883,6 +927,11 @@ ReturnKont.prototype.hashCode =
 ReturnKont.prototype.toString =
   function ()
   {
+    return "(ret " + this.node + " " + this.benva + ")";
+  }
+ReturnKont.prototype.nice =
+  function ()
+  {
     return "ret-" + this.node.tag;
   }
 ReturnKont.prototype.mark =
@@ -929,6 +978,11 @@ IfKont.prototype.hashCode =
     return result;
   }
 IfKont.prototype.toString =
+  function ()
+  {
+    return "(if " + this.node + " " + this.benva + ")";
+  }
+IfKont.prototype.nice =
   function ()
   {
     return "if-" + this.node.tag;
@@ -2320,6 +2374,11 @@ jseval.initialize =
     }
 
     BenvClosureCall.prototype.toString =
+      function ()
+      {
+        return "(" + this.node.tag + " " + this.scope + ")";
+      }
+    BenvClosureCall.prototype.nice =
       function ()
       {
         return "<BenvClosureCall " + this.node.tag + ">"
