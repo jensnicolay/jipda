@@ -1810,7 +1810,7 @@ jseval.initialize =
 //        print("BenvClosureCall.applyFunction", application, "operandValues", operandValues, "ths", ths);
         var fun = this.node;
         var statica = this.scope;
-        print("marking", returnKont);
+//        print("marking", returnKont);
         var markedKont = returnKont.mark(application);
         return c.e.applyFunction(application, fun, statica, operandValues, thisa, benva, store, kont.addFirst(markedKont), c);
       }

@@ -4,12 +4,13 @@ var console = {log:print}
 
 function b()
 {
-  load("common.js");
-  load("ast.js");
-  load("lattice/lattice.js");
-    load("lattice/lattice1.js");
-    load("lattice/setLattice.js");
-    load("lattice/cpLattice.js");
+  load("../common.js");
+  load("../store.js");
+  load("../ast.js");
+  load("../lattice/lattice.js");
+    load("../lattice/lattice1.js");
+    load("../lattice/setLattice.js");
+    load("../lattice/cpLattice.js");
   load("address/address.js");
     load("address/tagAg.js");
     load("address/concreteAg.js");

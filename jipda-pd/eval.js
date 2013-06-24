@@ -2,6 +2,7 @@ var jseval = {toString:function () {return "jseval"}};
 
 function EvalState(node, benva, store, kont)
 {
+  this.type = "eval";
   this.node = node;
   this.benva = benva;
   this.store = store;
@@ -30,7 +31,8 @@ EvalState.prototype.nice =
 EvalState.prototype.equals =
   function (x)
   {
-    return this.node === x.node 
+    return this.type === x.type
+      && this.node === x.node 
       && Eq.equals(this.benva, x.benva)
       && Eq.equals(this.store, x.store)
       && Eq.equals(this.kont, x.kont);
@@ -74,6 +76,7 @@ EvalState.prototype.gc =
 
 function KontState(frame, value, store, kont)
 {
+  this.type = "kont";  
   this.frame = frame;
   this.value = value;
   this.store = store;
@@ -92,7 +95,8 @@ KontState.prototype.setKont =
 KontState.prototype.equals =
   function (x)
   {
-    return Eq.equals(this.frame, x.frame) 
+    return this.type === x.type
+      && Eq.equals(this.frame, x.frame) 
       && Eq.equals(this.value, x.value) 
       && Eq.equals(this.store, x.store)
       && Eq.equals(this.kont, x.kont);
@@ -132,6 +136,7 @@ KontState.prototype.next =
 
 function CallState(node, callable, operandValues, thisa, benva, store, returnFrame, kont)
 {
+  this.type = "call";
   this.node = node;
   this.callable = callable;
   this.operandValues = operandValues;
@@ -154,7 +159,8 @@ CallState.prototype.setKont =
 CallState.prototype.equals =
   function (x)
   {
-    return this.node === x.node
+    return this.type === x.type
+      && this.node === x.node
       && Eq.equals(this.callable, x.callable)
       && Eq.equals(this.operandValues, x.operandValues)
       && Eq.equals(this.thisa, x.thisa)
@@ -202,6 +208,7 @@ CallState.prototype.next =
 
 function ApplyState(node, fun, statica, operandValues, thisa, benva, store, kont)
 {
+  this.type = "apply";
   this.node = node;
   this.fun = fun;
   this.statica = statica;
@@ -224,7 +231,8 @@ ApplyState.prototype.setKont =
 ApplyState.prototype.equals =
   function (x)
   {
-    return this.node === x.node 
+    return this.type === x.type
+      && this.node === x.node 
       && this.fun === x.fun 
       && Eq.equals(this.statica, x.statica) 
       && Eq.equals(this.operandValues, x.operandValues) 
@@ -274,6 +282,7 @@ ApplyState.prototype.next =
 
 function ReturnState(node, returnValue, store, frame, kont)
 {
+  this.type = "return";
   this.node = node;
   this.returnValue = returnValue;
   this.store = store;
@@ -293,7 +302,8 @@ ReturnState.prototype.setKont =
 ReturnState.prototype.equals =
   function (x)
   {
-    return this.node === x.node 
+    return this.type === x.type 
+      && this.node === x.node 
       && Eq.equals(this.returnValue, x.returnValue) 
       && Eq.equals(this.store, x.store) 
       && Eq.equals(this.frame, x.frame) 
@@ -343,7 +353,8 @@ function StatementListKont(node, i, benva, lastValue, marks)
 StatementListKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node
+    return x instanceof StatementListKont
+      && this.node === x.node
       && this.i === x.i
       && Eq.equals(this.benva, x.benva)
       && Eq.equals(this.lastValue, x.lastValue);
@@ -426,7 +437,10 @@ function VariableDeclarationKont(node, i, benva)
 VariableDeclarationKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node && this.i === x.i && Eq.equals(this.benva, x.benva);
+    return x instanceof VariableDeclarationKont
+      && this.node === x.node
+      && this.i === x.i
+      && Eq.equals(this.benva, x.benva);
   }
 VariableDeclarationKont.prototype.key =
   function ()
@@ -482,7 +496,9 @@ function VariableDeclaratorKont(node, benva)
 VariableDeclaratorKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node && Eq.equals(this.benva, x.benva);
+    return x instanceof VariableDeclaratorKont
+      && this.node === x.node
+      && Eq.equals(this.benva, x.benva);
   }
 VariableDeclaratorKont.prototype.key =
   function ()
@@ -533,7 +549,9 @@ function LeftKont(node, benva, marks)
 LeftKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node && Eq.equals(this.benva, x.benva);
+    return x instanceof LeftKont
+      && this.node === x.node
+      && Eq.equals(this.benva, x.benva);
   }
 LeftKont.prototype.key =
   function ()
@@ -588,7 +606,10 @@ function RightKont(node, benva, leftValue, marks)
 RightKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node && Eq.equals(this.benva, x.benva) && Eq.equals(this.leftValue, x.leftValue);
+    return x instanceof RightKont
+      && this.node === x.node
+      && Eq.equals(this.benva, x.benva)
+      && Eq.equals(this.leftValue, x.leftValue);
   }
 RightKont.prototype.key =
   function ()
@@ -651,7 +672,8 @@ function AssignIdentifierKont(node, benva)
 AssignIdentifierKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node 
+    return x instanceof AssignIdentifierKont
+      && this.node === x.node 
       && Eq.equals(this.benva, x.benva);
   }
 AssignIdentifierKont.prototype.key =
@@ -702,7 +724,9 @@ function OperatorKont(node, benva, marks)
 OperatorKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node && Eq.equals(this.benva, x.benva);
+    return x instanceof OperatorKont
+      && this.node === x.node
+      && Eq.equals(this.benva, x.benva);
   }
 OperatorKont.prototype.key =
   function ()
@@ -766,7 +790,8 @@ function OperandsKont(node, i, benva, operatorValue, operandValues, thisValue, m
 OperandsKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node 
+    return x instanceof OperandsKont
+      && this.node === x.node 
       && this.i === x.i 
       && Eq.equals(this.benva, x.benva) 
       && Eq.equals(this.operatorValue, x.operatorValue) 
@@ -843,7 +868,8 @@ function BodyKont(node, i, benva, marks)
 BodyKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node
+    return x instanceof BodyKont
+      && this.node === x.node
       && this.i === x.i
       && Eq.equals(this.benva, x.benva);
   }
@@ -907,7 +933,8 @@ function ReturnKont(node, benva, marks)
 ReturnKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node 
+    return x instanceof ReturnKont
+      && this.node === x.node 
       && Eq.equals(this.benva, x.benva);
   }
 ReturnKont.prototype.key =
@@ -961,7 +988,9 @@ function IfKont(node, benva, marks)
 IfKont.prototype.equals =
   function (x)
   {
-    return this.node === x.node && Eq.equals(this.benva, x.benva);
+    return x instanceof IfKont
+      && this.node === x.node 
+      && Eq.equals(this.benva, x.benva);
   }
 IfKont.prototype.key =
   function ()

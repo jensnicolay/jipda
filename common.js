@@ -616,6 +616,14 @@ function HashMap(entries)
   this._entries = entries;
 }
 
+HashMap.empty =
+  function (size)
+  {
+    var entries = new Array(size || 13);
+    entries.size = 0;
+    return new HashMap(entries);
+  }
+
 HashMap.prototype.put =
   function (key, value)
   {
@@ -636,6 +644,7 @@ HashMap.prototype.put =
           newBuckets[i] = {key:key, value:value};
           var newEntries = this._entries.slice(0);
           newEntries[hash] = newBuckets;
+          newEntries.size = this.size(); 
           return new HashMap(newEntries);      
         }
       }
@@ -644,6 +653,7 @@ HashMap.prototype.put =
     }
     var newEntries = this._entries.slice(0);
     newEntries[hash] = newBuckets;
+    newEntries.size = this.size() + 1;
     return new HashMap(newEntries);      
   }
 
@@ -685,6 +695,12 @@ HashMap.prototype.values =
     return this._entries.flatten().map(function (bucket) {return bucket.value});
   }
 
+HashMap.prototype.size =
+  function ()
+  {
+    return this._entries.size;
+  }
+
 HashMap.prototype.toString =
   function ()
   {
@@ -696,11 +712,18 @@ HashMap.prototype.nice =
   {
     return this.entries().map(function (entry) {return entry.key + " -> " + entry.value}).join("\n");
   }
+ 
 
 function HashSet(map)
 {
   this._map = map;
 }
+
+HashSet.empty =
+  function (size)
+  {
+    return new HashSet(new HashMap(new Array(size || 13)));
+  }
 
 HashSet.prototype.equals =
   function (x)
@@ -736,6 +759,12 @@ HashSet.prototype.values =
   function ()
   {
     return this._map.values();
+  }
+
+HashSet.prototype.size =
+  function ()
+  {
+    return this._map.size();
   }
 
 function ArraySet(arr)
@@ -777,4 +806,10 @@ ArraySet.prototype.values =
   function ()
   {
     return this._arr.slice(0);
+  }
+
+ArraySet.prototype.size =
+  function ()
+  {
+    return this._arr.length;
   }
