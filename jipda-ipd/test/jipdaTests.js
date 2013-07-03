@@ -428,7 +428,7 @@ var suiteJipdaTests =
         var src = "var fib = function (n) {if (n<2) {return n} return fib(n-1)+fib(n-2)}; fib(4)";
         var c = Jipda.context({p:new Lattice1(), a:tagAg});
         run(src, c, c.l.join(c.p.NUMBER, []));
-      };
+      }
           
     module.test100 =
       function ()

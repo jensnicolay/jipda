@@ -302,12 +302,25 @@ Etg.prototype.containsEdge =
     return Arrays.contains(edge, this.edges, Eq.equals);
   }
 
-Etg.prototype.containsSource =
-  function (source)
+//Etg.prototype.containsSource =
+//  function (source)
+//  {
+//    for (var i = 0; i < this.edges.length; i++)
+//    {
+//      if (this.edges[i].source.equals(source))
+//      {
+//        return true;
+//      }
+//    }
+//    return false;
+//  }
+
+Etg.prototype.containsTarget =
+  function (target)
   {
     for (var i = 0; i < this.edges.length; i++)
     {
-      if (this.edges[i].source.equals(source))
+      if (this.edges[i].target.equals(target))
       {
         return true;
       }
@@ -351,18 +364,18 @@ Ecg.prototype.containsEdge =
     return Arrays.contains(edge, this.edges, Eq.equals);
   }
 
-Ecg.prototype.containsSource =
-  function (source)
-  {
-    for (var i = 0; i < this.edges.length; i++)
-    {
-      if (this.edges[i].source.equals(source))
-      {
-        return true;
-      }
-    }
-    return false;
-  }
+//Ecg.prototype.containsSource =
+//  function (source)
+//  {
+//    for (var i = 0; i < this.edges.length; i++)
+//    {
+//      if (this.edges[i].source.equals(source))
+//      {
+//        return true;
+//      }
+//    }
+//    return false;
+//  }
 
 Ecg.prototype.successors =
   function (source)
@@ -577,11 +590,14 @@ Jipda.summarize =
         dE = dE.slice(1);
         if (!etg.containsEdge(e))
         {
-          etg = etg.addEdge(e);
           var q = e.source;
           var g = e.g;
           var q1 = e.target;
-          dS = dS.addFirst(q1);
+          if (!etg.containsTarget(q1))
+          {
+            dS = dS.addFirst(q1);
+          }            
+          etg = etg.addEdge(e);
           ecg = ecg.addEdge(new EpsEdge(q, q)).addEdge(new EpsEdge(q1, q1));
           if (g.isPush)
           {
@@ -603,7 +619,7 @@ Jipda.summarize =
       {
         var q = dS[0];
         dS = dS.slice(1);
-        if (!etg.containsSource(q)) // was ecg.containsSource
+//        if (!ecg.containsSource(q))
         {
           ecg = ecg.addEdge(new EpsEdge(q, q));
           var dEdH = Jipda.sprout(q, c);
