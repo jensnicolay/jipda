@@ -1,0 +1,14 @@
+.node.EvalState ellipse
+{
+	fill:#fcc;
+}
+
+.node.KontState ellipse
+{
+	fill:#cfc;
+}
+
+.node.ReturnState ellipse
+{
+	fill:#ccf;
+} 

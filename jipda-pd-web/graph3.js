@@ -39,7 +39,7 @@ function drawLinks(links, selector)
       var label;
       if (node.node)
       {
-        label = String(node.node).substring(0,20);
+        label = String(node.node.tag);
       }
       else if (node.value)
       {

@@ -1,29 +1,3 @@
-// methods
-
-/*
-Object.prototype.equals = 
-	function (object)
-	{
-		return this === object; 
-	};
-	
-Object.toString = 
-	function (x)
-	{
-		return "{" + Object.keys(x).map(
-			function (key)
-			{
-				return key + ":" + x[key];
-			}).join(",") + "}";
-	};
-
-Object.prototype.toString =
-	function ()
-	{
-		return Object.toString(this);
-	};
- */
-
 var Eq =
   {
     equals:function (x, y)
@@ -108,7 +82,7 @@ Array.prototype.memberAt =
 Array.prototype.flatten =
 	function ()
 	{
-		return this.reduce(function (p, c) { return p.concat(c); }, []);
+		return this.reduce(function (p, c) {return p.concat(c)}, []);
 	};
 
 Array.prototype.flatMap =
@@ -397,6 +371,12 @@ Arrays.indexOf =
     return -1;
   }
 
+Arrays.contains =
+  function (x, arr, eq)
+  {
+    return Arrays.indexOf(x, arr, eq) > -1;
+  }
+
 /**
  * Returns new array.
  */
@@ -434,31 +414,42 @@ Arrays.combinations =
     return result;
   }
 
-Arrays.reduceFixpoint =
-  function (arr, join, ths)
+//Arrays.reduceFixpoint =
+//  function (arr, join, ths)
+//  {
+//    var changed = true;
+//    while (changed)
+//    {
+//      changed = false;
+//      for (var i = 0; i < arr.length - 1; i++)
+//      {
+//        var x = arr[i];
+//        for (var j = i + 1; j < arr.length; j++)
+//        {
+//          var y = arr[j];
+//          var c = join.call(this, x, y);
+//          if (c)
+//          {
+//            changed = true;
+//            arr = arr.slice(0, i).addLast(c).concat(arr.slice(i+1,j)).concat(arr.slice(j+1));
+//          }
+//        }
+//      }
+//    }
+//    return arr;
+//  }
+
+Arrays.keys =
+  function (arr)
   {
-    var changed = true;
-    while (changed)
-    {
-      changed = false;
-      for (var i = 0; i < arr.length - 1; i++)
-      {
-        var x = arr[i];
-        for (var j = i + 1; j < arr.length; j++)
-        {
-          var y = arr[j];
-          var c = join.call(this, x, y);
-          if (c)
-          {
-            changed = true;
-            arr = arr.slice(0, i).addLast(c).concat(arr.slice(i+1,j)).concat(arr.slice(j+1));
-          }
-        }
-      }
-    }
-    return arr;
+    return arr.map(function (x) {return x[0]});
   }
 
+Arrays.values =
+  function (key, arr, eq)
+  {
+    return arr.reduce(function (acc, x) {return eq(x[0], key) ? acc.concat([x[1]]) : acc});
+  }
 
 String.prototype.startsWith =
 	function (s)

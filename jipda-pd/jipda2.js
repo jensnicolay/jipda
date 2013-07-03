@@ -414,3 +414,4 @@ function valuesReachable(values, store, reachable)
   return values.reduce(function (reachable, value) {return valueReachable(value, store, reachable)}, reachable);
 }
 
+//function dsg()
