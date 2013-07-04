@@ -8,16 +8,16 @@ function b()
   load("../store.js");
   load("../ast.js");
   load("../lattice/lattice.js");
-    load("../lattice/lattice1.js");
-    load("../lattice/setLattice.js");
-    load("../lattice/cpLattice.js");
-  load("address/address.js");
-    load("address/tagAg.js");
-    load("address/concreteAg.js");
+  load("../lattice/lattice1.js");
+  load("../lattice/setLattice.js");
+  load("../lattice/cpLattice.js");
+  load("../address/address.js");
+  load("../address/tagAg.js");
+  load("../address/concreteAg.js");
+  load("../benv/defaultBenv.js");
   load("../eval.js");
-  load("benv/defaultBenv.js");
+  load("../test.js");
   load("jipda.js");
-  load("test.js");
   
 //  load("test/astTests.js");
 //  load("test/benvTests.js");
