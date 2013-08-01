@@ -21,7 +21,7 @@ function b()
   
 //  load("test/astTests.js");
 //  load("test/benvTests.js");
-  load("test/concreteTests.js");
+//  load("test/concreteTests.js");
   load("test/jipdaTests.js");
 //  load("test/jsAnalysisTests.js");  
 //  load("test/coverageTests.js");

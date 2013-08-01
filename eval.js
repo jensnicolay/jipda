@@ -10,7 +10,7 @@ function EvalState(node, benva, store)
 EvalState.prototype.toString =
   function ()
   {
-    return "(eval " + this.node + " " + this.benva + ")";
+    return "#eval " + this.node.tag;
   }
 EvalState.prototype.nice =
   function ()
@@ -24,11 +24,6 @@ EvalState.prototype.equals =
       && this.node === x.node 
       && Eq.equals(this.benva, x.benva)
       && Eq.equals(this.store, x.store);
-  }
-EvalState.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
   }
 EvalState.prototype.hashCode =
   function ()
@@ -44,13 +39,16 @@ EvalState.prototype.next =
   {
     return c.e.evalNode(this.node, this.benva, this.store, kont, c);
   }
-//EvalState.prototype.gc =
-//  function ()
-//  {
-//    var reachable = valuesReachable(this.kont, this.store, addressReachable(benva, this.store, []));
-//    var store = this.store.narrow(reachable);
-//    return new EvalState(this.node, this.benva, store, this.kont);
-//  }
+EvalState.prototype.addresses =
+  function ()
+  {
+    return [this.benva];
+  }
+EvalState.prototype.setStore =
+  function (store)
+  {
+    return new EvalState(this.node, this.benva, store);
+  }
 
 function KontState(frame, value, store)
 {
@@ -67,11 +65,6 @@ KontState.prototype.equals =
       && Eq.equals(this.value, x.value) 
       && Eq.equals(this.store, x.store);
   }
-KontState.prototype.key =
-  function ()
-  {
-    return this.frame.key();
-  }
 KontState.prototype.hashCode =
   function ()
   {
@@ -84,12 +77,12 @@ KontState.prototype.hashCode =
 KontState.prototype.toString =
   function ()
   {
-    return "(kont " + this.frame + " " + this.value + ")";
+    return "#kont-" + this.frame;
   }
 KontState.prototype.nice =
   function ()
   {
-    return "#kont-" + this.frame.constructor;
+    return "#kont-" + this.frame.nice();
   }
 
 KontState.prototype.next =
@@ -97,6 +90,17 @@ KontState.prototype.next =
   {
     return this.frame.apply(this.value, this.store, kont, c);
   }
+KontState.prototype.addresses =
+  function ()
+  {
+    return this.frame.addresses().concat(this.value.addresses());
+  }
+KontState.prototype.setStore =
+  function (store)
+  {
+    return new KontState(this.frame, this.value, store);
+  }
+
 
 function CallState(node, callable, operandValues, thisa, benva, store, returnFrame)
 {
@@ -121,12 +125,6 @@ CallState.prototype.equals =
       && Eq.equals(this.store, x.store)
       && Eq.equals(this.returnFrame, x.returnFrame);
   }
-CallState.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
-  }
-
 CallState.prototype.hashCode =
   function ()
   {
@@ -143,7 +141,7 @@ CallState.prototype.hashCode =
 CallState.prototype.toString =
   function ()
   {
-    return "(call " + this.node + " " + this.callable.nice() + " " + this.operandValues + " " + this.thisa + " " + this.benva + " " + this.returnFrame + ")"; 
+    return "#call " + this.node.tag;
   }
 CallState.prototype.nice =
   function ()
@@ -155,6 +153,20 @@ CallState.prototype.next =
   {
     return this.callable.applyFunction(this.node, this.operandValues, this.thisa, this.benva, this.store, this.returnFrame, kont, c);
   }
+CallState.prototype.addresses =
+  function ()
+  {
+    return [this.benva, this.thisa]
+            .concat(this.callable.addresses())
+            .concat(this.operandValues.flatMap(function (operandValue) {return operandValue.addresses()}))
+            .concat(this.returnFrame.addresses());
+  }
+CallState.prototype.setStore =
+  function (store)
+  {
+    return new CallState(this.node, this.callable, this.operandValues, this.thisa, this.benva, this.store, this.returnFrame);
+  }
+
 
 function ApplyState(node, fun, statica, operandValues, thisa, benva, store)
 {
@@ -179,12 +191,6 @@ ApplyState.prototype.equals =
       && Eq.equals(this.benva, x.benva) 
       && Eq.equals(this.store, x.store) 
   }
-ApplyState.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
-  }
-
 ApplyState.prototype.hashCode =
   function ()
   {
@@ -198,22 +204,31 @@ ApplyState.prototype.hashCode =
     result = prime * result + this.benva.hashCode();
     return result;
   }
-
 ApplyState.prototype.toString =
   function ()
   {
-    return "(apply " + this.node + " " + this.fun.tag + " " + this.statica + " " + this.operandValue + " " + this.thisa + " " + this.benva + ")";
+    return "#apply-" + this.node.tag;
   }
 ApplyState.prototype.nice =
   function ()
   {
     return "#apply-" + this.node.tag;
   }
-
 ApplyState.prototype.next =
   function (kont, c)
   {
     return c.e.applyClosure(this.node, this.fun, this.statica, this.operandValues, this.thisa, this.benva, this.store, kont, c);
+  }
+ApplyState.prototype.addresses =
+  function ()
+  {
+    return [this.benva, this.thisa, this.statica]
+            .concat(this.operandValues.flatMap(function (operandValue) {return operandValue.addresses()}));
+  }
+ApplyState.prototype.setStore =
+  function (store)
+  {
+    return new ApplyState(this.node, this.fun, this.statica, this.operandValues, this.thisa, this.benva, this.store);
   }
 
 function ReturnState(node, returnValue, store, frame)
@@ -233,11 +248,6 @@ ReturnState.prototype.equals =
       && Eq.equals(this.store, x.store) 
       && Eq.equals(this.frame, x.frame); 
   }
-ReturnState.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.frame.key()];
-  }
 ReturnState.prototype.hashCode =
   function ()
   {
@@ -251,7 +261,7 @@ ReturnState.prototype.hashCode =
 ReturnState.prototype.toString =
   function ()
   {
-    return "(return " + this.node + " " + this.returnValue + " " + this.frame + ")";
+    return "#return-" + this.node.tag;
   }
 ReturnState.prototype.nice =
   function ()
@@ -262,6 +272,17 @@ ReturnState.prototype.next =
   function (kont, c)
   {
     return c.e.scanReturn(this.node, this.returnValue, this.store, this.frame, kont, c);
+  }
+ReturnState.prototype.addresses =
+  function ()
+  {
+    return this.returnValue.addresses()
+            .concat(this.frame.addresses());
+  }
+ReturnState.prototype.setStore =
+  function (store)
+  {
+    return new ReturnState(this.node, this.returnValue, this.store, this.frame);
   }
 
 function StatementListKont(node, i, benva, lastValue, marks)
@@ -280,11 +301,6 @@ StatementListKont.prototype.equals =
       && this.i === x.i
       && Eq.equals(this.benva, x.benva)
       && Eq.equals(this.lastValue, x.lastValue);
-  }
-StatementListKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.i, this.benva];
   }
 StatementListKont.prototype.hashCode =
   function ()
@@ -305,7 +321,7 @@ StatementListKont.prototype.mark =
 StatementListKont.prototype.toString =
   function ()
   {
-    return "(slist " + this.node + " " + this.i + " " + this.benva + " " + this.lastValue + ")";
+    return "slist-" + this.node.tag + "-" + this.i;
   }
 StatementListKont.prototype.nice =
   function ()
@@ -364,11 +380,6 @@ VariableDeclarationKont.prototype.equals =
       && this.i === x.i
       && Eq.equals(this.benva, x.benva);
   }
-VariableDeclarationKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.i, this.benva];
-  }
 VariableDeclarationKont.prototype.hashCode =
   function ()
   {
@@ -382,7 +393,7 @@ VariableDeclarationKont.prototype.hashCode =
 VariableDeclarationKont.prototype.toString =
   function ()
   {
-    return "(vdecl " + this.node + " " + this.i + " " +  this.benva + ")";
+    return "vdecl-" + this.node.tag + "-" + this.i;
   }
 VariableDeclarationKont.prototype.nice =
   function ()
@@ -422,11 +433,6 @@ VariableDeclaratorKont.prototype.equals =
       && this.node === x.node
       && Eq.equals(this.benva, x.benva);
   }
-VariableDeclaratorKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
-  }
 VariableDeclaratorKont.prototype.hashCode =
   function ()
   {
@@ -439,7 +445,7 @@ VariableDeclaratorKont.prototype.hashCode =
 VariableDeclaratorKont.prototype.toString =
   function ()
   {
-    return "(vrator " + this.node + " " + this.benva + ")";
+    return "vrator " + this.node.tag;
   }
 VariableDeclaratorKont.prototype.nice =
   function ()
@@ -475,11 +481,6 @@ LeftKont.prototype.equals =
       && this.node === x.node
       && Eq.equals(this.benva, x.benva);
   }
-LeftKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
-  }
 LeftKont.prototype.hashCode =
   function ()
   {
@@ -492,7 +493,7 @@ LeftKont.prototype.hashCode =
 LeftKont.prototype.toString =
   function ()
   {
-    return "(left " + this.node + " " + this.benva + ")";
+    return "left-" + this.node.tag;
   }
 LeftKont.prototype.nice =
   function ()
@@ -533,11 +534,6 @@ RightKont.prototype.equals =
       && Eq.equals(this.benva, x.benva)
       && Eq.equals(this.leftValue, x.leftValue);
   }
-RightKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
-  }
 RightKont.prototype.hashCode =
   function ()
   {
@@ -551,7 +547,7 @@ RightKont.prototype.hashCode =
 RightKont.prototype.toString =
   function ()
   {
-    return "(right " + this.node + " " + this.benva + " " + this.leftValue + ")";
+    return "right-" + this.node.tag;
   }
 RightKont.prototype.nice =
   function ()
@@ -598,11 +594,6 @@ AssignIdentifierKont.prototype.equals =
       && this.node === x.node 
       && Eq.equals(this.benva, x.benva);
   }
-AssignIdentifierKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
-  }
 AssignIdentifierKont.prototype.hashCode =
   function ()
   {
@@ -615,7 +606,7 @@ AssignIdentifierKont.prototype.hashCode =
 AssignIdentifierKont.prototype.toString =
   function ()
   {
-    return "(asid " + this.node + " " + this.benva + ")";
+    return "asid-" + this.node.tag;
   }
 AssignIdentifierKont.prototype.nice =
   function ()
@@ -650,11 +641,6 @@ OperatorKont.prototype.equals =
       && this.node === x.node
       && Eq.equals(this.benva, x.benva);
   }
-OperatorKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
-  }
 OperatorKont.prototype.hashCode =
   function ()
   {
@@ -667,7 +653,7 @@ OperatorKont.prototype.hashCode =
 OperatorKont.prototype.toString =
   function ()
   {
-    return "(rator-" + this.node + " " + this.benva + ")";
+    return "rator-" + this.node.tag;
   }
 OperatorKont.prototype.nice =
   function ()
@@ -720,11 +706,6 @@ OperandsKont.prototype.equals =
       && Eq.equals(this.operandValues, x.operandValues) 
       && Eq.equals(this.thisValue, x.thisValue);
   }
-OperandsKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.i, this.benva];
-  }
 OperandsKont.prototype.hashCode =
   function ()
   {
@@ -741,7 +722,7 @@ OperandsKont.prototype.hashCode =
 OperandsKont.prototype.toString =
   function ()
   {
-    return "(rand " + this.node + " " + this.i + " " + this.benva + " " + this.operatorValue + " " + this.operandValues + " " + this.thisValue + ")";
+    return "rand-" + this.node.tag + "-" + this.i;
   }
 OperandsKont.prototype.nice =
   function ()
@@ -758,7 +739,7 @@ OperandsKont.prototype.addresses =
   {
     return this.operatorValue.addresses()
       .concat(this.operandValues.flatMap(function (value) {return value.addresses()}))
-      .concat(thisValue.addresses())
+      .concat(this.thisValue.addresses())
       .addLast(this.benva);
   }
 OperandsKont.prototype.apply =
@@ -795,11 +776,6 @@ BodyKont.prototype.equals =
       && this.i === x.i
       && Eq.equals(this.benva, x.benva);
   }
-BodyKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.i, this.benva];
-  }
 BodyKont.prototype.hashCode =
   function ()
   {
@@ -813,7 +789,7 @@ BodyKont.prototype.hashCode =
 BodyKont.prototype.toString =
   function ()
   {
-    return "(body " + this.node + " " + this.i + " " + this.benva + ")";
+    return "body-" + this.node.tag + "-" + this.i;
   }
 BodyKont.prototype.nice =
   function ()
@@ -859,11 +835,6 @@ ReturnKont.prototype.equals =
       && this.node === x.node 
       && Eq.equals(this.benva, x.benva);
   }
-ReturnKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
-  }
 ReturnKont.prototype.hashCode =
   function ()
   {
@@ -876,7 +847,7 @@ ReturnKont.prototype.hashCode =
 ReturnKont.prototype.toString =
   function ()
   {
-    return "(ret " + this.node + " " + this.benva + ")";
+    return "ret-" + this.node.tag;
   }
 ReturnKont.prototype.nice =
   function ()
@@ -914,11 +885,6 @@ IfKont.prototype.equals =
       && this.node === x.node 
       && Eq.equals(this.benva, x.benva);
   }
-IfKont.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
-  }
 IfKont.prototype.hashCode =
   function ()
   {
@@ -931,7 +897,7 @@ IfKont.prototype.hashCode =
 IfKont.prototype.toString =
   function ()
   {
-    return "(if " + this.node + " " + this.benva + ")";
+    return "if-" + this.node.tag;
   }
 IfKont.prototype.nice =
   function ()
@@ -1582,6 +1548,7 @@ jseval.initialize =
     c.e = cc.e;
     c.l = cc.l;
     c.p = cc.p;
+    c.k = cc.k;
     
     // install constants
     c.L_UNDEFINED = c.l.abst1(undefined);

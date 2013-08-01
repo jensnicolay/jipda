@@ -7,6 +7,7 @@ var suiteJipdaTests =
   function run(src, c, expected)
   {
     var ast = Ast.createAst(src);
+    Ast.printTree(ast);
     var e = Object.create(c.e);
     var actual = BOT;
     e.haltKont =
@@ -19,7 +20,7 @@ var suiteJipdaTests =
     c.e = e;
     var state = Jipda.inject(ast, c);
     Jipda.run(state, c);
-    assertEquals(expected, actual);        
+    assertEquals(expected, actual);
   }
   
   module.test1a =
@@ -437,6 +438,23 @@ var suiteJipdaTests =
 //      var c = Jipda.context({p:new Lattice1(), a:tagAg});
 //      run(src, c, c.l.abst([true, false]));
 //    }    
+    
+    
+    // simplest of GC tests
+//    
+//    function f(x)
+//    {
+//        return x;
+//    }
+//
+//    function g(y)
+//    {
+//        return f(y);
+//    }
+//
+//    g(1);
+//    g(2);
+    //
       
   return module;
 

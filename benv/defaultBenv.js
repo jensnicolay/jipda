@@ -284,7 +284,11 @@ Benv.prototype.compareTo =
   Benv.prototype.addresses = 
     function ()
     {
-      return this.frame.flatMap(function (entry) {return entry.value.addresses()}).toSet();
+      var callAddresses = this.Call.flatMap(function (Call) {return Call.addresses()});
+      var prototypeAddresses = this.Prototype.addresses() || []; // TODO this.Pr may be BOT (? see createEnvironment)
+      var frameAddresses = this.frame.flatMap(function (entry) {return entry.value.addresses()});
+      var addresses = this.parents.concat(callAddresses).concat(prototypeAddresses).concat(frameAddresses).toSet();
+      return addresses;
     }
   
   Benv.prototype.isObject =

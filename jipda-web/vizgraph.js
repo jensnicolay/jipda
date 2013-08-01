@@ -58,6 +58,22 @@ function drawLinks(links, selector)
         label = node.type;
       }
       dot += i + " [label=\"" + label + "\"];\n";
+      if (node.ss)
+      {
+        function frameIndexer(x)
+        {
+          if (Array.isArray(x))
+          {
+            return x.map(frameIndexer)
+          }
+          else
+          {
+            return Arrays.indexOf(x, frames, Eq.equals);
+          }
+        }
+        
+        node.ss = frameIndexer(node.ss);
+      }
     });
   links.forEach(
     function (link)
@@ -89,7 +105,7 @@ function drawLinks(links, selector)
       var nodeIndex = $("title", $this).text();
       var node = nodes[nodeIndex];
       $this.attr("id", nodeIndex);
-      $("title", $this).text(node);
+      $("title", $this).text(node.ss);
       var constructorName = String(node.constructor);
       constructorName = constructorName.substring(0, constructorName.length - 2);
       $this.attr("class", "node " + constructorName); // addClass doesn't seem to work

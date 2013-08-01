@@ -526,7 +526,7 @@ function assertSetEquals(expected, actual)
   {
     return;
   }
-  throw new Error("assertSetEquals: expected " + expected + ", got " + actual); 
+  throw new Error("assertSetEquals: expected " + expected + ", got " + actual + "\ndiff " + expected.removeAll(actual) + "\n     " + actual.removeAll(expected)); 
 }
 
 function assertNotEquals(expected, actual)
@@ -601,6 +601,46 @@ Ecma.Class =
     ERROR: "Error",
     JSON: "JSON"
   };
+
+var Collections = {};
+
+Collections.add =
+  function (collection, value)
+  {
+    return collection.add(value);
+  }
+
+Collections.addAll =
+  function (collection, values)
+  {
+    return collection.addAll(values);
+  }
+
+Collections.size =
+  function (collection)
+  {
+    return collection.size();
+  }
+
+Collections.values =
+  function (collection)
+  {
+    return collection.values();
+  }
+
+/*
+ * Map interface
+ * 
+ * equals/hashCode TODO
+ * put
+ * get
+ * entries
+ * keys
+ * values
+ * size
+ * clear
+ *  
+ */
 
 function HashMap(entries)
 {
@@ -692,6 +732,14 @@ HashMap.prototype.size =
     return this._entries.size;
   }
 
+HashMap.prototype.clear =
+  function ()
+  {
+    var entries = new Array(this._entries.length);
+    entries.size = 0;
+    return new HashMap(entries);
+  }
+
 HashMap.prototype.toString =
   function ()
   {
@@ -703,6 +751,88 @@ HashMap.prototype.nice =
   {
     return this.entries().map(function (entry) {return entry.key + " -> " + entry.value}).join("\n");
   }
+
+function MultiMap(map, valueContainer)
+{
+  this._map = map;
+  this._valueContainer = valueContainer;
+}
+
+MultiMap.empty =
+  function (map, valueContainer)
+  {
+    return new MultiMap(map || HashMap.empty(), valueContainer || ArraySet.empty());
+  }
+
+MultiMap.prototype.put =
+  function (key, value)
+  {
+    var values = this.get(key);
+    var newValues = values.add(value);
+    var newMap = this._map.put(key, newValues);
+    return new MultiMap(newMap, this._valueContainer);
+  }
+
+MultiMap.prototype.get =
+  function (key)
+  {
+    return this._map.get(key) || this._valueContainer;
+  }
+
+MultiMap.prototype.entries =
+  function ()
+  {
+    return this._map.entries();
+  }
+
+MultiMap.prototype.keys =
+  function ()
+  {
+    return this._map.keys();
+  }
+
+MultiMap.prototype.values =
+  function ()
+  {
+    return this._map.values();
+  }
+
+MultiMap.prototype.size =
+  function ()
+  {
+    return this._map.size();
+  }
+
+MultiMap.prototype.clear =
+  function ()
+  {
+    return new MultiMap(this._map.clear(), this._valueContainer);
+  }
+
+MultiMap.prototype.toString =
+  function ()
+  {
+    return this._map.toString();
+  }
+
+MultiMap.prototype.nice =
+  function ()
+  {
+    return this._map.nice();
+  }
+
+
+/*
+ * Set interface
+ * 
+ * equals/hashCode (based on values)
+ * add
+ * addAll
+ * contains
+ * values
+ * size
+ *  
+ */
  
 
 function HashSet(map)
@@ -713,7 +843,7 @@ function HashSet(map)
 HashSet.empty =
   function (size)
   {
-    return new HashSet(new HashMap(new Array(size || 13)));
+    return new HashSet(HashMap.empty(size));
   }
 
 HashSet.prototype.equals =
@@ -723,9 +853,19 @@ HashSet.prototype.equals =
     {
       return true;
     }
+    if (!x.values)
+    {
+      return false;
+    }
     var thisValues = this.values();
     var xValues = x.values();
     return thisValues.setEquals(xValues);
+  }
+
+HashSet.prototype.hashCode =
+  function ()
+  {
+    return this.values().hashCode();
   }
 
 HashSet.prototype.add =
@@ -737,6 +877,12 @@ HashSet.prototype.add =
       return this;
     }
     return new HashSet(this._map.put(value, value));
+  }
+
+HashSet.prototype.addAll =
+  function (values)
+  {
+    return values.reduce(Collections.add, this);
   }
 
 HashSet.prototype.contains =
@@ -758,10 +904,28 @@ HashSet.prototype.size =
     return this._map.size();
   }
 
+HashSet.prototype.toString =
+  function ()
+  {
+    return this._map.values().toString();
+  }
+
+HashSet.prototype.nice =
+  function ()
+  {
+    return this.toString();
+  }
+
 function ArraySet(arr)
 {
   this._arr = arr;
 }
+
+ArraySet.empty =
+  function ()
+  {
+    return new ArraySet([]);
+  }
 
 ArraySet.prototype.equals =
   function (x)
@@ -770,9 +934,19 @@ ArraySet.prototype.equals =
     {
       return true;
     }
+    if (!x.values)
+    {
+      return false;
+    }
     var thisValues = this.values();
     var xValues = x.values();
     return thisValues.setEquals(xValues);
+  }
+
+ArraySet.prototype.hashCode =
+  function ()
+  {
+    return this._arr.hashCode();
   }
 
 ArraySet.prototype.add =
@@ -784,6 +958,12 @@ ArraySet.prototype.add =
       return this;
     }
     return new ArraySet(this._arr.concat([value]));
+  }
+
+ArraySet.prototype.addAll =
+  function (values)
+  {
+    return values.reduce(Collections.add, this);
   }
 
 ArraySet.prototype.contains =
@@ -803,4 +983,16 @@ ArraySet.prototype.size =
   function ()
   {
     return this._arr.length;
+  }
+
+ArraySet.prototype.toString =
+  function ()
+  {
+    return this._arr.toString();
+  }
+
+ArraySet.prototype.nice =
+  function ()
+  {
+    return this.toString();
   }

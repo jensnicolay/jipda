@@ -23,11 +23,6 @@ InitState.prototype.equals =
       && Eq.equals(this.benva, x.benva)
       && Eq.equals(this.store, x.store);
   }
-InitState.prototype.key =
-  function ()
-  {
-    return [this.node.tag, this.benva];
-  }
 InitState.prototype.hashCode =
   function ()
   {
@@ -42,6 +37,16 @@ InitState.prototype.next =
   {
     var frame = new HaltKont();
     return kont.push(frame, new EvalState(this.node, this.benva, this.store));
+  }
+InitState.prototype.addresses =
+  function ()
+  {
+    return [this.benva];
+  }
+InitState.prototype.setStore =
+  function (store)
+  {
+    return new InitState(this.node, this.benva, store);
   }
 
 function HaltKont(marks)
@@ -72,6 +77,11 @@ HaltKont.prototype.equals =
   function (x)
   {
     return this === x;
+  }
+HaltKont.prototype.addresses =
+  function ()
+  {
+    return [];
   }
   
 function JipdaLattice(primLattice)
@@ -302,19 +312,6 @@ Etg.prototype.containsEdge =
     return Arrays.contains(edge, this.edges, Eq.equals);
   }
 
-//Etg.prototype.containsSource =
-//  function (source)
-//  {
-//    for (var i = 0; i < this.edges.length; i++)
-//    {
-//      if (this.edges[i].source.equals(source))
-//      {
-//        return true;
-//      }
-//    }
-//    return false;
-//  }
-
 Etg.prototype.containsTarget =
   function (target)
   {
@@ -363,19 +360,6 @@ Ecg.prototype.containsEdge =
   {
     return Arrays.contains(edge, this.edges, Eq.equals);
   }
-
-//Ecg.prototype.containsSource =
-//  function (source)
-//  {
-//    for (var i = 0; i < this.edges.length; i++)
-//    {
-//      if (this.edges[i].source.equals(source))
-//      {
-//        return true;
-//      }
-//    }
-//    return false;
-//  }
 
 Ecg.prototype.successors =
   function (source)
@@ -460,16 +444,47 @@ Unch.prototype.toString =
     return "e";//"\u03B5";
   }
 
+var Agc = {};
+
+Agc.collect =
+  function (store, rootSet)
+  {
+    var reachable = Agc.addressesReachable(rootSet, store, []);
+    var store2 = store.narrow(reachable);
+//    print("narrowed", store.map.size(), store2.map.size());
+    return store2;
+  }
+
+Agc.addressesReachable =
+  function (addresses, store, reachable)
+  {
+    for (var i = 0; i < addresses.length; i++)
+    {
+      reachable = Agc.addressReachable(addresses[i], store, reachable);
+    }
+    return reachable;
+  }
+
+Agc.addressReachable = 
+  function (address, store, reachable)
+  {
+    if (!(address instanceof Addr))
+    {
+      throw new Error(address);
+    }
+    if (Arrays.contains(address, reachable, Eq.equals))
+    {
+      return reachable;
+    }
+    var aval = store.lookupAval(address);
+    var addresses = aval.addresses();
+    return Agc.addressesReachable(addresses, store, reachable.addLast(address));
+  }
+
 function PushUnchKont(source)
 {
   this.source = source;
 }
-
-PushUnchKont.prototype.next =
-  function (c)
-  {
-    return this.source.next(this, c);
-  }
 
 PushUnchKont.prototype.push =
   function (frame, target)
@@ -495,12 +510,6 @@ function PopKont(source, frame)
   this.frame = frame;
 }
 
-PopKont.prototype.next =
-  function (c)
-  {
-    return this.source.next(this, c);
-  }
-
 PopKont.prototype.push =
   function (frame, target)
   {
@@ -522,6 +531,86 @@ PopKont.prototype.unch =
     return [];
   }
 
+var ceskDriver = {};
+
+ceskDriver.pushUnch =
+  function (q, stack, c)
+  {
+    var kont = new PushUnchKont(q);
+    var edges = q.next(kont, c);
+    
+    var sa = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
+    edges.forEach(function (edge) {
+      assertTrue(edge.source.store.map.keys().toSet().subsumes(sa), edge);            
+      assertTrue(edge.target.store.map.keys().toSet().subsumes(sa), edge);            
+      if (edge.g.isPush)
+      {
+        var frame = edge.g.frame;
+        assertTrue(edge.target.store.map.keys().toSet().subsumes(frame.addresses().toSet()), edge);            
+      }
+    });
+    
+    
+    
+    return edges;
+  }
+
+ceskDriver.pop =
+  function (q, frame, stack, c)
+  {
+    var kont = new PopKont(q, frame);
+    return q.next(kont, c);
+  }
+
+function GcDriver(driver)
+{
+  this.driver = driver;
+}
+
+GcDriver.gc =
+  function (q, stack)
+  {
+    var stackAddresses = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
+    print("gc", q.nice(), stack.toSet(), "\n  " + stackAddresses);
+    var store = q.store;
+    var rootSet = q.addresses().concat(stackAddresses);
+//    print(">>>>>>>>>>", stackAddresses);
+    var store2 = Agc.collect(store, rootSet);
+//    print("<<<<<<<<<<")
+    var gcq = q.setStore(store2); 
+    return gcq;
+  }
+
+GcDriver.prototype.pushUnch =
+  function (q, stack, c)
+  {
+    var sa = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
+    var gcq = GcDriver.gc(q, stack);
+    assertTrue(gcq.store.map.keys().toSet().subsumes(sa), "gcpushunch store");
+    
+    var edges = this.driver.pushUnch(gcq, stack, c); 
+    return edges.map(function (edge) 
+        {
+          if (edge.g.isPush)
+          {
+            var frame = edge.g.frame;
+            assertTrue(edge.target.store.map.keys().toSet().subsumes(frame.addresses().toSet()), edge);                    
+          }
+      return new Edge(q, edge.g, edge.target)      
+        });
+  }
+    
+GcDriver.prototype.pop =
+  function (q, frame, stack, c)
+  {
+    assertTrue(Arrays.contains(frame, stack, Eq.equals), "gcpop stack");
+    assertTrue(q.store.map.keys().subsumes(frame.addresses().toSet()), "gcpop store " + frame.addresses().toSet());
+    var gcq = GcDriver.gc(q, stack);
+    assertTrue(gcq.store.map.keys().subsumes(frame.addresses().toSet()), "gcpop store 2");
+    var edges = this.driver.pop(gcq, frame, stack, c);
+    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target)});
+  }
+
 var Jipda = {};
 
 Jipda.context =
@@ -533,10 +622,9 @@ Jipda.context =
     c.b = cc.b || new DefaultBenv();
     c.e = cc.e || jseval;
     c.p = cc.p || new Lattice1();
-    c.l = cc.l || new JipdaLattice(c.p);    
-  //  var performGc = config.gc === undefined ? true : config.gc;
-  //  var k = config.k === undefined ? 1 : config.k;
-  //  var visited = config.visited || new DefaultVisitedStrategy(performGc ? gc : function (store) {return store}); // TODO make this mandatory param
+    c.l = cc.l || new JipdaLattice(c.p);
+    c.k = cc.k || new GcDriver(ceskDriver);
+//    c.k = cc.k || ceskDriver;
     var c = c.e.initialize(c);
     return c;
   }
@@ -560,7 +648,8 @@ Jipda.dsg =
   {
     var etg = Etg.empty();
     var ecg = Ecg.empty().addEdge(new EpsEdge(q, q));
-    var dEdH = Jipda.sprout(q, c);
+    var ss = MultiMap.empty();
+    var dEdH = Jipda.sprout(etg, ecg, q, c);
     return Jipda.summarize(etg, ecg, [], dEdH[0], dEdH[1], c);
   }
 
@@ -569,12 +658,14 @@ Jipda.summarize =
   {
     while (true)
     {
+      // epsilon edges
       if (dH.length > 0)
       {
         var h = dH[0];
         dH = dH.slice(1);
         if (!ecg.containsEdge(h))
         {
+          print("dH", h);
           ecg = ecg.addEdge(h);
           var q = h.source;
           var q1 = h.target;
@@ -582,14 +673,17 @@ Jipda.summarize =
           var dEdH = Jipda.addEmpty(etg, ecg, q, q1, c);
           dE = dE.concat(dEdH[0]);
           dH = dH.concat(dEdH[1]);
+          ss = dEdH[2];
         }
       }
+      // push, pop, unch edges
       else if (dE.length > 0)
       {
         var e = dE[0];
         dE = dE.slice(1);
         if (!etg.containsEdge(e))
         {
+          print("dE", e);
           var q = e.source;
           var g = e.g;
           var q1 = e.target;
@@ -615,17 +709,16 @@ Jipda.summarize =
           dH = dEdH[1];
         }
       }
+      // control states
       else if (dS.length > 0)
       {
         var q = dS[0];
         dS = dS.slice(1);
-//        if (!ecg.containsSource(q))
-        {
-          ecg = ecg.addEdge(new EpsEdge(q, q));
-          var dEdH = Jipda.sprout(q, c);
-          dE = dEdH[0];
-          dH = dEdH[1];
-        }
+        print("dS", q);
+        ecg = ecg.addEdge(new EpsEdge(q, q));
+        var dEdH = Jipda.sprout(etg, ecg, q, c);
+        dE = dEdH[0];
+        dH = dEdH[1];
       }
       else
       {
@@ -635,10 +728,10 @@ Jipda.summarize =
   }
 
 Jipda.sprout =
-  function (q, c)
+  function (etg, ecg, q, c)
   {
-    var kont = new PushUnchKont(q);
-    var dE = kont.next(c);
+    var framesR = Jipda.retrospectiveStack(q, etg, ecg);
+    var dE = c.k.pushUnch(q, framesR, c);
     var dH = dE
               .filter(function (edge) {return edge.g.isUnch})
               .map(function (unchEdge) {return new EpsEdge(unchEdge.source, unchEdge.target)});
@@ -647,13 +740,17 @@ Jipda.sprout =
 
 Jipda.addPush =
   function (etg, ecg, s, frame, q, c)
-  {
+  { 
+    var fa = frame.addresses().toSet();
+    var sa = q.store.map.keys().toSet();
+    assertTrue(sa.subsumes(fa), sa + " === " + fa);
+  
     var qset1 = ecg.successors(q);
     var dE = qset1.flatMap(
       function (q1)
       {
-        var kont = new PopKont(q1, frame);
-        var popEdges = kont.next(c);
+        var framesR = Jipda.retrospectiveStack(q1, etg, ecg);
+        var popEdges = c.k.pop(q1, frame, framesR, c);
         return popEdges;
       });
     var dH = dE.map(function (popEdge) {return new EpsEdge(s, popEdge.target)});
@@ -687,8 +784,16 @@ Jipda.addEmpty =
     var sset1 = ecg.predecessors(s2);
     var sset4 = ecg.successors(s3);
     var dH1 = sset1.flatMap(function (s1) {return sset4.map(function (s4) {return new EpsEdge(s1, s4)})});
-    var dH2 = sset1.map(function (s1) {return new EpsEdge(s1, s3)});
-    var dH3 = sset4.map(function (s4) {return new EpsEdge(s2, s4)});
+    var dH2 = sset1.map(
+      function (s1) 
+      {
+        return new EpsEdge(s1, s3)
+      });
+    var dH3 = sset4.map(
+      function (s4)
+      {
+        return new EpsEdge(s2, s4)
+      });
     var pushEdges = sset1.flatMap(
       function (s1)
       {
@@ -701,8 +806,10 @@ Jipda.addEmpty =
           function (pushEdge)
           {
             var frame = pushEdge.g.frame;
-            var kont = new PopKont(s4, frame);
-            var popEdges = kont.next(c);
+            var framesR = Jipda.retrospectiveStack(s4, etg, ecg);
+            assertTrue(Arrays.contains(frame, framesR, Eq.equals));
+            assertTrue(framesR.subsumes(Jipda.retrospectiveStack(pushEdge.target, etg, ecg)));
+            var popEdges = c.k.pop(s4, frame, framesR, c);
             return popEdges;
           })
       });
@@ -715,31 +822,60 @@ Jipda.addEmpty =
     return [dE, dH];
   }
 
-function addressReachable(address, store, reachable)
-{
-  if (Arrays.indexOf(address, reachable, Eq.equals) > -1)
+Jipda.retrospectiveStack =
+  function (q, etg, ecg)
   {
-    return reachable;
+    var visited = HashSet.empty();
+    var todo = [q];
+    var frames = HashSet.empty();
+    while (todo.length > 0)
+    {
+      var q = todo[0];
+      todo = todo.slice(1);
+      if (visited.contains(q))
+      {
+        continue;
+      }
+      visited = visited.add(q);
+      var epsPredecessors = ecg.predecessors(q);
+      var incomingEdges = etg.incoming(q);
+      var incomingPushUnchEdges = incomingEdges.filter(function (edge) {return !edge.g.isPop});
+      var incomingPushEdges = incomingPushUnchEdges.filter(function (edge) {return edge.g.isPush});
+      var pushPredecessors = incomingPushUnchEdges.map(function (edge) {return edge.source});
+      var pushedFrames = incomingPushEdges.map(function (pushEdge) {return pushEdge.g.frame});
+      frames = frames.addAll(pushedFrames);
+      todo = todo.concat(epsPredecessors).concat(pushPredecessors);
+    }
+    return frames.values();
   }
-  var value = store.lookupAval(address);
-  return valueReachable(value, store, address);
-}
 
-function addressesReachable(addresses, store, reachable)
-{
-  return addresses.reduce(function (reachable, address) {return addressReachable(address, store, reachable)}, reachable);
-}
+Jipda.prospectiveStack =
+  function (q, etg, ecg)
+  {
+    var visited = HashSet.empty();
+    var todo = [q];
+    var frames = HashSet.empty();
+    while (todo.length > 0)
+    {
+      var q = todo[0];
+      todo = todo.slice(1);
+      if (visited.contains(q))
+      {
+        continue;
+      }
+      visited = visited.add(q);
+      var epsSuccessors = ecg.successors(q);
+      var outgoingEdges = etg.outgoing(q);
+      var outgoingPopUnchEdges = outgoingEdges.filter(function (edge) {return !edge.g.isPush});
+      var outgoingPopEdges = outgoingPopUnchEdges.filter(function (edge) {return edge.g.isPop});
+      var popSuccessors = outgoingPopUnchEdges.map(function (edge) {return edge.target});
+      var poppedFrames = outgoingPopEdges.map(function (popEdge) {return popEdge.g.frame});
+      frames = frames.addAll(poppedFrames);
+      todo = todo.concat(epsSuccessors).concat(popSuccessors);
+    }
+    return frames.values();
+  }
 
-function valueReachable(value, store, reachable)
-{
-  var addresses = value.addresses();
-  return addressesReachable(addresses, store, reachable);  
-}
-
-function valuesReachable(values, store, reachable)
-{
-  return values.reduce(function (reachable, value) {return valueReachable(value, store, reachable)}, reachable);
-}
 
 function repl(config)
 {

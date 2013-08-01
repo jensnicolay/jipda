@@ -47,6 +47,13 @@
 		$("#resultValue").text(result);
     var etgEdges = jipda.dsg.etg.edges;
     var ecgEdges = jipda.dsg.ecg.edges;
+    
+    etgEdges.forEach(function (edge)
+        {
+      		edge.source.ss = Jipda.retrospectiveStack(edge.source, jipda.dsg.etg, jipda.dsg.ecg);
+      		edge.target.ss = Jipda.retrospectiveStack(edge.target, jipda.dsg.etg, jipda.dsg.ecg);
+        });
+    
 		//drawLinks(etgEdges.concat(ecgEdges), "#graph");
 		drawLinks(etgEdges, "#graph");
 	}
@@ -69,6 +76,4 @@
 	<div id="graph"/>
 </body>
 
-</html>
-</html>
 </html>

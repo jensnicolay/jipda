@@ -70,10 +70,16 @@ StoreValue.prototype.reset =
   {
     return new StoreValue(BOT, 0);      
   }
+
+StoreValue.prototype.addresses =
+  function ()
+  {
+    return this.aval.addresses();
+  }
   
 function Store(map)
 {
-  this.map = map || new HashMap(new Array(31));
+  this.map = map || HashMap.empty(31);
 }
 
 Store.prototype.equals =
@@ -211,7 +217,6 @@ Store.prototype.allocAval =
 Store.prototype.updateAval =
   function (address, aval, msg)
   {
-    assertTrue((aval instanceof JipdaValue) || aval.isBenv, "need JipdaValue or Benv");
     var value = this.map.get(address);
     if (value)
     {
@@ -225,11 +230,12 @@ Store.prototype.updateAval =
 Store.prototype.join =
   function (store)
   {
+    throw new Error("used?");
     if (store === BOT)
     {
       return this;
     }
-    var result = new HashMap();
+    var result = this.map.clear();
     var addresses = this.map.keys().concat(store.map.keys()).toSet();
     addresses.forEach(
       function (address)
@@ -245,7 +251,7 @@ Store.prototype.join =
 Store.prototype.narrow =
   function (addresses)
   {
-    var result = new HashMap();
+    var result = this.map.clear();
     var entries = this.map.entries();
     for (var i = 0; i < entries.length; i++)
     {
@@ -255,12 +261,16 @@ Store.prototype.narrow =
       {
         result = result.put(address, entry.value);
       }
-//      if (address instanceof Addr)
-//      {
-//        var reset = entry[1].reset();
-//        print("reset address", address, "before", entry[1], "after", reset);
-//        return [[address, reset]];
-//      }
+      else // DEBUG
+      {
+        print("dropping", entry.key, entry.value);
+      }
     }
     return new Store(result);
   }
+//
+//Store.prototype.addresses =
+//  function ()
+//  {
+//    return this.map.values().flatMap(function (value) {return value.addresses()});
+//  }
