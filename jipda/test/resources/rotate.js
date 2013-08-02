@@ -7,4 +7,4 @@ function rotate(n, x, y, z)
   return rotate(n-1, y, z, x);
 }
 
-rotate(131, 5, true, "hallo");
+rotate(41, 5, true, "hallo");

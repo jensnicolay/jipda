@@ -199,7 +199,7 @@ Store.prototype.allocAval =
   function (address, aval, undef)
   {
     assertDefinedNotNull(address);
-    assertTrue(aval === BOT /*|| aval instanceof JipdaValue */|| aval.isBenv, "need JipdaValue or Benv");
+    assertTrue(aval === BOT /*|| aval instanceof JipdaValue */|| aval.isBenv);
     var value = this.map.get(address);
     if (value && value.fresh !== 0)
     {

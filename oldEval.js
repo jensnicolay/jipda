@@ -162,11 +162,11 @@ CallState.prototype.setStore =
     return new CallState(this.node, this.callable, this.operandValues, this.thisa, this.benva, this.store);
   }
 
-function ReturnState(node, returna, store, frame)
+function ReturnState(node, returnValue, store, frame)
 {
   this.type = "return";
   this.node = node;
-  this.returna = returna;
+  this.returnValue = returnValue;
   this.store = store;
   this.frame = frame;
 }
@@ -184,7 +184,7 @@ ReturnState.prototype.equals =
   {
     return this.type === x.type 
       && this.node === x.node 
-      && Eq.equals(this.returna, x.returna) 
+      && Eq.equals(this.returnValue, x.returnValue) 
       && Eq.equals(this.store, x.store) 
       && Eq.equals(this.frame, x.frame); 
   }
@@ -194,7 +194,7 @@ ReturnState.prototype.hashCode =
     var prime = 7;
     var result = 1;
     result = prime * result + this.node.hashCode();
-    result = prime * result + this.returna.hashCode();
+    result = prime * result + this.returnValue.hashCode();
     result = prime * result + this.frame.hashCode();
     return result;
   }
@@ -211,18 +211,18 @@ ReturnState.prototype.nice =
 ReturnState.prototype.next =
   function (kont, c)
   {
-    return c.e.scanReturn(this.node, this.returna, this.store, this.frame, kont, c);
+    return c.e.scanReturn(this.node, this.returnValue, this.store, this.frame, kont, c);
   }
 ReturnState.prototype.addresses =
   function ()
   {
-    return [this.returna]
+    return this.returnValue.addresses()
             .concat(this.frame.addresses());
   }
 ReturnState.prototype.setStore =
   function (store)
   {
-    return new ReturnState(this.node, this.returna, this.store, this.frame);
+    return new ReturnState(this.node, this.returnValue, this.store, this.frame);
   }
 
 function StatementListKont(node, i, benva, lastValue)
@@ -766,11 +766,8 @@ ReturnKont.prototype.apply =
   function (returnValue, store, kont, c)
   {
     var node = this.node;
-    var benva = this.benva;
-    var benv = store.lookupAval(benva);
-    benv = benv.add(c.P_RETVAL, returnValue);
-    store = store.updateAval(benva, benv);
-    return kont.pop(function (frame) {return new ReturnState(node, benva, store, frame)});
+    var benva = this.benva;    
+    return kont.pop(function (frame) {return new ReturnState(node, returnValue, store, frame)});
   }
 
 function IfKont(node, benva)
@@ -1311,10 +1308,7 @@ jseval.evalReturnStatement =
     var argumentNode = node.argument;
     if (argumentNode === null)
     {
-      var benv = store.lookupAval(benva);
-      benv = benv.add(c.P_RETVAL, returnValue);
-      store = store.updateAval(benva, benv);
-      return kont.pop(function (frame) {return new ReturnState(node, benva, store, frame)});
+      return kont.pop(function (frame) {return new ReturnState(node, c.L_UNDEFINED, store, frame)});
     }
     
     var frame = new ReturnKont(node, benva);
@@ -1322,15 +1316,13 @@ jseval.evalReturnStatement =
   }
 
 jseval.scanReturn =
-  function (node, returna, store, frame, kont, c)
+  function (node, returnValue, store, frame, kont, c)
   {
     if (frame === ReturnState.returnMarker)
     {
-      var benv = store.lookupAval(returna);
-      var returnValue = benv.lookup(c.P_RETVAL);
       return kont.pop(function (frame) {return new KontState(frame, returnValue, store)});
     }
-    return kont.pop(function (frame) {return new ReturnState(node, returna, store, frame)});
+    return kont.pop(function (frame) {return new ReturnState(node, returnValue, store, frame)});
   }
 jseval.applyKont =
   function (frame, value, store, kont, c)
@@ -1469,8 +1461,6 @@ jseval.initialize =
     c.P_NUMBER = c.p.NUMBER;
     c.P_STRING = c.p.STRING;
     c.P_DEFINED = c.P_NULL.join(c.P_TRUE).join(c.P_FALSE).join(c.P_NUMBER).join(c.P_STRING);
-    
-    c.P_RETVAL = c.p.abst1("!retVal!");
 
     // install global pointers and refs
     var globala = new ContextAddr("this", 0);
@@ -1551,8 +1541,8 @@ jseval.initialize =
     object = object.add(c.P_PROTOTYPE, c.objectProtoRef);//was c.objectProtoRef
     global = global.add(c.p.abst1("Object"), c.l.abst1(objecta));
     
-//    object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
-//    object = registerPrimitiveFunction(object, objecta, "create", objectCreate);
+    object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
+    object = registerPrimitiveFunction(object, objecta, "create", objectCreate);
 
     store = store.allocAval(objecta, object);
     store = store.allocAval(objectPa, objectP);
@@ -1587,37 +1577,37 @@ jseval.initialize =
     // END STRING 
             
     // BEGIN ARRAY
-//    var arrayP = c.createObject(c.objectProtoRef);
-//    arrayP.toString = function () { return "<Array.prototype>"; }; // debug
-//    var arraya = new ContextAddr("<Array>", 0);
-//    var arrayP = registerProperty(arrayP, "constructor", c.l.abst1(arraya));
-//    var array = c.createPrimitive(arrayConstructor);
-//    array = array.add(c.P_PROTOTYPE, c.arrayProtoRef);
-//    var arrayNa = new ContextAddr("Array", 0);
-//    store = store.allocAval(arraya, array);
-//    global = global.add(c.p.abst1("Array"), c.l.abst1(arraya));
-//    
-//    arrayP = registerPrimitiveFunction(arrayP, arrayPa, "concat", arrayConcat);
-//    arrayP = registerPrimitiveFunction(arrayP, arrayPa, "push", arrayPush);
-//    arrayP = registerPrimitiveFunction(arrayP, arrayPa, "map", arrayMap);
-//    arrayP = registerPrimitiveFunction(arrayP, arrayPa, "reduce", arrayReduce); // TODO
-//    arrayP = registerPrimitiveFunction(arrayP, arrayPa, "filter", arrayFilter);
-//    store = store.allocAval(arrayPa, arrayP);
+    var arrayP = c.createObject(c.objectProtoRef);
+    arrayP.toString = function () { return "<Array.prototype>"; }; // debug
+    var arraya = new ContextAddr("<Array>", 0);
+    var arrayP = registerProperty(arrayP, "constructor", c.l.abst1(arraya));
+    var array = c.createPrimitive(arrayConstructor);
+    array = array.add(c.P_PROTOTYPE, c.arrayProtoRef);
+    var arrayNa = new ContextAddr("Array", 0);
+    store = store.allocAval(arraya, array);
+    global = global.add(c.p.abst1("Array"), c.l.abst1(arraya));
+    
+    arrayP = registerPrimitiveFunction(arrayP, arrayPa, "concat", arrayConcat);
+    arrayP = registerPrimitiveFunction(arrayP, arrayPa, "push", arrayPush);
+    arrayP = registerPrimitiveFunction(arrayP, arrayPa, "map", arrayMap);
+    arrayP = registerPrimitiveFunction(arrayP, arrayPa, "reduce", arrayReduce); // TODO
+    arrayP = registerPrimitiveFunction(arrayP, arrayPa, "filter", arrayFilter);
+    store = store.allocAval(arrayPa, arrayP);
     // END ARRAY
     
     // BEGIN MATH
-//    var math = c.createObject(c.objectProtoRef);
-//    math = registerPrimitiveFunction(math, globala, "abs", mathAbs);
-//    math = registerPrimitiveFunction(math, globala, "round", mathRound);
-//    math = registerPrimitiveFunction(math, globala, "sin", mathCos);
-//    math = registerPrimitiveFunction(math, globala, "cos", mathSin);
-//    math = registerPrimitiveFunction(math, globala, "sqrt", mathSqrt);
-//    math = registerPrimitiveFunction(math, globala, "max", mathMax);
-//    math = registerPrimitiveFunction(math, globala, "random", mathRandom);
-//    math = registerProperty(math, "PI", c.l.abst1(Math.PI));
-//    var matha = new ContextAddr("<Math>", 0);
-//    store = store.allocAval(matha, math);
-//    global = global.add(c.p.abst1("Math"), c.l.abst1(matha));
+    var math = c.createObject(c.objectProtoRef);
+    math = registerPrimitiveFunction(math, globala, "abs", mathAbs);
+    math = registerPrimitiveFunction(math, globala, "round", mathRound);
+    math = registerPrimitiveFunction(math, globala, "sin", mathCos);
+    math = registerPrimitiveFunction(math, globala, "cos", mathSin);
+    math = registerPrimitiveFunction(math, globala, "sqrt", mathSqrt);
+    math = registerPrimitiveFunction(math, globala, "max", mathMax);
+    math = registerPrimitiveFunction(math, globala, "random", mathRandom);
+    math = registerProperty(math, "PI", c.l.abst1(Math.PI));
+    var matha = new ContextAddr("<Math>", 0);
+    store = store.allocAval(matha, math);
+    global = global.add(c.p.abst1("Math"), c.l.abst1(matha));
     // END MATH
     
     // BEGIN GLOBAL
@@ -1628,9 +1618,9 @@ jseval.initialize =
     global = registerProperty(global, "Infinity", c.l.abst1(Infinity));
 
     // specific interpreter functions
-//    global = registerPrimitiveFunction(global, globala, "$meta", $meta);
-//    global = registerPrimitiveFunction(global, globala, "$join", $join);
-//    global = registerPrimitiveFunction(global, globala, "print", _print);
+    global = registerPrimitiveFunction(global, globala, "$meta", $meta);
+    global = registerPrimitiveFunction(global, globala, "$join", $join);
+    global = registerPrimitiveFunction(global, globala, "print", _print);
     // end specific interpreter functions
     
     store = store.allocAval(globala, global);

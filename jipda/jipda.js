@@ -541,12 +541,9 @@ ceskDriver.pushUnch =
     
     var sa = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
     edges.forEach(function (edge) {
-      assertTrue(edge.source.store.map.keys().toSet().subsumes(sa), edge);            
-      assertTrue(edge.target.store.map.keys().toSet().subsumes(sa), edge);            
       if (edge.g.isPush)
       {
         var frame = edge.g.frame;
-        assertTrue(edge.target.store.map.keys().toSet().subsumes(frame.addresses().toSet()), edge);            
       }
     });
     
@@ -586,16 +583,9 @@ GcDriver.prototype.pushUnch =
   {
     var sa = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
     var gcq = GcDriver.gc(q, stack);
-    assertTrue(gcq.store.map.keys().toSet().subsumes(sa), "gcpushunch store");
-    
     var edges = this.driver.pushUnch(gcq, stack, c); 
     return edges.map(function (edge) 
         {
-          if (edge.g.isPush)
-          {
-            var frame = edge.g.frame;
-            assertTrue(edge.target.store.map.keys().toSet().subsumes(frame.addresses().toSet()), edge);                    
-          }
       return new Edge(q, edge.g, edge.target)      
         });
   }
@@ -603,10 +593,7 @@ GcDriver.prototype.pushUnch =
 GcDriver.prototype.pop =
   function (q, frame, stack, c)
   {
-    assertTrue(Arrays.contains(frame, stack, Eq.equals), "gcpop stack");
-    assertTrue(q.store.map.keys().subsumes(frame.addresses().toSet()), "gcpop store " + frame.addresses().toSet());
     var gcq = GcDriver.gc(q, stack);
-    assertTrue(gcq.store.map.keys().subsumes(frame.addresses().toSet()), "gcpop store 2");
     var edges = this.driver.pop(gcq, frame, stack, c);
     return edges.map(function (edge) {return new Edge(q, edge.g, edge.target)});
   }
@@ -623,8 +610,8 @@ Jipda.context =
     c.e = cc.e || jseval;
     c.p = cc.p || new Lattice1();
     c.l = cc.l || new JipdaLattice(c.p);
-    c.k = cc.k || new GcDriver(ceskDriver);
-//    c.k = cc.k || ceskDriver;
+//    c.k = cc.k || new GcDriver(ceskDriver);
+    c.k = cc.k || ceskDriver;
     var c = c.e.initialize(c);
     return c;
   }
@@ -665,7 +652,7 @@ Jipda.summarize =
         dH = dH.slice(1);
         if (!ecg.containsEdge(h))
         {
-          print("dH", h);
+          print("dH", h, ecg.edges.length);
           ecg = ecg.addEdge(h);
           var q = h.source;
           var q1 = h.target;
@@ -683,7 +670,7 @@ Jipda.summarize =
         dE = dE.slice(1);
         if (!etg.containsEdge(e))
         {
-          print("dE", e);
+          print("dE", e, etg.edges.length);
           var q = e.source;
           var g = e.g;
           var q1 = e.target;
@@ -741,10 +728,6 @@ Jipda.sprout =
 Jipda.addPush =
   function (etg, ecg, s, frame, q, c)
   { 
-    var fa = frame.addresses().toSet();
-    var sa = q.store.map.keys().toSet();
-    assertTrue(sa.subsumes(fa), sa + " === " + fa);
-  
     var qset1 = ecg.successors(q);
     var dE = qset1.flatMap(
       function (q1)
@@ -807,8 +790,6 @@ Jipda.addEmpty =
           {
             var frame = pushEdge.g.frame;
             var framesR = Jipda.retrospectiveStack(s4, etg, ecg);
-            assertTrue(Arrays.contains(frame, framesR, Eq.equals));
-            assertTrue(framesR.subsumes(Jipda.retrospectiveStack(pushEdge.target, etg, ecg)));
             var popEdges = c.k.pop(s4, frame, framesR, c);
             return popEdges;
           })
@@ -825,6 +806,7 @@ Jipda.addEmpty =
 Jipda.retrospectiveStack =
   function (q, etg, ecg)
   {
+    return [];
     var visited = HashSet.empty();
     var todo = [q];
     var frames = HashSet.empty();

@@ -431,6 +431,14 @@ var suiteJipdaTests =
         run(src, c, c.l.abst([true, false]));
       }
     
+    module.test101 =
+      function ()
+      {
+        var src = "function g(){return 1}; function f(n){if (n === 0){return 0} else return f(n-1)+g()}; f(10)";
+        var c = Jipda.context({p:new Lattice1(), a:tagAg});
+        run(src, c, c.l.join(c.p.NUMBER, []));
+      }
+    
 //    module.testChurchNums =
 //    function ()
 //    {
