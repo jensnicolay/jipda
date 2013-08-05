@@ -85,6 +85,7 @@ function drawLinks(links, selector)
         {
           label += frames[link.g.frame].constructor;
         }
+        label += " :: " + nodes[link.source].store.diff(nodes[link.target].store).split("\n").join(" ");
         dot += link.source + " -> " + link.target + " [label=\"" + label + "\"];\n";        
       }
       else
@@ -105,7 +106,7 @@ function drawLinks(links, selector)
       var nodeIndex = $("title", $this).text();
       var node = nodes[nodeIndex];
       $this.attr("id", nodeIndex);
-      $("title", $this).text(node.ss);
+      $("title", $this).text(nodeIndex + " " + node.nice() + " " + node.store.map.keys().toSet() + " " + node.ss);
       var constructorName = String(node.constructor);
       constructorName = constructorName.substring(0, constructorName.length - 2);
       $this.attr("class", "node " + constructorName); // addClass doesn't seem to work

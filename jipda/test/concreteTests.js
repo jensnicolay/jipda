@@ -743,7 +743,7 @@ var suiteConcreteTests =
         run("function f(n) {if (n === 0) {return 1} else {return n*f(n-1)}}; f(10)", 3628800);
       }
     
-    module.DDDtest101 =
+    module.test101 =
       function ()
       {
         run("function g(){return 1}; function f(n){if (n === 0){return 0} else return f(n-1)+g()}; f(10)", 10);

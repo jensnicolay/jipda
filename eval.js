@@ -750,7 +750,7 @@ ReturnKont.prototype.hashCode =
 ReturnKont.prototype.toString =
   function ()
   {
-    return "ret-" + this.node.tag;
+    return "ret-" + this.node.tag + "::" + this.addresses();
   }
 ReturnKont.prototype.nice =
   function ()

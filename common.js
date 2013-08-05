@@ -773,6 +773,15 @@ MultiMap.prototype.put =
     return new MultiMap(newMap, this._valueContainer);
   }
 
+MultiMap.prototype.putAll =
+  function (key, values)
+  {
+    var existingValues = this.get(key);
+    var newValues = existingValues.addAll(values);
+    var newMap = this._map.put(key, newValues);
+    return new MultiMap(newMap, this._valueContainer);
+  }
+
 MultiMap.prototype.get =
   function (key)
   {
@@ -825,7 +834,7 @@ MultiMap.prototype.nice =
 /*
  * Set interface
  * 
- * equals/hashCode (based on values)
+ * equals, hashCode (based on values)
  * add
  * addAll
  * contains
@@ -995,4 +1004,72 @@ ArraySet.prototype.nice =
   function ()
   {
     return this.toString();
+  }
+
+
+/*
+ * Deque interface
+ * 
+ * equals, hashCode (based on values)
+ * addFirst, addLast
+ * removeFirst, removeLast
+ * size
+ *  
+ */
+function ArrayDeque(arr, value)
+{
+  this._arr = arr;
+  this._value = value;
+}
+
+ArrayDeque.empty =
+  function ()
+  {
+    return new ArrayDeque([]);
+  }
+
+ArrayDeque.prototype.addFirst =
+  function (x)
+  {
+    var arr = this._arr.slice(0);
+    return new ArrayDeque(arr, arr.unshift(x));
+  }
+
+ArrayDeque.prototype.addLast =
+  function (x)
+  {
+    var arr = this._arr.slice(0);
+    return new ArrayDeque(arr, arr.push(x));
+  }
+
+ArrayDeque.prototype.removeFirst =
+  function ()
+  {
+    var arr = this._arr.slice(0);
+    return new ArrayDeque(arr, arr.shift(1));
+  }
+
+ArrayDeque.prototype.removeLast =
+  function ()
+  {
+    var arr = this._arr.slice(0);
+    return new ArrayDeque(arr, arr.pop());
+  }
+
+ArrayDeque.prototype.value =
+  function ()
+  {
+    return this._value;
+  }
+
+ArrayDeque.prototype.size =
+  function ()
+  {
+    return this._arr.length;
+  }
+
+ArrayDeque.prototype.toString =
+  function ()
+  {
+    return this._arr.toString();
   }
