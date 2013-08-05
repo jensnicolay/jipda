@@ -568,7 +568,7 @@ GcDriver.gc =
   function (q, stack)
   {
     var stackAddresses = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
-    print("gc", q.nice(), stack.toSet(), "\n  " + stackAddresses);
+//    print("gc", q.nice(), stack.toSet(), "\n  " + stackAddresses);
     var store = q.store;
     var rootSet = q.addresses().concat(stackAddresses);
 //    print(">>>>>>>>>>", stackAddresses);
@@ -631,16 +631,97 @@ Jipda.dsg =
   function(q, c)
   {
     var etg = Etg.empty();
-    var ecg = Ecg.empty().addEdge(new EpsEdge(q, q));
-    var dEdH = Jipda.sprout(etg, ecg, q, c);
-    return Jipda.summarize(etg, ecg, [], dEdH[0], dEdH[1], c);
-  }
-
-Jipda.summarize =
-  function (etg, ecg, dS, dE, dH, c)
-  {
+    var ecg = Ecg.empty();
     var ss = MultiMap.empty();
-    try {
+    var dE = [];
+    var dH = [];
+    var dS = [q];
+    
+    function sprout(q)
+    {
+      var frames = ss.get(q).values();
+      var pushUnchEdges = c.k.pushUnch(q, frames, c); 
+      dE = dE.concat(pushUnchEdges);
+      dH = dH.concat(pushUnchEdges
+                .filter(function (pushUnchEdge) {return pushUnchEdge.g.isUnch})
+                .map(function (unchEdge) {return new EpsEdge(unchEdge.source, unchEdge.target)}));
+    }
+
+    function addPush(s, frame, q)
+    { 
+      ss = ss.putAll(q, ss.get(s).add(frame).values());
+      var qset1 = ecg.successors(q);
+      dE = dE.concat(qset1.flatMap(
+        function (q1)
+        {
+          ss = ss.putAll(q1, ss.get(q).values());
+          var frames = ss.get(q1).values();
+          var popEdges = c.k.pop(q1, frame, frames, c);
+          return popEdges;
+        }));
+      dH = dH.concat(dE.map(function (popEdge) {return new EpsEdge(s, popEdge.target)}));
+    }
+
+    function addPop(s2, frame, q)
+    {
+      var sset1 = ecg.predecessors(s2);
+      var push = new Push(frame);
+      dH = dH.concat(sset1.flatMap(
+        function (s1)
+        {
+          var sset = etg.incoming(s1)
+                        .filter(function (edge) {return edge.g.equals(push)})
+                        .map(function (pushEdge) {return pushEdge.source});
+          return sset.map(
+            function (s)
+            {
+              return new EpsEdge(s, q);
+            });
+        }));
+    }
+
+    function addEmpty(s2, s3)
+    {
+      ss = ss.putAll(s3, ss.get(s2).values());
+      var sset1 = ecg.predecessors(s2);
+      var sset4 = ecg.successors(s3);
+      dH = dH.concat(sset1.flatMap(function (s1) {return sset4.map(function (s4) {return new EpsEdge(s1, s4)})}));
+      dH = dH.concat(sset1.map(
+        function (s1) 
+        {
+          return new EpsEdge(s1, s3)
+        }));
+      dH = dH.concat(sset4.map(
+        function (s4)
+        {
+          return new EpsEdge(s2, s4)
+        }));
+      var pushEdges = sset1.flatMap(
+        function (s1)
+        {
+          return etg.incoming(s1).filter(function (edge) {return edge.g.isPush});
+        });
+      var popEdges = sset4.flatMap(
+        function (s4)
+        {
+          ss = ss.putAll(s4, ss.get(s3).values());
+          return pushEdges.flatMap(
+            function (pushEdge)
+            {
+              var frame = pushEdge.g.frame;
+              var frames = ss.get(s4).values();
+              var popEdges = c.k.pop(s4, frame, frames, c);
+              return popEdges;
+            })
+        });
+      dE = dE.concat(popEdges);
+      dH = dH.concat(pushEdges.flatMap(
+        function (pushEdge)
+        {
+          return popEdges.map(function (popEdge) {return new EpsEdge(pushEdge.source, popEdge.target)});
+        }));
+    }
+    
     while (true)
     {
       // epsilon edges
@@ -650,15 +731,12 @@ Jipda.summarize =
         dH = dH.slice(1);
         if (!ecg.containsEdge(h))
         {
-          print("dH", h, ecg.edges.length);
+//          print("dH", h, ecg.edges.length);
           ecg = ecg.addEdge(h);
           var q = h.source;
           var q1 = h.target;
-//          ss = ss.putAll(q1, ss.get(q));
           ecg = ecg.addEdge(new EpsEdge(q, q)).addEdge(new EpsEdge(q1, q1));
-          var dEdH = Jipda.addEmpty(etg, ecg, q, q1, c);
-          dE = dE.concat(dEdH[0]);
-          dH = dH.concat(dEdH[1]);
+          addEmpty(q, q1);
         }
       }
       // push, pop, unch edges
@@ -668,7 +746,7 @@ Jipda.summarize =
         dE = dE.slice(1);
         if (!etg.containsEdge(e))
         {
-          print("dE", e, etg.edges.length);
+//          print("dE", e, etg.edges.length);
           var q = e.source;
           var g = e.g;
           var q1 = e.target;
@@ -680,19 +758,16 @@ Jipda.summarize =
           ecg = ecg.addEdge(new EpsEdge(q, q)).addEdge(new EpsEdge(q1, q1));
           if (g.isPush)
           {
-            var dEdH = Jipda.addPush(etg, ecg, q, g.frame, q1, c);
+            addPush(q, g.frame, q1);
           }
           else if (g.isPop)
           {
-            var dEdH = Jipda.addPop(etg, ecg, q, g.frame, q1, c);
+            addPop(q, g.frame, q1);
           }
           else
           {
-//            var dEdH = Jipda.addEmpty(etg, ecg, q, q1, c);
-            var dEdH = [[], new EpsEdge(q, q1)];
+            addEmpty(q, q1);
           }
-          dE = dE.concat(dEdH[0]);
-          dH = dEdH[1];
         }
       }
       // control states
@@ -700,122 +775,24 @@ Jipda.summarize =
       {
         var q = dS[0];
         dS = dS.slice(1);
-        print("dS", q);
+//        print("dS", q);
         ecg = ecg.addEdge(new EpsEdge(q, q));
-        var dEdH = Jipda.sprout(etg, ecg, q, c);
-        dE = dEdH[0];
-        dH = dEdH[1];
+        sprout(q);
       }
       else
       {
         return {etg:etg, ecg:ecg};
       }
     }
-    } catch (e)
-    {
-      throw e;
-      print(e);
-      print(e.stack);
-      return {etg:etg, ecg:ecg};
-    }
   }
 
-Jipda.sprout =
-  function (etg, ecg, q, c)
-  {
-    var framesR = Jipda.retrospectiveStack(q, etg, ecg);
-    var dE = c.k.pushUnch(q, framesR, c);
-    var dH = dE
-              .filter(function (edge) {return edge.g.isUnch})
-              .map(function (unchEdge) {return new EpsEdge(unchEdge.source, unchEdge.target)});
-    return [dE, dH];
-  }
-
-Jipda.addPush =
-  function (etg, ecg, s, frame, q, c)
-  { 
-    var qset1 = ecg.successors(q);
-    var dE = qset1.flatMap(
-      function (q1)
-      {
-        var framesR = Jipda.retrospectiveStack(q1, etg, ecg);
-        var popEdges = c.k.pop(q1, frame, framesR, c);
-        return popEdges;
-      });
-    var dH = dE.map(function (popEdge) {return new EpsEdge(s, popEdge.target)});
-    return [dE, dH];
-  }
-
-Jipda.addPop =
-  function (etg, ecg, s2, frame, q, c)
-  {
-    var sset1 = ecg.predecessors(s2);
-    var dE = [];
-    var push = new Push(frame);
-    var dH = sset1.flatMap(
-      function (s1)
-      {
-        var sset = etg.incoming(s1)
-                      .filter(function (edge) {return edge.g.equals(push)})
-                      .map(function (pushEdge) {return pushEdge.source});
-        return sset.map(
-          function (s)
-          {
-            return new EpsEdge(s, q);
-          });
-      });
-    return [dE, dH];
-  }
-
-Jipda.addEmpty =
-  function (etg, ecg, s2, s3, c)
-  {
-    
-    var sset1 = ecg.predecessors(s2);
-    var sset4 = ecg.successors(s3);
-    var dH1 = sset1.flatMap(function (s1) {return sset4.map(function (s4) {return new EpsEdge(s1, s4)})});
-    var dH2 = sset1.map(
-      function (s1) 
-      {
-        return new EpsEdge(s1, s3)
-      });
-    var dH3 = sset4.map(
-      function (s4)
-      {
-        return new EpsEdge(s2, s4)
-      });
-    var pushEdges = sset1.flatMap(
-      function (s1)
-      {
-        return etg.incoming(s1).filter(function (edge) {return edge.g.isPush});
-      });
-    var dE = sset4.flatMap(
-      function (s4)
-      {
-        return pushEdges.flatMap(
-          function (pushEdge)
-          {
-            var frame = pushEdge.g.frame;
-            var framesR = Jipda.retrospectiveStack(s4, etg, ecg);
-            var popEdges = c.k.pop(s4, frame, framesR, c);
-            return popEdges;
-          })
-      });
-    var dH4 = pushEdges.flatMap(
-      function (pushEdge)
-      {
-        return dE.map(function (popEdge) {return new EpsEdge(pushEdge.source, popEdge.target)});
-      });
-    var dH = dH1.concat(dH2).concat(dH3).concat(dH4);
-    return [dE, dH];
-  }
 
 Jipda.retrospectiveStack =
-  function (q, etg, ecg)
+  function (s, etg, ecg) //, ss)
   {
 //    return [];
     var visited = HashSet.empty();
-    var todo = [q];
+    var todo = [s];
     var frames = HashSet.empty();
     while (todo.length > 0)
     {
@@ -835,7 +812,10 @@ Jipda.retrospectiveStack =
       frames = frames.addAll(pushedFrames);
       todo = todo.concat(epsPredecessors).concat(pushPredecessors);
     }
-    return frames.values();
+    var rvalues = frames.values();
+//    var cvalues = ss.get(s).values();
+//    assertSetEquals(rvalues, cvalues);
+    return rvalues;
   }
 
 Jipda.prospectiveStack =

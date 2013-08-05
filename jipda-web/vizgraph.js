@@ -85,7 +85,7 @@ function drawLinks(links, selector)
         {
           label += frames[link.g.frame].constructor;
         }
-        label += " :: " + nodes[link.source].store.diff(nodes[link.target].store).split("\n").join(" ");
+//        label += " :: " + nodes[link.source].store.diff(nodes[link.target].store).split("\n").join(" ");
         dot += link.source + " -> " + link.target + " [label=\"" + label + "\"];\n";        
       }
       else
