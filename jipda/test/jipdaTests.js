@@ -4,38 +4,41 @@ var suiteJipdaTests =
 {
   var module = new TestSuite("suiteJipdaTests");
 
-  function run(src, c, expected)
+  function run(src, cesk, expected)
   {
     var ast = Ast.createAst(src);
-    Ast.printTree(ast);
-    var e = Object.create(c.e);
     var actual = BOT;
-    e.haltKont =
-      function (value, store)
+    var applyHalt =
+      function (value)
       {
         actual = actual.join(value);
         print(">>>", value, actual);
         return [];
       }
-    c.e = e;
-    var state = Jipda.inject(ast, c);
-    Jipda.run(state, c);
+    var state = Jipda.inject(ast, cesk, applyHalt);
+    Jipda.run(state);
     assertEquals(expected, actual);
+  }
+  
+  function createCesk(cc)
+  {
+    cc = cc || {};
+    return jsCesk({a:cc.a || tagAg, b:new DefaultBenv(), p:cc.p || new Lattice1()});
   }
   
   module.test1a =
     function ()
     {
-      var c = Jipda.context({p:new Lattice1(), a:tagAg});
-      run("42", c, c.l.abst1(42));
+      var cesk = createCesk();
+      run("42", cesk, cesk.l.abst1(42));
     }
     
    module.test12a =
   	function ()
   	{
   		var src = "var sq = function (x) {return x * x;}; sq(5); sq(6);";
-  		var c = Jipda.context({p:new Lattice1(), a:tagAg});
-      run(src, c, c.l.abst1(36));
+  		var cesk = createCesk();
+      run(src, cesk, cesk.l.abst1(36));
       // property addresses: var allocated as (vr, time)
 //      assertEquals(jipda.lattice.abst([25, 30, 36]), actual);
       // now: extended benv directly takes x to value, and extended benv is allocated as (application, time)
@@ -65,8 +68,8 @@ var suiteJipdaTests =
   	function ()
   	{
   		var src = "var count = function (n) {if (n===0) {return 'done'} else {return count(n-1)}}; count(200)";
-      var c = Jipda.context({p:new Lattice1(), a:tagAg});
-      run(src, c, c.l.abst1("done"));
+      var cesk = createCesk();
+      run(src, cesk, cesk.l.abst1("done"));
   	}
   	
 //  module.test19b =
@@ -83,16 +86,16 @@ var suiteJipdaTests =
    function ()
    {
      var src = "function f() {f()}; f()";
-     var c = Jipda.context({p:new Lattice1(), a:tagAg});
-     run(src, c, BOT);
+     var cesk = createCesk();
+     run(src, cesk, BOT);
    }
  
  module.test20b =
    function ()
    {
      var src = "var t = function (x) {return t(x+1)}; t(0)";
-     var c = Jipda.context({p:new Lattice1(), a:tagAg});
-     run(src, c, BOT);
+     var cesk = createCesk();
+     run(src, cesk, BOT);
    }
    
   	
@@ -395,48 +398,48 @@ var suiteJipdaTests =
       function ()
       {
         var src = read("test/resources/gcIpdExample.js");
-        var c = Jipda.context({p:new Lattice1(), a:tagAg});
-        run(src, c, c.l.join(c.p.NUMBER, []));
+        var cesk = createCesk()
+        run(src, cesk, cesk.l.product(cesk.p.NUMBER, []));
       }  	
   	
     module.testRotate =
       function ()
       {
         var src = read("test/resources/rotate.js");
-        var c = Jipda.context({p:new SetLattice(3), a:tagAg});
-        run(src, c, c.l.abst([5, true, "hallo"]));
+        var cesk = createCesk({p:new SetLattice(3)});
+        run(src, cesk, cesk.l.abst([5, true, "hallo"]));
       }
     
     module.testFac =
       function ()
       {
         var src = "function f(n) {if (n === 0) {return 1} else {return n*f(n-1)}}; f(10)";
-        var c = Jipda.context({p:new Lattice1(), a:tagAg});
-        run(src, c, c.l.join(c.p.NUMBER, []));
+        var cesk = createCesk();
+        run(src, cesk, cesk.l.product(cesk.p.NUMBER, []));
       }
     
     module.testFib =
       function ()
       {
         var src = "var fib = function (n) {if (n<2) {return n} return fib(n-1)+fib(n-2)}; fib(4)";
-        var c = Jipda.context({p:new Lattice1(), a:tagAg});
-        run(src, c, c.l.join(c.p.NUMBER, []));
+        var cesk = createCesk();
+        run(src, cesk, cesk.l.product(cesk.p.NUMBER, []));
       }
           
     module.test100 =
       function ()
       {
         var src = "var z=false; function f(n) {if (n===10) {g()}; if (n>0) {f(n-1)}}; function g() {z=true}; f(20); z"
-        var c = Jipda.context({p:new Lattice1(), a:tagAg});
-        run(src, c, c.l.abst([true, false]));
+        var cesk = createCesk();
+        run(src, cesk, cesk.l.abst([true, false]));
       }
     
     module.test101 =
       function ()
       {
         var src = "function g(){return 1}; function f(n){if (n === 0){return 0} else return f(n-1)+g()}; f(10)";
-        var c = Jipda.context({p:new Lattice1(), a:tagAg});
-        run(src, c, c.l.join(c.p.NUMBER, []));
+        var cesk = createCesk();
+        run(src, cesk, cesk.l.product(cesk.p.NUMBER, []));
       }
     
 //    module.testChurchNums =

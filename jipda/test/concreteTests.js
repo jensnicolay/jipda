@@ -8,49 +8,18 @@ var suiteConcreteTests =
   {
     var ast = Ast.createAst(src);
     var lat = new CpLattice();
-    var e = Object.create(jseval);
+    var cesk = jsCesk({a:concreteAg, b:new DefaultBenv(), p: new CpLattice()});
     var actual = BOT;
-    e.haltKont =
-      function (value, store)
-      {
-        actual = actual.join(value);
-        return [];
-      }
-    var c = Jipda.context({e: e, p: lat, a: concreteAg});
-    var state = Jipda.inject(ast, c);
-    Jipda.run(state, c);
-    assertEquals(c.l.abst1(expected), actual);    
-  }
-  
-  function runExc(src, expected)
-  {
-    var ast = createAst(src);
-    var lat = new CpLattice();
-    var jipda = new Jipda({lattice: lat, k:0, a: concreteAg, visited: concreteVisited});
-    try
+    var applyHalt = function (value)
     {
-      jipda.evalNode(ast);
+      actual = actual.join(value);
+      return [];
     }
-    catch (e)
-    {
-      return;
-    }
-    var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
-    assertTrue(false, "expected exception, got " + actual);    
+    var state = Jipda.inject(ast, cesk, applyHalt);
+    Jipda.run(state);
+    assertEquals(cesk.l.abst1(expected), actual);    
   }
-  
-  function runStr(src, expected)
-  {
-    var ast = createAst(src);
-    var lat = new CpLattice();
-    var jipda = new Jipda({lattice: lat, k:0, ag: concreteAg, visited: concreteVisited});
-    var result = jipda.evalNode(ast);
-    var store = result.map(State.store).reduce(Lattice.join, BOT);
-    var printer = new ConcretePrinter(lat, store, {seen:false});
-    var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT).accept(printer);
-    assertEquals(expected, actual);    
-  }
-  
+
   module.test1 =
     function ()
     {

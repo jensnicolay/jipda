@@ -14,7 +14,8 @@
 	<script type="text/javascript" src="../benv/defaultBenv.js"></script>
 	<script type="text/javascript" src="../ast.js"></script>
 	<script type="text/javascript" src="../store.js"></script>
-	<script type="text/javascript" src="../eval.js"></script>
+	<script type="text/javascript" src="../cesk/cesk.js"></script>
+	<script type="text/javascript" src="../cesk/jsCesk.js"></script>
 	<script type="text/javascript" src="../jipda/jipda.js"></script>
 	<script type="text/javascript" src="lib/jquery-1.7.2.min.js"></script>
 	<script type="text/javascript" src="lib/ace/ace.js"></script>
@@ -34,24 +35,24 @@
     var ast = Ast.createAst(src);
     var lat = new Lattice1();
     //var lat = new SetLattice(3);
+    var cesk = jsCesk({a:tagAg, b:new DefaultBenv(), p:lat});
     var result = BOT;
-    var c = Jipda.context({p: lat, a: tagAg});
-    c.e.haltKont =
-      function (value, store)
+    var applyHalt =
+      function (value)
       {
         result = result.join(value);
         return [];
       }
-    var state = Jipda.inject(ast, c);
-    var jipda = Jipda.run(state, c);
+    var state = Jipda.inject(ast, cesk, applyHalt);
+    var jipda = Jipda.run(state);
 		$("#resultValue").text(result);
     var etgEdges = jipda.dsg.etg.edges;
     var ecgEdges = jipda.dsg.ecg.edges;
     
     etgEdges.forEach(function (edge)
         {
-      		edge.source.ss = Jipda.retrospectiveStack(edge.source, jipda.dsg.etg, jipda.dsg.ecg);
-      		edge.target.ss = Jipda.retrospectiveStack(edge.target, jipda.dsg.etg, jipda.dsg.ecg);
+		  		edge.source.ss = jipda.dsg.ss.get(edge.source).values();
+		  		edge.target.ss = jipda.dsg.ss.get(edge.target).values();
         });
     
 		//drawLinks(etgEdges.concat(ecgEdges), "#graph");

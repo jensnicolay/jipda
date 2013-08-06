@@ -15,7 +15,8 @@ function b()
   load("../address/tagAg.js");
   load("../address/concreteAg.js");
   load("../benv/defaultBenv.js");
-  load("../eval.js");
+  load("../cesk/cesk.js");
+  load("../cesk/jsCesk.js");
   load("../test.js");
   load("jipda.js");
   

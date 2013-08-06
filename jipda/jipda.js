@@ -1,9 +1,11 @@
-function InitState(node, benva, store)
+function InitState(node, benva, store, cesk, haltFrame)
 {
   this.type = "init";
   this.node = node;
   this.benva = benva;
   this.store = store;
+  this.cesk = cesk;
+  this.haltFrame = haltFrame;
 }
 InitState.prototype.toString =
   function ()
@@ -33,10 +35,9 @@ InitState.prototype.hashCode =
     return result;
   }
 InitState.prototype.next =
-  function (kont, c)
+  function (kont)
   {
-    var frame = new HaltKont();
-    return kont.push(frame, new EvalState(this.node, this.benva, this.store));
+    return kont.push(this.haltFrame, this.cesk.evalState(this.node, this.benva, this.store));
   }
 InitState.prototype.addresses =
   function ()
@@ -46,27 +47,22 @@ InitState.prototype.addresses =
 InitState.prototype.setStore =
   function (store)
   {
-    return new InitState(this.node, this.benva, store);
+    return new InitState(this.node, this.benva, store, this.cesk, this.haltFrame);
   }
 
-function HaltKont(marks)
+function HaltKont(applyHalt)
 {
-  this.marks = marks || [];
+  this.applyHalt = applyHalt;
 }
 HaltKont.prototype.toString =
   function ()
   {
     return "halt";
   }
-HaltKont.prototype.mark =
-  function (mark)
-  {
-    return new HaltKont(this.marks.addUniqueLast(mark));
-  }
 HaltKont.prototype.apply =
-  function (value, store, kont, c)
+  function (value, store, kont)
   {
-    return c.e.haltKont(value, store, kont, c);
+    return this.applyHalt(value, store, kont);
   }
 HaltKont.prototype.hashCode =
   function ()
@@ -84,133 +80,6 @@ HaltKont.prototype.addresses =
     return [];
   }
   
-function JipdaLattice(primLattice)
-{
-  this.primLattice = primLattice;
-}
-JipdaLattice.prototype = new Lattice();
-
-JipdaLattice.prototype.toString =
-  function ()
-  {
-    return "<JipdaLattice " + this.primLattice + ">";
-  }
-
-JipdaLattice.prototype.abst =
-  function (cvalues)
-  {
-    return cvalues.map(JipdaLattice.prototype.abst1, this).reduce(Lattice.join);
-  }
-
-JipdaLattice.prototype.abst1 =
-  function (cvalue)
-  {
-    if (cvalue instanceof Addr)
-    {
-      return new JipdaValue(BOT, [cvalue]);
-    }
-    return new JipdaValue(this.primLattice.abst1(cvalue), []);
-  }
-
-JipdaLattice.prototype.join =
-  function (prim, as)
-  {
-    return new JipdaValue(prim, as);
-  }
-
-function JipdaValue(prim, as)
-{
-  this.prim = prim;
-  this.as = as;
-}
-JipdaValue.prototype = new LatticeValue();
-JipdaValue.prototype.equals =
-  function (x)
-  {
-    if (x === BOT)
-    {
-      // !! JipdaValue(BOT, []) is NOT valid value, should be encoded as BOT
-      return false;
-    }
-    return this.prim.equals(x.prim)
-      && this.as.setEquals(x.as);
-  }
-JipdaValue.prototype.hashCode =
-  function ()
-  {
-    var prime = 7;
-    var result = 1;
-    result = prime * result + this.prim.hashCode();
-    result = prime * result + this.as.hashCode();
-    return result;
-  }
-
-JipdaValue.prototype.accept =
-  function (visitor)
-  {
-    return visitor.visitJipdaValue(this);
-  }
-
-JipdaValue.prototype.addresses =
-  function ()
-  {
-    return this.as.slice(0);
-  }
-
-JipdaValue.prototype.toString =
-  function ()
-  {
-    return "[" + this.prim + ", " + this.as + "]";
-  }
-
-JipdaValue.prototype.join =
-  function (x)
-  {
-    if (x === BOT)
-    {
-      return this;
-    }
-    return new JipdaValue(this.prim.join(x.prim), this.as.concat(x.as).toSet());
-  }
-
-JipdaValue.prototype.meet =
-  function (x)
-  {
-    if (x === BOT)
-    {
-      return BOT;
-    }
-    var prim = this.prim.meet(x.prim);
-    var as = this.as.removeAll(x.as);
-    if (prim === BOT && as.length === 0)
-    {
-      return BOT;
-    }
-    return new JipdaValue(prim, as);
-  }
-
-JipdaValue.prototype.compareTo =
-  function (x)
-  {
-    if (x === BOT)
-    {
-      return 1;
-    }
-    
-    if (x === this)
-    {
-      return 0;
-    }
-
-    var c1 = this.prim.compareTo(x.prim);
-    if (c1 === undefined)
-    {
-      return undefined;
-    }
-    var c2 = Lattice.subsumeComparison(this.as, x.as);
-    return Lattice.joinCompareResults(c1, c2);
-  }
-
 function Edge(source, g, target)
 {
   assertDefinedNotNull(source);
@@ -534,10 +403,10 @@ PopKont.prototype.unch =
 var ceskDriver = {};
 
 ceskDriver.pushUnch =
-  function (q, stack, c)
+  function (q, stack)
   {
     var kont = new PushUnchKont(q);
-    var edges = q.next(kont, c);
+    var edges = q.next(kont);
     
     var sa = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
     edges.forEach(function (edge) {
@@ -546,17 +415,14 @@ ceskDriver.pushUnch =
         var frame = edge.g.frame;
       }
     });
-    
-    
-    
     return edges;
   }
 
 ceskDriver.pop =
-  function (q, frame, stack, c)
+  function (q, frame, stack)
   {
     var kont = new PopKont(q, frame);
-    return q.next(kont, c);
+    return q.next(kont);
   }
 
 function GcDriver(driver)
@@ -571,65 +437,51 @@ GcDriver.gc =
 //    print("gc", q.nice(), stack.toSet(), "\n  " + stackAddresses);
     var store = q.store;
     var rootSet = q.addresses().concat(stackAddresses);
-//    print(">>>>>>>>>>", stackAddresses);
     var store2 = Agc.collect(store, rootSet);
-//    print("<<<<<<<<<<")
     var gcq = q.setStore(store2); 
     return gcq;
   }
 
 GcDriver.prototype.pushUnch =
-  function (q, stack, c)
+  function (q, stack)
   {
     var sa = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
     var gcq = GcDriver.gc(q, stack);
-    var edges = this.driver.pushUnch(gcq, stack, c); 
+    var edges = this.driver.pushUnch(gcq, stack); 
     return edges.map(function (edge) {return new Edge(q, edge.g, edge.target)});
   }
     
 GcDriver.prototype.pop =
-  function (q, frame, stack, c)
+  function (q, frame, stack)
   {
     var gcq = GcDriver.gc(q, stack);
-    var edges = this.driver.pop(gcq, frame, stack, c);
+    var edges = this.driver.pop(gcq, frame, stack);
     return edges.map(function (edge) {return new Edge(q, edge.g, edge.target)});
   }
 
 var Jipda = {};
 
-Jipda.context =
-  function (cc)
-  {
-    // complete the user config
-    var c = {};
-    c.a = cc.a || tagAg;
-    c.b = cc.b || new DefaultBenv();
-    c.e = cc.e || jseval;
-    c.p = cc.p || new Lattice1();
-    c.l = cc.l || new JipdaLattice(c.p);
-//    c.k = cc.k || ceskDriver;
-    c.k = cc.k || new GcDriver(ceskDriver);
-    var c = c.e.initialize(c);
-    return c;
-  }
-
 Jipda.inject =
-  function (node, c, config)
+  function (node, cesk, applyHalt, override)
   {
-    config = config || {};
-    return new InitState(node, config.benva || c.globala, config.store || c.store);
+    override = override || {};
+    var haltFrame = new HaltKont(applyHalt);
+    return new InitState(node, override.benva || cesk.globala, override.store || cesk.store, cesk, haltFrame);
   }
 
 Jipda.run =
-  function (state, c)
+  function (state)
   {
-    var dsg = Jipda.dsg(state, c);
+    var dsg = Jipda.dsg(state);
     return {initial: state, dsg:dsg};
   }
 
 Jipda.dsg =
-  function(q, c)
+  function(q)
   {
+  //var k = ceskDriver;
+    var k = new GcDriver(ceskDriver);
+  
     var etg = Etg.empty();
     var ecg = Ecg.empty();
     var ss = MultiMap.empty();
@@ -640,7 +492,7 @@ Jipda.dsg =
     function sprout(q)
     {
       var frames = ss.get(q).values();
-      var pushUnchEdges = c.k.pushUnch(q, frames, c); 
+      var pushUnchEdges = k.pushUnch(q, frames); 
       dE = dE.concat(pushUnchEdges);
       dH = dH.concat(pushUnchEdges
                 .filter(function (pushUnchEdge) {return pushUnchEdge.g.isUnch})
@@ -656,7 +508,7 @@ Jipda.dsg =
         {
           ss = ss.putAll(q1, ss.get(q).values());
           var frames = ss.get(q1).values();
-          var popEdges = c.k.pop(q1, frame, frames, c);
+          var popEdges = k.pop(q1, frame, frames);
           return popEdges;
         }));
       dH = dH.concat(dE.map(function (popEdge) {return new EpsEdge(s, popEdge.target)}));
@@ -710,7 +562,7 @@ Jipda.dsg =
             {
               var frame = pushEdge.g.frame;
               var frames = ss.get(s4).values();
-              var popEdges = c.k.pop(s4, frame, frames, c);
+              var popEdges = k.pop(s4, frame, frames);
               return popEdges;
             })
         });
@@ -781,7 +633,7 @@ Jipda.dsg =
       }
       else
       {
-        return {etg:etg, ecg:ecg};
+        return {etg:etg, ecg:ecg, ss:ss};
       }
     }
   }
@@ -846,43 +698,43 @@ Jipda.prospectiveStack =
   }
 
 
-function repl(config)
-{
-  config = config || {};
-  var name = config.name || "jipda";
-  var c = Jipda.context(config);
-  var src = "'I am Jipda!'";
-  var store = c.store;
-  c.e.haltKont = // TODO not a good idea: overwrites jseval
-    function (hvalue, hstore)
-    {
-      print(hvalue);
-      newStore = newStore.join(hstore);
-      return [];
-    }
-  while (src !== ":q")
-  {
-    var ast = Ast.createAst(src);
-    var state = Jipda.inject(ast, c, {store:store});
-    var previousStore = store;
-    var newStore = BOT;
-    try
-    {
-      Jipda.run(state, c);
-      store = newStore;
-    }
-    catch (e)
-    {
-      print(e.stack);
-    }
-    write(name + "> ");
-    src = readline();
-  }
-  print("Bye!");
-}
-
-function concRepl(config)
-{
-  config = config || {};
-  return repl({name: "conc", p:new CpLattice(), a:concreteAg, k:config.k});
-}
+//function repl(config)
+//{
+//  config = config || {};
+//  var name = config.name || "jipda";
+//  var c = Jipda.context(config);
+//  var src = "'I am Jipda!'";
+//  var store = c.store;
+//  c.e.haltKont = // TODO not a good idea: overwrites jseval
+//    function (hvalue, hstore)
+//    {
+//      print(hvalue);
+//      newStore = newStore.join(hstore);
+//      return [];
+//    }
+//  while (src !== ":q")
+//  {
+//    var ast = Ast.createAst(src);
+//    var state = Jipda.inject(ast, c, {store:store});
+//    var previousStore = store;
+//    var newStore = BOT;
+//    try
+//    {
+//      Jipda.run(state);
+//      store = newStore;
+//    }
+//    catch (e)
+//    {
+//      print(e.stack);
+//    }
+//    write(name + "> ");
+//    src = readline();
+//  }
+//  print("Bye!");
+//}
+//
+//function concRepl(config)
+//{
+//  config = config || {};
+//  return repl({name: "conc", p:new CpLattice(), a:concreteAg, k:config.k});
+//}
