@@ -8,7 +8,7 @@ var suiteConcreteTests =
   {
     var ast = Ast.createAst(src);
     var lat = new CpLattice();
-    var cesk = jsCesk({a:concreteAg, b:new DefaultBenv(), p: new CpLattice()});
+    var cesk = jsCesk({a:concreteAg, p: new CpLattice()});
     var actual = BOT;
     var applyHalt = function (value)
     {

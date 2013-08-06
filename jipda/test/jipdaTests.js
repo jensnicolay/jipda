@@ -23,7 +23,7 @@ var suiteJipdaTests =
   function createCesk(cc)
   {
     cc = cc || {};
-    return jsCesk({a:cc.a || tagAg, b:new DefaultBenv(), p:cc.p || new Lattice1()});
+    return jsCesk({a:cc.a || tagAg, p:cc.p || new Lattice1()});
   }
   
   module.test1a =

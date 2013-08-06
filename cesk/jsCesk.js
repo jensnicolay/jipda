@@ -3,12 +3,12 @@ function jsCesk(cc)
   // address generator
   var a = cc.a;
   // benv creator
-  var b = cc.b;
+  var b = cc.b || new DefaultBenv();
   // primitive lattice
   var p = cc.p;
   
   assertDefinedNotNull(a);
-  assertDefinedNotNull(b);
+//  assertDefinedNotNull(b);
   assertDefinedNotNull(p);
 
   // lattice (primitives + addresses)
