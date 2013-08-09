@@ -370,16 +370,7 @@ ceskDriver.pushUnch =
   function (q, stack)
   {
     var kont = new PushUnchKont(q);
-    var edges = q.next(kont);
-    
-    var sa = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
-    edges.forEach(function (edge) {
-      if (edge.g.isPush)
-      {
-        var frame = edge.g.frame;
-      }
-    });
-    return edges;
+    return q.next(kont);
   }
 
 ceskDriver.pop =

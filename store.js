@@ -204,13 +204,13 @@ Store.prototype.allocAval =
     if (value && value.fresh !== 0)
     {
       var weaklyUpdatedValue = value.weakUpdate(aval);
-//      print("REALLOCATED", address, weaklyUpdatedValue, msg ? msg : "", "-- was", entry);
+//      print("REALLOCATED", address, weaklyUpdatedValue);
       var store = new Store(this.map.put(address, weaklyUpdatedValue)); 
       store.weak = true; // hackety hack?
       return store;
     }
     var newValue = new StoreValue(aval);
-//    print("ALLOCATED", address, newValue, msg ? msg : "", "-- was", entry);
+//    print("ALLOCATED", address, newValue);
     return new Store(this.map.put(address, newValue));
   };
   
@@ -221,7 +221,7 @@ Store.prototype.updateAval =
     if (value)
     {
       var updatedValue = value.update(aval);
-//      print("UPDATED", address, updatedValue, msg ? msg : "", "-- was", entry);
+//      print("UPDATED", address, updatedValue);
       return new Store(this.map.put(address, updatedValue));
     }
     throw new Error("Store.updateAval: no abstract value at address " + address);

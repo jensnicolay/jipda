@@ -31,6 +31,9 @@ var suiteConcreteTests =
     function ()
     {
       run("41; 42;", 42);
+      run("1;;;;;", 1); // 12.1
+      run("1;{}", 1); // 12.1
+      run("1;var a;", 1); // 12.1
     }
             
   module.test3 =
@@ -57,6 +60,12 @@ var suiteConcreteTests =
       run("var sq = function (x) {return x * x;}; sq(5);", 25);
       run("function sq(x) {return x * x;}; sq(5);", 25);
       run("var sq = function (x) {return x * x;}; sq(5); sq(6);", 36);
+    };
+
+  module.test6 =
+    function ()
+    {
+      run("var f = function () { 123; }; f();", undefined);
     };
 
 //  module.test15 =

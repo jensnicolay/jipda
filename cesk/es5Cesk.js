@@ -1,4 +1,4 @@
-function jsCesk(cc)
+function es5Cesk(cc)
 {
   // address generator
   var a = cc.a;
@@ -1024,6 +1024,81 @@ function jsCesk(cc)
       return new ReturnState(this.node, this.returna, this.store, this.frame);
     }
   
+  function StatementListKont(node, i, benva, lastValue)
+  {
+    this.node = node;
+    this.i = i;
+    this.benva = benva;
+    this.lastValue = lastValue;
+  }
+  StatementListKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof StatementListKont
+        && this.node === x.node
+        && this.i === x.i
+        && Eq.equals(this.benva, x.benva)
+        && Eq.equals(this.lastValue, x.lastValue);
+    }
+  StatementListKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.i;
+      result = prime * result + this.benva.hashCode();
+      result = prime * result + this.lastValue.hashCode();
+      return result;
+    }
+  StatementListKont.prototype.toString =
+    function ()
+    {
+      return "slist-" + this.node.tag + "-" + this.i;
+    }
+  StatementListKont.prototype.nice =
+    function ()
+    {
+      return "slist-" + this.node.tag + "-" + this.i;
+    }
+  StatementListKont.prototype.addresses =
+    function ()
+    {
+      return this.lastValue.addresses().addLast(this.benva);
+    }
+  StatementListKont.prototype.apply =
+    function (value, store, kont)
+    {
+      var node = this.node;
+      var benva = this.benva;
+      var i = this.i;
+      var lastValue = this.lastValue;
+      
+      // keep track of last value-producing statement (ECMA 12.1 Block, 14 Program)
+      var newLastValue;
+      var undefProj = value.meet(L_UNDEFINED);
+      if (undefProj === BOT) // no undefined in value
+      {
+        newLastValue = value;
+      }
+      else if (value.equals(undefProj)) // value is undefined
+      {
+        newLastValue = lastValue;
+      }
+      else // value > undefined
+      {
+        newLastValue = l.product(value.prim.meet(P_DEFINED), value.as).join(lastValue); 
+      }
+      
+      var nodes = node.body;
+      if (i === nodes.length)
+      {
+        return kont.pop(function (frame) {return new KontState(frame, newLastValue, store)});
+      }
+      var frame = new StatementListKont(node, i + 1, benva, newLastValue);
+      return kont.push(frame, new EvalState(nodes[i], benva, store));
+    }
+  
   function VariableDeclarationKont(node, i, benva)
   {
     this.node = node;
@@ -1435,7 +1510,7 @@ function jsCesk(cc)
       return [this.benva];
     }
   BodyKont.prototype.apply =
-    function (value, store, kont)
+    function (ignoredValue, store, kont)
     {
       var node = this.node;
       var benva = this.benva;
@@ -1444,7 +1519,7 @@ function jsCesk(cc)
       var nodes = node.body;
       if (i === nodes.length)
       {
-        return kont.pop(function (frame) {return new KontState(frame, value, store)});
+        return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
       }
       var frame = new BodyKont(node, i + 1, benva);
       return kont.push(frame, new EvalState(nodes[i], benva, store));
@@ -1638,6 +1713,39 @@ function jsCesk(cc)
     return store;
   }
 
+  function doHoisting(node, benva, store, kont)
+  {
+    var hoisted = node.hoisted;
+    if (!hoisted)
+    {
+      var scopeInfo = Ast.scopeInfo(node);
+      hoisted = Ast.hoist(scopeInfo);
+      node.hoisted = hoisted;
+    }
+    if (hoisted.funs.length > 0 || hoisted.vars.length > 0)
+    {
+      var benv = store.lookupAval(benva);      
+      hoisted.funs.forEach(
+        function (funDecl)
+        {
+          var node = funDecl.node;
+          var allocateResult = allocateClosure(node, benva, store, kont);
+          var closureRef = allocateResult.ref;
+          store = allocateResult.store;
+          var vr = node.id;
+          benv = benv.add(p.abst1(vr.name), closureRef);
+        });
+      hoisted.vars.forEach(
+        function (varDecl)
+        {
+          var vr = varDecl.node.id;    
+          benv = benv.add(p.abst1(vr.name), L_UNDEFINED);
+        });
+      store = store.updateAval(benva, benv); // side-effect
+    }
+    return store;
+  }
+
   function evalEmptyStatement(node, benva, store, kont)
   {
     return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
@@ -1657,6 +1765,7 @@ function jsCesk(cc)
 
   function evalProgram(node, benva, store, kont)
   {
+    store = doHoisting(node, benva, store, kont);    
     return evalStatementList(node, benva, store, kont);
   }
 
@@ -1672,7 +1781,7 @@ function jsCesk(cc)
       return kont.unch(new EvalState(nodes[0], benva, store));
 //      return evalNode(nodes[0], benva, store, kont);
     }
-    var frame = new BodyKont(node, 1, benva);
+    var frame = new StatementListKont(node, 1, benva, L_UNDEFINED);
     return kont.push(frame, new EvalState(nodes[0], benva, store));
   }
 
@@ -1692,14 +1801,11 @@ function jsCesk(cc)
   }
 
   function evalVariableDeclarator(node, benva, store, kont)
-  {
+  { 
     var init = node.init;
+      
     if (init === null)
     {
-      var vr = node.id;    
-      var benv = store.lookupAval(benva);      
-      benv = benv.add(p.abst1(vr.name), L_UNDEFINED);
-      store = store.updateAval(benva, benv); // side-effect
       return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});      
     }
     var frame = new VariableDeclaratorKont(node, benva);
@@ -1898,13 +2004,7 @@ function jsCesk(cc)
 
   function evalFunctionDeclaration(node, benva, store, kont)
   {
-    var allocateResult = allocateClosure(node, benva, store, kont);
-    var closureRef = allocateResult.ref;
-    store = allocateResult.store;
-    var vr = node.id;
-    var benv = store.lookupAval(benva);
-    benv = benv.add(p.abst1(vr.name), closureRef);
-    store = store.updateAval(benva, benv); // side-effect
+    // hoisted!
     return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
   }
 
@@ -1924,23 +2024,30 @@ function jsCesk(cc)
 
   function applyProc(node, operatorValue, operandValues, thisValue, benva, store, kont)
   {
-    var thisAs = thisValue.addresses();
-    var operatorAs = operatorValue.addresses();
-    return thisAs.flatMap(
-      function (thisa)
-      {
-        return operatorAs.flatMap(
-          function (operatora)
-          {
-            var benv = store.lookupAval(operatora);
-            var callables = benv.Call;
-            return callables.flatMap(
-              function (callable)
-              {
-                return kont.push(ReturnState.returnMarker, new CallState(node, callable, operandValues, thisa, benva, store));
-              })
-          })
-      });
+    // TODO 'thisValue' handling/type coercions?
+    
+    var operatorPrim = operatorValue.prim;
+    if (operatorPrim === BOT)
+    {
+      // fast path: no type coercions needed
+      var thisAs = thisValue.addresses();
+      var operatorAs = operatorValue.addresses();
+      return thisAs.flatMap(
+        function (thisa)
+        {
+          return operatorAs.flatMap(
+            function (operatora)
+            {
+              var benv = store.lookupAval(operatora);
+              var callables = benv.Call;
+              return callables.flatMap(
+                function (callable)
+                {
+                  return kont.push(ReturnState.returnMarker, new CallState(node, callable, operandValues, thisa, benva, store));
+                })
+            })
+        })
+    }
   }
 
 
@@ -1964,8 +2071,10 @@ function jsCesk(cc)
     }    
     var extendedBenva = a.benv(applicationNode, benva, store, kont);
     
+    store = doHoisting(funNode, benva, store, kont);
     store = store.allocAval(extendedBenva, extendedBenv);
     
+    // ECMA 13.2.1(6): [[Code]] cannot be evaluated as StatementList
     var frame = new BodyKont(bodyNode, 1, extendedBenva);
     return kont.push(frame, new EvalState(nodes[0], extendedBenva, store));
   }

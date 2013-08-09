@@ -4,19 +4,21 @@
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 	<link rel="stylesheet" href="jipda.css" type="text/css" media="all"/> 
 	<title>JIPDA</title>
-	<script type="text/javascript" src="../lib/esprima.js"></script>
-	<script type="text/javascript" src="../common.js"></script>
-	<script type="text/javascript" src="../lattice/lattice.js"></script>
-	<script type="text/javascript" src="../lattice/lattice1.js"></script>
-	<script type="text/javascript" src="../lattice/setLattice.js"></script>
-	<script type="text/javascript" src="../address/address.js"></script>
-	<script type="text/javascript" src="../address/tagAg.js"></script>
-	<script type="text/javascript" src="../benv/defaultBenv.js"></script>
-	<script type="text/javascript" src="../ast.js"></script>
-	<script type="text/javascript" src="../store.js"></script>
-	<script type="text/javascript" src="../cesk/cesk.js"></script>
-	<script type="text/javascript" src="../cesk/jsCesk.js"></script>
-	<script type="text/javascript" src="../jipda/jipda.js"></script>
+	<script type="text/javascript" src="../../../lib/esprima.js"></script>
+	<script type="text/javascript" src="../../../common.js"></script>
+	<script type="text/javascript" src="../../../agc.js"></script>
+	<script type="text/javascript" src="../../../lattice/lattice.js"></script>
+	<script type="text/javascript" src="../../../lattice/lattice1.js"></script>
+	<script type="text/javascript" src="../../../lattice/setLattice.js"></script>
+	<script type="text/javascript" src="../../../address/address.js"></script>
+	<script type="text/javascript" src="../../../address/tagAg.js"></script>
+	<script type="text/javascript" src="../../../ast/jsEsprima.js"></script>
+	<script type="text/javascript" src="../../../store.js"></script>
+	<script type="text/javascript" src="../../../cesk/cesk.js"></script>
+	<script type="text/javascript" src="../../../cesk/jsCesk.js"></script>
+	<script type="text/javascript" src="../../../analysis/pushdown.js"></script>
+	<script type="text/javascript" src="../defaultBenv.js"></script>
+	<script type="text/javascript" src="../jipda.js"></script>
 	<script type="text/javascript" src="lib/jquery-1.7.2.min.js"></script>
 	<script type="text/javascript" src="lib/ace/ace.js"></script>
 	<script type="text/javascript" src="lib/viz.js"></script>
@@ -35,7 +37,7 @@
     var ast = Ast.createAst(src);
     var lat = new Lattice1();
     //var lat = new SetLattice(3);
-    var cesk = jsCesk({a:tagAg, b:new DefaultBenv(), p:lat});
+    var cesk = jsCesk({a:tagAg, p:lat});
     var result = BOT;
     var applyHalt =
       function (value)
@@ -43,11 +45,10 @@
         result = result.join(value);
         return [];
       }
-    var state = Jipda.inject(ast, cesk, applyHalt);
-    var jipda = Jipda.run(state);
+    var state = Pushdown.inject(ast, cesk, applyHalt);
+    var jipda = Pushdown.run(state);
 		$("#resultValue").text(result);
-    var etgEdges = jipda.dsg.etg.edges;
-    var ecgEdges = jipda.dsg.ecg.edges;
+    var etgEdges = jipda.dsg.etg.edges.values();
     
     etgEdges.forEach(function (edge)
         {
