@@ -15,8 +15,8 @@ var suiteConcreteTests =
       actual = actual.join(value);
       return [];
     }
-    var state = Jipda.inject(ast, cesk, applyHalt);
-    Jipda.run(state);
+    var state = Pushdown.inject(ast, cesk, applyHalt);
+    Pushdown.run(state);
     assertEquals(cesk.l.abst1(expected), actual);    
   }
 

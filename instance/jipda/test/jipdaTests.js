@@ -15,8 +15,8 @@ var suiteJipdaTests =
         print(">>>", value, actual);
         return [];
       }
-    var state = Jipda.inject(ast, cesk, applyHalt);
-    Jipda.run(state);
+    var state = Pushdown.inject(ast, cesk, applyHalt);
+    Pushdown.run(state);
     assertEquals(expected, actual);
   }
   
@@ -446,7 +446,7 @@ var suiteJipdaTests =
 //    function ()
 //    {
 //      var src = read("test/resources/churchNums.js");
-//      var c = Jipda.context({p:new Lattice1(), a:tagAg});
+//      var c = Pushdown.context({p:new Lattice1(), a:tagAg});
 //      run(src, c, c.l.abst([true, false]));
 //    }    
     

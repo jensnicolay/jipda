@@ -165,28 +165,29 @@ function Etg(edges)
 Etg.empty =
   function ()
   {
-    return new Etg([]);
+    return new Etg(HashSet.empty(131));
   }
 
 Etg.prototype.addEdge =
   function (edge)
   {
-    var edges = this.edges.addUniqueLast(edge);
+    var edges = this.edges.add(edge);
     return new Etg(edges);    
   }
 
 Etg.prototype.containsEdge =
   function (edge)
   {
-    return Arrays.contains(edge, this.edges, Eq.equals);
+    return this.edges.contains(edge);
   }
 
 Etg.prototype.containsTarget =
   function (target)
   {
-    for (var i = 0; i < this.edges.length; i++)
+    var edges = this.edges.values();
+    for (var i = 0; i < edges.length; i++)
     {
-      if (this.edges[i].target.equals(target))
+      if (edges[i].target.equals(target))
       {
         return true;
       }
@@ -197,13 +198,13 @@ Etg.prototype.containsTarget =
 Etg.prototype.outgoing =
   function (source)
   {
-    return this.edges.filter(function (edge) {return edge.source.equals(source)});
+    return this.edges.values().filter(function (edge) {return edge.source.equals(source)});
   }
 
 Etg.prototype.incoming =
   function (target)
   {
-    return this.edges.filter(function (edge) {return edge.target.equals(target)});
+    return this.edges.values().filter(function (edge) {return edge.target.equals(target)});
   }
 
 function Ecg(edges)
@@ -214,33 +215,33 @@ function Ecg(edges)
 Ecg.empty =
   function ()
   {
-    return new Ecg([]);
+    return new Ecg(HashSet.empty(131));
   }
 
 Ecg.prototype.addEdge =
   function (edge)
   {
-    var edges = this.edges.addUniqueLast(edge);
+    var edges = this.edges.add(edge);
     return new Ecg(edges);
   }
 
 Ecg.prototype.containsEdge =
   function (edge)
   {
-    return Arrays.contains(edge, this.edges, Eq.equals);
+    return this.edges.contains(edge);
   }
 
 Ecg.prototype.successors =
   function (source)
   {
-    var targets = this.edges.flatMap(function (edge) {return edge.source.equals(source) ? [edge.target] : []});
+    var targets = this.edges.values().flatMap(function (edge) {return edge.source.equals(source) ? [edge.target] : []});
     return Arrays.deleteDuplicates(targets, Eq.equals);
   }
 
 Ecg.prototype.predecessors =
   function (target)
   {
-    var sources = this.edges.flatMap(function (edge) {return edge.target.equals(target) ? [edge.source] : []});
+    var sources = this.edges.values().flatMap(function (edge) {return edge.target.equals(target) ? [edge.source] : []});
     return Arrays.deleteDuplicates(sources, Eq.equals);
   }
 
@@ -311,43 +312,6 @@ Unch.prototype.toString =
   function ()
   {
     return "e";//"\u03B5";
-  }
-
-var Agc = {};
-
-Agc.collect =
-  function (store, rootSet)
-  {
-    var reachable = Agc.addressesReachable(rootSet, store, []);
-    var store2 = store.narrow(reachable);
-//    print("narrowed", store.map.size(), store2.map.size());
-    return store2;
-  }
-
-Agc.addressesReachable =
-  function (addresses, store, reachable)
-  {
-    for (var i = 0; i < addresses.length; i++)
-    {
-      reachable = Agc.addressReachable(addresses[i], store, reachable);
-    }
-    return reachable;
-  }
-
-Agc.addressReachable = 
-  function (address, store, reachable)
-  {
-    if (!(address instanceof Addr))
-    {
-      throw new Error(address);
-    }
-    if (Arrays.contains(address, reachable, Eq.equals))
-    {
-      return reachable;
-    }
-    var aval = store.lookupAval(address);
-    var addresses = aval.addresses();
-    return Agc.addressesReachable(addresses, store, reachable.addLast(address));
   }
 
 function PushUnchKont(source)
@@ -459,9 +423,10 @@ GcDriver.prototype.pop =
     return edges.map(function (edge) {return new Edge(q, edge.g, edge.target)});
   }
 
-var Jipda = {};
 
-Jipda.inject =
+var Pushdown = {};
+
+Pushdown.inject =
   function (node, cesk, applyHalt, override)
   {
     override = override || {};
@@ -469,14 +434,14 @@ Jipda.inject =
     return new InitState(node, override.benva || cesk.globala, override.store || cesk.store, cesk, haltFrame);
   }
 
-Jipda.run =
+Pushdown.run =
   function (state)
   {
-    var dsg = Jipda.dsg(state);
+    var dsg = Pushdown.dsg(state);
     return {initial: state, dsg:dsg};
   }
 
-Jipda.dsg =
+Pushdown.dsg =
   function(q)
   {
   //var k = ceskDriver;
@@ -639,7 +604,7 @@ Jipda.dsg =
   }
 
 
-Jipda.retrospectiveStack =
+Pushdown.retrospectiveStack =
   function (s, etg, ecg) //, ss)
   {
 //    return [];
@@ -670,7 +635,7 @@ Jipda.retrospectiveStack =
     return rvalues;
   }
 
-Jipda.prospectiveStack =
+Pushdown.prospectiveStack =
   function (q, etg, ecg)
   {
     var visited = HashSet.empty();
@@ -696,45 +661,3 @@ Jipda.prospectiveStack =
     }
     return frames.values();
   }
-
-
-//function repl(config)
-//{
-//  config = config || {};
-//  var name = config.name || "jipda";
-//  var c = Jipda.context(config);
-//  var src = "'I am Jipda!'";
-//  var store = c.store;
-//  c.e.haltKont = // TODO not a good idea: overwrites jseval
-//    function (hvalue, hstore)
-//    {
-//      print(hvalue);
-//      newStore = newStore.join(hstore);
-//      return [];
-//    }
-//  while (src !== ":q")
-//  {
-//    var ast = Ast.createAst(src);
-//    var state = Jipda.inject(ast, c, {store:store});
-//    var previousStore = store;
-//    var newStore = BOT;
-//    try
-//    {
-//      Jipda.run(state);
-//      store = newStore;
-//    }
-//    catch (e)
-//    {
-//      print(e.stack);
-//    }
-//    write(name + "> ");
-//    src = readline();
-//  }
-//  print("Bye!");
-//}
-//
-//function concRepl(config)
-//{
-//  config = config || {};
-//  return repl({name: "conc", p:new CpLattice(), a:concreteAg, k:config.k});
-//}

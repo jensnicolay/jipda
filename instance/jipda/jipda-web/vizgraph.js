@@ -94,11 +94,11 @@ function drawLinks(links, selector)
       }
     });
   dot += "}";
-  console.log(dot)
+  console.log(dot);
   console.log(nodes.map(function (node, i) {return i + ":" + node}).join("\n"));
   console.log(frames.map(function (frame, i) {return i + ":" + frame}).join("\n"));
   var svg = Viz(dot, "svg");
-  $("#graph").append(svg);
+  $("#graph").text("Graph ready (scroll down and/or to the right...)").append(svg);
   $("g.node").each(
     function ()
     {

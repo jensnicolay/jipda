@@ -482,7 +482,21 @@ String.prototype.hashCode =
     }
     return hash;
   }
-	
+
+var Character = {};
+
+Character.isWhitespace =
+  function (x)
+  {
+    return x === " " || x === "\n" || x === "\t" || x === "\r";
+  }
+  
+Character.isDigit =
+  function (x)
+  {
+    return !isNaN(x);
+  }
+  
 Function.prototype.toString =
 	function ()
 	{
