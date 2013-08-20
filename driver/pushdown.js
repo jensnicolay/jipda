@@ -50,9 +50,10 @@ InitState.prototype.setStore =
     return new InitState(this.node, this.benva, store, this.cesk, this.haltFrame);
   }
 
-function HaltKont(applyHalt)
+function HaltKont(applyHalt, rootSet)
 {
   this.applyHalt = applyHalt;
+  this.rootSet = rootSet;
 }
 HaltKont.prototype.toString =
   function ()
@@ -77,7 +78,7 @@ HaltKont.prototype.equals =
 HaltKont.prototype.addresses =
   function ()
   {
-    return [];
+    return this.rootSet;
   }
   
 function Edge(source, g, target, trace)
@@ -440,7 +441,7 @@ Pushdown.inject =
   function (node, cesk, applyHalt, override)
   {
     override = override || {};
-    var haltFrame = new HaltKont(applyHalt);
+    var haltFrame = new HaltKont(applyHalt, [cesk.globala]);
     return new InitState(node, override.benva || cesk.globala, override.store || cesk.store, cesk, haltFrame);
   }
 
