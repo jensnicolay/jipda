@@ -80,7 +80,7 @@ HaltKont.prototype.addresses =
     return [];
   }
   
-function Edge(source, g, target)
+function Edge(source, g, target, trace)
 {
   assertDefinedNotNull(source);
   assertDefinedNotNull(g);
@@ -88,34 +88,36 @@ function Edge(source, g, target)
   this.source = source;
   this.g = g;
   this.target = target;
+  this.trace = trace;
 }
-Edge.isPop =
-  function (edge)
-  {
-    return edge.g.isPop;
-  }
-Edge.isPush =
-  function (edget)
-  {
-    return edge.g.isPush;
-  }
-Edge.isUnch =
-  function (edge)
-  {
-    return edge.g.isUnch;
-  }
+//Edge.isPop =
+//  function (edge)
+//  {
+//    return edge.g.isPop;
+//  }
+//Edge.isPush =
+//  function (edget)
+//  {
+//    return edge.g.isPush;
+//  }
+//Edge.isUnch =
+//  function (edge)
+//  {
+//    return edge.g.isUnch;
+//  }
 Edge.prototype.equals =
   function (x)
   {
     return x instanceof Edge
       && Eq.equals(this.source, x.source)
       && Eq.equals(this.g, x.g)
-      && Eq.equals(this.target, x.target);
+      && Eq.equals(this.target, x.target)
+      && Eq.equals(this.trace, x.trace)
   }
 Edge.prototype.toString =
   function ()
   {
-    return "{" + this.source.nice() + "," + this.g + "," + this.target.nice() + "}";
+    return "{" + this.source.nice() + "," + this.g + "," + this.target.nice() + "," + this.trace + "}";
   }
 Edge.prototype.hashCode =
   function ()
@@ -125,6 +127,7 @@ Edge.prototype.hashCode =
     result = prime * result + this.source.hashCode();
     result = prime * result + this.g.hashCode();
     result = prime * result + this.target.hashCode();
+    result = prime * result + HashCode.hashCode(this.trace);
     return result;    
   }
 
@@ -159,7 +162,7 @@ EpsEdge.prototype.hashCode =
 
 function Etg(edges)
 {
-  this.edges = edges;
+  this._edges = edges;
 }
 
 Etg.empty =
@@ -168,23 +171,29 @@ Etg.empty =
     return new Etg(HashSet.empty(131));
   }
 
+Etg.prototype.edges =
+  function ()
+  {
+    return this._edges.values();
+  }
+
 Etg.prototype.addEdge =
   function (edge)
   {
-    var edges = this.edges.add(edge);
+    var edges = this._edges.add(edge);
     return new Etg(edges);    
   }
 
 Etg.prototype.containsEdge =
   function (edge)
   {
-    return this.edges.contains(edge);
+    return this._edges.contains(edge);
   }
 
 Etg.prototype.containsTarget =
   function (target)
   {
-    var edges = this.edges.values();
+    var edges = this._edges.values();
     for (var i = 0; i < edges.length; i++)
     {
       if (edges[i].target.equals(target))
@@ -198,18 +207,26 @@ Etg.prototype.containsTarget =
 Etg.prototype.outgoing =
   function (source)
   {
-    return this.edges.values().filter(function (edge) {return edge.source.equals(source)});
+    return this._edges.values().filter(function (edge) {return edge.source.equals(source)});
   }
 
 Etg.prototype.incoming =
   function (target)
   {
-    return this.edges.values().filter(function (edge) {return edge.target.equals(target)});
+    return this._edges.values().filter(function (edge) {return edge.target.equals(target)});
   }
+
+//Etg.prototype.nodes =
+//  function ()
+//  {
+//    var edges = this.edges.values();
+//    var nodes = edges.reduce(function (acc, edge) {return acc.concat([edge.source, edge.target])});
+//    return Arrays.deleteDuplicates(nodes);
+//  }
 
 function Ecg(edges)
 {
-  this.edges = edges;
+  this._edges = edges;
 }
 
 Ecg.empty =
@@ -221,35 +238,35 @@ Ecg.empty =
 Ecg.prototype.addEdge =
   function (edge)
   {
-    var edges = this.edges.add(edge);
+    var edges = this._edges.add(edge);
     return new Ecg(edges);
   }
 
 Ecg.prototype.containsEdge =
   function (edge)
   {
-    return this.edges.contains(edge);
+    return this._edges.contains(edge);
   }
 
 Ecg.prototype.successors =
   function (source)
   {
-    var targets = this.edges.values().flatMap(function (edge) {return edge.source.equals(source) ? [edge.target] : []});
+    var targets = this._edges.values().flatMap(function (edge) {return edge.source.equals(source) ? [edge.target] : []});
     return Arrays.deleteDuplicates(targets, Eq.equals);
   }
 
 Ecg.prototype.predecessors =
   function (target)
   {
-    var sources = this.edges.values().flatMap(function (edge) {return edge.target.equals(target) ? [edge.source] : []});
+    var sources = this._edges.values().flatMap(function (edge) {return edge.target.equals(target) ? [edge.source] : []});
     return Arrays.deleteDuplicates(sources, Eq.equals);
   }
 
 function Push(frame)
 {
-  this.isPush = true;
   this.frame = frame;
 }
+Push.prototype.isPush = true;
 Push.prototype.equals =
   function (x)
   {
@@ -270,9 +287,9 @@ Push.prototype.toString =
   }
 function Pop(frame)
 {
-  this.isPop = true;
   this.frame = frame;
 }
+Pop.prototype.isPop = true;
 Pop.prototype.equals =
   function (x)
   {
@@ -293,8 +310,8 @@ Pop.prototype.toString =
   }
 function Unch()
 {
-  this.isUnch = true;
 }
+Unch.prototype.isUnch = true;
 Unch.prototype.equals =
   function (x)
   {
@@ -320,21 +337,21 @@ function PushUnchKont(source)
 }
 
 PushUnchKont.prototype.push =
-  function (frame, target)
+  function (frame, target, trace)
   {
-    return [new Edge(this.source, new Push(frame), target)];
+    return [new Edge(this.source, new Push(frame), target, trace)];
   }
 
 PushUnchKont.prototype.pop =
-  function (frameCont)
+  function (frameCont, trace)
   {
     return [];
   }
 
 PushUnchKont.prototype.unch =
-  function (target)
+  function (target, trace)
   {
-    return [new Edge(this.source, new Unch(), target)];
+    return [new Edge(this.source, new Unch(), target, trace)];
   }
 
 function PopKont(source, frame)
@@ -344,22 +361,22 @@ function PopKont(source, frame)
 }
 
 PopKont.prototype.push =
-  function (frame, target)
+  function (frame, target, trace)
   {
     return [];
   }
 
 PopKont.prototype.pop =
-  function (frameCont)
+  function (frameCont, trace)
   {
     var frame = this.frame;
     var target = frameCont(frame);
     assertDefinedNotNull(target);
-    return [new Edge(this.source, new Pop(frame), target)];
+    return [new Edge(this.source, new Pop(frame), target, trace)];
   }
 
 PopKont.prototype.unch =
-  function (target)
+  function (target, trace)
   {
     return [];
   }
@@ -403,7 +420,7 @@ GcDriver.prototype.pushUnch =
     var sa = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
     var gcq = GcDriver.gc(q, stack);
     var edges = this.driver.pushUnch(gcq, stack); 
-    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target)});
+    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target, edge.trace)});
   }
     
 GcDriver.prototype.pop =
@@ -411,11 +428,13 @@ GcDriver.prototype.pop =
   {
     var gcq = GcDriver.gc(q, stack);
     var edges = this.driver.pop(gcq, frame, stack);
-    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target)});
+    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target, edge.trace)});
   }
 
 
-var Pushdown = {};
+function Pushdown()
+{
+}
 
 Pushdown.inject =
   function (node, cesk, applyHalt, override)
@@ -426,13 +445,6 @@ Pushdown.inject =
   }
 
 Pushdown.run =
-  function (state)
-  {
-    var dsg = Pushdown.dsg(state);
-    return {initial: state, dsg:dsg};
-  }
-
-Pushdown.dsg =
   function(q)
   {
   //var k = ceskDriver;
@@ -440,14 +452,23 @@ Pushdown.dsg =
   
     var etg = Etg.empty();
     var ecg = Ecg.empty();
-    var ss = MultiMap.empty();
+    var ss = HashMap.empty();
+    var emptySet = ArraySet.empty();
     var dE = [];
     var dH = [];
     var dS = [q];
     
+    function propagateStack(s1, s2)
+    {
+      var currentSource = ss.get(s1, emptySet);
+      var currentTarget = ss.get(s2, emptySet);
+      var target = currentSource.join(currentTarget);
+      ss = ss.put(s2, target);
+    }
+    
     function sprout(q)
     {
-      var frames = ss.get(q).values();
+      var frames = ss.get(q, emptySet).values();
       var pushUnchEdges = k.pushUnch(q, frames); 
       dE = dE.concat(pushUnchEdges);
       dH = dH.concat(pushUnchEdges
@@ -457,12 +478,13 @@ Pushdown.dsg =
 
     function addPush(s, frame, q)
     { 
-      ss = ss.putAll(q, ss.get(s).add(frame).values());
+      propagateStack(s, q);
+      ss = ss.put(q, ss.get(q).add(frame));
       var qset1 = ecg.successors(q);
       dE = dE.concat(qset1.flatMap(
         function (q1)
         {
-          ss = ss.putAll(q1, ss.get(q).values());
+          propagateStack(q, q1);
           var frames = ss.get(q1).values();
           var popEdges = k.pop(q1, frame, frames);
           return popEdges;
@@ -490,7 +512,7 @@ Pushdown.dsg =
 
     function addEmpty(s2, s3)
     {
-      ss = ss.putAll(s3, ss.get(s2).values());
+      propagateStack(s2, s3);
       var sset1 = ecg.predecessors(s2);
       var sset4 = ecg.successors(s3);
       dH = dH.concat(sset1.flatMap(function (s1) {return sset4.map(function (s4) {return new EpsEdge(s1, s4)})}));
@@ -512,7 +534,7 @@ Pushdown.dsg =
       var popEdges = sset4.flatMap(
         function (s4)
         {
-          ss = ss.putAll(s4, ss.get(s3).values());
+          propagateStack(s3, s4);
           return pushEdges.flatMap(
             function (pushEdge)
             {
@@ -594,6 +616,25 @@ Pushdown.dsg =
     }
   }
 
+Pushdown.backwardSlice =
+  function (s, etg, ecg, f)
+  {
+    var visited = HashSet.empty();
+    var todo = [s];
+    while (todo.length > 0)
+    {
+      var q = todo[0];
+      todo = todo.slice(1);
+      if (visited.contains(q))
+      {
+        continue;
+      }
+      visited = visited.add(q);
+      
+    }
+    return {etg:setg, ecg:secg, ss:null};
+  }
+
 
 Pushdown.retrospectiveStack =
   function (s, etg, ecg) //, ss)
@@ -651,4 +692,19 @@ Pushdown.prospectiveStack =
       todo = todo.concat(epsSuccessors).concat(popSuccessors);
     }
     return frames.values();
+  }
+
+Pushdown.prototype.analyze =
+  function (ast, cesk)
+  {
+    var value = BOT;
+    var applyHalt =
+      function (v)
+      {
+        value = value.join(v);
+        return [];
+      }
+    var state = Pushdown.inject(ast, cesk, applyHalt);
+    var dsg = Pushdown.run(state);
+    return {value:value, initial:state, dsg:dsg};
   }

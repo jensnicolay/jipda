@@ -37,7 +37,7 @@ function drawLinks(links, selector)
         targetIndex = nodes.length;
         nodes[targetIndex] = link.target;
       }        
-      return new Edge(sourceIndex, label, targetIndex);
+      return new Edge(sourceIndex, label, targetIndex, link.trace);
     });
   
   var dot = "digraph fsm {";//rankdir=LR;\n";
@@ -83,7 +83,12 @@ function drawLinks(links, selector)
         var label = String(link.g);
         if (!link.g.isUnch)
         {
-          label += frames[link.g.frame].constructor;
+          label += " " + frames[link.g.frame].toString();
+        }
+        
+        if (link.trace)
+        {
+          label += " " + link.trace;
         }
 //        label += " :: " + nodes[link.source].store.diff(nodes[link.target].store).split("\n").join(" ");
         dot += link.source + " -> " + link.target + " [label=\"" + label + "\"];\n";        

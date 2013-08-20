@@ -9,14 +9,9 @@ var suiteConcreteTests =
     var ast = Ast.createAst(src);
     var lat = new CpLattice();
     var cesk = jsCesk({a:concreteAg, p: new CpLattice()});
-    var actual = BOT;
-    var applyHalt = function (value)
-    {
-      actual = actual.join(value);
-      return [];
-    }
-    var state = Pushdown.inject(ast, cesk, applyHalt);
-    Pushdown.run(state);
+    var ast = Ast.createAst(src);
+    var result = new Pushdown().analyze(ast, cesk);
+    var actual = result.value;
     assertEquals(cesk.l.abst1(expected), actual);    
   }
 

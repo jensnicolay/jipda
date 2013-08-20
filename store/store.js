@@ -23,7 +23,6 @@ StoreValue.prototype.equals =
 StoreValue.prototype.compareTo =
   function (x)
   {
-    // TODO does freshness plays a role in subsumption? Current answer: no.
     return this.aval.compareTo(x.aval);
   }
 
@@ -77,6 +76,10 @@ StoreValue.prototype.addresses =
     return this.aval.addresses();
   }
   
+
+///////////////
+
+
 function Store(map)
 {
   this.map = map || HashMap.empty(31);
@@ -261,10 +264,10 @@ Store.prototype.narrow =
       {
         result = result.put(address, entry.value);
       }
-      else // DEBUG
-      {
-        print("dropping", entry.key, entry.value);
-      }
+//      else // DEBUG
+//      {
+//        print("dropping", entry.key, entry.value);
+//      }
     }
     return new Store(result);
   }

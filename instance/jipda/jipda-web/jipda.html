@@ -13,10 +13,10 @@
 	<script type="text/javascript" src="../../../address/address.js"></script>
 	<script type="text/javascript" src="../../../address/tagAg.js"></script>
 	<script type="text/javascript" src="../../../ast/jsEsprima.js"></script>
-	<script type="text/javascript" src="../../../store.js"></script>
+	<script type="text/javascript" src="../../../store/store.js"></script>
 	<script type="text/javascript" src="../../../cesk/cesk.js"></script>
 	<script type="text/javascript" src="../../../cesk/jsCesk.js"></script>
-	<script type="text/javascript" src="../../../analysis/pushdown.js"></script>
+	<script type="text/javascript" src="../../../driver/pushdown.js"></script>
 	<script type="text/javascript" src="../defaultBenv.js"></script>
 	<script type="text/javascript" src="../jipda.js"></script>
 	<script type="text/javascript" src="lib/jquery-1.7.2.min.js"></script>
@@ -38,22 +38,15 @@
     var lat = new Lattice1();
     //var lat = new SetLattice(3);
     var cesk = jsCesk({a:tagAg, p:lat});
-    var result = BOT;
-    var applyHalt =
-      function (value)
-      {
-        result = result.join(value);
-        return [];
-      }
-    var state = Pushdown.inject(ast, cesk, applyHalt);
-    var jipda = Pushdown.run(state);
-		$("#resultValue").text(result);
-    var etgEdges = jipda.dsg.etg.edges.values();
+    var result = new Pushdown().analyze(ast, cesk);
+		$("#resultValue").text(result.value);
+    var etgEdges = result.dsg.etg.edges();
+    var emptySet = ArraySet.empty();
     
     etgEdges.forEach(function (edge)
         {
-		  		edge.source.ss = jipda.dsg.ss.get(edge.source).values();
-		  		edge.target.ss = jipda.dsg.ss.get(edge.target).values();
+		  		edge.source.ss = result.dsg.ss.get(edge.source, emptySet).values();
+		  		edge.target.ss = result.dsg.ss.get(edge.target, emptySet).values();
         });
     
 		//drawLinks(etgEdges.concat(ecgEdges), "#graph");

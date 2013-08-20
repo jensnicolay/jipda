@@ -656,10 +656,71 @@ Collections.values =
  *  
  */
 
+function Map()
+{
+}
+
+Map.prototype.subsumes =
+  function (x)
+  {
+    if (this === x)
+    {
+      return true;
+    }
+    if (this.size() < x.size())
+    {
+      return false;
+    }
+    return x.iterateEntries(
+      function (entry)
+      {
+        var value = this.get(entry.key);
+        return value !== undefined && value.subsumes(entry.value);
+      }, this);
+  }
+
+Map.prototype.compareTo =
+  function (x)
+  {
+    var s1 = this.subsumes(x);
+    var s2 = x.subsumes(this);
+    return s1 ? (s2 ? 0 : 1) : (s2 ? -1 : undefined);
+  }
+
+Map.prototype.equals =
+  function (x)
+  {
+    if (this === x)
+    {
+      return true;
+    }
+    if (this.size() !== x.size())
+    {
+      return false;
+    }
+    return this.subsumes(x) && x.subsumes(this);
+  }
+
+Map.prototype.join =
+  function (x, f)
+  {
+    var result = this;
+    x.iterateEntries(function (entry) {result = result.update(entry.key, f)});
+    return result;
+  }
+
+Map.prototype.hashCode =
+  function ()
+  {
+    return this.mapEntries(function (x) {return HashCode.hashCode(x.key) ^ HashCode.hashCode(x.value)}).reduce(function (acc, x) {return acc + x});
+  }
+
+
 function HashMap(entries)
 {
   this._entries = entries;
 }
+HashMap.prototype = Map.prototype;
 
 HashMap.empty =
   function (size)
@@ -703,13 +764,13 @@ HashMap.prototype.put =
   }
 
 HashMap.prototype.get =
-  function (key)
+  function (key, bot)
   {
     var hash = Math.abs(key.hashCode()) % this._entries.length;
     var buckets = this._entries[hash];    
     if (!buckets)
     {
-      return undefined;
+      return bot;
     }
     for (var i = 0; i < buckets.length; i++)
     {
@@ -719,13 +780,40 @@ HashMap.prototype.get =
         return bucket.value;
       }
     }
-    return undefined;
+    return bot;
   }
 
 HashMap.prototype.entries =
   function ()
   {
     return this._entries.flatten();
+  }
+
+HashMap.prototype.iterateEntries =
+  function (f, th)
+  {
+    var buckets = this._entries;
+    for (var i = 0; i < buckets.length; i++)
+    {
+      var bucket = buckets[i];
+      if (bucket)
+      {
+        for (var j = 0; j < bucket.length; j++)
+        {
+          if (f.call(th, bucket[j]) === false)
+          {
+            return false;
+          }
+        }        
+      }
+    }
+    return true;
+  }
+
+HashMap.prototype.mapEntries =
+  function (f, th)
+  {
+    return this._entries.flatMap(f, th);
   }
 
 HashMap.prototype.keys =
@@ -766,85 +854,6 @@ HashMap.prototype.nice =
     return this.entries().map(function (entry) {return entry.key + " -> " + entry.value}).join("\n");
   }
 
-function MultiMap(map, valueContainer)
-{
-  this._map = map;
-  this._valueContainer = valueContainer;
-}
-
-MultiMap.empty =
-  function (map, valueContainer)
-  {
-    return new MultiMap(map || HashMap.empty(), valueContainer || ArraySet.empty());
-  }
-
-MultiMap.prototype.put =
-  function (key, value)
-  {
-    var values = this.get(key);
-    var newValues = values.add(value);
-    var newMap = this._map.put(key, newValues);
-    return new MultiMap(newMap, this._valueContainer);
-  }
-
-MultiMap.prototype.putAll =
-  function (key, values)
-  {
-    var existingValues = this.get(key);
-    var newValues = existingValues.addAll(values);
-    var newMap = this._map.put(key, newValues);
-    return new MultiMap(newMap, this._valueContainer);
-  }
-
-MultiMap.prototype.get =
-  function (key)
-  {
-    return this._map.get(key) || this._valueContainer;
-  }
-
-MultiMap.prototype.entries =
-  function ()
-  {
-    return this._map.entries();
-  }
-
-MultiMap.prototype.keys =
-  function ()
-  {
-    return this._map.keys();
-  }
-
-MultiMap.prototype.values =
-  function ()
-  {
-    return this._map.values();
-  }
-
-MultiMap.prototype.size =
-  function ()
-  {
-    return this._map.size();
-  }
-
-MultiMap.prototype.clear =
-  function ()
-  {
-    return new MultiMap(this._map.clear(), this._valueContainer);
-  }
-
-MultiMap.prototype.toString =
-  function ()
-  {
-    return this._map.toString();
-  }
-
-MultiMap.prototype.nice =
-  function ()
-  {
-    return this._map.nice();
-  }
-
-
 /*
  * Set interface
  * 
@@ -856,7 +865,61 @@ MultiMap.prototype.nice =
  * size
  *  
  */
- 
+function Set()
+{
+}
+
+Set.prototype.subsumes =
+  function (x)
+  {
+    if (this === x)
+    {
+      return true;
+    }
+    if (this.size() < x.size())
+    {
+      return false;
+    }
+    return x.iterateValues(
+      function (value)
+      {
+        return x.contains(value);
+      });    
+  }
+
+Set.prototype.equals =
+  function (x)
+  {
+    if (this === x)
+    {
+      return true;
+    }
+    if (this.size() !== x.size())
+    {
+      return false;
+    }
+    return this.iterateValues(
+        function (value)
+        {
+          return x.contains(value);
+        });    
+  }
+
+Set.prototype.compareTo =
+  function (x)
+  {
+    var s1 = this.subsumes(x);
+    var s2 = x.subsumes(this);
+    return s1 ? (s2 ? 0 : 1) : (s2 ? -1 : undefined);
+  }
+
+Set.prototype.join =
+  function (x)
+  {
+    var result = this;
+    x.iterateValues(function (value) {result = result.add(value)});
+    return result;
+  } 
 
 function HashSet(map)
 {
@@ -943,6 +1006,7 @@ function ArraySet(arr)
 {
   this._arr = arr;
 }
+ArraySet.prototype = Set.prototype;
 
 ArraySet.empty =
   function ()
@@ -1002,6 +1066,25 @@ ArraySet.prototype.values =
     return this._arr.slice(0);
   }
 
+ArraySet.prototype.iterateValues =
+  function (f, th)
+  {
+    for (var i = 0; i < this._arr.length; i++)
+    {
+      if (f.call(th, this._arr[i]) === false)
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+ArraySet.prototype.mapValues =
+  function (f, th)
+  {
+    return this._arr.map(f, th);
+  }
+
 ArraySet.prototype.size =
   function ()
   {
@@ -1030,10 +1113,9 @@ ArraySet.prototype.nice =
  * size
  *  
  */
-function ArrayDeque(arr, value)
+function ArrayDeque(arr)
 {
   this._arr = arr;
-  this._value = value;
 }
 
 ArrayDeque.empty =
@@ -1045,29 +1127,29 @@ ArrayDeque.empty =
 ArrayDeque.prototype.addFirst =
   function (x)
   {
-    var arr = this._arr.slice(0);
-    return new ArrayDeque(arr, arr.unshift(x));
+    var arr = this._arr.slice(0).unshift(x);
+    return new ArrayDeque(arr);
   }
 
 ArrayDeque.prototype.addLast =
   function (x)
   {
-    var arr = this._arr.slice(0);
-    return new ArrayDeque(arr, arr.push(x));
+    var arr = this._arr.slice(0).push(x);
+    return new ArrayDeque(arr);
   }
 
 ArrayDeque.prototype.removeFirst =
   function ()
   {
-    var arr = this._arr.slice(0);
-    return new ArrayDeque(arr, arr.shift(1));
+    var arr = this._arr.slice(0).shift(1);
+    return new ArrayDeque(arr);
   }
 
 ArrayDeque.prototype.removeLast =
   function ()
   {
-    var arr = this._arr.slice(0);
-    return new ArrayDeque(arr, arr.pop());
+    var arr = this._arr.slice(0).pop();
+    return new ArrayDeque(arr);
   }
 
 ArrayDeque.prototype.value =
@@ -1083,6 +1165,68 @@ ArrayDeque.prototype.size =
   }
 
 ArrayDeque.prototype.toString =
+  function ()
+  {
+    return this._arr.toString();
+  }
+
+
+/*
+ * Queue interface
+ * 
+ * equals, hashCode (based on values)
+ * add, remove
+ * size
+ *  
+ */
+function ArrayQueue(arr)
+{
+  this._arr = arr;
+}
+
+ArrayQueue.empty =
+  function ()
+  {
+    return new ArrayQueue([]);
+  }
+
+ArrayQueue.prototype.add =
+  function (x)
+  {
+    var arr = this._arr.slice(0).push(x);
+    return new ArrayQueue(arr);
+  }
+
+ArrayQueue.prototype.peek =
+  function ()
+  {
+    if (this._arr.length === 0)
+    {
+      throw new Error("queue empty");
+    }
+    return this._arr[0];
+  }
+
+ArrayQueue.prototype.remove =
+  function ()
+  {
+    var arr = this._arr.slice(0).shift(1);
+    return new ArrayQueue(arr);
+  }
+
+ArrayQueue.prototype.size =
+  function ()
+  {
+    return this._arr.length;
+  }
+
+ArrayQueue.prototype.isEmpty =
+  function ()
+  {
+    return this._arr.length > 0;
+  }
+
+ArrayQueue.prototype.toString =
   function ()
   {
     return this._arr.toString();

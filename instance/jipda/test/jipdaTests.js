@@ -7,16 +7,8 @@ var suiteJipdaTests =
   function run(src, cesk, expected)
   {
     var ast = Ast.createAst(src);
-    var actual = BOT;
-    var applyHalt =
-      function (value)
-      {
-        actual = actual.join(value);
-        print(">>>", value, actual);
-        return [];
-      }
-    var state = Pushdown.inject(ast, cesk, applyHalt);
-    Pushdown.run(state);
+    var result = new Pushdown().analyze(ast, cesk);
+    var actual = result.value;
     assertEquals(expected, actual);
   }
   

@@ -970,14 +970,6 @@ function jsCesk(cc)
     this.frame = frame;
   }
   
-  ReturnState.returnMarker = {isMarker:true};
-  ReturnState.returnMarker.equals = function (x) {return x === ReturnState.returnMarker};
-  ReturnState.returnMarker.hashCode = function () {return 5};
-  ReturnState.returnMarker.addresses = function () {return []};
-  ReturnState.returnMarker.apply = function () {throw new Error("cannot apply returnMarker")};
-  ReturnState.returnMarker.toString = function () {return "ret"};
-  ReturnState.returnMarker.nice = function () {return "ret"};
-  
   ReturnState.prototype.equals =
     function (x)
     {
@@ -1022,6 +1014,54 @@ function jsCesk(cc)
     function (store)
     {
       return new ReturnState(this.node, this.returna, this.store, this.frame);
+    }
+  
+  function ReturnMarker(node, callable)
+  {
+    this.node = node;
+    this.callable = callable;
+  }
+  ReturnMarker.prototype.isMarker = true;
+ ReturnMarker.prototype.equals =
+    function (x)
+    {
+      return x instanceof ReturnMarker
+        && this.node === x.node
+        && this.callable === x.callable
+    }
+  ReturnMarker.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.callable.hashCode();
+      return result;
+    }
+  ReturnMarker.prototype.toString =
+    function ()
+    {
+      return "ret-" + this.node.tag;
+    }
+  ReturnMarker.prototype.nice =
+    function ()
+    {
+      return "ret-" + this.node.tag;
+    }
+  ReturnMarker.prototype.addresses =
+    function ()
+    {
+      return [];
+    }
+  ReturnMarker.prototype.apply =
+    function (value, store, kont)
+    {
+      throw new Error("cannot apply marker");
+    }
+  ReturnMarker.prototype.appliesFunctions =
+    function ()
+    {
+      return [this.callable.node];
     }
   
   function VariableDeclarationKont(node, i, benva)
@@ -1270,8 +1310,9 @@ function jsCesk(cc)
       var node = this.node;
       var benva = this.benva;
       var id = node.left;
-      store = doScopeSet(p.abst1(id.name), value, benva, store);
-      return kont.pop(function (frame) {return new KontState(frame, value, store)});
+      var trace = [];
+      store = doScopeSet(p.abst1(id.name), value, benva, store, trace);
+      return kont.pop(function (frame) {return new KontState(frame, value, store)}, trace);
     }
   
   function OperatorKont(node, benva)
@@ -1474,7 +1515,7 @@ function jsCesk(cc)
   ReturnKont.prototype.toString =
     function ()
     {
-      return "ret-" + this.node.tag + "::" + this.addresses();
+      return "ret-" + this.node.tag;
     }
   ReturnKont.prototype.nice =
     function ()
@@ -1572,7 +1613,63 @@ function jsCesk(cc)
       }
     }
   
-  function doScopeLookup(name, benva, store)
+  function Read(address)
+  {
+    this.address = address;
+  }
+  Read.prototype.dispatch =
+    function (x)
+    {
+      return x.read(this);
+    }
+  Read.prototype.equals =
+    function (x)
+    {
+      return (x instanceof Read) && Eq.equals(this.address, x.address); 
+    }
+  Read.prototype.hashCode =
+    function ()
+    {
+      var prime = 3;
+      var result = 1;
+      result = prime * result + this.address.hashCode();
+      return result;      
+    }
+  Read.prototype.toString =
+    function ()
+    {
+      return "{R " + this.address + "}";
+    }
+  
+  function Write(address)
+  {
+    this.address = address;
+  }
+  Write.prototype.dispatch =
+    function (x)
+    {
+      return x.write(this);
+    }
+  Write.prototype.equals =
+    function (x)
+    {
+      return (x instanceof Write) && Eq.equals(this.address, x.address); 
+    }
+  Write.prototype.hashCode =
+    function ()
+    {
+      var prime = 31;
+      var result = 1;
+      result = prime * result + this.address.hashCode();
+      return result;      
+    }
+  Write.prototype.toString =
+    function ()
+    {
+      return "{W " + this.address + "}";
+    }
+  
+  function doScopeLookup(name, benva, store, trace)
   {
     var result = BOT;
     var benvas = [benva];
@@ -1581,9 +1678,11 @@ function jsCesk(cc)
       var a = benvas[0];
       benvas = benvas.slice(1);
       var benv = store.lookupAval(a);
+      trace.push(new Read(a));
       var value = benv.lookup(name);
       if (value !== BOT)
       {
+        trace.push(new Read(new ContextAddr(a, name)));
         result = result.join(value);
       }
       else
@@ -1601,7 +1700,7 @@ function jsCesk(cc)
     return result;
   }
 
-  function doScopeSet(name, value, benva, store)
+  function doScopeSet(name, value, benva, store, trace)
   {
     var benvas = [benva];
     var setTopLevel = false;
@@ -1610,10 +1709,12 @@ function jsCesk(cc)
       var a = benvas[0];
       benvas = benvas.slice(1);
       var benv = store.lookupAval(a);
+      trace.push(new Read(a));
       var existing = benv.lookup(name);
       if (existing !== BOT)
       {
         benv = benv.add(name, value);
+        trace.push(new Write(new ContextAddr(a, name)));
         store = store.updateAval(a, benv); // side-effect
       }
       else
@@ -1631,8 +1732,10 @@ function jsCesk(cc)
     }
     if (setTopLevel)
     {
-      var benv = store.lookupAval(globala);      
+      var benv = store.lookupAval(globala);
+      trace.push(new Read(globala));
       benv = benv.add(name, value);
+      trace.push(new Write(new ContextAddr(globala, name)));
       store = store.updateAval(globala, benv); // side-effect
     }
     return store;
@@ -1651,8 +1754,9 @@ function jsCesk(cc)
 
   function evalIdentifier(node, benva, store, kont)
   {
-    var value = doScopeLookup(p.abst1(node.name), benva, store);
-    return kont.pop(function (frame) {return new KontState(frame, value, store)});
+    var trace = [];
+    var value = doScopeLookup(p.abst1(node.name), benva, store, trace);
+    return kont.pop(function (frame) {return new KontState(frame, value, store)}, trace);
   }
 
   function evalProgram(node, benva, store, kont)
@@ -1669,8 +1773,8 @@ function jsCesk(cc)
     }
     if (nodes.length === 1)
     {
-      return kont.unch(new EvalState(nodes[0], benva, store));
-//      return evalNode(nodes[0], benva, store, kont);
+//      return kont.unch(new EvalState(nodes[0], benva, store));
+      return evalNode(nodes[0], benva, store, kont);
     }
     var frame = new BodyKont(node, 1, benva);
     return kont.push(frame, new EvalState(nodes[0], benva, store));
@@ -1937,7 +2041,7 @@ function jsCesk(cc)
             return callables.flatMap(
               function (callable)
               {
-                return kont.push(ReturnState.returnMarker, new CallState(node, callable, operandValues, thisa, benva, store));
+                return kont.push(new ReturnMarker(node, callable), new CallState(node, callable, operandValues, thisa, benva, store));
               })
           })
       });
@@ -1987,7 +2091,7 @@ function jsCesk(cc)
 
   function scanReturn(node, returna, store, frame, kont)
   {
-    if (frame === ReturnState.returnMarker)
+    if (frame instanceof ReturnMarker)
     {
       var benv = store.lookupAval(returna);
       var returnValue = benv.lookup(P_RETVAL);
@@ -2089,7 +2193,7 @@ function jsCesk(cc)
         throw new "cannot handle node " + node.type; 
     }
   }
-    
+
   var module = {};
   module.evalState =
     function (node, benva, store)
