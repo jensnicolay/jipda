@@ -8,7 +8,7 @@ var suiteJipdaTests =
   {
     var ast = Ast.createAst(src);
     var result = new Pushdown().analyze(ast, cesk);
-    var actual = result.value;
+    var actual = result.valueOf(ast);
     assertEquals(expected, actual);
   }
   

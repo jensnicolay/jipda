@@ -50,9 +50,8 @@ InitState.prototype.setStore =
     return new InitState(this.node, this.benva, store, this.cesk, this.haltFrame);
   }
 
-function HaltKont(applyHalt, rootSet)
+function HaltKont(rootSet)
 {
-  this.applyHalt = applyHalt;
   this.rootSet = rootSet;
 }
 HaltKont.prototype.toString =
@@ -63,7 +62,7 @@ HaltKont.prototype.toString =
 HaltKont.prototype.apply =
   function (value, store, kont)
   {
-    return this.applyHalt(value, store, kont);
+    return [];
   }
 HaltKont.prototype.hashCode =
   function ()
@@ -81,31 +80,25 @@ HaltKont.prototype.addresses =
     return this.rootSet;
   }
   
-function Edge(source, g, target, trace)
+function Edge(source, g, target, marks)
 {
   assertDefinedNotNull(source);
-  assertDefinedNotNull(g);
   assertDefinedNotNull(target);
   this.source = source;
   this.g = g;
   this.target = target;
-  this.trace = trace;
+  this.marks = marks;
 }
-//Edge.isPop =
-//  function (edge)
-//  {
-//    return edge.g.isPop;
-//  }
-//Edge.isPush =
-//  function (edget)
-//  {
-//    return edge.g.isPush;
-//  }
-//Edge.isUnch =
-//  function (edge)
-//  {
-//    return edge.g.isUnch;
-//  }
+Edge.source = 
+  function (edge)
+  {
+    return edge.source;
+  }
+Edge.target = 
+  function (edge)
+  {
+    return edge.target;
+  }
 Edge.prototype.equals =
   function (x)
   {
@@ -113,12 +106,12 @@ Edge.prototype.equals =
       && Eq.equals(this.source, x.source)
       && Eq.equals(this.g, x.g)
       && Eq.equals(this.target, x.target)
-      && Eq.equals(this.trace, x.trace)
+      && Eq.equals(this.marks, x.marks)
   }
 Edge.prototype.toString =
   function ()
   {
-    return "{" + this.source.nice() + "," + this.g + "," + this.target.nice() + "," + this.trace + "}";
+    return "{" + this.source.nice() + "," + this.g + "," + this.target.nice() + "}";
   }
 Edge.prototype.hashCode =
   function ()
@@ -126,72 +119,62 @@ Edge.prototype.hashCode =
     var prime = 7;
     var result = 1;
     result = prime * result + this.source.hashCode();
-    result = prime * result + this.g.hashCode();
+    result = prime * result + HashCode.hashCode(this.g);
     result = prime * result + this.target.hashCode();
-    result = prime * result + HashCode.hashCode(this.trace);
+    result = prime * result + HashCode.hashCode(this.marks);
     return result;    
   }
 
-function EpsEdge(source, target)
-{
-  assertDefinedNotNull(source);
-  assertDefinedNotNull(target);
-  this.source = source;
-  this.target = target;
-}
-EpsEdge.prototype.equals =
-  function (x)
-  {
-    return x instanceof EpsEdge 
-      && Eq.equals(this.source, x.source)
-      && Eq.equals(this.target, x.target);
-  }
-EpsEdge.prototype.toString =
-  function ()
-  {
-    return "{" + this.source.nice() + "," + this.target.nice() + "}";
-  }
-EpsEdge.prototype.hashCode =
-  function ()
-  {
-    var prime = 9;
-    var result = 1;
-    result = prime * result + this.source.hashCode();
-    result = prime * result + this.target.hashCode();
-    return result;    
-  }
-
-function Etg(edges)
+function Graph(edges)
 {
   this._edges = edges;
 }
 
-Etg.empty =
+Graph.empty =
   function ()
   {
-    return new Etg(HashSet.empty(131));
+    return new Graph(HashSet.empty(131));
   }
 
-Etg.prototype.edges =
+Graph.prototype.equals =
+  function (x)
+  {
+    return x instanceof Graph
+      && this._edges.equals(x._edges);
+  }
+
+Graph.prototype.hashCode =
+  function ()
+  {
+    return this._edges.hashCode();
+  }
+
+Graph.prototype.join =
+  function (x)
+  {
+    return new Graph(this._edges.join(x._edges));
+  }
+
+Graph.prototype.edges =
   function ()
   {
     return this._edges.values();
   }
 
-Etg.prototype.addEdge =
+Graph.prototype.addEdge =
   function (edge)
   {
     var edges = this._edges.add(edge);
-    return new Etg(edges);    
+    return new Graph(edges);    
   }
 
-Etg.prototype.containsEdge =
+Graph.prototype.containsEdge =
   function (edge)
   {
     return this._edges.contains(edge);
   }
 
-Etg.prototype.containsTarget =
+Graph.prototype.containsTarget =
   function (target)
   {
     var edges = this._edges.values();
@@ -205,62 +188,49 @@ Etg.prototype.containsTarget =
     return false;
   }
 
-Etg.prototype.outgoing =
+Graph.prototype.outgoing =
   function (source)
   {
     return this._edges.values().filter(function (edge) {return edge.source.equals(source)});
   }
 
-Etg.prototype.incoming =
+Graph.prototype.incoming =
   function (target)
   {
     return this._edges.values().filter(function (edge) {return edge.target.equals(target)});
   }
 
-//Etg.prototype.nodes =
-//  function ()
-//  {
-//    var edges = this.edges.values();
-//    var nodes = edges.reduce(function (acc, edge) {return acc.concat([edge.source, edge.target])});
-//    return Arrays.deleteDuplicates(nodes);
-//  }
-
-function Ecg(edges)
-{
-  this._edges = edges;
-}
-
-Ecg.empty =
-  function ()
-  {
-    return new Ecg(HashSet.empty(131));
-  }
-
-Ecg.prototype.addEdge =
-  function (edge)
-  {
-    var edges = this._edges.add(edge);
-    return new Ecg(edges);
-  }
-
-Ecg.prototype.containsEdge =
-  function (edge)
-  {
-    return this._edges.contains(edge);
-  }
-
-Ecg.prototype.successors =
+Graph.prototype.successors =
   function (source)
   {
     var targets = this._edges.values().flatMap(function (edge) {return edge.source.equals(source) ? [edge.target] : []});
     return Arrays.deleteDuplicates(targets, Eq.equals);
   }
 
-Ecg.prototype.predecessors =
+Graph.prototype.predecessors =
   function (target)
   {
     var sources = this._edges.values().flatMap(function (edge) {return edge.target.equals(target) ? [edge.source] : []});
     return Arrays.deleteDuplicates(sources, Eq.equals);
+  }
+
+Graph.prototype.nodes =
+  function ()
+  {
+    var nodes = this._edges.values().flatMap(function (edge) {return [edge.source, edge.target]});
+    return Arrays.deleteDuplicates(nodes, Eq.equals);
+  }
+
+Graph.prototype.filterEdges =
+  function (f)
+  {
+    return new Graph(this._edges.filter(f));
+  }
+
+Graph.prototype.removeEdge =
+  function (edge)
+  {
+    return new Graph(this._edges.remove(edge));
   }
 
 function Push(frame)
@@ -309,27 +279,28 @@ Pop.prototype.toString =
   {
     return "-" + this.frame;
   }
-function Unch()
+function Unch(frame)
 {
+  this.frame = frame;
 }
 Unch.prototype.isUnch = true;
 Unch.prototype.equals =
   function (x)
   {
-    return x.isUnch;
+    return x.isUnch && Eq.equals(this.frame, x.frame);
   }
 Unch.prototype.hashCode =
   function ()
   {
     var prime = 17;
     var result = 1;
-    result = prime * result;
+    result = prime * result + HashCode.hashCode(this.frame);
     return result;    
   }
 Unch.prototype.toString =
   function ()
   {
-    return "e";//"\u03B5";
+    return "e(" + this.frame + ")"//"\u03B5";
   }
 
 function PushUnchKont(source)
@@ -338,21 +309,21 @@ function PushUnchKont(source)
 }
 
 PushUnchKont.prototype.push =
-  function (frame, target, trace)
+  function (frame, target, marks)
   {
-    return [new Edge(this.source, new Push(frame), target, trace)];
+    return [new Edge(this.source, new Push(frame), target, marks)];
   }
 
 PushUnchKont.prototype.pop =
-  function (frameCont, trace)
+  function (frameCont, marks)
   {
     return [];
   }
 
 PushUnchKont.prototype.unch =
-  function (target, trace)
+  function (target, marks)
   {
-    return [new Edge(this.source, new Unch(), target, trace)];
+    return [new Edge(this.source, new Unch(null), target, marks)];
   }
 
 function PopKont(source, frame)
@@ -362,22 +333,22 @@ function PopKont(source, frame)
 }
 
 PopKont.prototype.push =
-  function (frame, target, trace)
+  function (frame, target, marks)
   {
     return [];
   }
 
 PopKont.prototype.pop =
-  function (frameCont, trace)
+  function (frameCont, marks)
   {
     var frame = this.frame;
     var target = frameCont(frame);
     assertDefinedNotNull(target);
-    return [new Edge(this.source, new Pop(frame), target, trace)];
+    return [new Edge(this.source, new Pop(frame), target, marks)];
   }
 
 PopKont.prototype.unch =
-  function (target, trace)
+  function (target, marks)
   {
     return [];
   }
@@ -421,7 +392,7 @@ GcDriver.prototype.pushUnch =
     var sa = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
     var gcq = GcDriver.gc(q, stack);
     var edges = this.driver.pushUnch(gcq, stack); 
-    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target, edge.trace)});
+    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target)});
   }
     
 GcDriver.prototype.pop =
@@ -429,7 +400,7 @@ GcDriver.prototype.pop =
   {
     var gcq = GcDriver.gc(q, stack);
     var edges = this.driver.pop(gcq, frame, stack);
-    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target, edge.trace)});
+    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target, edge.marks)});
   }
 
 
@@ -438,10 +409,10 @@ function Pushdown()
 }
 
 Pushdown.inject =
-  function (node, cesk, applyHalt, override)
+  function (node, cesk, override)
   {
     override = override || {};
-    var haltFrame = new HaltKont(applyHalt, [cesk.globala]);
+    var haltFrame = new HaltKont([cesk.globala]);
     return new InitState(node, override.benva || cesk.globala, override.store || cesk.store, cesk, haltFrame);
   }
 
@@ -451,10 +422,10 @@ Pushdown.run =
   //var k = ceskDriver;
     var k = new GcDriver(ceskDriver);
   
-    var etg = Etg.empty();
-    var ecg = Ecg.empty();
-    var ss = HashMap.empty();
+    var etg = Graph.empty();
+    var ecg = Graph.empty();
     var emptySet = ArraySet.empty();
+    var ss = HashMap.empty().put(q, emptySet);
     var dE = [];
     var dH = [];
     var dS = [q];
@@ -472,9 +443,9 @@ Pushdown.run =
       var frames = ss.get(q, emptySet).values();
       var pushUnchEdges = k.pushUnch(q, frames); 
       dE = dE.concat(pushUnchEdges);
-      dH = dH.concat(pushUnchEdges
-                .filter(function (pushUnchEdge) {return pushUnchEdge.g.isUnch})
-                .map(function (unchEdge) {return new EpsEdge(unchEdge.source, unchEdge.target)}));
+//      dH = dH.concat(pushUnchEdges
+//                .filter(function (pushUnchEdge) {return pushUnchEdge.g.isUnch})
+//                .map(function (unchEdge) {return new EpsEdge(unchEdge.source, unchEdge.target)}));
     }
 
     function addPush(s, frame, q)
@@ -490,7 +461,7 @@ Pushdown.run =
           var popEdges = k.pop(q1, frame, frames);
           return popEdges;
         }));
-      dH = dH.concat(dE.map(function (popEdge) {return new EpsEdge(s, popEdge.target)}));
+      dH = dH.concat(dE.map(function (popEdge) {return new Edge(s, new Unch(frame), popEdge.target)}));
     }
 
     function addPop(s2, frame, q)
@@ -506,7 +477,7 @@ Pushdown.run =
           return sset.map(
             function (s)
             {
-              return new EpsEdge(s, q);
+              return new Edge(s, new Unch(frame), q);
             });
         }));
     }
@@ -516,16 +487,16 @@ Pushdown.run =
       propagateStack(s2, s3);
       var sset1 = ecg.predecessors(s2);
       var sset4 = ecg.successors(s3);
-      dH = dH.concat(sset1.flatMap(function (s1) {return sset4.map(function (s4) {return new EpsEdge(s1, s4)})}));
+      dH = dH.concat(sset1.flatMap(function (s1) {return sset4.map(function (s4) {return new Edge(s1, null, s4)})}));
       dH = dH.concat(sset1.map(
         function (s1) 
         {
-          return new EpsEdge(s1, s3)
+          return new Edge(s1, null, s3)
         }));
       dH = dH.concat(sset4.map(
         function (s4)
         {
-          return new EpsEdge(s2, s4)
+          return new Edge(s2, null, s4)
         }));
       var pushEdges = sset1.flatMap(
         function (s1)
@@ -549,7 +520,7 @@ Pushdown.run =
       dH = dH.concat(pushEdges.flatMap(
         function (pushEdge)
         {
-          return popEdges.map(function (popEdge) {return new EpsEdge(pushEdge.source, popEdge.target)});
+          return popEdges.map(function (popEdge) {return new Edge(pushEdge.source, new Unch(pushEdge.g.frame), popEdge.target)});
         }));
     }
     
@@ -558,23 +529,21 @@ Pushdown.run =
       // epsilon edges
       if (dH.length > 0)
       {
-        var h = dH[0];
-        dH = dH.slice(1);
+        var h = dH.shift();
         if (!ecg.containsEdge(h))
         {
 //          print("dH", h, ecg.edges.length);
           ecg = ecg.addEdge(h);
           var q = h.source;
           var q1 = h.target;
-          ecg = ecg.addEdge(new EpsEdge(q, q)).addEdge(new EpsEdge(q1, q1));
+          ecg = ecg.addEdge(new Edge(q, null, q)).addEdge(new Edge(q1, null, q1));
           addEmpty(q, q1);
         }
       }
       // push, pop, unch edges
       else if (dE.length > 0)
       {
-        var e = dE[0];
-        dE = dE.slice(1);
+        var e = dE.shift();
         if (!etg.containsEdge(e))
         {
 //          print("dE", e, etg.edges.length);
@@ -586,7 +555,7 @@ Pushdown.run =
             dS = dS.addLast(q1);
           }            
           etg = etg.addEdge(e);
-          ecg = ecg.addEdge(new EpsEdge(q, q)).addEdge(new EpsEdge(q1, q1));
+          ecg = ecg.addEdge(new Edge(q, null, q)).addEdge(new Edge(q1, null, q1));
           if (g.isPush)
           {
             addPush(q, g.frame, q1);
@@ -604,10 +573,9 @@ Pushdown.run =
       // control states
       else if (dS.length > 0)
       {
-        var q = dS[0];
-        dS = dS.slice(1);
+        var q = dS.shift();
 //        print("dS", q);
-        ecg = ecg.addEdge(new EpsEdge(q, q));
+        ecg = ecg.addEdge(new Edge(q, null, q));
         sprout(q);
       }
       else
@@ -617,95 +585,154 @@ Pushdown.run =
     }
   }
 
-Pushdown.backwardSlice =
-  function (s, etg, ecg, f)
+Pushdown.forward =
+  function (s, etg, ecg)
   {
-    var visited = HashSet.empty();
-    var todo = [s];
-    while (todo.length > 0)
-    {
-      var q = todo[0];
-      todo = todo.slice(1);
-      if (visited.contains(q))
-      {
-        continue;
-      }
-      visited = visited.add(q);
-      
-    }
-    return {etg:setg, ecg:secg, ss:null};
+    
   }
 
-
-Pushdown.retrospectiveStack =
-  function (s, etg, ecg) //, ss)
+Pushdown.preStackNfa =
+  function (s, etg, ecg)
   {
-//    return [];
     var visited = HashSet.empty();
     var todo = [s];
-    var frames = HashSet.empty();
+    var edges = HashSet.empty();
     while (todo.length > 0)
     {
-      var q = todo[0];
-      todo = todo.slice(1);
+      var q = todo.shift();
       if (visited.contains(q))
       {
         continue;
       }
       visited = visited.add(q);
-      var epsPredecessors = ecg.predecessors(q);
       var incomingEdges = etg.incoming(q);
       var incomingPushUnchEdges = incomingEdges.filter(function (edge) {return !edge.g.isPop});
-      var incomingPushEdges = incomingPushUnchEdges.filter(function (edge) {return edge.g.isPush});
-      var pushPredecessors = incomingPushUnchEdges.map(function (edge) {return edge.source});
-      var pushedFrames = incomingPushEdges.map(function (pushEdge) {return pushEdge.g.frame});
-      frames = frames.addAll(pushedFrames);
-      todo = todo.concat(epsPredecessors).concat(pushPredecessors);
+      if (incomingPushUnchEdges.length === 0)
+      {
+        var incomingEpsFrameEdges = ecg.incoming(q).filter(function (epsEdge) {return epsEdge.g});
+        edges = edges.addAll(incomingEpsFrameEdges);
+        var predecessors = incomingEpsFrameEdges.map(function (edge) {return edge.source});
+      }
+      else
+      {
+        edges = edges.addAll(incomingPushUnchEdges);
+        var predecessors = incomingPushUnchEdges.map(function (edge) {return edge.source});
+      }
+      todo = todo.concat(predecessors);
     }
-    var rvalues = frames.values();
-//    var cvalues = ss.get(s).values();
-//    assertSetEquals(rvalues, cvalues);
-    return rvalues;
+    return new Graph(edges);
   }
 
-Pushdown.prospectiveStack =
-  function (q, etg, ecg)
+Pushdown.executionGraph =
+  function (s, etg, ecg)
   {
-    var visited = HashSet.empty();
-    var todo = [q];
-    var frames = HashSet.empty();
+    var targets = ecg.successors(s);
+    var edges = HashSet.empty();
+    var epsEdges = HashSet.empty();
+    var todo = etg.outgoing(s);
     while (todo.length > 0)
     {
-      var q = todo[0];
-      todo = todo.slice(1);
-      if (visited.contains(q))
+      var edge = todo.shift();
+      if (edges.contains(edge))
       {
         continue;
       }
-      visited = visited.add(q);
-      var epsSuccessors = ecg.successors(q);
-      var outgoingEdges = etg.outgoing(q);
-      var outgoingPopUnchEdges = outgoingEdges.filter(function (edge) {return !edge.g.isPush});
-      var outgoingPopEdges = outgoingPopUnchEdges.filter(function (edge) {return edge.g.isPop});
-      var popSuccessors = outgoingPopUnchEdges.map(function (edge) {return edge.target});
-      var poppedFrames = outgoingPopEdges.map(function (popEdge) {return popEdge.g.frame});
-      frames = frames.addAll(poppedFrames);
-      todo = todo.concat(epsSuccessors).concat(popSuccessors);
+      edges = edges.add(edge);
+      epsEdges = epsEdges.addAll(ecg.outgoing(edge.source));
+      if (Arrays.contains(edge.target, targets, Eq.equals))
+      {
+        continue;
+      }
+      todo = todo.concat(etg.outgoing(edge.target));
     }
-    return frames.values();
+    return {etg:etg, ecg:ecg};
+  }
+
+Pushdown.filterMarks =
+  function (etg, filter)
+  {
+    return etg.edges().reduce(
+      function (result, edge)
+      {
+        var marks = edge.marks || [];
+        return result.concat(marks.filter(filter))
+      }, []);
   }
 
 Pushdown.prototype.analyze =
   function (ast, cesk)
   {
-    var value = BOT;
-    var applyHalt =
-      function (v)
-      {
-        value = value.join(v);
-        return [];
-      }
-    var state = Pushdown.inject(ast, cesk, applyHalt);
-    var dsg = Pushdown.run(state);
-    return {value:value, initial:state, dsg:dsg};
+    var initial = Pushdown.inject(ast, cesk);
+    var dsg = Pushdown.run(initial);
+    return new Dsg(initial, dsg.etg, dsg.ecg, dsg.ss);
   }
+
+function Dsg(initial, etg, ecg, ss)
+{
+  this.initial = initial;
+  this.etg = etg;
+  this.ecg = ecg;
+  this.ss = ss;
+}
+
+////
+
+Dsg.prototype.forward =
+  function (s)
+  {
+    
+  }
+
+Dsg.prototype.valueOf =
+  function (node)
+  {
+    var evalPushEdges = this.etg.edges().filter(
+      function (edge)
+      {
+        return edge.g.isPush && edge.target.node === node;
+      });
+    var preEvalStates = evalPushEdges.map(Edge.source);
+    var epsSuccessors = preEvalStates.flatMap(Graph.prototype.successors, this.ecg);
+    var values = epsSuccessors.map(function (q) {return q.value || BOT});
+    return values.reduce(Lattice.join);
+  }
+
+Dsg.prototype.isPureFunction =
+  function (f)
+  {
+    var globalReadAddresses = ArraySet.from(Pushdown.filterMarks(this.etg, function (mark) {return mark.isRead}).map(function (mark) {return mark.address}));
+    var globalWriteAddresses = ArraySet.from(Pushdown.filterMarks(this.etg, function (mark) {return mark.isWrite}).map(function (mark) {return mark.address}));
+    var constants = globalReadAddresses.removeAll(globalWriteAddresses); 
+    var applicationPurity = this.etg.edges().flatMap(
+      function (edge)
+      {
+        if (edge.target.fun === f)
+        {
+          var extendedBenva = edge.target.extendedBenva;
+          var erg = Pushdown.executionGraph(edge.source, this.etg, this.ecg);
+          var rwcAddresses = ArraySet.from(Pushdown.filterMarks(erg, function (mark) {return mark.isRead || mark.isWrite}).map(function (mark) {return mark.address}));
+          var rwAddresses = rwcAddresses.removeAll(constants);
+          var foreignRwAddresses = rwAddresses.filter(function (address) {return !address.base.equals(extendedBenva)});
+//          print("f", rwAddresses, foreignRwAddresses, constants);
+          return [foreignRwAddresses.size() === 0];
+        }
+        return [];
+      }, this);
+    return applicationPurity.reduce(function (x,y) {return x && y}, true);
+  }
+
+Dsg.prototype.isPureExecution =
+  function (s)
+  {
+    var globalReadAddresses = ArraySet.from(Pushdown.filterMarks(this.etg, function (mark) {return mark.isRead}).map(function (mark) {return mark.address}));
+    var globalWriteAddresses = ArraySet.from(Pushdown.filterMarks(this.etg, function (mark) {return mark.isWrite}).map(function (mark) {return mark.address}));
+    var constants = globalReadAddresses.removeAll(globalWriteAddresses); 
+    var benva = s.benva;
+    var erg = Pushdown.executionGraph(edge.source, this.etg, this.ecg);
+    var rwcAddresses = ArraySet.from(Pushdown.filterMarks(erg, function (mark) {return mark.isRead || mark.isWrite}).map(function (mark) {return mark.address}));
+    var rwAddresses = rwcAddresses.removeAll(constants);
+    var foreignRwAddresses = rwAddresses.filter(function (address) {return !address.base.equals(benva)});
+//  print("f", rwAddresses, foreignRwAddresses, constants);
+    return foreignRwAddresses.size() === 0;
+  }
+

@@ -209,34 +209,6 @@ function jsCesk(cc)
     return kont[0].apply(stack2.addFirst(l.abst1(objectAddress)), store, time);
   }    
   
-  function objectCreate(application, operands, objectAddress, stack, benva, store, time)
-  {
-    if (operands.length !== 1)
-    {
-      throw new Error("TODO");
-    }
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var obj = createObject(operands[0]);
-    var address = a.object(application, time);
-    store = allocAval(address, obj, stack, store);
-    return kont[0].apply(stack2.addFirst(l.abst1(address)), store, time);
-  }    
-  
-  function objectGetPrototypeOf(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var operand = operands[0];
-    if (operand.prim === BOT)
-    {
-      var addresses = operand.addresses();
-      var object = addresses.map(store.lookupAval, store).reduce(Lattice.join);
-      return kont[0].apply(stack2.addFirst(object.Prototype), store, time);
-    }
-    throw new Error("TODO");
-  }    
-
   function stringConstructor(application, operands, ths, stack, benva, store, time)
   {
     // TODO (also for other built-in constructors): throwing away freshly created object (that has different addr, so not that bad)!
@@ -271,443 +243,8 @@ function jsCesk(cc)
     return ToString(application, stack.addFirst(operands[0]), benva, store, time);
   }    
       
-  function arrayConstructor(application, operands, ths, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var arrayBenv = createArray();
-    var arrayAddress = a.array(application, time);
-    var l;
-    if (operands.length === 0)
-    {
-      l = L_0;
-    }
-    else
-    {
-      l = operands[0];
-    }
-    arrayBenv = arrayBenv.add(P_LENGTH, l);
-    store = allocAval(arrayAddress, arrayBenv, stack, store);
-    return kont[0].apply(stack2.addFirst(l.abst1(arrayAddress)), store, time);
-  }    
-  
-  function arrayPush(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-   
-    var arg0aa = operands[0];
-                  
-    var receiver = lookupAval(objectAddress, stack, store);
-    var lreceiver = receiver.lookup(l.U_LENGTH);
-    if (lreceiver === BOT)
-    {
-      // this branch is untested (need apply or call)
-//      receiver = receiver.add(P_0.ToString(), newPropertyAddress);
-//      store = allocAval(newPropertyAddress, arg0aa, stack, store);
-//      var lengthPropertyAddress = a.objectPropery(objectAddress, l.U_LENGTH);
-//      receiver = receiver.add(P_LENGTH, lengthPropertyAddress);
-//      store = allocAval(lengthPropertyAddress, L_0, stack, store);
-//      store = sideEffectAval(objectAddress, receiver, stack, store);
-//      return kont[0].apply(stack2.addFirst(arg0aa), store, time);
-      throw new Error("TODO");
-    }
-    else
-    {
-      var lreceiveru = lreceiver.user;
-      receiver = receiver.add(lreceiveru.ToString(), arg0aa);
-      var newLengthu = p.add(lreceiveru, l.U_1);
-      var newLength = new JipdaValue(newLengthu, []);
-      receiver = receiver.add(l.U_LENGTH, newLength);
-      store = sideEffectAval(objectAddress, receiver, stack, store);
-      return kont[0].apply(stack2.addFirst(newLength), store, time);                                                                                  
-    }
-  }
-  
-  function arrayConcat(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-   
-    var arg0aa = operands[0];
-
-    var receiver = lookupAval(objectAddress, stack, store);
-    var lreceiveru = receiver.lookup(l.U_LENGTH).user;
-    var arg0 = doLookupAddresses(arg0aa.addresses(), stack, store);
-    var larg0 = arg0.lookup(l.U_LENGTH);
-    var larg0u = larg0.user;
-    var result = createArray();
-    var resulta = a.array(application, time);
-    return arrayCopy(receiver, l.U_0, result, l.U_0, lreceiveru, stack, store, c,
-      function (result, index, store)
-      {
-        return arrayCopy(arg0, P_0, result, index, larg0u, stack, store, c, 
-          function (result, index, store)
-          {
-            result = result.add(l.U_LENGTH, new JipdaValue(index, []));
-            store = allocAval(resulta, result, stack, store);
-            return kont[0].apply(stack2.addFirst(l.abst1(resulta)), store, time);                                                                                  
-          });
-      });
-  } 
-  
-  function arrayMap(application, operands, thisa, stack, benva, store, time)
-  {
-    // TODO ToObject(thisa)
-    // TODO best way to solve this?
-    var receiver = lookupAval(thisa, stack, store);
-    var lenValue = receiver.lookup(P_LENGTH);
-    
-    function arrayMapToUInt32Cont()
-    {
-      return new Cont("arrayMapToUInt32", application, null, benva,
-        function (stack, store, time)
-        {
-          var lenPrim = stack[0].user;
-          var stack2 = stack.slice(1);
-          
-          var arr = createArray();
-          var arrAddr = a.array(application, time);
-          store = store.allocAval(arrAddr, arr, stack, store);
-          
-          
-          function arrayMapLoop(k, arr, stack, store, time)
-          {
-            while (p.isTrue(p.lt(k, lenPrim)))
-            {
-              var indexValue = receiver.lookup(k.ToString());
-              if (indexValue !== BOT && !indexValue.equals(L_UNDEFINED)) // TODO project defined/undefined
-              {
-                return applyProc(application, [l.abst1(thisa), new JipdaValue(k, []), indexValue, operands[0], operands[1] || GLOBALA, arrayMapCont(k, arr)].concat(stack), benva, store, time, c, 3); // TODO this addresses          
-              }
-              k = p.add(k, P_1);
-            }
-
-            arr = arr.add(P_LENGTH, new JipdaValue(lenPrim, []));
-            store = sideEffectAval(arrAddr, arr, stack, store);
-            //stack[0] jarr    (GC)
-            //stack[1] f       (GC)
-            //stack[2] this    (GC)
-            var cont = stack[3];
-            var stack2 = stack.slice(4);
-            return kont[0].apply(stack2.addFirst(jarr), store, time);            
-          }
-          
-          function arrayMapCont(k, arr)
-          {
-            return new Cont("arrayMap", application, k, benva,
-              function (stack, store, time)
-              {
-                var value = stack[0];
-                var stack2 = stack.slice(1);
-                arr = arr.add(k.ToString(), value);
-                // side-effect now for GC
-                store = sideEffectAval(arrAddr, arr, stack, store);
-                return arrayMapLoop(p.add(k, P_1), arr, stack2, store, time);
-              });
-          }
-          
-          var jarr = l.abst1(arrAddr);
-          return arrayMapLoop(P_0, arr, stack2.addFirst(jarr), store, time);            
-        });
-    }
-    
-    // add thisAddr and fAddr to rootset 
-    var stack2 = stack.addFirst(thisa).addFirst(operands[0]);
-    return ToUInt32(lenValue, application, stack2.addFirst(arrayMapToUInt32Cont()), benva, store, time);
-  }
-  
-  function arrayReduce(application, operands, thisa, stack, benva, store, time)
-  {
-    // TODO ToObject(thisa)
-    // TODO best way to solve this?
-    var receiver = lookupAval(thisa, stack, store);
-    var lenValue = receiver.lookup(P_LENGTH);
-    
-    function arrayReduceToUInt32Cont()
-    {
-      return new Cont("arrayReduceToUInt32", application, null, benva,
-        function (stack, store, time)
-        {
-          var lenPrim = stack[0].user;
-          var k = P_0;
-          if (operands[1])
-          {
-            return arrayReduceLoop(k, operands[1], stack, store, time);
-          }
-          else
-          {
-            if (p.isTrue(p.eqq(lenPrim, P_0)))
-            {
-              var stack2 = stack.slice(1);
-              return performThrow(l.abst1("Type error"), application, stack2, benva, store, time);
-            }
-            while (p.isTrue(p.lt(k, lenPrim)))
-            {
-              var indexValue = receiver.lookup(k.ToString());
-              if (indexValue !== BOT)
-              {
-                return arrayReduceLoop(p.add(k, P_1), indexValue, stack, store, time);
-              }
-              k = p.add(k, P_1);
-            }              
-          }
-          
-          function arrayReduceLoop(k, result, stack, store, time)
-          {
-            while (p.isTrue(p.lt(k, lenPrim)))
-            {
-              var indexValue = receiver.lookup(k.ToString()); // TODO here, and similar methods, proto lookup?
-              if (indexValue !== BOT)
-              {
-                var stack2 = stack.slice(1);
-                return applyProc(application, [l.abst1(thisa), new JipdaValue(k, []), indexValue, result, operands[0], l.abst1(thisa), arrayReduceCont(k)].concat(stack2), benva, store, time, c, 4); // TODO this addresses          
-              }
-              k = p.add(k, P_1);
-            }
-            //stack[0] index value
-            //stack[1] GC
-            //stack[2] GC
-            var cont = stack[3];
-            var stack2 = stack.slice(4);
-            return kont[0].apply(stack2.addFirst(result), store, time);            
-          }
-          
-          function arrayReduceCont(k)
-          {
-            return new Cont("arrayReduce", application, k, benva,
-              function (stack, store, time)
-              {
-                var result = stack[0];
-                return arrayReduceLoop(p.add(k, P_1), result, stack, store, time);
-              });
-          }
-        });
-    }
-    
-    // add receiver, reducer to rootset
-    var stack2 = stack.addFirst(thisa).addFirst(operands[0]);
-    return ToUInt32(lenValue, application, stack2.addFirst(arrayReduceToUInt32Cont()), benva, store, time);
-  }
-
-  function arrayFilter(application, operands, thisa, stack, benva, store, time)
-  {
-    // TODO ToObject(thisa)
-    // TODO best way to solve this?
-    var receiver = lookupAval(thisa, stack, store);
-    var lenValue = receiver.lookup(P_LENGTH);
-    
-    function arrayFilterToUInt32Cont() // TODO numAllocedProperties is concrete integer (used as index), k is abstract???
-    { // but numAP is also used to slice stuff of stack... make two counters: concrete and abst?
-      // Points against: every JS conc value should be abstractable
-      return new Cont("arrayFilterToUInt32", application, null, benva,
-        function (stack, store, time)
-        {
-          var lenPrim = stack[0].user;
-          var stack2 = stack.slice(1);
-          
-          var arr = createArray();
-          var arrAddr = a.array(application, time);
-          var jarr = l.abst1(arrAddr);
-          store = allocAval(arrAddr, arr, stack, store);
-          
-          function arrayFilterLoop(k, numAllocedProperties, arr, stack, store, time)
-          {
-            while (p.isTrue(p.lt(k, lenPrim)))
-            {
-              var indexValue = receiver.lookup(k.ToString());
-              if (indexValue !== BOT && !indexValue.equals(L_UNDEFINED)) // TODO project defined/undefined
-              {
-                return applyProc(application, [indexValue, new JipdaValue(k, []), indexValue, operands[0], operands[1] || GLOBALA, arrayFilterCont(k, indexValue, numAllocedProperties, arr)].concat(stack), benva, store, time, c, 3); // TODO this addresses          
-              }
-              k = p.add(k, l.U_1);
-            }
-            
-            arr = arr.add(P_LENGTH, l.abst1(numAllocedProperties));
-            store = sideEffectAval(arrAddr, arr, stack, store);
-            //stack[0] jarr    (GC)
-            //stack[1] f       (GC)
-            //stack[2] this    (GC)
-            var cont = stack[3];
-            var stack2 = stack.slice(4);
-            return kont[0].apply(stack2.addFirst(jarr), store, time);            
-          }
-          
-          function arrayFilterCont(k, indexValue, numAllocedProperties, arr)
-          {
-            return new Cont("arrayFilter", application, k, benva,
-              function (stack, store, time)
-              {
-                var value = toUserBoolean(stack[0]);
-                var stack2 = stack.slice(1);
-                if (p.isTrue(value))
-                {
-                  var propName = p.abst1(String(numAllocedProperties));
-                  arr = arr.add(propName, indexValue);
-                  // side-effect now for GC
-                  store = sideEffectAval(arrAddr, arr, stack, store);
-                  return arrayFilterLoop(p.add(k, P_1), numAllocedProperties + 1, arr, stack2, store, time);                    
-                }
-                if (p.isFalse(value))
-                {
-                  return arrayFilterLoop(p.add(k, P_1), numAllocedProperties, arr, stack2, store, time);
-                }
-                return [new Task("Array.prototype.filter true",
-                          function ()
-                          { // copied
-                            var propName = p.abst1(String(numAllocedProperties));
-                            arr = arr.add(propName, indexValue);
-                            // side-effect now for GC
-                            store = sideEffectAval(arrAddr, arr, stack, store);
-                            return arrayFilterLoop(p.add(k, P_1), numAllocedProperties + 1, arr, stack2, store, time);                    
-                          }),
-                        new Task("Array.prototype.filter false",
-                          function ()
-                          { // copied
-                            return arrayFilterLoop(p.add(k, P_1), numAllocedProperties, arr, stack2, store, time);
-                          })];
-              });
-          }
-          return arrayFilterLoop(l.U_0, 0, arr, stack2.addFirst(jarr), store, time);            
-        });
-    }
-    
-    // add receiver, filter function to rootset
-    var stack2 = stack.addFirst(thisa).addFirst(operands[0]);
-    return ToUInt32(lenValue, application, stack2.addFirst(arrayFilterToUInt32Cont()), benva, store, time);
-  }    
-  
-  function mathSqrt(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var u = toUserNumber(operands[0], store);
-    var r = p.sqrt(u);
-    var j = new JipdaValue(r, []);
-    return kont[0].apply(stack2.addFirst(j), store, time);
-  }
-  
-  function mathAbs(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var u = toUserNumber(operands[0], store);
-    var r = p.abs(u);
-    var j = new JipdaValue(r, []);
-    return kont[0].apply(stack2.addFirst(j), store, time);
-  }
-  
-  function mathRound(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var u = toUserNumber(operands[0], store);
-    var r = p.round(u);
-    var j = new JipdaValue(r, []);
-    return kont[0].apply(stack2.addFirst(j), store, time);
-  }
-  
-  function mathSin(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var u = toUserNumber(operands[0], store);
-    var r = p.sin(u);
-    var j = new JipdaValue(r, []);
-    return kont[0].apply(stack2.addFirst(j), store, time);
-  }
-  
-  function mathCos(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var u = toUserNumber(operands[0], store);
-    var r = p.cos(u);
-    var j = new JipdaValue(r, []);
-    return kont[0].apply(stack2.addFirst(j), store, time);
-  }
-  
-  function mathMax(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    if (operands.length === 2)
-    {
-      var u1 = toUserNumber(operands[0], store);
-      var u2 = toUserNumber(operands[1], store);
-      var r = p.max(u1, u2);
-      var j = new JipdaValue(r, []);
-      return kont[0].apply(stack2.addFirst(j), store, time);        
-    }
-    throw new Error("NYI");
-  }
-  
-  // deterministic random from Octane benchmarks 
-  var seed = 49734321;
-  function mathRandom(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    // Robert Jenkins' 32 bit integer hash function.
-    seed = ((seed + 0x7ed55d16) + (seed << 12))  & 0xffffffff;
-    seed = ((seed ^ 0xc761c23c) ^ (seed >>> 19)) & 0xffffffff;
-    seed = ((seed + 0x165667b1) + (seed << 5))   & 0xffffffff;
-    seed = ((seed + 0xd3a2646c) ^ (seed << 9))   & 0xffffffff;
-    seed = ((seed + 0xfd7046c5) + (seed << 3))   & 0xffffffff;
-    seed = ((seed ^ 0xb55a4f09) ^ (seed >>> 16)) & 0xffffffff;
-    var r = p.abst1((seed & 0xfffffff) / 0x10000000);
-    var j = new JipdaValue(r, []);
-    return kont[0].apply(stack2.addFirst(j), store, time);
-  }
-  
-  function $meta(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var str = operands[0].conc()[0];
-    var value = l.abst1(eval(str));
-    return kont[0].apply(stack2.addFirst(value), store, time);
-  }
-  
-  function $join(application, operands, thisa, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var value = operands.reduce(Lattice.join, BOT);
-    return kont[0].apply(stack2.addFirst(value), store, time);
-  }    
-  
-  function $toString(application, operands, thisa, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    var value = operands.reduce(Lattice.join, BOT);
-    return kont[0].apply(stack2.addFirst(value), store, time);
-  }    
-  
-  function _print(application, operands, objectAddress, stack, benva, store, time)
-  {
-    var cont = stack[0];
-    var stack2 = stack.slice(1);
-    print.apply(null, operands);
-    return kont[0].apply(stack2.addFirst(L_UNDEFINED), store, time);
-  }    
   // END PRIMITIVES
   
-  // BEGIN HELPERS
-  function arrayCopy(srcBenv, srcPos, dstBenv, dstPos, l, stack, store, c, fcont)
-  {
-    var i = l.U_0;
-    while (p.isTrue(p.lt(i, l)))
-    {
-      var srcvalue = srcBenv.lookup(p.add(i, srcPos).ToString());
-      var dstName = p.add(i, dstPos).ToString();
-      dstBenv = dstBenv.add(dstName, srcvalue);
-      i = p.add(i, l.U_1);
-    }
-    return fcont(dstBenv, p.add(i, dstPos), store);
-  }
-  // END HELPERS
   
   function BenvPrimitiveCall(applyFunction)
   {
@@ -788,7 +325,8 @@ function jsCesk(cc)
 //      print("BenvClosureCall.applyFunction", application, "operandValues", operandValues, "ths", ths);
       var fun = this.node;
       var statica = this.scope;
-      return applyClosure(application, fun, statica, operandValues, thisa, benva, store, kont);
+      var extendedBenva = a.benv(application, benva, store, kont);
+      return kont.push(new ReturnMarker(application, benva, this, extendedBenva), new ApplyState(application, fun, statica, operandValues, thisa, extendedBenva, store));
     }
 
   BenvClosureCall.prototype.addresses =
@@ -797,8 +335,6 @@ function jsCesk(cc)
       return [this.scope];
     }
   
-
-
   function EvalState(node, benva, store)
   {
     this.type = "eval";
@@ -862,7 +398,7 @@ function jsCesk(cc)
       return this.type === x.type
         && Eq.equals(this.frame, x.frame) 
         && Eq.equals(this.value, x.value) 
-        && Eq.equals(this.store, x.store);
+        && Eq.equals(this.store, x.store)
     }
   KontState.prototype.hashCode =
     function ()
@@ -899,66 +435,71 @@ function jsCesk(cc)
       return new KontState(this.frame, this.value, store);
     }
   
-  
-  function CallState(node, callable, operandValues, thisa, benva, store)
+  function ApplyState(node, fun, statica, operandValues, thisa, extendedBenva, store)
   {
-    this.type = "call";
+    this.type = "apply";
     this.node = node;
-    this.callable = callable;
+    this.fun = fun;
+    this.statica = statica;
     this.operandValues = operandValues;
     this.thisa = thisa;
-    this.benva = benva;
+//    this.benva = benva;
+    this.extendedBenva = extendedBenva;
     this.store = store;
   }
-  CallState.prototype.equals =
+  ApplyState.prototype.equals =
     function (x)
     {
       return this.type === x.type
         && this.node === x.node
-        && Eq.equals(this.callable, x.callable)
+        && this.fun === x.fun
+        && Eq.equals(this.statica, x.statica)
         && Eq.equals(this.operandValues, x.operandValues)
         && Eq.equals(this.thisa, x.thisa)
-        && Eq.equals(this.benva, x.benva)
+//        && Eq.equals(this.benva, x.benva)
+        && Eq.equals(this.extendedBenva, x.extendedBenva)
         && Eq.equals(this.store, x.store)
     }
-  CallState.prototype.hashCode =
+  ApplyState.prototype.hashCode =
     function ()
     {
       var prime = 7;
       var result = 1;
       result = prime * result + this.node.hashCode();
-      result = prime * result + this.callable.hashCode();
+      result = prime * result + this.fun.hashCode();
+      result = prime * result + this.statica.hashCode();
       result = prime * result + this.operandValues.hashCode();
       result = prime * result + this.thisa.hashCode();
-      result = prime * result + this.benva.hashCode();
+//      result = prime * result + this.benva.hashCode();
+      result = prime * result + this.extendedBenva.hashCode();
       return result;
     }
-  CallState.prototype.toString =
+  ApplyState.prototype.toString =
     function ()
     {
-      return "#call " + this.node.tag;
+      return "#apply " + this.node.tag;
     }
-  CallState.prototype.nice =
+  ApplyState.prototype.nice =
     function ()
     {
-      return "#call " + this.node.tag;
+      return "#apply " + this.node.tag;
     }
-  CallState.prototype.next =
+  ApplyState.prototype.next =
     function (kont)
     {
-      return this.callable.applyFunction(this.node, this.operandValues, this.thisa, this.benva, this.store, kont);
+      return applyClosure(this.node, this.fun, this.statica, this.operandValues, this.thisa, this.extendedBenva, this.store, kont);
     }
-  CallState.prototype.addresses =
+  ApplyState.prototype.addresses =
     function ()
     {
-      return [this.benva, this.thisa]
-              .concat(this.callable.addresses())
+      // extendedBenva not part of addresses (optimization): applyClosure will allocate when required
+      return [this.statica, /*this.benva,*/ this.thisa]
               .concat(this.operandValues.flatMap(function (operandValue) {return operandValue.addresses()}));
     }
-  CallState.prototype.setStore =
+  ApplyState.prototype.setStore =
     function (store)
     {
-      return new CallState(this.node, this.callable, this.operandValues, this.thisa, this.benva, this.store);
+      return new ApplyState(this.node, this.fun, this.statica, this.operandValues, this.thisa, this.extendedBenva, store);
     }
   
   function ReturnState(node, returna, store, frame)
@@ -1013,21 +554,25 @@ function jsCesk(cc)
   ReturnState.prototype.setStore =
     function (store)
     {
-      return new ReturnState(this.node, this.returna, this.store, this.frame);
+      return new ReturnState(this.node, this.returna, store, this.frame);
     }
   
-  function ReturnMarker(node, callable)
+  function ReturnMarker(node, benva, callable, extendedBenva)
   {
     this.node = node;
+    this.benva = benva;
     this.callable = callable;
+    this.extendedBenva = extendedBenva;
   }
   ReturnMarker.prototype.isMarker = true;
- ReturnMarker.prototype.equals =
+  ReturnMarker.prototype.equals =
     function (x)
     {
-      return x instanceof ReturnMarker
+      return (x instanceof ReturnMarker)
         && this.node === x.node
-        && this.callable === x.callable
+        && Eq.equals(this.benva, x.benva)
+        && Eq.equals(this.callable, x.callable)
+        && Eq.equals(this.extendedBenva, x.extendedBenva)
     }
   ReturnMarker.prototype.hashCode =
     function ()
@@ -1035,18 +580,20 @@ function jsCesk(cc)
       var prime = 7;
       var result = 1;
       result = prime * result + this.node.hashCode();
+      result = prime * result + this.benva.hashCode();
       result = prime * result + this.callable.hashCode();
+      result = prime * result + this.extendedBenva.hashCode();
       return result;
     }
   ReturnMarker.prototype.toString =
     function ()
     {
-      return "ret-" + this.node.tag;
+      return "RET-" + this.node.tag;
     }
   ReturnMarker.prototype.nice =
     function ()
     {
-      return "ret-" + this.node.tag;
+      return "RET-" + this.node.tag;
     }
   ReturnMarker.prototype.addresses =
     function ()
@@ -1057,11 +604,6 @@ function jsCesk(cc)
     function (value, store, kont)
     {
       throw new Error("cannot apply marker");
-    }
-  ReturnMarker.prototype.appliesFunctions =
-    function ()
-    {
-      return [this.callable.node];
     }
   
   function VariableDeclarationKont(node, i, benva)
@@ -1263,7 +805,7 @@ function jsCesk(cc)
       if (leftAs.length === 0 && rightAs.length === 0)
       {
         // fast path: primitives (no need for coercions on interpreter level)
-        return applyBinaryExpressionPrim(node, leftPrim, rightPrim, benva, store, kont);
+        return applyPrimitiveBinaryExpression(node, leftPrim, rightPrim, benva, store, kont);
       }
       throw new Error("TODO");
     }
@@ -1310,9 +852,9 @@ function jsCesk(cc)
       var node = this.node;
       var benva = this.benva;
       var id = node.left;
-      var trace = [];
-      store = doScopeSet(p.abst1(id.name), value, benva, store, trace);
-      return kont.pop(function (frame) {return new KontState(frame, value, store)}, trace);
+      var marks = [];
+      store = doScopeSet(p.abst1(id.name), value, benva, store, marks);
+      return kont.pop(function (frame) {return new KontState(frame, value, store)}, marks);
     }
   
   function OperatorKont(node, benva)
@@ -1448,7 +990,7 @@ function jsCesk(cc)
       return x instanceof BodyKont
         && this.node === x.node
         && this.i === x.i
-        && Eq.equals(this.benva, x.benva);
+        && Eq.equals(this.benva, x.benva)
     }
   BodyKont.prototype.hashCode =
     function ()
@@ -1613,19 +1155,238 @@ function jsCesk(cc)
       }
     }
   
+  function ObjectKont(node, i, benva, initValues)
+  {
+    this.node = node;
+    this.i = i;
+    this.benva = benva;
+    this.initValues = initValues;
+  }
+  
+  ObjectKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof ObjectKont
+        && this.node === x.node
+        && this.i === x.i
+        && Eq.equals(this.benva, x.benva)
+        && Eq.equals(this.initValues, x.initValues)
+    }
+  ObjectKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.i;
+      result = prime * result + this.benva.hashCode();
+      result = prime * result + this.initValues.hashCode();
+      return result;
+    }
+  ObjectKont.prototype.toString =
+    function ()
+    {
+      return "obj-" + this.node.tag + "-" + this.i;
+    }
+  ObjectKont.prototype.nice =
+    function ()
+    {
+      return "obj-" + this.node.tag + "-" + this.i;
+    }
+  ObjectKont.prototype.addresses =
+    function ()
+    {
+      return [this.benva].
+                concat(this.initValues.flatMap(function (value) {return value.addresses()}));
+    }
+  ObjectKont.prototype.apply =
+    function (initValue, store, kont)
+    {
+      var node = this.node;
+      var properties = node.properties;
+      var benva = this.benva;
+      var i = this.i;
+      var initValues = this.initValues.addLast(initValue);
+
+      if (properties.length === i)
+      {
+        var obj = createObject(objectProtoRef);
+        var objectAddress = a.object(node, null);
+        for (var j = 0; j < i; j++)
+        {
+          var propertyName = p.abst1(properties[j].key.name);
+          obj = obj.add(propertyName, initValues[j]);
+        }
+        store = store.allocAval(objectAddress, obj);
+        return kont.pop(function (frame) {return new KontState(frame, l.abst1(objectAddress), store)});        
+      }
+      var frame = new ObjectKont(node, i + 1, benva, initValues);
+      return kont.push(frame, new EvalState(properties[i].value, benva, store));
+    }
+  
+  function MemberKont(node, benva)
+  {
+    this.node = node;
+    this.benva = benva;
+  }
+  
+  MemberKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof MemberKont
+        && this.node === x.node
+        && Eq.equals(this.benva, x.benva)
+    }
+  MemberKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.benva.hashCode();
+      return result;
+    }
+  MemberKont.prototype.toString =
+    function ()
+    {
+      return "mem-" + this.node.tag;
+    }
+  MemberKont.prototype.nice =
+    function ()
+    {
+      return "mem-" + this.node.tag;
+    }
+  MemberKont.prototype.addresses =
+    function ()
+    {
+      return [this.benva];
+    }
+  MemberKont.prototype.apply =
+    function (objectRef, store, kont)
+    {
+      var node = this.node;
+      var property = node.property;
+      if (node.computed)
+      {
+        throw new Error("TODO");
+      }
+      var marks = [];
+      var value = doProtoLookup(p.abst1(property.name), objectRef, store, marks);
+      return kont.pop(function (frame) {return new KontState(frame, value, store)}, marks);
+    }
+  
+  function MemberAssignmentKont(node, benva)
+  {
+    this.node = node;
+    this.benva = benva;
+  }
+  
+  MemberAssignmentKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof MemberAssignmentKont
+        && this.node === x.node
+        && Eq.equals(this.benva, x.benva)
+    }
+  MemberAssignmentKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.benva.hashCode();
+      return result;
+    }
+  MemberAssignmentKont.prototype.toString =
+    function ()
+    {
+      return "memas-" + this.node.tag;
+    }
+  MemberAssignmentKont.prototype.nice =
+    function ()
+    {
+      return "memas-" + this.node.tag;
+    }
+  MemberAssignmentKont.prototype.addresses =
+    function ()
+    {
+      return [this.benva];
+    }
+  MemberAssignmentKont.prototype.apply =
+    function (objectRef, store, kont)
+    {
+      var node = this.node;
+      var benva = this.benva;
+      var right = node.right;
+      var frame = new MemberAssignmentValueKont(node, benva, objectRef);
+      return kont.push(frame, new EvalState(right, benva, store));
+    }
+  
+  function MemberAssignmentValueKont(node, benva, objectRef)
+  {
+    this.node = node;
+    this.benva = benva;
+    this.objectRef = objectRef;
+  }
+  
+  MemberAssignmentValueKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof MemberAssignmentValueKont
+        && this.node === x.node
+        && Eq.equals(this.benva, x.benva)
+        && Eq.equals(this.objectRef, x.objectRef)
+    }
+  MemberAssignmentValueKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.benva.hashCode();
+      result = prime * result + this.objectRef.hashCode();
+      return result;
+    }
+  MemberAssignmentValueKont.prototype.toString =
+    function ()
+    {
+      return "memasv-" + this.node.tag;
+    }
+  MemberAssignmentValueKont.prototype.nice =
+    function ()
+    {
+      return "memasv-" + this.node.tag;
+    }
+  MemberAssignmentValueKont.prototype.addresses =
+    function ()
+    {
+      return [this.benva].concat(this.objectRef.addresses());
+    }
+  MemberAssignmentValueKont.prototype.apply =
+    function (value, store, kont)
+    {
+      var node = this.node;
+      var left = node.left;
+      var property = left.property;
+      if (left.computed)
+      {
+        throw new Error("TODO");
+      }
+      var marks = [];
+      store = doProtoSet(p.abst1(property.name), value, this.objectRef, store, marks);
+      return kont.pop(function (frame) {return new KontState(frame, value, store)}, marks);
+    }
+  
   function Read(address)
   {
     this.address = address;
   }
-  Read.prototype.dispatch =
-    function (x)
-    {
-      return x.read(this);
-    }
+  Read.prototype.isRead = true;
   Read.prototype.equals =
     function (x)
     {
-      return (x instanceof Read) && Eq.equals(this.address, x.address); 
+      return (x instanceof Read)
+        && Eq.equals(this.address, x.address)
     }
   Read.prototype.hashCode =
     function ()
@@ -1645,20 +1406,17 @@ function jsCesk(cc)
   {
     this.address = address;
   }
-  Write.prototype.dispatch =
-    function (x)
-    {
-      return x.write(this);
-    }
+  Write.prototype.isWrite = true;
   Write.prototype.equals =
     function (x)
     {
-      return (x instanceof Write) && Eq.equals(this.address, x.address); 
+      return (x instanceof Write)
+        && Eq.equals(this.address, x.address)
     }
   Write.prototype.hashCode =
     function ()
     {
-      var prime = 31;
+      var prime = 5;
       var result = 1;
       result = prime * result + this.address.hashCode();
       return result;      
@@ -1669,7 +1427,7 @@ function jsCesk(cc)
       return "{W " + this.address + "}";
     }
   
-  function doScopeLookup(name, benva, store, trace)
+  function doScopeLookup(name, benva, store, marks)
   {
     var result = BOT;
     var benvas = [benva];
@@ -1678,11 +1436,11 @@ function jsCesk(cc)
       var a = benvas[0];
       benvas = benvas.slice(1);
       var benv = store.lookupAval(a);
-      trace.push(new Read(a));
+//      marks.push(new Read(a));
       var value = benv.lookup(name);
       if (value !== BOT)
       {
-        trace.push(new Read(new ContextAddr(a, name)));
+        marks.push(new Read(new ContextAddr(a, name)));
         result = result.join(value);
       }
       else
@@ -1700,7 +1458,45 @@ function jsCesk(cc)
     return result;
   }
 
-  function doScopeSet(name, value, benva, store, trace)
+  function doProtoLookup(name, objectRef, store, marks)
+  {
+    var result = BOT;
+    var benvas = objectRef.addresses();
+    while (benvas.length !== 0)
+    {
+      var a = benvas[0];
+      benvas = benvas.slice(1);
+      var benv = store.lookupAval(a);
+//      marks.push(new Read(a));
+      var value = benv.lookup(name);
+      if (value === BOT)
+      {
+        if (benv.Prototype.subsumes(L_NULL))
+        {
+           result = result.join(L_UNDEFINED);
+        }
+        var cprotoAddresses = benv.Prototype.addresses();
+        if (!cprotoAddresses)
+        {
+          throw new Error("doProtoLookup: no addresses for " + benv.Prototype);
+          //return fcont(null); // TODO null checks are still in place everywhere this function is called
+        }
+        benvas = benvas.concat(benv.Prototype.addresses());
+      }
+      else
+      {
+        result = result.join(value);
+        marks.push(new Read(new ContextAddr(a, name)));
+      }
+    }
+    if (result === BOT)
+    {
+      throw new Error("lookup of " + name + " returns BOT");      
+    }
+    return result;
+  }
+
+  function doScopeSet(name, value, benva, store, marks)
   {
     var benvas = [benva];
     var setTopLevel = false;
@@ -1709,12 +1505,12 @@ function jsCesk(cc)
       var a = benvas[0];
       benvas = benvas.slice(1);
       var benv = store.lookupAval(a);
-      trace.push(new Read(a));
+//      marks.push(new Read(a));
       var existing = benv.lookup(name);
       if (existing !== BOT)
       {
         benv = benv.add(name, value);
-        trace.push(new Write(new ContextAddr(a, name)));
+        marks.push(new Write(new ContextAddr(a, name)));
         store = store.updateAval(a, benv); // side-effect
       }
       else
@@ -1733,14 +1529,30 @@ function jsCesk(cc)
     if (setTopLevel)
     {
       var benv = store.lookupAval(globala);
-      trace.push(new Read(globala));
+//      marks.push(new Read(globala));
       benv = benv.add(name, value);
-      trace.push(new Write(new ContextAddr(globala, name)));
+      marks.push(new Write(new ContextAddr(globala, name)));
       store = store.updateAval(globala, benv); // side-effect
     }
     return store;
   }
-
+  
+  function doProtoSet(name, value, objectRef, store, marks)
+  {
+    var benvas = objectRef.addresses();
+    while (benvas.length !== 0)
+    {
+      var a = benvas[0];
+      benvas = benvas.slice(1);
+      var benv = store.lookupAval(a);
+//      marks.push(new Read(a));
+      benv = benv.add(name, value);
+      marks.push(new Write(new ContextAddr(a, name)));
+      store = store.updateAval(a, benv); // side-effect
+    }
+    return store;
+  }
+  
   function evalEmptyStatement(node, benva, store, kont)
   {
     return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
@@ -1754,9 +1566,9 @@ function jsCesk(cc)
 
   function evalIdentifier(node, benva, store, kont)
   {
-    var trace = [];
-    var value = doScopeLookup(p.abst1(node.name), benva, store, trace);
-    return kont.pop(function (frame) {return new KontState(frame, value, store)}, trace);
+    var marks = [];
+    var value = doScopeLookup(p.abst1(node.name), benva, store, marks);
+    return kont.pop(function (frame) {return new KontState(frame, value, store)}, marks);
   }
 
   function evalProgram(node, benva, store, kont)
@@ -1816,7 +1628,7 @@ function jsCesk(cc)
     return kont.push(frame, new EvalState(node.left, benva, store));
   }
 
-  function applyBinaryExpressionPrim(node, leftPrim, rightPrim, benva, store, kont)
+  function applyPrimitiveBinaryExpression(node, leftPrim, rightPrim, benva, store, kont)
   {
     var operator = node.operator;
     var prim;
@@ -1910,71 +1722,26 @@ function jsCesk(cc)
   function evalAssignmentExpression(node, benva, store, kont)
   { 
     var left = node.left;
-    
     switch (left.type)
     {
       case "Identifier":
       {
-        return evalAssignmentExpressionIdentifier(node, benva, store, kont);
+        var right = node.right;
+        var frame = new AssignIdentifierKont(node, benva);
+        return kont.push(frame, new EvalState(right, benva, store));
       }
       case "MemberExpression":
       {
-        return evalAssignmentExpressionMember(node, benva, store, kont);        
-//        return evalBaseExpression(left, stack.addFirst(rightCont()), benva, store, time);
+        var object = left.object;
+        var frame = new MemberAssignmentKont(node, benva);
+        return kont.push(frame, new EvalState(object, benva, store));    
       }
       default:
-        throw new Error("evalAssignment: cannot handle left hand side " + left); 
+      {
+        throw new Error("evalAssignment: cannot handle left hand side " + left);
+      }
     }
   }
-
-  function evalAssignmentExpressionIdentifier(node, benva, store, kont)
-  { 
-    var right = node.right;
-    var frame = new AssignIdentifierKont(node, benva);
-    return kont.push(frame, new EvalState(right, benva, store));
-  }
-
-//  function memberAssignmentCont()
-//  {
-//    return new Cont("=mem", right, null, benva,
-//      function (stack, store, time)
-//      {
-//        var rvalues = stack[0];
-//        var propertyName = stack[1];
-//        var spn = toUserString(propertyName, store);
-//        var uspn;
-//        var length;
-//        if (uspn = l.userLattice.isStringArrayIndex(spn)) // TODO wrong! 'is...Index' should return abstract boolean
-//        {
-//          length = l.userLattice.add(uspn, l.U_1);
-//        }
-//        var objectAddresses = stack[2].addresses();
-//        var cont = stack[3];
-//        var stack2 = stack.slice(4);
-//        //print("rvalues", rvalues, "objectAddresses", objectAddresses, "propertyName", spn);
-//        if (!objectAddresses)
-//        {
-//          throw new Error("cannot determine object addresses for lhs in " + node);
-//        }
-//        objectAddresses.forEach(
-//          function (objectAddress)
-//          {
-//            var object = lookupAval(objectAddress, stack, store);
-//            assertDefinedNotNull(object.lookup);
-//            object = object.add(spn, rvalues);
-//            if (length && object.isArray())
-//            {
-//              var lengthValue = object.lookup(l.U_LENGTH).value; // direct (local) lookup without protochain
-//              if (l.userLattice.isTrue(l.userLattice.lt(lengthValue.user, length)))
-//              {
-//                object = object.add(l.U_LENGTH, new JipdaValue(length, []));
-//              }
-//            }
-//            store = sideEffectAval(objectAddress, object, stack, store);
-//          });
-//        return cont.execute(stack2.addFirst(rvalues), store, time);
-//      });
-//  }
 
   function allocateClosure(node, benva, store, kont)
   {
@@ -2041,14 +1808,14 @@ function jsCesk(cc)
             return callables.flatMap(
               function (callable)
               {
-                return kont.push(new ReturnMarker(node, callable), new CallState(node, callable, operandValues, thisa, benva, store));
+                return callable.applyFunction(node, operandValues, thisa, benva, store, kont);
               })
           })
       });
   }
 
 
-  function applyClosure(applicationNode, funNode, statica, operandValues, thisa, benva, store, kont)
+  function applyClosure(applicationNode, funNode, statica, operandValues, thisa, extendedBenva, store, kont)
   {
     var bodyNode = funNode.body;
     var nodes = bodyNode.body;
@@ -2066,7 +1833,6 @@ function jsCesk(cc)
       var param = formalParameters[i];
       extendedBenv = extendedBenv.add(p.abst1(param.name), operandValues[i]);
     }    
-    var extendedBenva = a.benv(applicationNode, benva, store, kont);
     
     store = store.allocAval(extendedBenva, extendedBenv);
     
@@ -2121,6 +1887,28 @@ function jsCesk(cc)
     var testNode = node.test;
     var frame = new IfKont(node, benva);
     return kont.push(frame, new EvalState(testNode, benva, store));
+  }
+  
+  function evalObjectExpression(node, benva, store, kont)
+  {
+    var properties = node.properties;    
+    if (properties.length === 0)
+    { 
+      var obj = createObject(objectProtoRef);
+      var objectAddress = a.object(node, null);
+      store = store.allocAval(objectAddress, obj);
+      var objectRef = l.abst1(objectAddress);
+      return kont.pop(function (frame) {return new KontState(frame, objectRef, store)});
+    }
+    var frame = new ObjectKont(node, 1, benva, []);
+    return kont.push(frame, new EvalState(properties[0].value, benva, store));    
+  }
+  
+  function evalMemberExpression(node, benva, store, kont)
+  {
+    var object = node.object;
+    var frame = new MemberKont(node, benva);
+    return kont.push(frame, new EvalState(object, benva, store));
   }
 
   function evalNode(node, benva, store, kont)

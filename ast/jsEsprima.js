@@ -738,5 +738,6 @@ var Ast = (function ()
       return {funs: funs, vars: vars, scopeInfo: scopeInfo};
     }
   
+  module.nodes = nodes;
   return module;  
 })()

@@ -1,9 +1,9 @@
-function drawLinks(links, selector)
+function drawLinks(etg, ecg, meta, element, ww)
 {
   var EPS = {};
   var nodes = [];
   var frames = [];
-  links = links.map(
+  ilinks = etg.edges().map(
     function (link)
     {
       var sourceIndex = Arrays.indexOf(link.source, nodes, Eq.equals);
@@ -24,7 +24,7 @@ function drawLinks(links, selector)
             frameIndex = frames.length;
             frames[frameIndex] = frame;
           }
-          label = label.isPush ? new Push(frameIndex) : new Pop(frameIndex);
+          label = label.isPush ? new Push(frameIndex) : (label.isPop ? new Pop(frameIndex) : new Unch(frameIndex));
         }
       }
       else
@@ -37,7 +37,7 @@ function drawLinks(links, selector)
         targetIndex = nodes.length;
         nodes[targetIndex] = link.target;
       }        
-      return new Edge(sourceIndex, label, targetIndex, link.trace);
+      return new Edge(sourceIndex, label, targetIndex, link.marks);
     });
   
   var dot = "digraph fsm {";//rankdir=LR;\n";
@@ -58,37 +58,21 @@ function drawLinks(links, selector)
         label = node.type;
       }
       dot += i + " [label=\"" + label + "\"];\n";
-      if (node.ss)
-      {
-        function frameIndexer(x)
-        {
-          if (Array.isArray(x))
-          {
-            return x.map(frameIndexer)
-          }
-          else
-          {
-            return Arrays.indexOf(x, frames, Eq.equals);
-          }
-        }
-        
-        node.ss = frameIndexer(node.ss);
-      }
     });
-  links.forEach(
+  ilinks.forEach(
     function (link)
     {
       if (link.g !== EPS)
       {
         var label = String(link.g);
-        if (!link.g.isUnch)
+        if (link.g.frame)
         {
           label += " " + frames[link.g.frame].toString();
         }
         
-        if (link.trace)
+        if (link.marks)
         {
-          label += " " + link.trace;
+          label += " " + link.marks;
         }
 //        label += " :: " + nodes[link.source].store.diff(nodes[link.target].store).split("\n").join(" ");
         dot += link.source + " -> " + link.target + " [label=\"" + label + "\"];\n";        
@@ -103,18 +87,45 @@ function drawLinks(links, selector)
   console.log(nodes.map(function (node, i) {return i + ":" + node}).join("\n"));
   console.log(frames.map(function (frame, i) {return i + ":" + frame}).join("\n"));
   var svg = Viz(dot, "svg");
-  $("#graph").text("Graph ready (scroll down and/or to the right...)").append(svg);
-  $("g.node").each(
+  element.append(svg);
+  $("g.node", ww.document).each(
     function ()
     {
       var $this = $(this);
       var nodeIndex = $("title", $this).text();
       var node = nodes[nodeIndex];
+      var nodeMeta = meta.get(node);
+      if (nodeMeta)
+      {
+        function frameIndexer(x)
+        {
+          if (Array.isArray(x))
+          {
+            return x.map(frameIndexer)
+          }
+          else
+          {
+            return Arrays.indexOf(x, frames, Eq.equals);
+          }
+        }
+        var ss = frameIndexer(nodeMeta.ss.values());
+      }
+      var marks = node.marks ? ("\nmarks " + node.marks) : "";
       $this.attr("id", nodeIndex);
-      $("title", $this).text(nodeIndex + " " + node.nice() + " " + node.store.map.keys().toSet() + " " + node.ss);
+      $("title", $this).text(nodeIndex + " " + node.nice() + "\nbenva " + node.benva + marks + "\nss " + ss);
       var constructorName = String(node.constructor);
       constructorName = constructorName.substring(0, constructorName.length - 2);
       $this.attr("class", "node " + constructorName); // addClass doesn't seem to work
+      $this.dblclick(function ()
+      {
+        var newwindow=ww.open();
+        var newdocument=newwindow.document;
+        var nfa = Pushdown.epsilonReachableGraph(node, etg, ecg);
+        newdocument.write("<html><head><link rel='stylesheet' href='jipda.css' type='text/css'/></head><body><div id='nfa'></div></body>");
+        var el2 = $(newdocument).find("#nfa");
+        drawLinks(nfa, Graph.empty(), meta, el2, newwindow);
+        newdocument.close();
+      });
     });
 //  $("g.node").each(
 //    function ()

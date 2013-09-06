@@ -19,7 +19,7 @@ function b()
   load("../../ast/jsEsprima.js");
   load("../../cesk/cesk.js");
   load("../../cesk/jsCesk.js");
-  load("../../analysis/dependency.js");
+  load("../../analysis/dependence.js");
   load("defaultBenv.js");
   load("jipda.js");
   
@@ -27,7 +27,7 @@ function b()
 //  load("test/benvTests.js");
   load("test/concreteTests.js");
   load("test/jipdaTests.js");
-  load("test/dependencyTests.js");  
+  load("test/dependenceTests.js");  
 //  load("test/coverageTests.js");
 //  load("test/latticeTests.js");  
 }

@@ -17,6 +17,7 @@
 	<script type="text/javascript" src="../../../cesk/cesk.js"></script>
 	<script type="text/javascript" src="../../../cesk/jsCesk.js"></script>
 	<script type="text/javascript" src="../../../driver/pushdown.js"></script>
+	<script type="text/javascript" src="../../../analysis/dependence.js"></script>
 	<script type="text/javascript" src="../defaultBenv.js"></script>
 	<script type="text/javascript" src="../jipda.js"></script>
 	<script type="text/javascript" src="lib/jquery-1.7.2.min.js"></script>
@@ -40,17 +41,13 @@
     var cesk = jsCesk({a:tagAg, p:lat});
     var result = new Pushdown().analyze(ast, cesk);
 		$("#resultValue").text(result.value);
-    var etgEdges = result.dsg.etg.edges();
+    var etgEdges = result.etg.edges();
     var emptySet = ArraySet.empty();
-    
-    etgEdges.forEach(function (edge)
-        {
-		  		edge.source.ss = result.dsg.ss.get(edge.source, emptySet).values();
-		  		edge.target.ss = result.dsg.ss.get(edge.target, emptySet).values();
-        });
+    var meta = result.ss.entries().reduce(function (acc, entry) {return acc.put(entry.key, {ss:entry.value})}, HashMap.empty());
     
 		//drawLinks(etgEdges.concat(ecgEdges), "#graph");
-		drawLinks(etgEdges, "#graph");
+		var element = $("#graph");
+		drawLinks(result.etg, result.ecg, meta, element, window);
 	}
 		
 	$(function ()

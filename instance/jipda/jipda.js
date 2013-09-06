@@ -5,23 +5,16 @@ function repl(cc)
   var cesk = jsCesk({a:cc.a || tagAg, p:cc.p || new Lattice1()});
   var src = "'I am Jipda!'";
   var store = cesk.store;
-  var newStore;
-  var applyHalt =
-    function (value, store)
-    {
-      print(value);
-      newStore = newStore.join(store);
-      return [];
-    }
   while (src !== ":q")
   {
     var ast = Ast.createAst(src);
-    var state = Pushdown.inject(ast, cesk, applyHalt, {store:store});
+    var state = Pushdown.inject(ast, cesk, {store:store});
     try
     {
-      newStore = BOT;
-      Pushdown.run(state);
-      store = newStore;
+      var dsg = Pushdown.run(state);
+      var resultStates = dsg.ecg.successors(state);
+      resultStates.forEach(function (haltState) {print(haltState.value)});
+      store = resultStates.map(function (haltState) {return haltState.store}).reduce(Lattice.join, BOT);
     }
     catch (e)
     {
@@ -33,8 +26,7 @@ function repl(cc)
   print("Bye!");
 }
 
-function concRepl(config)
+function concRepl()
 {
-  config = config || {};
   return repl({name: "conc", p:new CpLattice(), a:concreteAg});
 }

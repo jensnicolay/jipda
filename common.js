@@ -329,33 +329,6 @@ Array.prototype.updateSetEntry =
 		return this.concat([[key, [value]]]);
 	};
 	
-Array.prototype.combinations =
-	function ()
-	{
-		if (this.length === 0)
-		{
-			return [];
-		}
-		if (this.length === 1)
-		{
-			 return this[0].map(
-			 	function (x)
-			 	{
-			 		return [x];
-			 	});
-		}
-		var rest = this.slice(1).combinations();
-		return this[0].flatMap(
-			function (x)
-			{
-				return rest.map(
-					function (y) 
-					{ 
-						return y.addFirst(x);
-					});
-			});
-	};
-
 var Arrays = {};
 	
 Arrays.indexOf =
@@ -399,8 +372,8 @@ Arrays.deleteDuplicates =
       }, []);
   }
 
-// 'real' 2-combination, not like instance method with same name
-Arrays.combinations =
+// subset of 2 distinct elements of arr
+Arrays.twoCombinations =
   function (arr)
   {
     var result = [];
@@ -414,30 +387,33 @@ Arrays.combinations =
     return result;
   }
 
-//Arrays.reduceFixpoint =
-//  function (arr, join, ths)
-//  {
-//    var changed = true;
-//    while (changed)
-//    {
-//      changed = false;
-//      for (var i = 0; i < arr.length - 1; i++)
-//      {
-//        var x = arr[i];
-//        for (var j = i + 1; j < arr.length; j++)
-//        {
-//          var y = arr[j];
-//          var c = join.call(this, x, y);
-//          if (c)
-//          {
-//            changed = true;
-//            arr = arr.slice(0, i).addLast(c).concat(arr.slice(i+1,j)).concat(arr.slice(j+1));
-//          }
-//        }
-//      }
-//    }
-//    return arr;
-//  }
+Arrays.cartesianProduct =
+  function (arr)
+  {
+    if (arr.length === 0)
+    {
+      return [];
+    }
+    if (arr.length === 1)
+    {
+       return arr[0].map(
+        function (x)
+        {
+          return [x];
+        });
+    }
+    var rest = Arrays.cartesianProduct(arr.slice(1));
+    return arr[0].flatMap(
+      function (x)
+      {
+        return rest.map(
+          function (y) 
+          { 
+            return y.addFirst(x);
+          });
+      });
+  };
+
 
 Arrays.keys =
   function (arr)
@@ -701,13 +677,13 @@ Map.prototype.equals =
     return this.subsumes(x) && x.subsumes(this);
   }
 
-Map.prototype.join =
-  function (x, f)
-  {
-    var result = this;
-    x.iterateEntries(function (entry) {result = result.update(entry.key, f)});
-    return result;
-  }
+//Map.prototype.join =
+//  function (x, f)
+//  {
+//    var result = this;
+//    x.iterateEntries(function (entry) {result = result.update(entry.key, f)});
+//    return result;
+//  }
 
 Map.prototype.hashCode =
   function ()
@@ -720,7 +696,7 @@ function HashMap(entries)
 {
   this._entries = entries;
 }
-HashMap.prototype = Map.prototype;
+HashMap.prototype = Object.create(Map.prototype);
 
 HashMap.empty =
   function (size)
@@ -728,6 +704,12 @@ HashMap.empty =
     var entries = new Array(size || 13);
     entries.size = 0;
     return new HashMap(entries);
+  }
+
+HashMap.from =
+  function (arr)
+  {
+    return arr.reduce(function (result, entry) {return result.put(entry.key, entry.value)}, HashMap.empty());
   }
 
 HashMap.prototype.put =
@@ -783,6 +765,30 @@ HashMap.prototype.get =
     return bot;
   }
 
+HashMap.prototype.remove =
+  function (key)
+  {
+    var hash = Math.abs(key.hashCode()) % this._entries.length;
+    var buckets = this._entries[hash];
+    if (!buckets)
+    {
+      return this;
+    }
+    for (var i = 0; i < buckets.length; i++)
+    {
+      var bucket = buckets[i];
+      if (Eq.equals(key, bucket.key))
+      {
+        var newBuckets = buckets.slice(0, i).concat(buckets.slice(i + 1));
+        var newEntries = this._entries.slice(0);
+        newEntries[hash] = newBuckets;
+        newEntries.size = this.size() - 1; 
+        return new HashMap(newEntries);
+      }
+    }
+    return this;        
+  }
+
 HashMap.prototype.entries =
   function ()
   {
@@ -808,12 +814,6 @@ HashMap.prototype.iterateEntries =
       }
     }
     return true;
-  }
-
-HashMap.prototype.mapEntries =
-  function (f, th)
-  {
-    return this._entries.flatMap(f, th);
   }
 
 HashMap.prototype.keys =
@@ -854,6 +854,48 @@ HashMap.prototype.nice =
     return this.entries().map(function (entry) {return entry.key + " -> " + entry.value}).join("\n");
   }
 
+function LatticeMap(map, bot)
+{
+  this._map = map;
+  this.bot = bot;
+}
+LatticeMap.empty =
+  function (bot, size)
+  {
+    return new LatticeMap(HashMap.empty(size), bot);
+  }
+LatticeMap.prototype.put =
+  function (key, value)
+  {
+    var existing = this._map.get(key, this.bot);
+    return new LatticeMap(this._map.put(key, existing.join(value)), this.bot);
+  }
+LatticeMap.prototype.get =
+  function (key)
+  {
+    return this._map.get(key, this.bot);
+  }
+LatticeMap.prototype.size =
+  function ()
+  {
+    return this._map.size();
+  }
+LatticeMap.prototype.toString =
+  function ()
+  {
+    return this._map.toString();
+  }
+LatticeMap.prototype.entries =
+  function ()
+  {
+    return this._map.entries();
+  }
+LatticeMap.prototype.map =
+  function (f, ths)
+  {
+    return new LatticeMap(this._map.map(f, ths));
+  }
+
 /*
  * Set interface
  * 
@@ -880,11 +922,15 @@ Set.prototype.subsumes =
     {
       return false;
     }
-    return x.iterateValues(
-      function (value)
+    var xValues = this.values();
+    for (var i = 0; i < xValues.length; i++)
+    {
+      if (!this.contains(xValues[i]))
       {
-        return x.contains(value);
-      });    
+        return false;
+      }
+    }
+    return true;
   }
 
 Set.prototype.equals =
@@ -898,11 +944,15 @@ Set.prototype.equals =
     {
       return false;
     }
-    return this.iterateValues(
-        function (value)
-        {
-          return x.contains(value);
-        });    
+    var values = this.values();
+    for (var i = 0; i < values.length; i++)
+    {
+      if (!x.contains(values[i]))
+      {
+        return false;
+      }
+    }
+    return true;
   }
 
 Set.prototype.compareTo =
@@ -916,20 +966,37 @@ Set.prototype.compareTo =
 Set.prototype.join =
   function (x)
   {
-    var result = this;
-    x.iterateValues(function (value) {result = result.add(value)});
-    return result;
+    return x.values().reduce(function (result, value) {return result.add(value)}, this);
+  } 
+
+Set.prototype.meet =
+  function (x)
+  {
+    return this.values().reduce(function (result, value) {return x.contains(value) ? result.add(value) : result}, this.clear());
+  } 
+
+Set.prototype.removeAll =
+  function (x)
+  {
+    return this.values().reduce(function (result, value) {return x.contains(value) ? result : result.add(value)}, this.clear());
   } 
 
 function HashSet(map)
 {
   this._map = map;
 }
+HashSet.prototype = Object.create(Set.prototype);
 
 HashSet.empty =
   function (size)
   {
     return new HashSet(HashMap.empty(size));
+  }
+
+HashSet.from =
+  function (arr)
+  {
+    return arr.reduce(function (result, x) {return result.add(x)}, HashSet.empty());
   }
 
 HashSet.prototype.equals =
@@ -954,6 +1021,12 @@ HashSet.prototype.hashCode =
     return this.values().hashCode();
   }
 
+HashSet.prototype.clear =
+  function ()
+  {
+    return new HashSet(this._map.clear());
+  }
+
 HashSet.prototype.add =
   function (value)
   {
@@ -971,11 +1044,23 @@ HashSet.prototype.addAll =
     return values.reduce(Collections.add, this);
   }
 
+HashSet.prototype.remove =
+  function (value)
+  {
+    return new HashSet(this._map.remove(value));
+  }
+
 HashSet.prototype.contains =
   function (value)
   {
     var existing = this._map.get(value);
     return existing;
+  }
+
+HashSet.prototype.filter =
+  function (f, ths)
+  {
+    return HashSet.from(this.values().filter(f, ths));
   }
 
 HashSet.prototype.values =
@@ -1006,12 +1091,17 @@ function ArraySet(arr)
 {
   this._arr = arr;
 }
-ArraySet.prototype = Set.prototype;
+ArraySet.prototype = Object.create(Set.prototype);
 
 ArraySet.empty =
   function ()
   {
     return new ArraySet([]);
+  }
+ArraySet.from =
+  function (arr)
+  {
+    return new ArraySet(arr.slice(0));
   }
 
 ArraySet.prototype.equals =
@@ -1036,6 +1126,13 @@ ArraySet.prototype.hashCode =
     return this._arr.hashCode();
   }
 
+ArraySet.prototype.clear =
+  function ()
+  {
+    return new ArraySet([]);
+  }
+
+
 ArraySet.prototype.add =
   function (value)
   {
@@ -1053,6 +1150,17 @@ ArraySet.prototype.addAll =
     return values.reduce(Collections.add, this);
   }
 
+ArraySet.prototype.remove =
+  function (value)
+  {
+    var index = Arrays.indexOf(value, this._arr, Eq.equals);
+    if (index === -1)
+    {
+      return this;
+    }
+    return new ArraySet(this._arr.slice(0, index).concat(this._arr.slice(index + 1)));
+  }
+
 ArraySet.prototype.contains =
   function (value)
   {
@@ -1060,23 +1168,16 @@ ArraySet.prototype.contains =
     return index > -1;
   }
 
+ArraySet.prototype.filter =
+  function (f, ths)
+  {
+    return new ArraySet(this._arr.filter(f, ths));
+  }
+
 ArraySet.prototype.values =
   function ()
   {
     return this._arr.slice(0);
-  }
-
-ArraySet.prototype.iterateValues =
-  function (f, th)
-  {
-    for (var i = 0; i < this._arr.length; i++)
-    {
-      if (f.call(th, this._arr[i]) === false)
-      {
-        return false;
-      }
-    }
-    return true;
   }
 
 ArraySet.prototype.mapValues =

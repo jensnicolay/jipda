@@ -233,7 +233,6 @@ Store.prototype.updateAval =
 Store.prototype.join =
   function (store)
   {
-    throw new Error("used?");
     if (store === BOT)
     {
       return this;

@@ -172,7 +172,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] + p[1]}));                  
         }
         
@@ -189,7 +189,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] - p[1]}));                          
         }
       
@@ -206,7 +206,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] * p[1]}));
         }
         
@@ -223,7 +223,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] / p[1]}));
         }
         
@@ -240,7 +240,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] % p[1]}));
         }
         
@@ -257,7 +257,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] === p[1]}));        
         }
         
@@ -274,7 +274,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] !== p[1]}));
         }
         
@@ -291,7 +291,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] == p[1]}));
         }
         
@@ -308,7 +308,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
         return module.abst(combs.flatMap(function (p) { return p[0] != p[1]}));
         }
         
@@ -325,7 +325,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] < p[1]}));
         }
         
@@ -342,7 +342,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] <= p[1]}));
         }
         
@@ -359,7 +359,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] > p[1]}));
         }
         
@@ -376,7 +376,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] >= p[1]}));
         }
         
@@ -393,7 +393,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] & p[1]}));
         }
         
@@ -410,7 +410,7 @@ function SetLattice(n)
           }
           var left = x.conc();
           var right = y.conc();
-          var combs = [left, right].combinations();
+          var combs = Arrays.cartesianProduct([left, right]);
           return module.abst(combs.flatMap(function (p) { return p[0] | p[1]}));
         }
         
