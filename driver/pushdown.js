@@ -168,6 +168,24 @@ Graph.prototype.addEdge =
     return new Graph(edges);    
   }
 
+Graph.prototype.addEdges =
+  function (edges)
+  {
+    return new Graph(this._edges.addAll(edges));    
+  }
+
+Graph.prototype.removeEdge =
+  function (edge)
+  {
+    return new Graph(this._edges.remove(edge));
+  }
+
+Graph.prototype.removeEdges =
+  function (edges)
+  {
+    return new Graph(this._edges.removeAll(edges));
+  }
+
 Graph.prototype.containsEdge =
   function (edge)
   {
@@ -225,12 +243,6 @@ Graph.prototype.filterEdges =
   function (f)
   {
     return new Graph(this._edges.filter(f));
-  }
-
-Graph.prototype.removeEdge =
-  function (edge)
-  {
-    return new Graph(this._edges.remove(edge));
   }
 
 function Push(frame)
@@ -585,12 +597,6 @@ Pushdown.run =
     }
   }
 
-Pushdown.forward =
-  function (s, etg, ecg)
-  {
-    
-  }
-
 Pushdown.preStackNfa =
   function (s, etg, ecg)
   {
@@ -623,40 +629,158 @@ Pushdown.preStackNfa =
     return new Graph(edges);
   }
 
-Pushdown.executionGraph =
+Pushdown.stepOver =
+  function (s, fs)
+  {
+    var etg = Graph.empty();
+    var ecg = Graph.empty();
+    var dE = [this.etg.outgoing(s)];
+    while (dE.length > 0)
+    {
+      var e = dE.shift();
+      if (etg.contains(e))
+      {
+        continue;
+      }
+      etg = etg.addEdge(e);
+      var q = e.target; 
+      if (fs(q))
+      {
+        var epsSuccessors = this.ecg.successors(q);
+        dE = dE.concat(epsSuccessors.flatMap(function (succ) {return this.etg.outgoing(succ)}, this));
+      }
+      else
+      {
+        dE = dE.concat(this.etg.outgoing(q));
+      }
+      ecg = ecg.addEdges(this.ecg.outgoing(q));
+    }
+    return {etg:etg, ecg:ecg};
+  }
+
+
+Pushdown.stepIn =
   function (s, etg, ecg)
   {
     var targets = ecg.successors(s);
-    var edges = HashSet.empty();
-    var epsEdges = HashSet.empty();
+    var newEtg = Graph.empty();
+    var newEcg = Graph.empty();
     var todo = etg.outgoing(s);
     while (todo.length > 0)
     {
       var edge = todo.shift();
-      if (edges.contains(edge))
+      if (newEtg.containsEdge(edge))
       {
         continue;
       }
-      edges = edges.add(edge);
-      epsEdges = epsEdges.addAll(ecg.outgoing(edge.source));
+      newEtg = newEtg.addEdge(edge);
+      newEcg = newEcg.addEdges(ecg.outgoing(edge.source));
       if (Arrays.contains(edge.target, targets, Eq.equals))
       {
         continue;
       }
       todo = todo.concat(etg.outgoing(edge.target));
     }
-    return {etg:etg, ecg:ecg};
+    return {etg:newEtg, ecg:newEcg};
+  }
+
+Pushdown.forwardUntil =
+  function (s, fe, etg)
+  {
+    var targets = HashSet.empty();
+    var visited = HashSet.empty();
+    var todo = etg.outgoing(s);
+    while (todo.length > 0)
+    {
+      var e = todo.shift();
+      if (visited.contains(e))
+      {
+        continue;
+      }
+      visited = visited.add(e);
+      if (fe(e))
+      {
+        targets.push(e);
+        break;
+      }
+      var q = e.target;
+      var outgoing = etg.outgoing(q);
+      todo = todo.concat(outgoing);
+    }
+    return {visited:visited, targets:targets};
+  }
+
+Pushdown.rewindUntil =
+  function (s, fe, etg)
+  {
+    var targets = HashSet.empty();
+    var visited = HashSet.empty();
+    var todo = etg.incoming(s);
+    while (todo.length > 0)
+    {
+      var e = todo.shift();
+      if (visited.contains(e))
+      {
+        continue;
+      }
+      visited = visited.add(e);
+      if (fe(e))
+      {
+        targets.push(e);
+        break;
+      }
+      var q = e.source;
+      var incoming = etg.incoming(q);
+      todo = todo.concat(incoming);
+    }
+    return {visited:visited, targets:targets};
+  }
+
+Pushdown.preStackUntil =
+  function (s, fe, etg, ecg)
+  {
+    var targets = HashSet.empty();
+    var visited = HashSet.empty();
+    var todo = etg.incoming(s);
+    while (todo.length > 0)
+    {
+      var e = todo.shift();
+      if (visited.contains(e))
+      {
+        continue;
+      }
+      visited = visited.add(e);
+      if (fe(e))
+      {
+        targets = targets.add(e);
+        break;
+      }
+      var q = e.source;
+      var incomingEtg = etg.incoming(q).filter(function (edge) {return !edge.g.isPop});
+      var incomingEcg = ecg.incoming(q);
+      todo = todo.concat(incomingEtg).concat(incomingEcg);        
+    }
+    return {targets:targets,visited:visited};
   }
 
 Pushdown.filterMarks =
-  function (etg, filter)
+  function (etg, f)
   {
     return etg.edges().reduce(
       function (result, edge)
       {
         var marks = edge.marks || [];
-        return result.concat(marks.filter(filter))
+        return result.concat(marks.filter(f))
       }, []);
+  }
+
+Pushdown.valueOf = 
+  function (s, etg, ecg)
+  {
+    var incomingPushEdges = etg.incoming(s).filter(function (e) {return e.g.isPush});
+    var pushPredecessors = incomingPushEdges.map(Edge.source);
+    var epsSuccessors = pushPredecessors.flatMap(Graph.prototype.successors, ecg);
+    return {targets:ArraySet.from(epsSuccessors), visited:null/*TODO incomingPush + epsSucc*/};
   }
 
 Pushdown.prototype.analyze =
@@ -677,12 +801,6 @@ function Dsg(initial, etg, ecg, ss)
 
 ////
 
-Dsg.prototype.forward =
-  function (s)
-  {
-    
-  }
-
 Dsg.prototype.valueOf =
   function (node)
   {
@@ -694,7 +812,14 @@ Dsg.prototype.valueOf =
     var preEvalStates = evalPushEdges.map(Edge.source);
     var epsSuccessors = preEvalStates.flatMap(Graph.prototype.successors, this.ecg);
     var values = epsSuccessors.map(function (q) {return q.value || BOT});
-    return values.reduce(Lattice.join);
+    return values.reduce(Lattice.join, BOT);
+  }
+
+Dsg.prototype.executions =
+  function (s)
+  {
+    var edges = Pushdown.preStackUntil(s, function (e) {return e.source.fun}, this.etg, this.ecg).targets;
+    return edges.values().map(function (e) {return e.source});
   }
 
 Dsg.prototype.isPureFunction =
@@ -702,37 +827,61 @@ Dsg.prototype.isPureFunction =
   {
     var globalReadAddresses = ArraySet.from(Pushdown.filterMarks(this.etg, function (mark) {return mark.isRead}).map(function (mark) {return mark.address}));
     var globalWriteAddresses = ArraySet.from(Pushdown.filterMarks(this.etg, function (mark) {return mark.isWrite}).map(function (mark) {return mark.address}));
-    var constants = globalReadAddresses.removeAll(globalWriteAddresses); 
-    var applicationPurity = this.etg.edges().flatMap(
-      function (edge)
+    var constants = globalReadAddresses.subtract(globalWriteAddresses);
+    print("constants", constants);
+    var objectAllocStates = this.etg.nodes().filter(function (s) {return s.node && s.node.type === "ObjectExpression"});
+    var that = this;
+    var allocs = objectAllocStates.reduce(
+      function (result, s)
       {
-        if (edge.target.fun === f)
-        {
-          var extendedBenva = edge.target.extendedBenva;
-          var erg = Pushdown.executionGraph(edge.source, this.etg, this.ecg);
-          var rwcAddresses = ArraySet.from(Pushdown.filterMarks(erg, function (mark) {return mark.isRead || mark.isWrite}).map(function (mark) {return mark.address}));
-          var rwAddresses = rwcAddresses.removeAll(constants);
-          var foreignRwAddresses = rwAddresses.filter(function (address) {return !address.base.equals(extendedBenva)});
-//          print("f", rwAddresses, foreignRwAddresses, constants);
-          return [foreignRwAddresses.size() === 0];
-        }
-        return [];
-      }, this);
-    return applicationPurity.reduce(function (x,y) {return x && y}, true);
+        var valueStates = Pushdown.valueOf(s, that.etg, that.ecg).targets.values();
+        var value = valueStates.map(function (q) {return q.value || BOT}).reduce(Lattice.join);
+        print("s", s, "valueStates", valueStates, "value", value);
+        var allocatedAddresses = ArraySet.from(value.addresses());
+        var executions = that.executions(s); 
+        return executions.reduce(
+          function (result, execution)
+          {
+            return result.put(execution, allocatedAddresses)
+          }, result);
+      }, LatticeMap.empty(ArraySet.empty()));
+    print("allocs", allocs);
+    var rws = this.etg.edges().reduce(
+      function (result, e)
+      {
+        var marks = e.marks || [];
+        var rwMarks = marks.filter(function (mark) {return mark.isRead || mark.isWrite});
+        var rwAddresses = ArraySet.from(rwMarks.flatMap(function (mark) {return mark.address}));
+        var preStack = Pushdown.preStackUntil(e.source, function () {return false}, that.etg, that.ecg);
+        var applications = preStack.visited.values().map(function (e) {return e.target}).filter(function (q) {return q.fun});
+        return applications.reduce(
+          function (result, application)
+          {
+            return result.put(application, rwAddresses);
+          }, result);
+      }, LatticeMap.empty(ArraySet.empty()));
+    print("rws", rws);
+    ////
+    var applications = this.etg.nodes().filter(function (q) {return q.fun === f});
+    return applications.every(
+      function (application)
+      {
+        var benva = application.extendedBenva;
+        var allocAddresses = allocs.get(application);
+        var rwAddresses = rws.get(application).values();
+        return rwAddresses.every(
+          function (rwa)
+          {
+            if (constants.contains(rwa))
+            {
+              return true;
+            }
+            var base = rwa.base;
+            if (base.equals(benva))
+            {
+              return true;
+            }
+            return allocAddresses.contains(base);
+          }) 
+      })
   }
-
-Dsg.prototype.isPureExecution =
-  function (s)
-  {
-    var globalReadAddresses = ArraySet.from(Pushdown.filterMarks(this.etg, function (mark) {return mark.isRead}).map(function (mark) {return mark.address}));
-    var globalWriteAddresses = ArraySet.from(Pushdown.filterMarks(this.etg, function (mark) {return mark.isWrite}).map(function (mark) {return mark.address}));
-    var constants = globalReadAddresses.removeAll(globalWriteAddresses); 
-    var benva = s.benva;
-    var erg = Pushdown.executionGraph(edge.source, this.etg, this.ecg);
-    var rwcAddresses = ArraySet.from(Pushdown.filterMarks(erg, function (mark) {return mark.isRead || mark.isWrite}).map(function (mark) {return mark.address}));
-    var rwAddresses = rwcAddresses.removeAll(constants);
-    var foreignRwAddresses = rwAddresses.filter(function (address) {return !address.base.equals(benva)});
-//  print("f", rwAddresses, foreignRwAddresses, constants);
-    return foreignRwAddresses.size() === 0;
-  }
-

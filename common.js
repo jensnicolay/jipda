@@ -677,13 +677,11 @@ Map.prototype.equals =
     return this.subsumes(x) && x.subsumes(this);
   }
 
-//Map.prototype.join =
-//  function (x, f)
-//  {
-//    var result = this;
-//    x.iterateEntries(function (entry) {result = result.update(entry.key, f)});
-//    return result;
-//  }
+Map.prototype.removeAll =
+  function (keys)
+  {
+    return keys.reduce(function (result, key) {return result.remove(key)}, this);
+  }
 
 Map.prototype.hashCode =
   function ()
@@ -975,7 +973,7 @@ Set.prototype.meet =
     return this.values().reduce(function (result, value) {return x.contains(value) ? result.add(value) : result}, this.clear());
   } 
 
-Set.prototype.removeAll =
+Set.prototype.subtract =
   function (x)
   {
     return this.values().reduce(function (result, value) {return x.contains(value) ? result : result.add(value)}, this.clear());
@@ -1048,6 +1046,12 @@ HashSet.prototype.remove =
   function (value)
   {
     return new HashSet(this._map.remove(value));
+  }
+
+HashSet.prototype.removeAll =
+  function (values)
+  {
+    return new HashSet(this._map.removeAll(values));
   }
 
 HashSet.prototype.contains =

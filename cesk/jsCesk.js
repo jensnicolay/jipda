@@ -355,7 +355,7 @@ function jsCesk(cc)
   EvalState.prototype.equals =
     function (x)
     {
-      return this.type === x.type
+      return (x instanceof EvalState)
         && this.node === x.node 
         && Eq.equals(this.benva, x.benva)
         && Eq.equals(this.store, x.store);
@@ -395,7 +395,7 @@ function jsCesk(cc)
   KontState.prototype.equals =
     function (x)
     {
-      return this.type === x.type
+      return (x instanceof KontState)
         && Eq.equals(this.frame, x.frame) 
         && Eq.equals(this.value, x.value) 
         && Eq.equals(this.store, x.store)
@@ -450,7 +450,7 @@ function jsCesk(cc)
   ApplyState.prototype.equals =
     function (x)
     {
-      return this.type === x.type
+      return (x instanceof ApplyState)
         && this.node === x.node
         && this.fun === x.fun
         && Eq.equals(this.statica, x.statica)
@@ -514,7 +514,7 @@ function jsCesk(cc)
   ReturnState.prototype.equals =
     function (x)
     {
-      return this.type === x.type 
+      return (x instanceof ReturnState)
         && this.node === x.node 
         && Eq.equals(this.returna, x.returna) 
         && Eq.equals(this.store, x.store) 
