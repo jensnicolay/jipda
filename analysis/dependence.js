@@ -4,68 +4,66 @@ function Dependence(analysis)
 }
 
 
-  
-
-
-//function interproceduralDependencies(etg, ss)
-//{
-//  return etg.edges().reduce(
-//    function (result, edge)
-//    {
-//      var marks = edge.marks || [];
-//      var rws = ArraySet.from(marks.filter(function (mark) {return mark.isRead || mark.isWrite}));
-//      var stack = ss.get(edge.source).values();
-//      var funs = stack.flatMap(
-//        function (frame)
-//        {
-//          return frame.isReturnMarker ? frame.callable.node.tag : []; 
-//        })
-//      return funs.reduce(function (result, fun) {return result.put(fun, rws)}, result);
-//    }, LatticeMap.empty(ArraySet.empty()));
-//}
-//
-//function functionPurity(etg, ss)
-//{
-//  var ipds = LatticeMap.empty(ArraySet.empty());
-//  var reads = HashSet.empty();
-//  var writes = HashSet.empty();
-//  etg.edges().forEach(
-//    function (edge)
-//    {
-//      var marks = edge.marks || [];
-//      var rs = marks.flatMap(function (mark) {return mark.isRead ? [mark.address] : []});
-//      var ws = marks.flatMap(function (mark) {return mark.isWrite ? [mark.address] : []});
-//      var as = marks.flatMap(function (mark) {return mark.isAlloc ? [mark.address] : []});
-//      reads = reads.addAll(rs);
-//      writes = writes.addAll(ws);
-//      var stack = ss.get(edge.source).values();
-//      var funs = stack.flatMap(
-//        function (frame)
-//        {
-//          return frame.isReturnMarker ? [[frame.callable.node.tag, frame.extendedBenva]] : []; 
-//        });
-//      funs.forEach(
-//        function (fun)
-//        {
-//          ipds = ipds.put(fun, ArraySet.from(rs.concat(ws)));
-//        });
-//    });
-//  print("ipds", ipds);
-//  var constants = reads.removeAll(writes);
-//  print("reads", reads);
-//  print("writes", writes);
-//  print("constants", constants);
-//  var purity = HashMap.from(ipds.entries().map(
-//    function (entry)
-//    {
-//      var addresses = entry.value.removeAll(constants);
-//      var localEnv = entry.key[1];
-//      var foreignAddresses = addresses.filter(
-//        function (address)
-//        {
-//          return !address.base.equals(localEnv); 
-//        });
-//      return {key:entry.key, value:foreignAddresses};
-//    }));
-//  return purity;
-//}
+Dependence.prototype.isPureFunction =
+  function (f)
+  {
+    var analysis = this.analysis;
+    var globalReadAddresses = ArraySet.from(Pushdown.filterMarks(analysis.etg, function (mark) {return mark.isRead}).map(function (mark) {return mark.address}));
+    var globalWriteAddresses = ArraySet.from(Pushdown.filterMarks(analysis.etg, function (mark) {return mark.isWrite}).map(function (mark) {return mark.address}));
+    var constants = globalReadAddresses.subtract(globalWriteAddresses);
+    print("constants", constants);
+    var objectAllocStates = analysis.etg.nodes().filter(function (s) {return s.node && s.node.type === "ObjectExpression"});
+    var allocs = objectAllocStates.reduce(
+      function (result, s)
+      {
+        var valueStates = Pushdown.valueOf(s, analysis.etg, analysis.ecg).targets.values();
+        var value = valueStates.map(function (q) {return q.value || BOT}).reduce(Lattice.join);
+        print("s", s, "valueStates", valueStates, "value", value);
+        var allocatedAddresses = ArraySet.from(value.addresses());
+        var executions = analysis.executions(s); 
+        return executions.reduce(
+          function (result, execution)
+          {
+            return result.put(execution, allocatedAddresses)
+          }, result);
+      }, LatticeMap.empty(ArraySet.empty()));
+    print("allocs", allocs);
+    var rws = analysis.etg.edges().reduce(
+      function (result, e)
+      {
+        var marks = e.marks || [];
+        var rwMarks = marks.filter(function (mark) {return mark.isRead || mark.isWrite});
+        var rwAddresses = ArraySet.from(rwMarks.flatMap(function (mark) {return mark.address}));
+        var preStack = Pushdown.preStackUntil(e.source, function () {return false}, analysis.etg, analysis.ecg);
+        var applications = preStack.visited.values().map(function (e) {return e.target}).filter(function (q) {return q.fun});
+        return applications.reduce(
+          function (result, application)
+          {
+            return result.put(application, rwAddresses);
+          }, result);
+      }, LatticeMap.empty(ArraySet.empty()));
+    print("rws", rws);
+    ////
+    var applications = analysis.etg.nodes().filter(function (q) {return q.fun === f});
+    return applications.every(
+      function (application)
+      {
+        var benva = application.extendedBenva;
+        var allocAddresses = allocs.get(application);
+        var rwAddresses = rws.get(application).values();
+        return rwAddresses.every(
+          function (rwa)
+          {
+            if (constants.contains(rwa))
+            {
+              return true;
+            }
+            var base = rwa.base;
+            if (base.equals(benva))
+            {
+              return true;
+            }
+            return allocAddresses.contains(base);
+          }) 
+      })
+  }

@@ -24,9 +24,10 @@ var suiteJipdaDepTests =
       var src = "function f(){}; f()"
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var result = new Pushdown().analyze(ast, cesk);
+      var analysis = new Pushdown().analyze(ast, cesk);
+      var dep = new Dependence(analysis);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(result.isPureFunction(f));
+      assertTrue(dep.isPureFunction(f));
     }
   
   module.testPurity2 =
@@ -35,9 +36,10 @@ var suiteJipdaDepTests =
       var src = "function f(){var x=true;x=false;return x;} f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var result = new Pushdown().analyze(ast, cesk);
+      var analysis = new Pushdown().analyze(ast, cesk);
+      var dep = new Dependence(analysis);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(result.isPureFunction(f));
+      assertTrue(dep.isPureFunction(f));
     }
     
   module.testPurity3 =
@@ -46,9 +48,10 @@ var suiteJipdaDepTests =
       var src = "var z=false; function f() {z=true}; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var result = new Pushdown().analyze(ast, cesk);
+      var analysis = new Pushdown().analyze(ast, cesk);
+      var dep = new Dependence(analysis);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(result.isPureFunction(f));
+      assertFalse(dep.isPureFunction(f));
     }
     
   module.testPurity4 =
@@ -57,9 +60,10 @@ var suiteJipdaDepTests =
       var src = "var z=false; function f() {return z}; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var result = new Pushdown().analyze(ast, cesk);
+      var analysis = new Pushdown().analyze(ast, cesk);
+      var dep = new Dependence(analysis);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(result.isPureFunction(f));
+      assertTrue(dep.isPureFunction(f));
     }
     
   module.testPurity5 =
@@ -68,9 +72,10 @@ var suiteJipdaDepTests =
       var src = "var z=false; function f() {return z}; z=true; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var result = new Pushdown().analyze(ast, cesk);
+      var analysis = new Pushdown().analyze(ast, cesk);
+      var dep = new Dependence(analysis);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(result.isPureFunction(f));
+      assertFalse(dep.isPureFunction(f));
     } 
   
   
@@ -80,9 +85,10 @@ var suiteJipdaDepTests =
       var src = "var z=false;function f(){g()}; function g(){h()}; function h(){z=true}; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var result = new Pushdown().analyze(ast, cesk);
+      var analysis = new Pushdown().analyze(ast, cesk);
+      var dep = new Dependence(analysis);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(result.isPureFunction(f));
+      assertFalse(dep.isPureFunction(f));
     }
     
   module.testPurity7 =
@@ -91,11 +97,12 @@ var suiteJipdaDepTests =
       var src = "function f(){var l=0; function g() {l=l+1}; g()}; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var result = new Pushdown().analyze(ast, cesk);
+      var analysis = new Pushdown().analyze(ast, cesk);
+      var dep = new Dependence(analysis);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(result.isPureFunction(f));
+      assertTrue(dep.isPureFunction(f));
       var g = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "g"})[0];
-      assertFalse(result.isPureFunction(g));
+      assertFalse(dep.isPureFunction(g));
     }
     
   module.testPurity8 =
@@ -104,9 +111,10 @@ var suiteJipdaDepTests =
       var src = "function f(){var o={}; o.x=3}; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var result = new Pushdown().analyze(ast, cesk);
+      var analysis = new Pushdown().analyze(ast, cesk);
+      var dep = new Dependence(analysis);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(result.isPureFunction(f));
+      assertTrue(dep.isPureFunction(f));
     }
     
   return module;

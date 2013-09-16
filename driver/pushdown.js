@@ -597,144 +597,144 @@ Pushdown.run =
     }
   }
 
-Pushdown.preStackNfa =
-  function (s, etg, ecg)
-  {
-    var visited = HashSet.empty();
-    var todo = [s];
-    var edges = HashSet.empty();
-    while (todo.length > 0)
-    {
-      var q = todo.shift();
-      if (visited.contains(q))
-      {
-        continue;
-      }
-      visited = visited.add(q);
-      var incomingEdges = etg.incoming(q);
-      var incomingPushUnchEdges = incomingEdges.filter(function (edge) {return !edge.g.isPop});
-      if (incomingPushUnchEdges.length === 0)
-      {
-        var incomingEpsFrameEdges = ecg.incoming(q).filter(function (epsEdge) {return epsEdge.g});
-        edges = edges.addAll(incomingEpsFrameEdges);
-        var predecessors = incomingEpsFrameEdges.map(function (edge) {return edge.source});
-      }
-      else
-      {
-        edges = edges.addAll(incomingPushUnchEdges);
-        var predecessors = incomingPushUnchEdges.map(function (edge) {return edge.source});
-      }
-      todo = todo.concat(predecessors);
-    }
-    return new Graph(edges);
-  }
+//Pushdown.preStackNfa =
+//  function (s, etg, ecg)
+//  {
+//    var visited = HashSet.empty();
+//    var todo = [s];
+//    var edges = HashSet.empty();
+//    while (todo.length > 0)
+//    {
+//      var q = todo.shift();
+//      if (visited.contains(q))
+//      {
+//        continue;
+//      }
+//      visited = visited.add(q);
+//      var incomingEdges = etg.incoming(q);
+//      var incomingPushUnchEdges = incomingEdges.filter(function (edge) {return !edge.g.isPop});
+//      if (incomingPushUnchEdges.length === 0)
+//      {
+//        var incomingEpsFrameEdges = ecg.incoming(q).filter(function (epsEdge) {return epsEdge.g});
+//        edges = edges.addAll(incomingEpsFrameEdges);
+//        var predecessors = incomingEpsFrameEdges.map(function (edge) {return edge.source});
+//      }
+//      else
+//      {
+//        edges = edges.addAll(incomingPushUnchEdges);
+//        var predecessors = incomingPushUnchEdges.map(function (edge) {return edge.source});
+//      }
+//      todo = todo.concat(predecessors);
+//    }
+//    return new Graph(edges);
+//  }
 
-Pushdown.stepOver =
-  function (s, fs)
-  {
-    var etg = Graph.empty();
-    var ecg = Graph.empty();
-    var dE = [this.etg.outgoing(s)];
-    while (dE.length > 0)
-    {
-      var e = dE.shift();
-      if (etg.contains(e))
-      {
-        continue;
-      }
-      etg = etg.addEdge(e);
-      var q = e.target; 
-      if (fs(q))
-      {
-        var epsSuccessors = this.ecg.successors(q);
-        dE = dE.concat(epsSuccessors.flatMap(function (succ) {return this.etg.outgoing(succ)}, this));
-      }
-      else
-      {
-        dE = dE.concat(this.etg.outgoing(q));
-      }
-      ecg = ecg.addEdges(this.ecg.outgoing(q));
-    }
-    return {etg:etg, ecg:ecg};
-  }
+//Pushdown.stepOver =
+//  function (s, fs)
+//  {
+//    var etg = Graph.empty();
+//    var ecg = Graph.empty();
+//    var dE = [this.etg.outgoing(s)];
+//    while (dE.length > 0)
+//    {
+//      var e = dE.shift();
+//      if (etg.contains(e))
+//      {
+//        continue;
+//      }
+//      etg = etg.addEdge(e);
+//      var q = e.target; 
+//      if (fs(q))
+//      {
+//        var epsSuccessors = this.ecg.successors(q);
+//        dE = dE.concat(epsSuccessors.flatMap(function (succ) {return this.etg.outgoing(succ)}, this));
+//      }
+//      else
+//      {
+//        dE = dE.concat(this.etg.outgoing(q));
+//      }
+//      ecg = ecg.addEdges(this.ecg.outgoing(q));
+//    }
+//    return {etg:etg, ecg:ecg};
+//  }
 
 
-Pushdown.stepIn =
-  function (s, etg, ecg)
-  {
-    var targets = ecg.successors(s);
-    var newEtg = Graph.empty();
-    var newEcg = Graph.empty();
-    var todo = etg.outgoing(s);
-    while (todo.length > 0)
-    {
-      var edge = todo.shift();
-      if (newEtg.containsEdge(edge))
-      {
-        continue;
-      }
-      newEtg = newEtg.addEdge(edge);
-      newEcg = newEcg.addEdges(ecg.outgoing(edge.source));
-      if (Arrays.contains(edge.target, targets, Eq.equals))
-      {
-        continue;
-      }
-      todo = todo.concat(etg.outgoing(edge.target));
-    }
-    return {etg:newEtg, ecg:newEcg};
-  }
+//Pushdown.stepIn =
+//  function (s, etg, ecg)
+//  {
+//    var targets = ecg.successors(s);
+//    var newEtg = Graph.empty();
+//    var newEcg = Graph.empty();
+//    var todo = etg.outgoing(s);
+//    while (todo.length > 0)
+//    {
+//      var edge = todo.shift();
+//      if (newEtg.containsEdge(edge))
+//      {
+//        continue;
+//      }
+//      newEtg = newEtg.addEdge(edge);
+//      newEcg = newEcg.addEdges(ecg.outgoing(edge.source));
+//      if (Arrays.contains(edge.target, targets, Eq.equals))
+//      {
+//        continue;
+//      }
+//      todo = todo.concat(etg.outgoing(edge.target));
+//    }
+//    return {etg:newEtg, ecg:newEcg};
+//  }
 
-Pushdown.forwardUntil =
-  function (s, fe, etg)
-  {
-    var targets = HashSet.empty();
-    var visited = HashSet.empty();
-    var todo = etg.outgoing(s);
-    while (todo.length > 0)
-    {
-      var e = todo.shift();
-      if (visited.contains(e))
-      {
-        continue;
-      }
-      visited = visited.add(e);
-      if (fe(e))
-      {
-        targets.push(e);
-        break;
-      }
-      var q = e.target;
-      var outgoing = etg.outgoing(q);
-      todo = todo.concat(outgoing);
-    }
-    return {visited:visited, targets:targets};
-  }
+//Pushdown.forwardUntil =
+//  function (s, fe, etg)
+//  {
+//    var targets = HashSet.empty();
+//    var visited = HashSet.empty();
+//    var todo = etg.outgoing(s);
+//    while (todo.length > 0)
+//    {
+//      var e = todo.shift();
+//      if (visited.contains(e))
+//      {
+//        continue;
+//      }
+//      visited = visited.add(e);
+//      if (fe(e))
+//      {
+//        targets.push(e);
+//        break;
+//      }
+//      var q = e.target;
+//      var outgoing = etg.outgoing(q);
+//      todo = todo.concat(outgoing);
+//    }
+//    return {visited:visited, targets:targets};
+//  }
 
-Pushdown.rewindUntil =
-  function (s, fe, etg)
-  {
-    var targets = HashSet.empty();
-    var visited = HashSet.empty();
-    var todo = etg.incoming(s);
-    while (todo.length > 0)
-    {
-      var e = todo.shift();
-      if (visited.contains(e))
-      {
-        continue;
-      }
-      visited = visited.add(e);
-      if (fe(e))
-      {
-        targets.push(e);
-        break;
-      }
-      var q = e.source;
-      var incoming = etg.incoming(q);
-      todo = todo.concat(incoming);
-    }
-    return {visited:visited, targets:targets};
-  }
+//Pushdown.rewindUntil =
+//  function (s, fe, etg)
+//  {
+//    var targets = HashSet.empty();
+//    var visited = HashSet.empty();
+//    var todo = etg.incoming(s);
+//    while (todo.length > 0)
+//    {
+//      var e = todo.shift();
+//      if (visited.contains(e))
+//      {
+//        continue;
+//      }
+//      visited = visited.add(e);
+//      if (fe(e))
+//      {
+//        targets.push(e);
+//        break;
+//      }
+//      var q = e.source;
+//      var incoming = etg.incoming(q);
+//      todo = todo.concat(incoming);
+//    }
+//    return {visited:visited, targets:targets};
+//  }
 
 Pushdown.preStackUntil =
   function (s, fe, etg, ecg)
@@ -820,68 +820,4 @@ Dsg.prototype.executions =
   {
     var edges = Pushdown.preStackUntil(s, function (e) {return e.source.fun}, this.etg, this.ecg).targets;
     return edges.values().map(function (e) {return e.source});
-  }
-
-Dsg.prototype.isPureFunction =
-  function (f)
-  {
-    var globalReadAddresses = ArraySet.from(Pushdown.filterMarks(this.etg, function (mark) {return mark.isRead}).map(function (mark) {return mark.address}));
-    var globalWriteAddresses = ArraySet.from(Pushdown.filterMarks(this.etg, function (mark) {return mark.isWrite}).map(function (mark) {return mark.address}));
-    var constants = globalReadAddresses.subtract(globalWriteAddresses);
-    print("constants", constants);
-    var objectAllocStates = this.etg.nodes().filter(function (s) {return s.node && s.node.type === "ObjectExpression"});
-    var that = this;
-    var allocs = objectAllocStates.reduce(
-      function (result, s)
-      {
-        var valueStates = Pushdown.valueOf(s, that.etg, that.ecg).targets.values();
-        var value = valueStates.map(function (q) {return q.value || BOT}).reduce(Lattice.join);
-        print("s", s, "valueStates", valueStates, "value", value);
-        var allocatedAddresses = ArraySet.from(value.addresses());
-        var executions = that.executions(s); 
-        return executions.reduce(
-          function (result, execution)
-          {
-            return result.put(execution, allocatedAddresses)
-          }, result);
-      }, LatticeMap.empty(ArraySet.empty()));
-    print("allocs", allocs);
-    var rws = this.etg.edges().reduce(
-      function (result, e)
-      {
-        var marks = e.marks || [];
-        var rwMarks = marks.filter(function (mark) {return mark.isRead || mark.isWrite});
-        var rwAddresses = ArraySet.from(rwMarks.flatMap(function (mark) {return mark.address}));
-        var preStack = Pushdown.preStackUntil(e.source, function () {return false}, that.etg, that.ecg);
-        var applications = preStack.visited.values().map(function (e) {return e.target}).filter(function (q) {return q.fun});
-        return applications.reduce(
-          function (result, application)
-          {
-            return result.put(application, rwAddresses);
-          }, result);
-      }, LatticeMap.empty(ArraySet.empty()));
-    print("rws", rws);
-    ////
-    var applications = this.etg.nodes().filter(function (q) {return q.fun === f});
-    return applications.every(
-      function (application)
-      {
-        var benva = application.extendedBenva;
-        var allocAddresses = allocs.get(application);
-        var rwAddresses = rws.get(application).values();
-        return rwAddresses.every(
-          function (rwa)
-          {
-            if (constants.contains(rwa))
-            {
-              return true;
-            }
-            var base = rwa.base;
-            if (base.equals(benva))
-            {
-              return true;
-            }
-            return allocAddresses.contains(base);
-          }) 
-      })
   }
