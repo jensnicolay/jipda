@@ -11,7 +11,7 @@ var suiteConcreteTests =
     var cesk = jsCesk({a:concreteAg, p: new CpLattice()});
     var ast = Ast.createAst(src);
     var result = new Pushdown().analyze(ast, cesk);
-    var actual = result.valueOf(ast);
+    var actual = result.stepOver(result.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
     assertEquals(cesk.l.abst1(expected), actual);    
   }
 

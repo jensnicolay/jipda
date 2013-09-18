@@ -597,145 +597,6 @@ Pushdown.run =
     }
   }
 
-//Pushdown.preStackNfa =
-//  function (s, etg, ecg)
-//  {
-//    var visited = HashSet.empty();
-//    var todo = [s];
-//    var edges = HashSet.empty();
-//    while (todo.length > 0)
-//    {
-//      var q = todo.shift();
-//      if (visited.contains(q))
-//      {
-//        continue;
-//      }
-//      visited = visited.add(q);
-//      var incomingEdges = etg.incoming(q);
-//      var incomingPushUnchEdges = incomingEdges.filter(function (edge) {return !edge.g.isPop});
-//      if (incomingPushUnchEdges.length === 0)
-//      {
-//        var incomingEpsFrameEdges = ecg.incoming(q).filter(function (epsEdge) {return epsEdge.g});
-//        edges = edges.addAll(incomingEpsFrameEdges);
-//        var predecessors = incomingEpsFrameEdges.map(function (edge) {return edge.source});
-//      }
-//      else
-//      {
-//        edges = edges.addAll(incomingPushUnchEdges);
-//        var predecessors = incomingPushUnchEdges.map(function (edge) {return edge.source});
-//      }
-//      todo = todo.concat(predecessors);
-//    }
-//    return new Graph(edges);
-//  }
-
-//Pushdown.stepOver =
-//  function (s, fs)
-//  {
-//    var etg = Graph.empty();
-//    var ecg = Graph.empty();
-//    var dE = [this.etg.outgoing(s)];
-//    while (dE.length > 0)
-//    {
-//      var e = dE.shift();
-//      if (etg.contains(e))
-//      {
-//        continue;
-//      }
-//      etg = etg.addEdge(e);
-//      var q = e.target; 
-//      if (fs(q))
-//      {
-//        var epsSuccessors = this.ecg.successors(q);
-//        dE = dE.concat(epsSuccessors.flatMap(function (succ) {return this.etg.outgoing(succ)}, this));
-//      }
-//      else
-//      {
-//        dE = dE.concat(this.etg.outgoing(q));
-//      }
-//      ecg = ecg.addEdges(this.ecg.outgoing(q));
-//    }
-//    return {etg:etg, ecg:ecg};
-//  }
-
-
-//Pushdown.stepIn =
-//  function (s, etg, ecg)
-//  {
-//    var targets = ecg.successors(s);
-//    var newEtg = Graph.empty();
-//    var newEcg = Graph.empty();
-//    var todo = etg.outgoing(s);
-//    while (todo.length > 0)
-//    {
-//      var edge = todo.shift();
-//      if (newEtg.containsEdge(edge))
-//      {
-//        continue;
-//      }
-//      newEtg = newEtg.addEdge(edge);
-//      newEcg = newEcg.addEdges(ecg.outgoing(edge.source));
-//      if (Arrays.contains(edge.target, targets, Eq.equals))
-//      {
-//        continue;
-//      }
-//      todo = todo.concat(etg.outgoing(edge.target));
-//    }
-//    return {etg:newEtg, ecg:newEcg};
-//  }
-
-//Pushdown.forwardUntil =
-//  function (s, fe, etg)
-//  {
-//    var targets = HashSet.empty();
-//    var visited = HashSet.empty();
-//    var todo = etg.outgoing(s);
-//    while (todo.length > 0)
-//    {
-//      var e = todo.shift();
-//      if (visited.contains(e))
-//      {
-//        continue;
-//      }
-//      visited = visited.add(e);
-//      if (fe(e))
-//      {
-//        targets.push(e);
-//        break;
-//      }
-//      var q = e.target;
-//      var outgoing = etg.outgoing(q);
-//      todo = todo.concat(outgoing);
-//    }
-//    return {visited:visited, targets:targets};
-//  }
-
-//Pushdown.rewindUntil =
-//  function (s, fe, etg)
-//  {
-//    var targets = HashSet.empty();
-//    var visited = HashSet.empty();
-//    var todo = etg.incoming(s);
-//    while (todo.length > 0)
-//    {
-//      var e = todo.shift();
-//      if (visited.contains(e))
-//      {
-//        continue;
-//      }
-//      visited = visited.add(e);
-//      if (fe(e))
-//      {
-//        targets.push(e);
-//        break;
-//      }
-//      var q = e.source;
-//      var incoming = etg.incoming(q);
-//      todo = todo.concat(incoming);
-//    }
-//    return {visited:visited, targets:targets};
-//  }
-
 Pushdown.preStackUntil =
   function (s, fe, etg, ecg)
   {
@@ -763,24 +624,24 @@ Pushdown.preStackUntil =
     return {targets:targets,visited:visited};
   }
 
-Pushdown.filterMarks =
-  function (etg, f)
+Pushdown.pushPredecessors =
+  function (s, etg)
   {
-    return etg.edges().reduce(
-      function (result, edge)
-      {
-        var marks = edge.marks || [];
-        return result.concat(marks.filter(f))
-      }, []);
+    return etg.incoming(s).filter(function (e) {return e.g.isPush}).map(Edge.source);
   }
 
-Pushdown.valueOf = 
+Pushdown.popSuccessors =
+  function (s, etg)
+  {
+    return etg.outgoing(s).filter(function (e) {return e.g.isPop}).map(Edge.target);
+  }
+
+Pushdown.epsPopSuccessors =
   function (s, etg, ecg)
   {
-    var incomingPushEdges = etg.incoming(s).filter(function (e) {return e.g.isPush});
-    var pushPredecessors = incomingPushEdges.map(Edge.source);
-    var epsSuccessors = pushPredecessors.flatMap(Graph.prototype.successors, ecg);
-    return {targets:ArraySet.from(epsSuccessors), visited:null/*TODO incomingPush + epsSucc*/};
+    var etgSuccs = etg.outgoing(s).filter(function (e) {return !e.g.isPush}).map(Edge.target);
+    var ecgSuccs = ecg.successors(s);
+    return etgSuccs.concat(ecgSuccs);
   }
 
 Pushdown.prototype.analyze =
@@ -801,23 +662,56 @@ function Dsg(initial, etg, ecg, ss)
 
 ////
 
-Dsg.prototype.valueOf =
-  function (node)
+Dsg.prototype.stepOver =
+  function (s)
   {
-    var evalPushEdges = this.etg.edges().filter(
-      function (edge)
-      {
-        return edge.g.isPush && edge.target.node === node;
-      });
-    var preEvalStates = evalPushEdges.map(Edge.source);
-    var epsSuccessors = preEvalStates.flatMap(Graph.prototype.successors, this.ecg);
-    var values = epsSuccessors.map(function (q) {return q.value || BOT});
-    return values.reduce(Lattice.join, BOT);
+    var successors = this.ecg.outgoing(s).flatMap(function (h) {return h.g ? [h.target] : []});
+    return successors;
   }
+
+Dsg.prototype.popValues = 
+  function (s)
+  {
+    var targets = HashSet.empty();
+    var visited = HashSet.empty();
+    var todo = [s];
+    while (todo.length > 0)
+    {
+      var q = todo.shift();
+      if (visited.contains(q))
+      {
+        continue;
+      }
+      visited = visited.add(q);
+      if (q.value)
+      {
+        targets = targets.add(q);
+        continue;
+      }
+      todo = todo.concat(Pushdown.epsPopSuccessors(q, this.etg, this.ecg));
+    }
+    return targets.values();
+  }
+
+Dsg.prototype.values =
+  function (s)
+  {
+    var qs = Pushdown.pushPredecessors(s, this.etg);
+    var q1s = qs.flatMap(function (q) {return this.stepOver(q)}, this);
+    return q1s.flatMap(function (q1) {return this.popValues(q1)}, this);
+  }
+
 
 Dsg.prototype.executions =
   function (s)
   {
     var edges = Pushdown.preStackUntil(s, function (e) {return e.source.fun}, this.etg, this.ecg).targets;
-    return edges.values().map(function (e) {return e.source});
+    return edges.values().map(Edge.source);
+  }
+
+Dsg.prototype.cflows =
+  function (s)
+  {
+    var edges = Pushdown.preStackUntil(s, function () {return false}, this.etg, this.ecg).visited;
+    return edges.values().flatMap(function (e) {return e.source.fun ? [e.source] : []});
   }

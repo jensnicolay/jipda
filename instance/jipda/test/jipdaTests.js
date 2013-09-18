@@ -8,7 +8,7 @@ var suiteJipdaTests =
   {
     var ast = Ast.createAst(src);
     var result = new Pushdown().analyze(ast, cesk);
-    var actual = result.valueOf(ast);
+    var actual = result.stepOver(result.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
     assertEquals(expected, actual);
   }
   

@@ -4,14 +4,6 @@ var suiteJipdaDepTests =
 {
   var module = new TestSuite("suiteJipdaDepTests");
 
-  function run(src, cesk)
-  {
-    var ast = Ast.createAst(src);
-    var actual = BOT;
-    var result = new Pushdown().analyze(ast, cesk);
-    return result;
-  }
-  
   function createCesk(cc)
   {
     cc = cc || {};
@@ -24,10 +16,10 @@ var suiteJipdaDepTests =
       var src = "function f(){}; f()"
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var analysis = new Pushdown().analyze(ast, cesk);
-      var dep = new Dependence(analysis);
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(dep.isPureFunction(f));
+      assertTrue(ana.isPureFunction(f));
     }
   
   module.testPurity2 =
@@ -36,10 +28,10 @@ var suiteJipdaDepTests =
       var src = "function f(){var x=true;x=false;return x;} f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var analysis = new Pushdown().analyze(ast, cesk);
-      var dep = new Dependence(analysis);
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(dep.isPureFunction(f));
+      assertTrue(ana.isPureFunction(f));
     }
     
   module.testPurity3 =
@@ -48,10 +40,10 @@ var suiteJipdaDepTests =
       var src = "var z=false; function f() {z=true}; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var analysis = new Pushdown().analyze(ast, cesk);
-      var dep = new Dependence(analysis);
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(dep.isPureFunction(f));
+      assertFalse(ana.isPureFunction(f));
     }
     
   module.testPurity4 =
@@ -60,10 +52,10 @@ var suiteJipdaDepTests =
       var src = "var z=false; function f() {return z}; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var analysis = new Pushdown().analyze(ast, cesk);
-      var dep = new Dependence(analysis);
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(dep.isPureFunction(f));
+      assertTrue(ana.isPureFunction(f));
     }
     
   module.testPurity5 =
@@ -72,10 +64,10 @@ var suiteJipdaDepTests =
       var src = "var z=false; function f() {return z}; z=true; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var analysis = new Pushdown().analyze(ast, cesk);
-      var dep = new Dependence(analysis);
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(dep.isPureFunction(f));
+      assertFalse(ana.isPureFunction(f));
     } 
   
   
@@ -85,10 +77,10 @@ var suiteJipdaDepTests =
       var src = "var z=false;function f(){g()}; function g(){h()}; function h(){z=true}; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var analysis = new Pushdown().analyze(ast, cesk);
-      var dep = new Dependence(analysis);
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(dep.isPureFunction(f));
+      assertFalse(ana.isPureFunction(f));
     }
     
   module.testPurity7 =
@@ -97,12 +89,12 @@ var suiteJipdaDepTests =
       var src = "function f(){var l=0; function g() {l=l+1}; g()}; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var analysis = new Pushdown().analyze(ast, cesk);
-      var dep = new Dependence(analysis);
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(dep.isPureFunction(f));
+      assertTrue(ana.isPureFunction(f));
       var g = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "g"})[0];
-      assertFalse(dep.isPureFunction(g));
+      assertFalse(ana.isPureFunction(g));
     }
     
   module.testPurity8 =
@@ -111,14 +103,96 @@ var suiteJipdaDepTests =
       var src = "function f(){var o={}; o.x=3}; f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
-      var analysis = new Pushdown().analyze(ast, cesk);
-      var dep = new Dependence(analysis);
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(dep.isPureFunction(f));
+      assertTrue(ana.isPureFunction(f));
+    }
+    
+  module.testPurity9 =
+    function ()
+    {
+      var src = "function f(){function g() {var o={x:3}; return o}; return g().x}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(ana.isPureFunction(f));
+    }
+    
+  module.testPurity10 =
+    function ()
+    {
+      var src = "function f(){function g() {var o={x:{}}; return o}; return g().x}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(ana.isPureFunction(f));
+    }
+    
+  module.testPurity11 =
+    function ()
+    {
+      var src = "function f(){var o={}; function g() {o.x=4}; g(); return o.x}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(ana.isPureFunction(f));
+    }
+    
+  module.testPurity12 =
+    function ()
+    {
+      var src = "var z=0; function f(){var o={}; function g() {z=z+1;o.x=z}; g(); return o.x}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(ana.isPureFunction(f));
+    }
+    
+  module.testPurity13 =
+    function ()
+    {
+      var src = "function f(){function g() {var o={x:3}; return o}; return g()}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(ana.isPureFunction(f));
+    }
+    
+  module.testPurity14 =
+    function ()
+    {
+      var src = "var o={x:3}; function f(){return o}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(ana.isPureFunction(f));
+    }
+    
+  module.testPurity15 =
+    function ()
+    {
+      var src = "function f(){function g(){return {x:3}}; return g()}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(ana.isPureFunction(f));
     }
     
   return module;
 
 })()
-
-

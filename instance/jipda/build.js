@@ -19,7 +19,7 @@ function b()
   load("../../ast/jsEsprima.js");
   load("../../cesk/cesk.js");
   load("../../cesk/jsCesk.js");
-  load("../../analysis/dependence.js");
+  load("../../analysis/analysis.js");
   load("defaultBenv.js");
   load("jipda.js");
   
