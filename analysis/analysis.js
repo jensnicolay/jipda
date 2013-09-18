@@ -94,6 +94,7 @@ Analysis.prototype.isPureFunction =
         var allocAddresses = allocs.get(application);
         var tallocAddresses = tallocs.get(application);
         var rwAddresses = rws.get(application).values();
+        print("~rw ", application, "benva", benva, "aa", allocAddresses, "rwa", rwAddresses);
         var safeAccesses = rwAddresses.every(
           function (rwa)
           {
@@ -110,7 +111,7 @@ Analysis.prototype.isPureFunction =
           });
         var returnStates = dsg.values(application);
         var returnAddresses = returnStates.map(function (returnState) {return returnState.value}).reduce(Lattice.join).addresses();
-        print("~", application, "ra", returnAddresses, "aa", allocAddresses, "taa", tallocAddresses, tallocAddresses.constructor);
+        print("~ret", application, "ra", returnAddresses, "taa", tallocAddresses);
         var safeReturn = returnAddresses.every(function (a) {return !tallocAddresses.contains(a)});
         return safeAccesses && safeReturn;
       })

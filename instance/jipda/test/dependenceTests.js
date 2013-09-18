@@ -349,6 +349,66 @@ var suiteJipdaDepTests =
       assertFalse(ana.isPureFunction(f));
     }
     
+  module.testPurity29 =
+    function ()
+    {
+      var src = "function f(){function g(){var l=3; return l}; return g()}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(ana.isPureFunction(f));
+    }
+
+  module.testPurity30 =
+    function ()
+    {
+      var src = "function g(){var l=3; return l}; function f(){return g()}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(ana.isPureFunction(f));
+    }
+    
+  module.testPurity31 =
+    function ()
+    {
+      var src = "function g(){var l=3; return l}; function f(h){return h()}; f(g)";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(ana.isPureFunction(f));
+    }
+    
+  module.testPurity32 =
+    function ()
+    {
+      var src = "function f(){var l=3;function g(){return l}; l=l+1; return g()}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(ana.isPureFunction(f));
+    }
+  
+  module.testPurity33 =
+    function ()
+    {
+      var src = "function f(){var l=3;function g(){l=l+1;return l}; l=l+1; return g()}; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(ana.isPureFunction(f));
+    }
+  
   return module;
 
 })()
