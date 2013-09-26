@@ -61,5 +61,9 @@ ContextAddr.prototype.equals =
 ContextAddr.prototype.hashCode =
   function ()
   {
-    return this.base.hashCode() * 17 + HashCode.hashCode(this.context) * 31;
+    var prime = 71;
+    var result = 1;
+    result = prime * result + this.base.hashCode();
+    result = prime * result + HashCode.hashCode(this.context);
+    return result;
   }

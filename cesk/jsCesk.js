@@ -309,7 +309,7 @@ function jsCesk(cc)
         && this.scope.equals(other.scope);
     }
   BenvClosureCall.prototype.hashCode =
-    function (x)
+    function ()
     {
       var prime = 7;
       var result = 1;
@@ -335,6 +335,59 @@ function jsCesk(cc)
       return [this.scope];
     }
   
+  function InitState(node, benva, store, haltFrame)
+  {
+    this.type = "init";
+    this.node = node;
+    this.benva = benva;
+    this.store = store;
+    this.haltFrame = haltFrame;
+  }
+  InitState.prototype.toString =
+    function ()
+    {
+      return "(init " + this.node + " " + this.benva + ")";
+    }
+  InitState.prototype.nice =
+    function ()
+    {
+      return "#init " + this.node.tag;
+    }
+  InitState.prototype.equals =
+    function (x)
+    {
+      return this.type === x.type
+        && this.node === x.node 
+        && Eq.equals(this.benva, x.benva)
+        && Eq.equals(this.store, x.store)
+        && Eq.equals(this.haltFrame, x.haltFrame);
+    }
+  InitState.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.benva.hashCode();
+      result = prime * result + this.haltFrame.hashCode();
+      return result;
+    }
+  InitState.prototype.next =
+    function (kont)
+    {
+      return kont.push(this.haltFrame, new EvalState(this.node, this.benva, this.store));
+    }
+  InitState.prototype.addresses =
+    function ()
+    {
+      return [this.benva];
+    }
+  InitState.prototype.setStore =
+    function (store)
+    {
+      return new InitState(this.node, this.benva, store, this.haltFrame);
+    }
+
   function EvalState(node, benva, store)
   {
     this.type = "eval";
@@ -1983,15 +2036,19 @@ function jsCesk(cc)
   }
 
   var module = {};
-  module.evalState =
-    function (node, benva, store)
-    {
-      return new EvalState(node, benva, store);
-    }
   module.p = p;
   module.l = l;
   module.store = store;
   module.globala = globala;
+  
+  module.inject = 
+    function (node, override)
+    {
+      override = override || {};
+      var haltFrame = new HaltKont([globala]);
+      return new InitState(node, override.benva || globala, override.store || store, haltFrame);    
+    }
+  
   return module; 
 }
 

@@ -1,55 +1,3 @@
-function InitState(node, benva, store, cesk, haltFrame)
-{
-  this.type = "init";
-  this.node = node;
-  this.benva = benva;
-  this.store = store;
-  this.cesk = cesk;
-  this.haltFrame = haltFrame;
-}
-InitState.prototype.toString =
-  function ()
-  {
-    return "(init " + this.node + " " + this.benva + ")";
-  }
-InitState.prototype.nice =
-  function ()
-  {
-    return "#init " + this.node.tag;
-  }
-InitState.prototype.equals =
-  function (x)
-  {
-    return this.type === x.type
-      && this.node === x.node 
-      && Eq.equals(this.benva, x.benva)
-      && Eq.equals(this.store, x.store);
-  }
-InitState.prototype.hashCode =
-  function ()
-  {
-    var prime = 7;
-    var result = 1;
-    result = prime * result + this.node.hashCode();
-    result = prime * result + this.benva.hashCode();
-    return result;
-  }
-InitState.prototype.next =
-  function (kont)
-  {
-    return kont.push(this.haltFrame, this.cesk.evalState(this.node, this.benva, this.store));
-  }
-InitState.prototype.addresses =
-  function ()
-  {
-    return [this.benva];
-  }
-InitState.prototype.setStore =
-  function (store)
-  {
-    return new InitState(this.node, this.benva, store, this.cesk, this.haltFrame);
-  }
-
 function HaltKont(rootSet)
 {
   this.rootSet = rootSet;
@@ -82,8 +30,6 @@ HaltKont.prototype.addresses =
   
 function Edge(source, g, target, marks)
 {
-  assertDefinedNotNull(source);
-  assertDefinedNotNull(target);
   this.source = source;
   this.g = g;
   this.target = target;
@@ -355,7 +301,6 @@ PopKont.prototype.pop =
   {
     var frame = this.frame;
     var target = frameCont(frame);
-    assertDefinedNotNull(target);
     return [new Edge(this.source, new Pop(frame), target, marks)];
   }
 
@@ -419,14 +364,6 @@ GcDriver.prototype.pop =
 function Pushdown()
 {
 }
-
-Pushdown.inject =
-  function (node, cesk, override)
-  {
-    override = override || {};
-    var haltFrame = new HaltKont([cesk.globala]);
-    return new InitState(node, override.benva || cesk.globala, override.store || cesk.store, cesk, haltFrame);
-  }
 
 Pushdown.run =
   function(q)
@@ -647,7 +584,7 @@ Pushdown.epsPopSuccessors =
 Pushdown.prototype.analyze =
   function (ast, cesk)
   {
-    var initial = Pushdown.inject(ast, cesk);
+    var initial = cesk.inject(ast);
     var dsg = Pushdown.run(initial);
     return new Dsg(initial, dsg.etg, dsg.ecg, dsg.ss);
   }

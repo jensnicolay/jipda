@@ -1,7 +1,3 @@
-load("../../lib/esprima.js");
-
-var console = {log:print}
-
 function b()
 {
   load("../../common.js");
@@ -19,13 +15,13 @@ function b()
   load("../../cesk/cesk.js");
   load("../../cesk/schemeCesk.js");
   load("../../ast/scheme.js");
-  load("defaultBenv.js");
-  load("jipda.js");
+  load("benv.js");
+  load("sipda.js");
   
 //  load("test/astTests.js");
 //  load("test/benvTests.js");
   load("test/concreteTests.js");
-  load("test/jipdaTests.js");
+  load("test/sipdaTests.js");
 //  load("test/jsAnalysisTests.js");  
 //  load("test/coverageTests.js");
 //  load("test/latticeTests.js");  

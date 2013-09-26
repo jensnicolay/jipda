@@ -1,0 +1,69 @@
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<link rel="stylesheet" href="sipda.css" type="text/css" media="all"/> 
+	<title>SIPDA</title>
+	<script type="text/javascript" src="../../../common.js"></script>
+	<script type="text/javascript" src="../../../agc.js"></script>
+	<script type="text/javascript" src="../../../lattice/lattice.js"></script>
+	<script type="text/javascript" src="../../../lattice/lattice1.js"></script>
+	<script type="text/javascript" src="../../../lattice/setLattice.js"></script>
+	<script type="text/javascript" src="../../../address/address.js"></script>
+	<script type="text/javascript" src="../../../address/tagAg.js"></script>
+	<script type="text/javascript" src="../../../ast/scheme.js"></script>
+	<script type="text/javascript" src="../../../store/store.js"></script>
+	<script type="text/javascript" src="../../../cesk/cesk.js"></script>
+	<script type="text/javascript" src="../../../cesk/schemeCesk.js"></script>
+	<script type="text/javascript" src="../../../driver/pushdown.js"></script>
+	<script type="text/javascript" src="../benv.js"></script>
+	<script type="text/javascript" src="../sipda.js"></script>
+	<script type="text/javascript" src="lib/jquery-1.7.2.min.js"></script>
+	<script type="text/javascript" src="lib/ace/ace.js"></script>
+	<script type="text/javascript" src="lib/viz.js"></script>
+	<script type="text/javascript" src="../../../lib/web/vizgraph.js"></script>
+	<script type="text/javascript">
+
+	// define print method for SIPDA
+   var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }		
+	var editor;
+	 
+	function doIt()
+	{
+		$("#resultValue").empty();
+		$("#graph").empty();
+	  var src = editor.getSession().getValue();
+    var ast = new SchemeParser().parse(src)[0];
+    var lat = new Lattice1();
+    //var lat = new SetLattice(3);
+    var cesk = schemeCesk({a:tagAg, p:lat});
+    var result = new Pushdown().analyze(ast, cesk);
+		$("#resultValue").text(result.value);
+    var etgEdges = result.etg.edges();
+    var emptySet = ArraySet.empty();
+    var meta = result.ss.entries().reduce(function (acc, entry) {return acc.put(entry.key, {ss:entry.value})}, HashMap.empty());
+    
+		//drawLinks(etgEdges.concat(ecgEdges), "#graph");
+		var element = $("#graph");
+		drawLinks(result.etg, result.ecg, meta, element, window);
+	}
+		
+	$(function ()
+	{
+	  editor = ace.edit("editor");
+	  editor.getSession().setMode("ace/mode/scheme");
+	})
+		
+	</script>
+</head>
+
+<body>
+	<div id="editor" style="width: 640px; height: 480px;"></div>
+	<div id="manip" style="">
+		<button id="eval" name="eval" onClick="doIt()">Eval</button>
+		<span id="resultValue"></span>
+	</div>
+	<div id="graph"/>
+</body>
+
+</html>

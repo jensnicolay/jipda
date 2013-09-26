@@ -2,13 +2,61 @@ function Null()
 {
 }
 
+Null.prototype.equals =
+  function (x)
+  {
+    return (x instanceof Null);
+  }
+
+Null.prototype.hashCode =
+  function ()
+  {
+    return 11;
+  }
+
 function Pair(car, cdr)
 {
   this.car = car;
   this.cdr = cdr;
 }
 
-function PushbackReader(str)
+Pair.prototype.equals =
+  function (x)
+  {
+    return (x instanceof Pair)
+      && this.car.equals(x.car)
+      && this.cdr.equals(x.cdr)
+  }
+
+Pair.prototype.hashCode =
+  function ()
+  {
+    var prime = 41;
+    var result = 1;
+    result = prime * result + this.car.hashCode();
+    result = prime * result + this.cdr.hashCode();
+    return result;    
+  }
+
+function Sym(name)
+{
+  this.name = name;
+}
+
+Sym.prototype.equals =
+  function (x)
+  {
+    return (x instanceof Sym)
+      && (this.name === x.name)
+  }
+
+Sym.prototype.hashCode =
+  function ()
+  {
+    return this.name.hashCode();
+  }
+
+function SchemeReader(str)
 {
   this.str = str;
   this.pos = -1;
@@ -16,7 +64,18 @@ function PushbackReader(str)
   this.linePos = -1;
 }
 
-PushbackReader.prototype.read =
+SchemeReader.prototype.peek =
+  function ()
+  {
+    if (this.pos === this.str.length)
+    {
+      return null;
+    }
+    var r = this.str.charAt(this.pos + 1);
+    return r;
+  }
+
+SchemeReader.prototype.read =
   function ()
   {
     if (this.pos === this.str.length)
@@ -33,45 +92,39 @@ PushbackReader.prototype.read =
     {
       this.linePos++;
     }
+    return r;
   }
 
-PushbackReader.prototype.unread =
-  function ()
-  {
-    var r = this.str.charAt(this.pos);
-    if (r === "\n")
-    {
-      throw new Error("unsupported");
-    }
-    this.pos--;
-    this.linePos--;
-  }
-
-function SchemeParser(str)
+function SchemeParser()
 {
-  this.reader = new PushhbackReader(str);
 }
 
-SchemeParser.prototype.next =
-  function ()
+SchemeParser.prototype.parse =
+  function (str)
   {
-    var c = this.skipWhitespace();
-    return this.parse(c);
-  }
-
-SchemeParser.prototype.all =
-  function ()
-  {
+    var tokenizer = new SchemeTokenizer(str);
     var datas = [];
     var data;
-    while ((data = this.next()) !== null)
+    while ((data = tokenizer.next()) !== null)
     {
       datas.push(data);
     }
     return datas;
   }
 
-SchemeParser.prototype.parse =
+function SchemeTokenizer(str)
+{
+  this.reader = new SchemeReader(str);
+}
+
+SchemeTokenizer.prototype.next =
+  function ()
+  {
+    var c = this.skipWhitespace();
+    return this.parse(c);
+  }
+
+SchemeTokenizer.prototype.parse =
   function (c)
   {
     switch (c)
@@ -102,38 +155,32 @@ SchemeParser.prototype.parse =
       }
       case "-" :
       {
-        var d = this.reader.read(); // peek?
-        if (Character.isWhitespace(d) || d === ")" || d === null)
+        var d = this.reader.peek(); // peek?
+        if (Character.isWhitespace(d) || d === ")" || d === "")
         {
-          this.reader.unread();
           var po = new Sym("-");
           po.sp = {pos:this.reader.pos, line:this.reader.line, linePos:this.reader.linePos, length:1};
           return po;
         }
-        this.reader.unread();
-        return this.parseNumber(c);
+        return this.parseNumber(c); 
       }
-      case null : return null;
+      case "" : return null;
     }
     if (Character.isDigit(c))
     {
       return this.parseNumber(c);
     }
-    return parseIdentifier(c);
+    return this.parseIdentifier(c);
   }
 
-SchemeParser.prototype.parseIdentifier =
+SchemeTokenizer.prototype.parseIdentifier =
   function (c)
   {
     var sp = {pos:this.reader.pos, line:this.reader.line, linePos:this.reader.linePos};
     var identifier = c;
-    while (!Character.isWhitespace(c = this.reader.read()) && c !== ")" && c !== null)
+    while (!Character.isWhitespace(c = this.reader.peek()) && c !== ")" && c !== "")
     {
-      identifier += c;
-    }
-    if (c === ")")
-    {
-      this.reader.unread();
+      identifier += this.reader.read();
     }
     var po = new Sym(identifier);
     sp.length = identifier.length;
@@ -141,7 +188,7 @@ SchemeParser.prototype.parseIdentifier =
     return po;
   }
 
-SchemeParser.prototype.parseQuote =
+SchemeTokenizer.prototype.parseQuote =
   function ()
   {
     var sp = {pos:this.reader.pos, line:this.reader.line, linePos:this.reader.linePos};
@@ -153,7 +200,7 @@ SchemeParser.prototype.parseQuote =
     return po;
   }
 
-SchemeParser.prototype.parseString =
+SchemeTokenizer.prototype.parseString =
   function ()
   {
     var sp = {pos:this.reader.pos, line:this.reader.line, linePos:this.reader.linePos};
@@ -161,7 +208,7 @@ SchemeParser.prototype.parseString =
     var c;
     while ((c = this.reader.read()) !== "\"")
     {
-      if (c === null)
+      if (c === "")
       {
         throw new Error("unmatched \"");
       }
@@ -177,22 +224,18 @@ SchemeParser.prototype.parseString =
     return po;
   }
 
-SchemeParser.prototype.parseNumber =
-  function ()
+SchemeTokenizer.prototype.parseNumber =
+  function (c)
   {
     var sp = {pos:this.reader.pos, line:this.reader.line, linePos:this.reader.linePos};
     var s = c;
 //    var dot = false;
     var slash = false;
-    while (!Character.isWhitespace(c = this.reader.read()) && c !== ")" && c !== null)
+    while (!Character.isWhitespace(c = this.reader.peek()) && c !== ")" && c !== "")
     {
-      s += c;
+      s += this.reader.read();
 //      dot |= (c === '.');
       slash |= (c === '/');
-    }
-    if (c === ")")
-    {
-      this.reader.unread();
     }
     var po;
     if (slash)
@@ -205,7 +248,7 @@ SchemeParser.prototype.parseNumber =
     return po;
   }
 
-SchemeParser.prototype.parseList =
+SchemeTokenizer.prototype.parseList =
   function ()
   {
     var sp = {pos:this.reader.pos, line:this.reader.line, linePos:this.reader.linePos};
@@ -223,7 +266,7 @@ SchemeParser.prototype.parseList =
       var e = this.parse(lookahead);
       es.push(e);
       lookahead = this.skipWhitespace();
-      if (lookahead === null)
+      if (lookahead === "")
       {
         throw new Error("unmatched )");
       }
@@ -245,7 +288,7 @@ SchemeParser.prototype.parseList =
     return po;
   }
 
-SchemeParser.prototype.parseVector =
+SchemeTokenizer.prototype.parseVector =
   function ()
   {
     var sp = {pos:this.reader.pos, line:this.reader.line, linePos:this.reader.linePos};
@@ -271,7 +314,7 @@ SchemeParser.prototype.parseVector =
     return po;    
   }
 
-SchemeParser.prototype.skipWhitespace =
+SchemeTokenizer.prototype.skipWhitespace =
   function ()
   {
     var c;
@@ -281,7 +324,7 @@ SchemeParser.prototype.skipWhitespace =
       if (c === ";")
       {
         c = this.reader.read();
-        while ((c = this.reader.read()) !== "\n" && c !== null);
+        while ((c = this.reader.read()) !== "\n" && c !== "");
       }
       else
       {
@@ -290,18 +333,3 @@ SchemeParser.prototype.skipWhitespace =
     }
     return c;
   }
-  
-//  public static void main(String[] args)
-//  {
-//    String source = "(define a 1) (define b 2)\n; hhello\n;form me";
-//    SpParser2 spParser = new SpParser2(source);
-//    Object sp = spParser.next();
-//    System.out.println(sp);
-//    sp = spParser.next();
-//    System.out.println(sp);
-//    sp = spParser.next();
-//    System.out.println(sp);
-//    sp = spParser.next();
-//    System.out.println(sp);
-//    System.out.println(spParser.getSps());
-//  }

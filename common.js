@@ -470,7 +470,7 @@ Character.isWhitespace =
 Character.isDigit =
   function (x)
   {
-    return !isNaN(x);
+    return x === "0" || x === "1" || x === "2" || x === "3" || x === "4" || x === "5" || x === "6" || x === "7" || x === "8" || x === "9";
   }
   
 Function.prototype.toString =
@@ -686,7 +686,7 @@ Map.prototype.removeAll =
 Map.prototype.hashCode =
   function ()
   {
-    return this.mapEntries(function (x) {return HashCode.hashCode(x.key) ^ HashCode.hashCode(x.value)}).reduce(function (acc, x) {return acc + x});
+    return this.entries().map(function (x) {return HashCode.hashCode(x.key) ^ HashCode.hashCode(x.value)}).reduce(function (acc, x) {return acc + x}, 0);
   }
 
 
