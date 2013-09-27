@@ -597,14 +597,27 @@ function Dsg(initial, etg, ecg, ss)
   this.ss = ss;
 }
 
-////
-
-Dsg.prototype.stepOver =
+Dsg.prototype.stepFwOver =
   function (s)
   {
     var successors = this.ecg.outgoing(s).flatMap(function (h) {return h.g ? [h.target] : []});
     return successors;
   }
+
+Dsg.prototype.stepBwOver =
+  function (s)
+  {
+    var predecessors = this.ecg.incoming(s).flatMap(function (h) {return h.g ? [h.source] : []});
+    return predecessors;
+  }
+
+//Dsg.prototype.matchingPush =
+//  function (e)
+//  {
+//    var frame = e.g.frame;
+//    var qs = this.ecg.incoming(e.target).flatMap(function (h) {return (h.g && h.g.frame.equals(frame) ? [h.source] : []}));
+//    return this.etg.outgoing.flatMap(function (e1) {return e1.g.isPush && e1.g.frame.equals(frame)});
+//  }
 
 Dsg.prototype.popValues = 
   function (s)
@@ -634,7 +647,7 @@ Dsg.prototype.values =
   function (s)
   {
     var qs = Pushdown.pushPredecessors(s, this.etg);
-    var q1s = qs.flatMap(function (q) {return this.stepOver(q)}, this);
+    var q1s = qs.flatMap(function (q) {return this.stepFwOver(q)}, this);
     return q1s.flatMap(function (q1) {return this.popValues(q1)}, this);
   }
 
@@ -652,3 +665,37 @@ Dsg.prototype.cflows =
     var edges = Pushdown.preStackUntil(s, function () {return false}, this.etg, this.ecg).visited;
     return edges.values().flatMap(function (e) {return e.source.fun ? [e.source] : []});
   }
+
+Dsg.prototype.declarations =
+  function (s)
+  {
+    var name = s.node.name;
+    var execs = HashSet.from(this.executions(s));
+    var targets = HashSet.empty();
+    var visited = HashSet.empty();
+    var todo = [s];
+    while (todo.length > 0)
+    {
+      var q = todo.shift();
+      if (visited.contains(q))
+      {
+        continue;
+      }
+      visited = visited.add(q);
+      var qExecs = HashSet.from(this.executions(q));
+      print("q", q, q.node,execs.meet(qExecs), q.node && q.node.type);
+      if (execs.meet(qExecs).size() === 0)
+      {
+        todo = todo.concat(this.stepBwOver(q));
+        continue;
+      }
+      if (q.node && q.node.type === "VariableDeclaration" && q.node.declarations[0].id.name === name)
+      {
+        targets = targets.add(q);
+        continue;
+      }
+      todo = todo.concat(this.etg.predecessors(q));
+    }
+    return targets.values();
+  }
+

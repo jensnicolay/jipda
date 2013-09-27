@@ -11,9 +11,21 @@ Analysis.prototype.values =
       {
         return (e.g.isPush && e.target.node === node) ? [e.source] : [];
       });
-    var q1s = qs.flatMap(function (q) {return this.dsg.stepOver(q)}, this);
+    var q1s = qs.flatMap(function (q) {return this.dsg.stepFwOver(q)}, this);
     var q2s = q1s.flatMap(function (q1) {return this.dsg.popValues(q1)}, this);
     return q2s.map(function (q2) {return q2.value}).reduce(Lattice.join, BOT);
+  }
+
+Analysis.prototype.declarations =
+  function (node)
+  {
+    var qs = this.dsg.etg.edges().flatMap(
+      function (e)
+      {
+        return (e.g.isPush && e.target.node === node) ? [e.target] : [];
+      });
+    var q1s = qs.flatMap(function (q) {return this.dsg.declarations(q)}, this);
+    return q1s.map(function (q1) {return q1.node.type === "VariableDeclaration" ? q1.node.declarations[0] : q1.node});
   }
 
 Analysis.prototype.isPureFunction =

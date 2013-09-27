@@ -31,8 +31,11 @@ function schemeCesk(cc)
   var P_RETVAL = p.abst1("!retVal!");
 
   // install global pointers and refs
-  var store = new Store();
   var global = Benv.empty();
+  var globala = new ContextAddr("global", 0);
+  var store = new Store();
+  store = store.allocAval(globala, global);
+
   
   function BenvPrimitiveCall(applyFunction)
   {
@@ -65,76 +68,77 @@ function schemeCesk(cc)
       return [];
     } 
   
-  function BenvClosureCall(node, scope)
+  function Closure(node, statica, params, body)
   {
     this.node = node;
-    this.scope = scope;
+    this.statica = statica;
+    this.params = params;
+    this.body = body
   }
 
-  BenvClosureCall.prototype.toString =
+  Closure.prototype.toString =
     function ()
     {
-      return "(" + this.node.tag + " " + this.scope + ")";
+      return "(" + this.node.tag + " " + this.statica + ")";
     }
-  BenvClosureCall.prototype.nice =
+  Closure.prototype.nice =
     function ()
     {
-      return "<BenvClosureCall " + this.node.tag + ">"
+      return "<Closure " + this.node.tag + ">"
     }
 
-  BenvClosureCall.prototype.equals =
+  Closure.prototype.equals =
     function (other)
     {
       if (this === other)
       {
         return true;
       }
-      if (!(this instanceof BenvClosureCall))
+      if (!(this instanceof Closure))
       {
         return false;
       }
       return this.node === other.node
-        && this.scope.equals(other.scope);
+        && this.statica.equals(other.statica);
     }
-  BenvClosureCall.prototype.hashCode =
+  Closure.prototype.hashCode =
     function (x)
     {
       var prime = 7;
       var result = 1;
       result = prime * result + this.node.hashCode();
-      result = prime * result + this.scope.hashCode();
+      result = prime * result + this.statica.hashCode();
       return result;      
     }
 
 
-  BenvClosureCall.prototype.applyFunction =
-    function (application, operandValues, thisa, benva, store, kont)
+  Closure.prototype.apply_ =
+    function (application, operandValues, benva, store, kont)
     {
-//      print("BenvClosureCall.applyFunction", application, "operandValues", operandValues, "ths", ths);
       var fun = this.node;
-      var statica = this.scope;
+      var statica = this.statica;
       var extendedBenva = a.benv(application, benva, store, kont);
       return kont.push(new ReturnMarker(application, benva, this, extendedBenva), new ApplyState(application, fun, statica, operandValues, thisa, extendedBenva, store));
     }
 
-  BenvClosureCall.prototype.addresses =
+  Closure.prototype.addresses =
     function ()
     {
-      return [this.scope];
+      return [this.statica];
     }
   
-  function InitState(node, benv, store, haltFrame)
+  function InitState(node, benva, store, haltFrame)
   {
     this.type = "init";
     this.node = node;
-    this.benv = benv;
+    this.benva = benva;
     this.store = store;
     this.haltFrame = haltFrame;
   }
   InitState.prototype.toString =
     function ()
     {
-      return "(init " + this.node + " " + this.benv + ")";
+      return "(init " + this.node + " " + this.benva + ")";
     }
   InitState.prototype.nice =
     function ()
@@ -146,7 +150,7 @@ function schemeCesk(cc)
     {
       return this.type === x.type
         && this.node === x.node 
-        && Eq.equals(this.benv, x.benva)
+        && Eq.equals(this.benva, x.benva)
         && Eq.equals(this.store, x.store)
         && Eq.equals(this.haltFrame, x.haltFrame);
     }
@@ -156,31 +160,31 @@ function schemeCesk(cc)
       var prime = 7;
       var result = 1;
       result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
+      result = prime * result + this.benva.hashCode();
       result = prime * result + this.haltFrame.hashCode();
       return result;
     }
   InitState.prototype.next =
     function (kont)
     {
-      return kont.push(this.haltFrame, new EvalState(this.node, this.benv, this.store));
+      return kont.push(this.haltFrame, new EvalState(this.node, this.benva, this.store));
     }
   InitState.prototype.addresses =
     function ()
     {
-      return this.benv.addresses();
+      return [this.benva];
     }
   InitState.prototype.setStore =
     function (store)
     {
-      return new InitState(this.node, this.benv, store, this.haltFrame);
+      return new InitState(this.node, this.benva, store, this.haltFrame);
     }
 
-  function EvalState(node, benv, store)
+  function EvalState(node, benva, store)
   {
     this.type = "eval";
     this.node = node;
-    this.benv = benv;
+    this.benva = benva;
     this.store = store;
   }
   EvalState.prototype.toString =
@@ -198,7 +202,7 @@ function schemeCesk(cc)
     {
       return (x instanceof EvalState)
         && this.node === x.node 
-        && Eq.equals(this.benv, x.benv)
+        && Eq.equals(this.benva, x.benva)
         && Eq.equals(this.store, x.store);
     }
   EvalState.prototype.hashCode =
@@ -207,23 +211,23 @@ function schemeCesk(cc)
       var prime = 7;
       var result = 1;
       result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
+      result = prime * result + this.benva.hashCode();
       return result;
     }
   EvalState.prototype.next =
     function (kont)
     {
-      return evalNode(this.node, this.benv, this.store, kont);
+      return evalNode(this.node, this.benva, this.store, kont);
     }
   EvalState.prototype.addresses =
     function ()
     {
-      return this.benv.addresses();
+      return [this.benva];
     }
   EvalState.prototype.setStore =
     function (store)
     {
-      return new EvalState(this.node, this.benv, store);
+      return new EvalState(this.node, this.benva, store);
     }
   
   function KontState(frame, value, store)
@@ -332,6 +336,55 @@ function schemeCesk(cc)
     function (store)
     {
       return new ApplyState(this.node, this.fun, this.staticBenv, this.operandValues, store);
+    }
+  
+  function DefineKont(node, benva)
+  {
+    this.node = node;
+    this.benva = benva;
+  }
+  DefineKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof DefineKont
+        && this.node === x.node 
+        && Eq.equals(this.benva, x.benva);
+    }
+  DefineKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.benva.hashCode();
+      return result;
+    }
+  DefineKont.prototype.toString =
+    function ()
+    {
+      return "def-" + this.node.tag;
+    }
+  DefineKont.prototype.nice =
+    function ()
+    {
+      return "def-" + this.node.tag;
+    }
+  DefineKont.prototype.addresses =
+    function ()
+    {
+      return [this.benva];
+    }
+  DefineKont.prototype.apply =
+    function (value, store, kont)
+    {
+      var node = this.node;
+      var benva = this.benva;
+      var id = node.cdr.car;
+      var addr = a.variable(node, benva, store, kont);
+      var benv = store.lookupAval(benva);
+      benv = benv.add(id, addr);
+      store = store.allocAval(addr, value);
+      return kont.pop(function (frame) {return new KontState(frame, value, store)});
     }
   
   function OperatorKont(node, benva)
@@ -455,59 +508,58 @@ function schemeCesk(cc)
       return kont.push(frame, new EvalState(operands[i], benva, store));
     }
   
-  function BodyKont(node, i, benva)
+  function BeginKont(node, exps, benva)
   {
     this.node = node;
-    this.i = i;
+    this.exps = exps;
     this.benva = benva;
   }
-  BodyKont.prototype.equals =
+  BeginKont.prototype.equals =
     function (x)
     {
-      return x instanceof BodyKont
+      return x instanceof BeginKont
         && this.node === x.node
-        && this.i === x.i
+        && this.exps === x.exps
         && Eq.equals(this.benva, x.benva)
     }
-  BodyKont.prototype.hashCode =
+  BeginKont.prototype.hashCode =
     function ()
     {
       var prime = 7;
       var result = 1;
       result = prime * result + this.node.hashCode();
-      result = prime * result + this.i;
+      result = prime * result + this.exps;
       result = prime * result + this.benva.hashCode();
       return result;
     }
-  BodyKont.prototype.toString =
+  BeginKont.prototype.toString =
     function ()
     {
-      return "body-" + this.node.tag + "-" + this.i;
+      return "begin-" + this.node.tag + "-" + this.exps.tag;
     }
-  BodyKont.prototype.nice =
+  BeginKont.prototype.nice =
     function ()
     {
-      return "body-" + this.node.tag + "-" + this.i;
+      return "begin-" + this.node.tag + "-" + this.exps.tag;
     }
-  BodyKont.prototype.addresses =
+  BeginKont.prototype.addresses =
     function ()
     {
       return [this.benva];
     }
-  BodyKont.prototype.apply =
+  BeginKont.prototype.apply =
     function (value, store, kont)
     {
       var node = this.node;
       var benva = this.benva;
-      var i = this.i;
+      var exps = this.exps.cdr;
       
-      var nodes = node.body;
-      if (i === nodes.length)
+      if (exps instanceof Null)
       {
         return kont.pop(function (frame) {return new KontState(frame, value, store)});
       }
-      var frame = new BodyKont(node, i + 1, benva);
-      return kont.push(frame, new EvalState(nodes[i], benva, store));
+      var frame = new BeginKont(node, exps, benva);
+      return kont.push(frame, new EvalState(exps.car, benva, store));
     }
   
   function IfKont(node, benva)
@@ -590,9 +642,9 @@ function schemeCesk(cc)
     return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
   }
 
-  function evalLiteral(node, benv, store, kont)
+  function evalLiteral(node, benva, store, kont)
   {
-    var value = l.abst1(node.value);
+    var value = l.abst1(node);
     return kont.pop(function (frame) {return new KontState(frame, value, store)});
   }
 
@@ -775,30 +827,44 @@ function schemeCesk(cc)
     }
   }
 
-  function allocateClosure(params, body, benv, store, kont)
+  function evalLambda(node, benva, store, kont)
   {
-    var closure = createClosure(params, body, benv);
+    var closure = new Closure(node, benva, node.cdr.car, node.cdr.cdr);
     var closurea = a.closure(node, benva, store, kont);
-  
-    var prototype = createObject(objectProtoRef);
-    var prototypea = a.closureProtoObject(node, benva, store, kont);
     var closureRef = l.abst1(closurea);
-    prototype = prototype.add(P_CONSTRUCTOR, closureRef);
-    store = store.allocAval(prototypea, prototype);
-  
-    closure = closure.add(P_PROTOTYPE, l.abst1(prototypea));
     store = store.allocAval(closurea, closure);
-    return {store: store, ref: closureRef}
-  }
-
-  function evalLambda(node, benv, store, kont)
-  {
-    var allocateResult = allocateClosure(node.cdr.car, node.cdr.cdr, benv, store, kont);
-    var closureRef = allocateResult.ref;
-    store = allocateResult.store;
     return kont.pop(function (frame) {return new KontState(frame, closureRef, store)});
   }
 
+  function evalQuote(node, benva, store, kont)
+  {
+    var value = l.abst1(node.cdr.car);
+    return kont.pop(function (frame) {return new KontState(frame, value, store)});
+  }
+  
+  function evalDefine(node, benva, store, kont)
+  {
+    var lval = node.cdr.car;
+    if (lval instanceof Pair)
+    {
+      throw new Error("TODO");
+    }
+    var exp = node.cdr.cdr.car;
+    var frame = new DefineKont(node, benva);
+    return kont.push(frame, new EvalState(exp, benva, store));
+  }
+
+  function evalBegin(node, benva, store, kont)
+  {
+    var exps = node.cdr;
+    if (exps instanceof Null)
+    {
+      return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
+    }
+    var frame = new BeginKont(node, exps, benva);
+    return kont.push(frame, new EvalState(exps.car, benva, store));
+  }
+  
   function evalCallExpression(node, benva, store, kont)
   {
     var calleeNode = node.callee;
@@ -876,11 +942,11 @@ function schemeCesk(cc)
     return kont.push(frame, new EvalState(testNode, benva, store));
   }
 
-  function evalNode(node, benv, store, kont)
+  function evalNode(node, benva, store, kont)
   {    
-    if (node instanceof Number || node instanceof String)
+    if (node instanceof Number || node instanceof String || node instanceof Null)
     {
-      return evalLiteral(node, benv, store, kont);        
+      return evalLiteral(node, benva, store, kont);        
     }
     if (node instanceof Pair)
     {
@@ -890,13 +956,25 @@ function schemeCesk(cc)
         var name = car.name;
         if (name === "lambda")
         {
-          return evalLambda(node, benv, store, kont);
+          return evalLambda(node, benva, store, kont);
         }
         if (name === "define")
         {
-          return evalDefine(node, benv, store, kont);
+          return evalDefine(node, benva, store, kont);
+        }
+        if (name === "quote")
+        {
+          return evalQuote(node, benva, store, kont);
+        }
+        if (name === "begin")
+        {
+          return evalBegin(node, benva, store, kont);
         }
       }
+    }
+    if (node instanceof Sym)
+    {
+      
     }
     throw new Error("cannot handle node " + node); 
   }
@@ -910,15 +988,15 @@ function schemeCesk(cc)
   module.p = p;
   module.l = l;
   module.store = store;
-  module.global = global;
+  module.globala = globala;
   
   module.inject = 
     function (node, override)
     {
       override = override || {};
-      var benv = override.benv || global;
-      var haltFrame = new HaltKont(benv.addresses());
-      return new InitState(node, benv, override.store || store, haltFrame);    
+      var benva = override.benva || globala;
+      var haltFrame = new HaltKont([benva]);
+      return new InitState(node, benva, override.store || store, haltFrame);    
     }
   
   return module; 

@@ -1,3 +1,5 @@
+var __nodeCounter__ = 0;
+
 function Null()
 {
 }
@@ -5,13 +7,42 @@ function Null()
 Null.prototype.equals =
   function (x)
   {
-    return (x instanceof Null);
+    return x === this;
   }
 
 Null.prototype.hashCode =
   function ()
   {
     return 11;
+  }
+
+Null.prototype.toString =
+  function ()
+  {
+    return "()";
+  }
+
+function Sym(name)
+{
+  this.name = name;
+}
+
+Sym.prototype.equals =
+  function (x)
+  {
+    return x === this;
+  }
+
+Sym.prototype.hashCode =
+  function ()
+  {
+    return this.name.hashCode();
+  }
+
+Sym.prototype.toString =
+  function ()
+  {
+    return this.name;
   }
 
 function Pair(car, cdr)
@@ -23,9 +54,7 @@ function Pair(car, cdr)
 Pair.prototype.equals =
   function (x)
   {
-    return (x instanceof Pair)
-      && this.car.equals(x.car)
-      && this.cdr.equals(x.cdr)
+    return x === this;
   }
 
 Pair.prototype.hashCode =
@@ -38,22 +67,68 @@ Pair.prototype.hashCode =
     return result;    
   }
 
-function Sym(name)
-{
-  this.name = name;
-}
-
-Sym.prototype.equals =
-  function (x)
-  {
-    return (x instanceof Sym)
-      && (this.name === x.name)
-  }
-
-Sym.prototype.hashCode =
+Pair.prototype.toString =
   function ()
   {
-    return this.name.hashCode();
+    var ags = HashMap.empty();
+    return this.toStringInternal(ags);
+  }
+
+Pair.prototype.toStringInternal =
+  function (ags)
+  {
+    var sb = "(";
+    ags = ags.put(this, ags.size());
+    var p = this;
+    do
+    {
+      var car = p.car;
+      if (car instanceof Pair)
+      {
+        var result = ags.get(car);
+        if (result === undefined)
+        {
+          sb += car.toStringInternal(ags);
+        }
+        else
+        {
+          sb += "*" + result + "*";
+        }
+      }
+      else
+      {
+        sb += String(car);
+      }
+      var cdr = p.cdr;
+      if (cdr instanceof Pair)
+      {
+        var result = ags.get(cdr);
+        if (result === undefined)
+        {
+          p = cdr;
+          ags = ags.put(p, ags.size());
+          sb += " ";
+          continue;
+        }
+        else
+        {
+          sb += " . °" + result + "°";
+          break;
+        }
+      }
+      else if (cdr instanceof Null)
+      {
+        break;
+      }
+      else
+      {
+        sb += " . " + cdr;
+        break;
+      }
+    }
+    while (true);
+    sb += ")";
+    return sb;
   }
 
 function SchemeReader(str)
@@ -138,12 +213,14 @@ SchemeTokenizer.prototype.parse =
         if (d === "t")
         {
           var po = new Boolean(true);
+          po.tag = ++__nodeCounter__;
           po.sp = {pos:this.reader.pos - 1, line:this.reader.line, linePos:this.reader.linePos - 1, length:2};
           return po;
         }
         else if (d === "f")
         {
           var po = new Boolean(false);
+          po.tag = ++__nodeCounter__;
           po.sp = {pos:this.reader.pos - 1, line:this.reader.line, linePos:this.reader.linePos - 1, length:2};
           return po;
         }
@@ -159,6 +236,7 @@ SchemeTokenizer.prototype.parse =
         if (Character.isWhitespace(d) || d === ")" || d === "")
         {
           var po = new Sym("-");
+          po.tag = ++__nodeCounter__;
           po.sp = {pos:this.reader.pos, line:this.reader.line, linePos:this.reader.linePos, length:1};
           return po;
         }
@@ -183,6 +261,7 @@ SchemeTokenizer.prototype.parseIdentifier =
       identifier += this.reader.read();
     }
     var po = new Sym(identifier);
+    po.tag = ++__nodeCounter__;
     sp.length = identifier.length;
     po.sp = sp;
     return po;
@@ -194,7 +273,14 @@ SchemeTokenizer.prototype.parseQuote =
     var sp = {pos:this.reader.pos, line:this.reader.line, linePos:this.reader.linePos};
     var c = this.reader.read();
     var e = this.parse(c);
-    var po = Pair.cons(new Sym("quote"), Pair.cons(e, new Null()));
+    var sym = new Sym("quote");
+    sym.tag = ++__nodeCounter__;
+    var nll = new Null();
+    nll.tag = ++__nodeCounter__;
+    var pair = new Pair(e, nll);
+    pair.tag = ++__nodeCounter__;
+    var po = new Pair(sym, pair);
+    po.tag = ++__nodeCounter__;
     sp.length = this.reader.pos - sp.pos;
     po.sp = sp;
     return po;
@@ -219,6 +305,7 @@ SchemeTokenizer.prototype.parseString =
       s += c;
     }
     var po = new String(s);
+    po.tag = ++__nodeCounter__;
     sp.length = this.reader.pos - sp.pos + 1;
     po.sp = sp;
     return po;
@@ -243,6 +330,7 @@ SchemeTokenizer.prototype.parseNumber =
       throw new Error("TODO");
     }
     var po = new Number(s);
+    po.tag = ++__nodeCounter__;
     sp.length = this.reader.pos - sp.pos;
     po.sp = sp;
     return po;
@@ -256,6 +344,7 @@ SchemeTokenizer.prototype.parseList =
     if (lookahead === ")")
     {
       var po = new Null();
+      po.tag = ++__nodeCounter__;
       sp.length = this.reader.pos - sp.pos;
       po.sp = sp;
       return po;
@@ -275,14 +364,18 @@ SchemeTokenizer.prototype.parseList =
         lookahead = this.skipWhitespace();
         var po = this.parse(lookahead);
         this.reader.read();
-        po = es.reduceRight(function (acc, x) {return new Pair(x, acc)}, po);
+        po = es.reduceRight(function (acc, x) {var p=new Pair(x, acc); p.tag=++__nodeCounter__; return p}, po);
+        po.tag = ++__nodeCounter__;
         sp.length = this.reader.pos - sp.pos;
         po.sp = sp;
         return po;
       }
     }
     while (lookahead !== ")");
-    var po = es.reduceRight(function (acc, x) {return new Pair(x, acc)}, new Null());
+    var nll = new Null();
+    nll.tag = ++__nodeCounter__;
+    var po = es.reduceRight(function (acc, x) {var p=new Pair(x, acc); p.tag=++__nodeCounter__; return p}, nll);
+    po.tag = ++__nodeCounter__;
     sp.length = this.reader.pos - sp.pos;
     po.sp = sp;
     return po;
@@ -309,6 +402,7 @@ SchemeTokenizer.prototype.parseVector =
       }
       while (lookahead !== ")");
     }
+    po.tag = ++__nodeCounter__;
     sp.length = this.reader.pos - sp.pos;
     po.sp = sp;
     return po;    

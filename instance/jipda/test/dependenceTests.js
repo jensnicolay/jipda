@@ -444,6 +444,20 @@ var suiteJipdaDepTests =
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
       assertTrue(ana.isPureFunction(f)); /// ???
     }
+  
+  module.testDeclarations1 =
+    function ()
+    {
+      var src = "var foo=function (){var a=2;var bar=function (x){return x+42};function qux(){var a='BAD'};qux();return bar(a)};foo()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var dsg = new Pushdown().analyze(ast, cesk);
+      var ana = new Analysis(dsg);
+      var aRef = Ast.nodes(ast).filter(function (node) {return node.name === "a" && Ast.isReferenceIdentifier(node, ast)})[0];
+      var aDecl = Ast.nodes(ast).filter(function (node) {return node.type === "VariableDeclarator" && node.id.name === "a"})[0];
+      var decls = ana.declarations(aRef);
+      assertEquals([aDecl], decls);
+    }
       
   return module;
 

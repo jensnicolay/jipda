@@ -10,10 +10,11 @@ var Eq =
       {
         return false;
       }
-      if (!x.equals)
-      {
-        throw new Error("argh: " + x);
-      }
+//      if (!x.equals)
+//      {
+//        throw new Error("argh: " + x);
+//        return false;
+//      }
       return x.equals(y);
     }
   }

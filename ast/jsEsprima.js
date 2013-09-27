@@ -601,6 +601,7 @@ var Ast = (function ()
     return false;
   }
   
+  module.isReferenceIdentifier = isReferenceIdentifier;
   function isReferenceIdentifier(n, ast)
   {
     if (isIdentifier(n))
