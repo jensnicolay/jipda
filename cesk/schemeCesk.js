@@ -101,6 +101,7 @@ function schemeCesk(cc)
       return this.node === other.node
         && this.statica.equals(other.statica);
     }
+  
   Closure.prototype.hashCode =
     function (x)
     {
@@ -110,7 +111,12 @@ function schemeCesk(cc)
       result = prime * result + this.statica.hashCode();
       return result;      
     }
-
+  
+  Closure.prototype.compareTo =
+    function (x)
+    {
+      return this.equals(x) ? 0 : undefined; 
+    }
 
   Closure.prototype.apply_ =
     function (application, operandValues, benva, store, kont)
@@ -118,7 +124,25 @@ function schemeCesk(cc)
       var fun = this.node;
       var statica = this.statica;
       var extendedBenva = a.benv(application, benva, store, kont);
-      return kont.push(new ReturnMarker(application, benva, this, extendedBenva), new ApplyState(application, fun, statica, operandValues, thisa, extendedBenva, store));
+      var extendedBenv = Benv.empty(benva);
+      var params = this.params;
+      var i = 0;
+      while (!(params instanceof Null))
+      {
+        var param = params.car;
+        var randa = a.variable(param, extendedBenva, store, kont);
+        extendedBenv = extendedBenv.add(param.name, randa);
+        store = store.allocAval(randa, operandValues[i]);
+        params = params.cdr;
+        i++;
+      }
+      store = store.allocAval(extendedBenva, extendedBenv);
+      if (this.body.cdr instanceof Null)
+      {
+        return kont.unch(new EvalState(this.body.car, extendedBenva, store));
+      }
+      var frame = new BeginKont(application, this.body, extendedBenva);
+      return kont.push(frame, new EvalState(this.body.car, extendedBenva, store));
     }
 
   Closure.prototype.addresses =
@@ -183,6 +207,7 @@ function schemeCesk(cc)
   function EvalState(node, benva, store)
   {
     this.type = "eval";
+    assertDefinedNotNull(node);
     this.node = node;
     this.benva = benva;
     this.store = store;
@@ -384,6 +409,7 @@ function schemeCesk(cc)
       var benv = store.lookupAval(benva);
       benv = benv.add(id, addr);
       store = store.allocAval(addr, value);
+      store = store.updateAval(benva, benv); // side-effect
       return kont.pop(function (frame) {return new KontState(frame, value, store)});
     }
   
@@ -428,11 +454,11 @@ function schemeCesk(cc)
     {
       var node = this.node;
       var benva = this.benva;
-      var operands = node.arguments;
+      var operands = node.cdr;
   
-      if (operands.length === 0)
+      if (operands instanceof Null)
       {
-        return applyProc(node, operatorValue, [], globalRef, benva, store, kont);
+        return applyProc(node, operatorValue, [], benva, store, kont);
       }
       var frame = new OperandsKont(node, 1, benva, operatorValue, [], globalRef);
       return kont.push(frame, new EvalState(operands[0], benva, store));
@@ -517,10 +543,10 @@ function schemeCesk(cc)
   BeginKont.prototype.equals =
     function (x)
     {
-      return x instanceof BeginKont
+      return (x instanceof BeginKont)
         && this.node === x.node
         && this.exps === x.exps
-        && Eq.equals(this.benva, x.benva)
+        && Eq.equals(this.benva, x.benva);
     }
   BeginKont.prototype.hashCode =
     function ()
@@ -528,7 +554,7 @@ function schemeCesk(cc)
       var prime = 7;
       var result = 1;
       result = prime * result + this.node.hashCode();
-      result = prime * result + this.exps;
+      result = prime * result + this.exps.hashCode();
       result = prime * result + this.benva.hashCode();
       return result;
     }
@@ -554,9 +580,10 @@ function schemeCesk(cc)
       var benva = this.benva;
       var exps = this.exps.cdr;
       
-      if (exps instanceof Null)
+      if (exps.cdr instanceof Null)
       {
-        return kont.pop(function (frame) {return new KontState(frame, value, store)});
+//        return kont.pop(function (frame) {return new KontState(frame, value, store)});
+        return kont.unch(new EvalState(exps.car, benva, store));
       }
       var frame = new BeginKont(node, exps, benva);
       return kont.push(frame, new EvalState(exps.car, benva, store));
@@ -637,79 +664,10 @@ function schemeCesk(cc)
       }
     }
   
-  function evalEmptyStatement(node, benva, store, kont)
-  {
-    return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
-  }
-
   function evalLiteral(node, benva, store, kont)
   {
     var value = l.abst1(node);
     return kont.pop(function (frame) {return new KontState(frame, value, store)});
-  }
-
-  function evalIdentifier(node, benva, store, kont)
-  {
-    var marks = [];
-    var value = doScopeLookup(p.abst1(node.name), benva, store, marks);
-    return kont.pop(function (frame) {return new KontState(frame, value, store)}, marks);
-  }
-
-  function evalProgram(node, benva, store, kont)
-  {
-    return evalStatementList(node, benva, store, kont);
-  }
-
-  function evalStatementList(node, benva, store, kont)
-  {
-    var nodes = node.body;
-    if (nodes.length === 0)
-    {
-      return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
-    }
-    if (nodes.length === 1)
-    {
-//      return kont.unch(new EvalState(nodes[0], benva, store));
-      return evalNode(nodes[0], benva, store, kont);
-    }
-    var frame = new BodyKont(node, 1, benva);
-    return kont.push(frame, new EvalState(nodes[0], benva, store));
-  }
-
-  function evalVariableDeclaration(node, benva, store, kont)
-  {
-    var nodes = node.declarations;
-    if (nodes.length === 0)
-    {
-      throw new Error("no declarations in " + node);
-    }
-    if (nodes.length === 1)
-    {
-      return evalVariableDeclarator(nodes[0], benva, store, kont);
-    }
-    var frame = new VariableDeclarationKont(node, 1, benva);
-    return kont.push(frame, new EvalState(nodes[0], benva, store));
-  }
-
-  function evalVariableDeclarator(node, benva, store, kont)
-  {
-    var init = node.init;
-    if (init === null)
-    {
-      var vr = node.id;    
-      var benv = store.lookupAval(benva);      
-      benv = benv.add(p.abst1(vr.name), L_UNDEFINED);
-      store = store.updateAval(benva, benv); // side-effect
-      return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});      
-    }
-    var frame = new VariableDeclaratorKont(node, benva);
-    return kont.push(frame, new EvalState(init, benva, store));
-  }
-
-  function evalBinaryExpression(node, benva, store, kont)
-  {
-    var frame = new LeftKont(node, benva);
-    return kont.push(frame, new EvalState(node.left, benva, store));
   }
 
   function applyPrimitiveBinaryExpression(node, leftPrim, rightPrim, benva, store, kont)
@@ -803,30 +761,6 @@ function schemeCesk(cc)
     return kont.pop(function (frame) {return new KontState(frame, l.product(prim, []), store)});
   }
 
-  function evalAssignmentExpression(node, benva, store, kont)
-  { 
-    var left = node.left;
-    switch (left.type)
-    {
-      case "Identifier":
-      {
-        var right = node.right;
-        var frame = new AssignIdentifierKont(node, benva);
-        return kont.push(frame, new EvalState(right, benva, store));
-      }
-      case "MemberExpression":
-      {
-        var object = left.object;
-        var frame = new MemberAssignmentKont(node, benva);
-        return kont.push(frame, new EvalState(object, benva, store));    
-      }
-      default:
-      {
-        throw new Error("evalAssignment: cannot handle left hand side " + left);
-      }
-    }
-  }
-
   function evalLambda(node, benva, store, kont)
   {
     var closure = new Closure(node, benva, node.cdr.car, node.cdr.cdr);
@@ -854,6 +788,15 @@ function schemeCesk(cc)
     return kont.push(frame, new EvalState(exp, benva, store));
   }
 
+  function evalIdentifier(node, benva, store, kont)
+  {
+    var name = node.name;
+    var benv = store.lookupAval(benva);
+    var addr = benv.lookup(name);
+    var value = store.lookupAval(addr);
+    return kont.pop(function (frame) {return new KontState(frame, value, store)});
+  }
+  
   function evalBegin(node, benva, store, kont)
   {
     var exps = node.cdr;
@@ -865,39 +808,15 @@ function schemeCesk(cc)
     return kont.push(frame, new EvalState(exps.car, benva, store));
   }
   
-  function evalCallExpression(node, benva, store, kont)
+  function applyProc(node, operatorValue, operandValues, benva, store, kont)
   {
-    var calleeNode = node.callee;
-      
-    if (Ast.isMemberExpression(calleeNode))
-    { // TODO
-      var cont = new Cont("meth", node, null, benva, methodOperatorCont);
-      return evalNode(calleeNode.object, stack.addFirst(cont), benva, store, time);
-    }
-    
-    var frame = new OperatorKont(node, benva);
-    return kont.push(frame, new EvalState(calleeNode, benva, store));      
-  }
-
-  function applyProc(node, operatorValue, operandValues, thisValue, benva, store, kont)
-  {
-    var thisAs = thisValue.addresses();
     var operatorAs = operatorValue.addresses();
-    return thisAs.flatMap(
-      function (thisa)
+    return operatorAs.flatMap(
+      function (operatora)
       {
-        return operatorAs.flatMap(
-          function (operatora)
-          {
-            var benv = store.lookupAval(operatora);
-            var callables = benv.Call;
-            return callables.flatMap(
-              function (callable)
-              {
-                return callable.applyFunction(node, operandValues, thisa, benva, store, kont);
-              })
-          })
-      });
+        var proc = store.lookupAval(operatora);
+        return proc.apply_(node, operandValues, benva, store, kont);
+      })
   }
 
 
@@ -941,12 +860,23 @@ function schemeCesk(cc)
     var frame = new IfKont(node, benva);
     return kont.push(frame, new EvalState(testNode, benva, store));
   }
+  
+  function evalApplication(node, benva, store, kont)
+  {
+    var operator = node.car;
+    var frame = new OperatorKont(node, benva);
+    return kont.push(frame, new EvalState(operator, benva, store));      
+  }
 
   function evalNode(node, benva, store, kont)
   {    
     if (node instanceof Number || node instanceof String || node instanceof Null)
     {
       return evalLiteral(node, benva, store, kont);        
+    }
+    if (node instanceof Sym)
+    {
+      return evalIdentifier(node, benva, store, kont);
     }
     if (node instanceof Pair)
     {
@@ -970,11 +900,8 @@ function schemeCesk(cc)
         {
           return evalBegin(node, benva, store, kont);
         }
+        return evalApplication(node, benva, store, kont);
       }
-    }
-    if (node instanceof Sym)
-    {
-      
     }
     throw new Error("cannot handle node " + node); 
   }

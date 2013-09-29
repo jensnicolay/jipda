@@ -33,8 +33,16 @@
 		$("#resultValue").empty();
 		$("#graph").empty();
 	  var src = editor.getSession().getValue();
-    var ast = new SchemeParser().parse(src)[0];
-    var lat = new Lattice1();
+    var ast = new SchemeParser().parse(src);
+/*     if (ast.length > 0)
+    {
+      ast = new Pair(new Sym("begin"), Pair.toList(ast));
+    }
+    else
+    {
+ */      ast = ast[0];
+/*     }
+ */    var lat = new Lattice1();
     //var lat = new SetLattice(3);
     var cesk = schemeCesk({a:tagAg, p:lat});
     var result = new Pushdown().analyze(ast, cesk);
@@ -58,7 +66,7 @@
 </head>
 
 <body>
-	<div id="editor" style="width: 640px; height: 480px;"></div>
+	<div id="editor" style="width: 640px; height: 320px;"></div>
 	<div id="manip" style="">
 		<button id="eval" name="eval" onClick="doIt()">Eval</button>
 		<span id="resultValue"></span>

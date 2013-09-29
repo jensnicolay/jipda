@@ -58,6 +58,12 @@ ContextAddr.prototype.equals =
     return Eq.equals(this.base, x.base) && Eq.equals(this.context, x.context);
   }
 
+ContextAddr.prototype.subsumes =
+  function (x)
+  {
+    return this.equals(x);
+  }
+
 ContextAddr.prototype.hashCode =
   function ()
   {

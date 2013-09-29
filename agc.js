@@ -24,7 +24,7 @@ Agc.addressReachable =
   {
     if (!(address instanceof Addr))
     {
-      throw new Error(address);
+      throw new Error("not an address:", address);
     }
     if (Arrays.contains(address, reachable, Eq.equals))
     {

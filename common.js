@@ -1059,7 +1059,7 @@ HashSet.prototype.contains =
   function (value)
   {
     var existing = this._map.get(value);
-    return existing;
+    return existing !== undefined;
   }
 
 HashSet.prototype.filter =

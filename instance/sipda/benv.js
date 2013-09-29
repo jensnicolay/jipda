@@ -1,13 +1,20 @@
-function Benv(map)
+function Benv(map, parenta)
 {
   assertDefinedNotNull(map);
   this._map = map;
+  this.parenta = parenta; 
 }
 
 Benv.empty =
+  function (parenta)
+  {
+    return new Benv(HashMap.empty(), parenta);
+  }
+
+Benv.prototype.toString =
   function ()
   {
-    return new Benv(HashMap.empty());
+    return this._map.nice();
   }
 
 Benv.prototype.equals =
@@ -77,7 +84,7 @@ Benv.prototype.add =
   function (a, value)
   {
     var map = this._map.put(a, value);
-    return new Benv(map);
+    return new Benv(map, this.parenta);
   }
 
 Benv.prototype.lookup =
@@ -89,5 +96,5 @@ Benv.prototype.lookup =
 Benv.prototype.addresses =
   function ()
   {
-    return this._map.values().flatMap(function (value) {return value.addresses()});
+    return this.parenta ? [this.parenta].concat(this._map.values()) : this._map.values();
   }

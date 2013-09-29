@@ -683,7 +683,6 @@ Dsg.prototype.declarations =
       }
       visited = visited.add(q);
       var qExecs = HashSet.from(this.executions(q));
-      print("q", q, q.node,execs.meet(qExecs), q.node && q.node.type);
       if (execs.meet(qExecs).size() === 0)
       {
         todo = todo.concat(this.stepBwOver(q));

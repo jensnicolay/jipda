@@ -1078,9 +1078,9 @@ function jsCesk(cc)
       var i = this.i;
       
       var nodes = node.body;
-      if (i === nodes.length)
+      if (i === nodes.length - 1)
       {
-        return kont.pop(function (frame) {return new KontState(frame, value, store)});
+        return kont.unch(new EvalState(nodes[i], benva, store));
       }
       var frame = new BodyKont(node, i + 1, benva);
       return kont.push(frame, new EvalState(nodes[i], benva, store));

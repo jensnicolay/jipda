@@ -51,6 +51,17 @@ function Pair(car, cdr)
   this.cdr = cdr;
 }
 
+Pair.toList =
+  function (arr)
+  {
+    var l = new Null();
+    for (var i = arr.length - 1; i > -1; i--)
+    {
+      l = new Pair(arr[i], l);
+    }
+    return l;  
+  }
+
 Pair.prototype.equals =
   function (x)
   {
