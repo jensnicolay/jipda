@@ -22,6 +22,12 @@ Null.prototype.toString =
     return "()";
   }
 
+Null.prototype.valueOf = 
+  function ()
+  {
+    return Null;
+  }
+
 function Sym(name)
 {
   this.name = name;

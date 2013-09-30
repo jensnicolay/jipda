@@ -1,14 +1,15 @@
-function Benv(map, parenta)
+function Benv(map, parentas)
 {
   assertDefinedNotNull(map);
+  assertFalse(Arrays.contains(undefined, map.values(), Eq.equals));
   this._map = map;
-  this.parenta = parenta; 
+  this.parentas = parentas; 
 }
 
 Benv.empty =
   function (parenta)
   {
-    return new Benv(HashMap.empty(), parenta);
+    return new Benv(HashMap.empty(), parenta ? [parenta] : []);
   }
 
 Benv.prototype.toString =
@@ -21,7 +22,14 @@ Benv.prototype.equals =
   function (x)
   {
     return (x instanceof Benv)
-      && this._map.equals(x._map);
+      && Eq.equals(this.parentas, x.parentas)
+      && this._map.equals(x._map)
+  }
+
+Benv.prototype.hashCode =
+  function ()
+  {
+    return this._map.hashCode();
   }
 
 Benv.prototype.subsumes =
@@ -31,23 +39,11 @@ Benv.prototype.subsumes =
     {
       return true;
     }
-    if (!this.parents.subsumes(x.parents)) 
+    if (!this.parentas.subsumes(x.parentas)) 
     {
       return false;
     }
-    var entries = this._map.entries();
-    for (var i = 0; i < entries.length; i++)
-    {
-      var thisEntry = entries[i];
-      var thisName = thisEntry.key;
-      var thisValue = thisEntry.value;
-      var xValue = x.lookup(thisName);
-      if (!thisValue.subsumes(xValue))
-      {
-        return false;
-      }
-    }
-    return true;
+    return this._map.subsumes(x._map);
   }
 
 Benv.prototype.compareTo =
@@ -68,33 +64,29 @@ Benv.prototype.compareTo =
     return undefined;
   }
 
-Benv.prototype.hashCode =
-  function ()
-  {
-    return this._map.hashCode();
-  }
-
-Benv.prototype.subsumes =
-  function (x)
-  {
-    return this._map.subsumes(x._map);
-  }
-
 Benv.prototype.add =
-  function (a, value)
+  function (name, a)
   {
-    var map = this._map.put(a, value);
-    return new Benv(map, this.parenta);
+    assertDefinedNotNull(name);
+    assertDefinedNotNull(a);
+    var map = this._map.put(name, [a]);
+    return new Benv(map, this.parentas);
   }
 
 Benv.prototype.lookup =
-  function (a)
+  function (name)
   {
-    return this._map.get(a);
+    return this._map.get(name, []);
   }
+
+Benv.prototype.join =
+  function (x)
+  {
+    return new Benv(this._map.joinWith(x._map, function (y, z) {return Arrays.union(y, z, Eq.equals)}, []), Arrays.union(this.parentas, x.parentas, Eq.equals));
+  } 
 
 Benv.prototype.addresses =
   function ()
   {
-    return this.parenta ? [this.parenta].concat(this._map.values()) : this._map.values();
+    return this.parentas.concat(this._map.values().flatten());
   }

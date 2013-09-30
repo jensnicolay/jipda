@@ -49,6 +49,12 @@ Boolean.prototype.equals =
 		return this.valueOf() === x.valueOf();
 	};
 	
+Boolean.prototype.hashCode =
+  function ()
+  {
+    return this.valueOf() ? 1 : 0;
+  }
+	
 Array.prototype.toString =
 	function ()
 	{
@@ -373,6 +379,12 @@ Arrays.deleteDuplicates =
       }, []);
   }
 
+Arrays.union =
+  function (arr1, arr2, eq)
+  {
+    return Arrays.deleteDuplicates(arr1.concat(arr2), eq);
+  }
+
 // subset of 2 distinct elements of arr
 Arrays.twoCombinations =
   function (arr)
@@ -678,18 +690,44 @@ Map.prototype.equals =
     return this.subsumes(x) && x.subsumes(this);
   }
 
-Map.prototype.removeAll =
-  function (keys)
-  {
-    return keys.reduce(function (result, key) {return result.remove(key)}, this);
-  }
-
 Map.prototype.hashCode =
   function ()
   {
     return this.entries().map(function (x) {return HashCode.hashCode(x.key) ^ HashCode.hashCode(x.value)}).reduce(function (acc, x) {return acc + x}, 0);
   }
 
+Map.prototype.putAll =
+  function (map)
+  {
+    return map.entries().reduce(function (result, entry) {return result.put(entry.key, entry.value)}, this);
+  }
+
+Map.prototype.join =
+  function (map, bot)
+  {
+    return this.joinWith(map, function (x, y) {return x.join(y)}, bot);
+  }
+
+Map.prototype.joinWith =
+  function (x, join, bot)
+  {
+    var that = this;
+    return x.entries().reduce(
+      function (result, entry)
+      {
+        var key = entry.key;
+        var thisValue = that.get(key, bot);
+        var xValue = entry.value;
+        var value = join(thisValue, xValue);
+        return result.put(key, value);
+      }, this);
+  }
+
+Map.prototype.removeAll =
+  function (keys)
+  {
+    return keys.reduce(function (result, key) {return result.remove(key)}, this);
+  }
 
 function HashMap(entries)
 {
@@ -858,6 +896,8 @@ function LatticeMap(map, bot)
   this._map = map;
   this.bot = bot;
 }
+LatticeMap.prototype = Object.create(Map.prototype);
+
 LatticeMap.empty =
   function (bot, size)
   {
@@ -874,6 +914,7 @@ LatticeMap.prototype.get =
   {
     return this._map.get(key, this.bot);
   }
+
 LatticeMap.prototype.size =
   function ()
   {
