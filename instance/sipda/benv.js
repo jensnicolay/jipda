@@ -102,24 +102,24 @@ Benv.prototype.diff = //DEBUG
 
 
 Benv.prototype.add =
-  function (name, a)
+  function (name, value)
   {
     assertDefinedNotNull(name);
-    assertDefinedNotNull(a);
-    var map = this._map.put(name, [a]);
+    assertDefinedNotNull(value);
+    var map = this._map.put(name, value);
     return new Benv(map, this.parentas);
   }
 
 Benv.prototype.lookup =
   function (name)
   {
-    return this._map.get(name, []);
+    return this._map.get(name, BOT);
   }
 
 Benv.prototype.join =
   function (x)
   {
-    var map = this._map.joinWith(x._map, function (y, z) {return Arrays.union(y, z, Eq.equals)}, []);
+    var map = this._map.join(x._map);
     var parentas = Arrays.union(this.parentas, x.parentas, Eq.equals);
     var result = new Benv(map, parentas); 
     return result;
@@ -128,5 +128,6 @@ Benv.prototype.join =
 Benv.prototype.addresses =
   function ()
   {
-    return this.parentas.concat(this._map.values().flatten());
+    var frameAddresses = this._map.values().flatMap(function (value) {return value.addresses()});
+    return this.parentas.concat(frameAddresses);
   }

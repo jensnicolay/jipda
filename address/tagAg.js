@@ -37,11 +37,11 @@
       return new ContextAddr(node.tag, null);
     }
 
-  tagAg.variable =
-    function (node, benva, store, kont)
-    {
-      return new ContextAddr(node.tag, null);
-    }
+//  tagAg.variable =
+//    function (node, benva, store, kont)
+//    {
+//      return new ContextAddr(node.tag, null);
+//    }
 
   tagAg.benv =
     function (node, benva, store, kont)

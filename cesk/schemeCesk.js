@@ -93,9 +93,7 @@ function schemeCesk(cc)
       while (!(params instanceof Null))
       {
         var param = params.car;
-        var randa = a.variable(param, extendedBenva, store, kont);
-        extendedBenv = extendedBenv.add(param.name, randa);
-        store = store.allocAval(randa, operandValues[i]);
+        extendedBenv = extendedBenv.add(param.name, operandValues[i]);
         params = params.cdr;
         i++;
       }
@@ -219,26 +217,17 @@ function schemeCesk(cc)
   var global = Benv.empty();
   var store = new Store();
   
-  function installValue(name, value)
-  {
-    var vara = new ContextAddr(name, 0);
-    global = global.add(name, vara);
-    store = store.allocAval(vara, value);
-  }
-  
   function installPrimitive(name, apply_)
   {
-    var vara = new ContextAddr(name, 0);
-    var proca = new ContextAddr("<" + name + ">", 0);
+    var proca = new ContextAddr(name, 0);
     var procRef = l.abst1(proca);
     var proc = Procedure.from([new Primitive(name, apply_)]);
-    global = global.add(name, vara);
-    store = store.allocAval(vara, procRef);
+    global = global.add(name, procRef);
     store = store.allocAval(proca, proc);    
   }
   
-  installValue("#t", L_TRUE);
-  installValue("#f", L_FALSE);
+  global = global.add("#t", L_TRUE);
+  global = global.add("#f", L_FALSE);
   
   installPrimitive("+", 
       function(application, operandValues, benva, store, kont)
@@ -485,10 +474,8 @@ function schemeCesk(cc)
       var node = this.node;
       var benva = this.benva;
       var id = node.cdr.car.name;
-      var addr = a.variable(node, benva, store, kont);
       var benv = store.lookupAval(benva);
-      benv = benv.add(id, addr);
-      store = store.allocAval(addr, value);
+      benv = benv.add(id, value);
       store = store.updateAval(benva, benv); // side-effect
       return kont.pop(function (frame) {return new KontState(frame, value, store)});
     }
@@ -772,7 +759,7 @@ function schemeCesk(cc)
     var name = node.name;
     var todo = [benva];
     var visited = HashSet.empty();
-    var result = [];
+    var value = BOT;
     while (todo.length > 0)
     {
       var a = todo.shift();
@@ -782,17 +769,15 @@ function schemeCesk(cc)
       }
       visited = visited.add(a);
       var benv = store.lookupAval(a);
-      var as = benv.lookup(name);
-      if (as.length > 0)
+      var lookupValue = benv.lookup(name);
+      if (lookupValue !== BOT)
       {
-        var values = as.map(store.lookupAval, store);
-        result = result.concat(values);
+        value = value.join(lookupValue);
         continue;
       }
       var parentas = benv.parentas;
       todo = todo.concat(parentas);
     }
-    var value = result.reduce(Lattice.join, BOT);
     if (value === BOT)
     {
       throw new Error("undefined: " + node);
