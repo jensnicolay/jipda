@@ -216,25 +216,25 @@ Store.prototype.allocAval =
     return new Store(this.map.put(address, newValue));
   };
     
-Store.prototype.allocAval2 = // DEBUG
-  function (address, aval, undef)
-  {
-    assertDefinedNotNull(address);
-    assertDefinedNotNull(aval);
-    var value = this.map.get(address);
-    if (value && value.fresh !== 0)
-    {
-      print("existing non-fresh", value.aval, value.aval.parentas);
-      print("joining with", aval, aval.parentas);
-      var weaklyUpdatedValue = value.weakUpdate(aval);
-      print("REALLOCATED", address, weaklyUpdatedValue.aval, weaklyUpdatedValue.aval.parentas);
-      var store = new Store(this.map.put(address, weaklyUpdatedValue)); 
-      return store;
-    }
-    var newValue = new StoreValue(aval);
-        print("ALLOCATED", address, newValue);
-    return new Store(this.map.put(address, newValue));
-  };
+//Store.prototype.allocAval2 = // DEBUG
+//  function (address, aval, undef)
+//  {
+//    assertDefinedNotNull(address);
+//    assertDefinedNotNull(aval);
+//    var value = this.map.get(address);
+//    if (value && value.fresh !== 0)
+//    {
+//      print("existing non-fresh", value.aval, value.aval.parentas);
+//      print("joining with", aval, aval.parentas);
+//      var weaklyUpdatedValue = value.weakUpdate(aval);
+//      print("REALLOCATED", address, weaklyUpdatedValue.aval, weaklyUpdatedValue.aval.parentas);
+//      var store = new Store(this.map.put(address, weaklyUpdatedValue)); 
+//      return store;
+//    }
+//    var newValue = new StoreValue(aval);
+//        print("ALLOCATED", address, newValue);
+//    return new Store(this.map.put(address, newValue));
+//  };
       
 Store.prototype.updateAval =
   function (address, aval, msg)

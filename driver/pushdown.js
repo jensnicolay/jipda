@@ -368,8 +368,8 @@ function Pushdown()
 Pushdown.run =
   function(q)
   {
-  var k = ceskDriver;
-//    var k = new GcDriver(ceskDriver);
+//      var k = ceskDriver;
+    var k = new GcDriver(ceskDriver);
   
     var etg = Graph.empty();
     var ecg = Graph.empty();

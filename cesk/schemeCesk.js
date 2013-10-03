@@ -97,7 +97,7 @@ function schemeCesk(cc)
         params = params.cdr;
         i++;
       }
-      store = store.allocAval2(extendedBenva, extendedBenv);
+      store = store.allocAval(extendedBenva, extendedBenv);
       if (this.body.cdr instanceof Null)
       {
         return kont.unch(new EvalState(this.body.car, extendedBenva, store));
