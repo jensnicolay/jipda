@@ -368,8 +368,8 @@ function Pushdown()
 Pushdown.run =
   function(q)
   {
-  //var k = ceskDriver;
-    var k = new GcDriver(ceskDriver);
+  var k = ceskDriver;
+//    var k = new GcDriver(ceskDriver);
   
     var etg = Graph.empty();
     var ecg = Graph.empty();
@@ -582,9 +582,9 @@ Pushdown.epsPopSuccessors =
   }
 
 Pushdown.prototype.analyze =
-  function (ast, cesk)
+  function (ast, cesk, override)
   {
-    var initial = cesk.inject(ast);
+    var initial = cesk.inject(ast, override);
     var dsg = Pushdown.run(initial);
     return new Dsg(initial, dsg.etg, dsg.ecg, dsg.ss);
   }

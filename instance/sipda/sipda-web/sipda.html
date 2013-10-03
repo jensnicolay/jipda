@@ -18,9 +18,9 @@
 	<script type="text/javascript" src="../../../driver/pushdown.js"></script>
 	<script type="text/javascript" src="../benv.js"></script>
 	<script type="text/javascript" src="../sipda.js"></script>
-	<script type="text/javascript" src="lib/jquery-1.7.2.min.js"></script>
-	<script type="text/javascript" src="lib/ace/ace.js"></script>
-	<script type="text/javascript" src="lib/viz.js"></script>
+	<script type="text/javascript" src="../../../lib/web/jquery-1.7.2.min.js"></script>
+	<script type="text/javascript" src="../../../lib/web/ace/ace.js"></script>
+	<script type="text/javascript" src="../../../lib/web/viz.js"></script>
 	<script type="text/javascript" src="../../../lib/web/vizgraph.js"></script>
 	<script type="text/javascript">
 
@@ -46,7 +46,8 @@
     //var lat = new SetLattice(3);
     var cesk = schemeCesk({a:tagAg, p:lat});
     var result = new Pushdown().analyze(ast, cesk);
-		$("#resultValue").text(result.value);
+    var resultValue = result.stepFwOver(result.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
+		$("#resultValue").text(resultValue + " (states " + result.etg.nodes().length + ", edges " + result.etg.edges().length + ")");
     var etgEdges = result.etg.edges();
     var emptySet = ArraySet.empty();
     var meta = result.ss.entries().reduce(function (acc, entry) {return acc.put(entry.key, {ss:entry.value})}, HashMap.empty());

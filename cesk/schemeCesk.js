@@ -7,6 +7,8 @@ function schemeCesk(cc)
   // primitive lattice
   var p = cc.p;
   
+  var memo = cc.memo || false;
+  
   assertDefinedNotNull(a);
 //  assertDefinedNotNull(b);
   assertDefinedNotNull(p);
@@ -97,7 +99,7 @@ function schemeCesk(cc)
         params = params.cdr;
         i++;
       }
-      store = store.allocAval(extendedBenva, extendedBenv);
+      store = store.allocAval2(extendedBenva, extendedBenv);
       if (this.body.cdr instanceof Null)
       {
         return kont.unch(new EvalState(this.body.car, extendedBenva, store));
@@ -192,7 +194,7 @@ function schemeCesk(cc)
       {
         return this;
       }
-      return new Procedure(Arrays.deleteDuplicates(this.procs.concat(x.procs, Eq.equals)))
+      return new Procedure(Arrays.deleteDuplicates(this.procs.concat(x.procs), Eq.equals));
     }
   
   Procedure.prototype.addresses =
@@ -263,6 +265,13 @@ function schemeCesk(cc)
       function(application, operandValues, benva, store, kont)
       {
         var primValue = p.eq(operandValues[0].prim, operandValues[1].prim);
+        var value = l.product(primValue, []);
+        return kont.pop(function (frame) {return new KontState(frame, value, store)});
+      });
+  installPrimitive("<", 
+      function(application, operandValues, benva, store, kont)
+      {
+        var primValue = p.lt(operandValues[0].prim, operandValues[1].prim)
         var value = l.product(primValue, []);
         return kont.pop(function (frame) {return new KontState(frame, value, store)});
       });
@@ -382,12 +391,14 @@ function schemeCesk(cc)
       return new EvalState(this.node, this.benva, store);
     }
   
+  var kcc = 0;
   function KontState(frame, value, store)
   {
     this.type = "kont";  
     this.frame = frame;
     this.value = value;
     this.store = store;
+    this.age = kcc++; 
   }
   KontState.prototype.equals =
     function (x)
@@ -759,20 +770,33 @@ function schemeCesk(cc)
   function evalIdentifier(node, benva, store, kont)
   {
     var name = node.name;
-    var benv = store.lookupAval(benva);
-    var as = benv.lookup(name);
-    while (as.length === 0)
+    var todo = [benva];
+    var visited = HashSet.empty();
+    var result = [];
+    while (todo.length > 0)
     {
-      var parentas = benv.parentas;
-      benv = parentas.map(store.lookupAval, store).reduce(Lattice.join, BOT);
-      if (benv === BOT)
+      var a = todo.shift();
+      if (visited.contains(a))
       {
-//        return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
-        throw new Error("undefined: " + node);
+        continue;
       }
-      as = benv.lookup(name);
+      visited = visited.add(a);
+      var benv = store.lookupAval(a);
+      var as = benv.lookup(name);
+      if (as.length > 0)
+      {
+        var values = as.map(store.lookupAval, store);
+        result = result.concat(values);
+        continue;
+      }
+      var parentas = benv.parentas;
+      todo = todo.concat(parentas);
     }
-    var value = as.map(store.lookupAval, store).reduce(Lattice.join, BOT);
+    var value = result.reduce(Lattice.join, BOT);
+    if (value === BOT)
+    {
+      throw new Error("undefined: " + node);
+    }
     return kont.pop(function (frame) {return new KontState(frame, value, store)});
   }
   
@@ -831,7 +855,6 @@ function schemeCesk(cc)
 
   function evalNode(node, benva, store, kont)
   {    
-    print(node, benva, kont);
     if (node instanceof Number || node instanceof Boolean || node instanceof String || node instanceof Null)
     {
       return evalLiteral(node, benva, store, kont);        
