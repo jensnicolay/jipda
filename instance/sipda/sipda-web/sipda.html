@@ -10,7 +10,8 @@
 	<script type="text/javascript" src="../../../lattice/lattice1.js"></script>
 	<script type="text/javascript" src="../../../lattice/setLattice.js"></script>
 	<script type="text/javascript" src="../../../address/address.js"></script>
-	<script type="text/javascript" src="../../../address/tagAg.js"></script>
+	<script type="text/javascript" src="../../../address/monoTagAg.js"></script>
+	<script type="text/javascript" src="../../../address/kcfaTagAg.js"></script>
 	<script type="text/javascript" src="../../../ast/scheme.js"></script>
 	<script type="text/javascript" src="../../../store/store.js"></script>
 	<script type="text/javascript" src="../../../cesk/cesk.js"></script>
@@ -26,7 +27,7 @@
 	<script type="text/javascript">
 
 	// define print method for SIPDA
-   var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }		
+  var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }		
 	var editor;
 	 
 	function doIt()
@@ -45,10 +46,15 @@
 /*     }
  */    var lat = new Lattice1();
     //var lat = new SetLattice(3);
-    var cesk = schemeCesk({a:tagAg, p:lat});
-    var result = new Pushdown().analyze(ast, cesk);
-    var resultValue = result.stepFwOver(result.initial).map(function (q) {return q.value || BOT}).reduce(Lattice.join, BOT);
-		$("#resultValue").text(resultValue + " (states " + result.etg.nodes().length + ", edges " + result.etg.edges().length + ")");
+    var ag = eval($("#alloc").val());
+    var cesk = schemeCesk({a:ag, p:lat, memo:$("#memo").prop("checked")});
+    var cc = {gc:$("#gc").prop("checked")};
+    var driver = new Pushdown(cc);
+    var start = Date.now();
+		var result = driver.analyze(ast, cesk);
+    var end = Date.now();
+		var resultValue = result.stepFwOver(result.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
+		$("#resultValue").text(resultValue + " (states " + result.etg.nodes().length + ", edges " + result.etg.edges().length + ", time " + (end-start) + ")");
     var etgEdges = result.etg.edges();
     var emptySet = ArraySet.empty();
     var meta = result.ss.entries().reduce(function (acc, entry) {return acc.put(entry.key, {ss:entry.value})}, HashMap.empty());
@@ -69,8 +75,28 @@
 </head>
 
 <body>
-	<div id="editor" style="width: 640px; height: 320px;"></div>
-	<div id="manip" style="">
+	<div id="editor" style="width: 640px; height: 320px; float:left;"></div>
+	<div id="config" style="min-width: 320px; height: 320px; margin: 1em">
+		<div title="garbage collection">gc<input type="checkbox" id="gc" checked="true"/></div>
+		<div title="memoization">memo<input type="checkbox" id="memo"/></div>
+		<div title="address allocator">
+			alloc
+			<select id="alloc">
+				<option value="createMonoTagAg()">tag (monovariant)</option>
+				<option value="createKcfaTagAg($('#k').val())">tag + k last call sites</option>
+			</select>
+		</div>
+		<div title="polyvariance">
+			k
+			<select id="k">
+				<option value="0">0</option>
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="99">99</option>
+			</select>
+		</div>
+  </div>
+	<div id="manip" style="clear:both">
 		<button id="eval" name="eval" onClick="doIt()">Eval</button>
 		<span id="resultValue"></span>
 	</div>

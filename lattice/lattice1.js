@@ -832,6 +832,8 @@ function Lattice1()
     
     module.NUMBER = Num;
     module.STRING = Top;
+    
+    module.toString = function () {return "Lattice1"}
       
 		return module;
 	})();

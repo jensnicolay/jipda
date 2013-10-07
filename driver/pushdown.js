@@ -223,7 +223,6 @@ GcDriver.gc =
   function (q, stack)
   {
     var stackAddresses = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
-//    print("gc", q.nice(), stack.toSet(), "\n  " + stackAddresses);
     var store = q.store;
     var rootSet = q.addresses().concat(stackAddresses);
     var store2 = Agc.collect(store, rootSet);
@@ -234,46 +233,50 @@ GcDriver.gc =
 GcDriver.prototype.pushUnch =
   function (q, stack)
   {
-  try
-  {
-    var gcq = q.type === "eval" ? GcDriver.gc(q, stack) : q;
+//  try
+//  {
+//    var gcq = q.type === "eval" ? GcDriver.gc(q, stack) : q;
+    var gcq = q.type === true ? GcDriver.gc(q, stack) : q;
     var edges = this.driver.pushUnch(gcq, stack);
     return edges.map(function (edge){return new Edge(q, edge.g, edge.target, edge.marks)});
-  }
-  catch (e)
-  {
-    e.q = q;
-    throw e;
-  }
+//  }
+//  catch (e)
+//  {
+//    e.q = q;
+//    throw e;
+//  }
   }
     
 GcDriver.prototype.pop =
   function (q, frame, stack)
   {
-    try
-    {
-      var gcq = q.type === "eval" ? GcDriver.gc(q, stack) : q;
+//    try
+//    {
+//      var gcq = q.type === "eval" ? GcDriver.gc(q, stack) : q;
+      var gcq = true ? GcDriver.gc(q, stack) : q;
       var edges = this.driver.pop(gcq, frame, stack);
       return edges.map(function (edge){return new Edge(q, edge.g, edge.target, edge.marks)});
-    }
-    catch (e)
-    {
-      e.q = q;
-      throw e;
-    }
+//    }
+//    catch (e)
+//    {
+//      e.q = q;
+//      throw e;
+//    }
   }
 
 
-function Pushdown()
+function Pushdown(cc)
 {
+  cc = cc || {};
+  this.gc = cc.gc === undefined ? true : cc.gc;
 }
 
 Pushdown.run =
-  function(q)
+  function(q, gc)
   {
-      //var k = ceskDriver;
-      var k = new GcDriver(ceskDriver);
-  
+    var k = gc ? new GcDriver(ceskDriver) : ceskDriver;
+    print("gc", gc ? "true" : "false");
+
     var etg = Graph.empty();
     var ecg = Graph.empty();
     var emptySet = ArraySet.empty();
@@ -376,7 +379,7 @@ Pushdown.run =
         }));
     }
 
-    try {
+//    try {
     while (true)
     {
       // epsilon edges
@@ -436,13 +439,13 @@ Pushdown.run =
         return {etg:etg, ecg:ecg, ss:ss};
       }
     }
-    }
-    catch (e)
-    {
-      print(e, e.stack);
-      etg = etg.addEdge(new Edge(e.q, new Unch(null), new ErrorState(e.q.store, String(e), e.stack)));
-      return {etg:etg, ecg:ecg, ss:ss};
-    } 
+//    }
+//    catch (e)
+//    {
+//      print(e, e.stack);
+//      etg = etg.addEdge(new Edge(e.q, new Unch(null), new ErrorState(e.q.store, String(e), e.stack)));
+//      return {etg:etg, ecg:ecg, ss:ss};
+//    } 
   }
 
 Pushdown.preStackUntil =
@@ -496,7 +499,7 @@ Pushdown.prototype.analyze =
   function (ast, cesk, override)
   {
     var initial = cesk.inject(ast, override);
-    var dsg = Pushdown.run(initial);
+    var dsg = Pushdown.run(initial, this.gc);
     return new Dsg(initial, dsg.etg, dsg.ecg, dsg.ss);
   }
 

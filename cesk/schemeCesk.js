@@ -16,6 +16,10 @@ function schemeCesk(cc)
   // lattice (primitives + addresses)
   var l = new JipdaLattice(p); // TODO this will become param
   
+  print("allocator", a);
+  print("lattice", p);
+  print("memoization", memo);
+  
   // install constants
   var L_UNDEFINED = l.abst1(undefined);
   var L_NULL = l.abst1(null);
@@ -87,7 +91,7 @@ function schemeCesk(cc)
 //      print("apply", application, operandValues);
       var fun = this.node;
       var statica = this.statica;
-      var extendedBenva = a.benv(application, benva, store, kont);
+      var extendedBenva = a.benv(fun, benva, store, kont);
       var extendedBenv = Benv.empty(statica);
       var params = this.params;
       var i = 0;

@@ -28,7 +28,7 @@ function b()
 //  load("test/benvTests.js");
   load("test/concreteTests.js");
   load("test/jipdaTests.js");
-//  load("test/dependenceTests.js");  
+  load("test/dependenceTests.js");  
 //  load("test/coverageTests.js");
 //  load("test/latticeTests.js");  
 }
