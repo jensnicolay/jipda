@@ -15,6 +15,7 @@
 	<script type="text/javascript" src="../../../store/store.js"></script>
 	<script type="text/javascript" src="../../../cesk/cesk.js"></script>
 	<script type="text/javascript" src="../../../cesk/schemeCesk.js"></script>
+	<script type="text/javascript" src="../../../driver/graph.js"></script>
 	<script type="text/javascript" src="../../../driver/pushdown.js"></script>
 	<script type="text/javascript" src="../benv.js"></script>
 	<script type="text/javascript" src="../sipda.js"></script>
@@ -46,12 +47,13 @@
     //var lat = new SetLattice(3);
     var cesk = schemeCesk({a:tagAg, p:lat});
     var result = new Pushdown().analyze(ast, cesk);
-    var resultValue = result.stepFwOver(result.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
+    var resultValue = result.stepFwOver(result.initial).map(function (q) {return q.value || BOT}).reduce(Lattice.join, BOT);
 		$("#resultValue").text(resultValue + " (states " + result.etg.nodes().length + ", edges " + result.etg.edges().length + ")");
     var etgEdges = result.etg.edges();
     var emptySet = ArraySet.empty();
     var meta = result.ss.entries().reduce(function (acc, entry) {return acc.put(entry.key, {ss:entry.value})}, HashMap.empty());
-    
+    //result.tf.entries().forEach(function (entry) {meta.get(entry.key).tf = entry.value});
+
 		//drawLinks(etgEdges.concat(ecgEdges), "#graph");
 		var element = $("#graph");
 		drawLinks(result.etg, result.ecg, meta, element, window);

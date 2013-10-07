@@ -84,10 +84,11 @@ function schemeCesk(cc)
   Closure.prototype.apply_ =
     function (application, operandValues, benva, store, kont)
     {
+//      print("apply", application, operandValues);
       var fun = this.node;
       var statica = this.statica;
       var extendedBenva = a.benv(application, benva, store, kont);
-      var extendedBenv = Benv.empty(benva);
+      var extendedBenv = Benv.empty(statica);
       var params = this.params;
       var i = 0;
       while (!(params instanceof Null))

@@ -15,6 +15,7 @@ function b()
   load("../../address/address.js");
   load("../../address/tagAg.js");
   load("../../address/concreteAg.js");
+  load("../../driver/graph.js");
   load("../../driver/pushdown.js");
   load("../../ast/jsEsprima.js");
   load("../../cesk/cesk.js");
@@ -27,7 +28,7 @@ function b()
 //  load("test/benvTests.js");
   load("test/concreteTests.js");
   load("test/jipdaTests.js");
-  load("test/dependenceTests.js");  
+//  load("test/dependenceTests.js");  
 //  load("test/coverageTests.js");
 //  load("test/latticeTests.js");  
 }

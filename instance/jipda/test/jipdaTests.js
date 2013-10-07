@@ -438,8 +438,8 @@ var suiteJipdaTests =
 //    function ()
 //    {
 //      var src = read("test/resources/churchNums.js");
-//      var c = Pushdown.context({p:new Lattice1(), a:tagAg});
-//      run(src, c, c.l.abst([true, false]));
+//      var cesk = createCesk();
+//      run(src, cesk, cesk.l.abst([true, false]));
 //    }    
     
     

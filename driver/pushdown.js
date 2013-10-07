@@ -27,169 +27,57 @@ HaltKont.prototype.addresses =
   {
     return this.rootSet;
   }
-  
-function Edge(source, g, target, marks)
+
+// only used for META errors
+function ErrorState(store, msg, stack)
 {
-  this.source = source;
-  this.g = g;
-  this.target = target;
-  this.marks = marks;
+  this.type = "error";
+  this.store = store;
+  this.msg = msg;
+  this.stack = stack;
 }
-Edge.source = 
-  function (edge)
-  {
-    return edge.source;
-  }
-Edge.target = 
-  function (edge)
-  {
-    return edge.target;
-  }
-Edge.prototype.equals =
-  function (x)
-  {
-    return x instanceof Edge
-      && Eq.equals(this.source, x.source)
-      && Eq.equals(this.g, x.g)
-      && Eq.equals(this.target, x.target)
-      && Eq.equals(this.marks, x.marks)
-  }
-Edge.prototype.toString =
+ErrorState.prototype.toString =
   function ()
   {
-    return "{" + this.source.nice() + "," + this.g + "," + this.target.nice() + "}";
+    return "#error " + this.msg;
   }
-Edge.prototype.hashCode =
+ErrorState.prototype.nice =
+  function ()
+  {
+    return "#error " + this.msg;
+  }
+ErrorState.prototype.equals =
+  function (x)
+  {
+    return (x instanceof ErrorState)
+      && Eq.equals(this.store, x.store)
+      && Eq.equals(this.msg, x.msg)
+      && Eq.equals(this.stack, x.stack)
+  }
+ErrorState.prototype.hashCode =
   function ()
   {
     var prime = 7;
     var result = 1;
-    result = prime * result + this.source.hashCode();
-    result = prime * result + HashCode.hashCode(this.g);
-    result = prime * result + this.target.hashCode();
-    result = prime * result + HashCode.hashCode(this.marks);
-    return result;    
+    result = prime * result + this.msg.hashCode();
+    return result;
   }
-
-function Graph(edges)
-{
-  this._edges = edges;
-}
-
-Graph.empty =
+ErrorState.prototype.next =
+  function (kont)
+  {
+    return [];
+  }
+ErrorState.prototype.addresses =
   function ()
   {
-    return new Graph(HashSet.empty(131));
+    return [];
+  }
+ErrorState.prototype.setStore =
+  function (store)
+  {
+    return this;
   }
 
-Graph.prototype.equals =
-  function (x)
-  {
-    return x instanceof Graph
-      && this._edges.equals(x._edges);
-  }
-
-Graph.prototype.hashCode =
-  function ()
-  {
-    return this._edges.hashCode();
-  }
-
-Graph.prototype.join =
-  function (x)
-  {
-    return new Graph(this._edges.join(x._edges));
-  }
-
-Graph.prototype.edges =
-  function ()
-  {
-    return this._edges.values();
-  }
-
-Graph.prototype.addEdge =
-  function (edge)
-  {
-    var edges = this._edges.add(edge);
-    return new Graph(edges);    
-  }
-
-Graph.prototype.addEdges =
-  function (edges)
-  {
-    return new Graph(this._edges.addAll(edges));    
-  }
-
-Graph.prototype.removeEdge =
-  function (edge)
-  {
-    return new Graph(this._edges.remove(edge));
-  }
-
-Graph.prototype.removeEdges =
-  function (edges)
-  {
-    return new Graph(this._edges.removeAll(edges));
-  }
-
-Graph.prototype.containsEdge =
-  function (edge)
-  {
-    return this._edges.contains(edge);
-  }
-
-Graph.prototype.containsTarget =
-  function (target)
-  {
-    var edges = this._edges.values();
-    for (var i = 0; i < edges.length; i++)
-    {
-      if (edges[i].target.equals(target))
-      {
-        return true;
-      }
-    }
-    return false;
-  }
-
-Graph.prototype.outgoing =
-  function (source)
-  {
-    return this._edges.values().filter(function (edge) {return edge.source.equals(source)});
-  }
-
-Graph.prototype.incoming =
-  function (target)
-  {
-    return this._edges.values().filter(function (edge) {return edge.target.equals(target)});
-  }
-
-Graph.prototype.successors =
-  function (source)
-  {
-    var targets = this._edges.values().flatMap(function (edge) {return edge.source.equals(source) ? [edge.target] : []});
-    return Arrays.deleteDuplicates(targets, Eq.equals);
-  }
-
-Graph.prototype.predecessors =
-  function (target)
-  {
-    var sources = this._edges.values().flatMap(function (edge) {return edge.target.equals(target) ? [edge.source] : []});
-    return Arrays.deleteDuplicates(sources, Eq.equals);
-  }
-
-Graph.prototype.nodes =
-  function ()
-  {
-    var nodes = this._edges.values().flatMap(function (edge) {return [edge.source, edge.target]});
-    return Arrays.deleteDuplicates(nodes, Eq.equals);
-  }
-
-Graph.prototype.filterEdges =
-  function (f)
-  {
-    return new Graph(this._edges.filter(f));
-  }
 
 function Push(frame)
 {
@@ -258,7 +146,7 @@ Unch.prototype.hashCode =
 Unch.prototype.toString =
   function ()
   {
-    return "e(" + this.frame + ")"//"\u03B5";
+    return "e";//"\u03B5";
   }
 
 function PushUnchKont(source)
@@ -346,18 +234,33 @@ GcDriver.gc =
 GcDriver.prototype.pushUnch =
   function (q, stack)
   {
-    var sa = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
-    var gcq = GcDriver.gc(q, stack);
-    var edges = this.driver.pushUnch(gcq, stack); 
-    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target)});
+  try
+  {
+    var gcq = q.type === "eval" ? GcDriver.gc(q, stack) : q;
+    var edges = this.driver.pushUnch(gcq, stack);
+    return edges.map(function (edge){return new Edge(q, edge.g, edge.target, edge.marks)});
+  }
+  catch (e)
+  {
+    e.q = q;
+    throw e;
+  }
   }
     
 GcDriver.prototype.pop =
   function (q, frame, stack)
   {
-    var gcq = GcDriver.gc(q, stack);
-    var edges = this.driver.pop(gcq, frame, stack);
-    return edges.map(function (edge) {return new Edge(q, edge.g, edge.target, edge.marks)});
+    try
+    {
+      var gcq = q.type === "eval" ? GcDriver.gc(q, stack) : q;
+      var edges = this.driver.pop(gcq, frame, stack);
+      return edges.map(function (edge){return new Edge(q, edge.g, edge.target, edge.marks)});
+    }
+    catch (e)
+    {
+      e.q = q;
+      throw e;
+    }
   }
 
 
@@ -368,8 +271,8 @@ function Pushdown()
 Pushdown.run =
   function(q)
   {
-//      var k = ceskDriver;
-    var k = new GcDriver(ceskDriver);
+      //var k = ceskDriver;
+      var k = new GcDriver(ceskDriver);
   
     var etg = Graph.empty();
     var ecg = Graph.empty();
@@ -472,7 +375,8 @@ Pushdown.run =
           return popEdges.map(function (popEdge) {return new Edge(pushEdge.source, new Unch(pushEdge.g.frame), popEdge.target)});
         }));
     }
-    
+
+    try {
     while (true)
     {
       // epsilon edges
@@ -532,6 +436,13 @@ Pushdown.run =
         return {etg:etg, ecg:ecg, ss:ss};
       }
     }
+    }
+    catch (e)
+    {
+      print(e, e.stack);
+      etg = etg.addEdge(new Edge(e.q, new Unch(null), new ErrorState(e.q.store, String(e), e.stack)));
+      return {etg:etg, ecg:ecg, ss:ss};
+    } 
   }
 
 Pushdown.preStackUntil =

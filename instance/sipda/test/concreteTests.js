@@ -6,12 +6,11 @@ var suiteConcreteTests =
   
   function run(src, expected)
   {
-    var ast = Ast.createAst(src);
+    var ast = new SchemeParser().parse(src)[0];
     var lat = new CpLattice();
-    var cesk = jsCesk({a:concreteAg, p: new CpLattice()});
-    var ast = Ast.createAst(src);
+    var cesk = schemeCesk({a:concreteAg, p: new CpLattice()});
     var result = new Pushdown().analyze(ast, cesk);
-    var actual = result.stepOver(result.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
+    var actual = result.stepFwOver(result.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
     assertEquals(cesk.l.abst1(expected), actual);    
   }
 
@@ -19,39 +18,39 @@ var suiteConcreteTests =
     function ()
     {
       run("42", 42);
-      run("undefined", undefined);
+      run("#t", true);
+      run("#f", false);
     }
         
   module.test2 =
     function ()
     {
-      run("41; 42;", 42);
+      run("(begin 41 42)", 42);
     }
             
   module.test3 =
     function ()
     {
-      run("var a = 1;", undefined);
-      run("var a = 1; a;", 1);
-      run("var a = 2; a+a;", 4);
-      run("var a = 2, b = 3; a*b;", 6);
-      run("var a = 3, b = 4, c = 5; a-b-c;", -6);
-      run("var a = 4; a = 5; a;", 5);
+      run("(begin (define a 1) a)", 1);
+      run("(begin (define a 2) (+ a a))", 4);
+      run("(begin (define a 2) (define b 3) (* a b))", 6);
+      run("(begin (define a 3) (define b 4) (define c 5) (- a b c))", -6);
+//      run("var a = 4; a = 5; a;", 5); SET!
     };
     
   module.test4 =
     function ()
     {
-      run("var pi = function () {return 3;}; pi(); pi();", 3);
-      run("function pi() {return 3;}; pi(); pi();", 3);
+      run("(begin (define pi (lambda () 3)) (pi) (pi))", 3); 
+      // repeat test with (define (pi) 3)
     };
     
   module.test5 =
     function ()
     {
-      run("var sq = function (x) {return x * x;}; sq(5);", 25);
-      run("function sq(x) {return x * x;}; sq(5);", 25);
-      run("var sq = function (x) {return x * x;}; sq(5); sq(6);", 36);
+      run("(begin (define sq (lambda (x) (* x x))) (sq 5))", 25);
+      // repeat test with (define (sq x) ...)
+      run("(begin (define sq (lambda (x) (* x x))) (sq 5) (sq 6))", 36);
     };
 
 //  module.test15 =
@@ -677,31 +676,31 @@ var suiteConcreteTests =
     module.testGcIpd =
       function ()
       {
-        run(read("test/resources/gcIpdExample.js"), 36);    
+        run(read("test/resources/gcIpdExample.scm"), 36);    
       }
     
-    module.testRotate =
-      function ()
-      {
-        run(read("test/resources/rotate.js"), "hallo");    
-      }
+//    module.testRotate = TOO SLOW
+//      function ()
+//      {
+//        run(read("test/resources/rotate.scm"), "hallo");    
+//      }
     
     module.testFib =
       function ()
       {
-        run("var fib = function (n) {if (n<2) {return n} return fib(n-1)+fib(n-2)}; fib(4)", 3);
+        run("(begin (define fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2)))))) (fib 4))", 3);
       }
     
     module.testFac =
       function ()
       {
-        run("function f(n) {if (n === 0) {return 1} else {return n*f(n-1)}}; f(10)", 3628800);
+        run("(begin (define f (lambda (n) (if (= n 0) 1 (* n (f (- n 1)))))) (f 10))", 3628800);
       }
     
     module.test101 =
       function ()
       {
-        run("function g(){return 1}; function f(n){if (n === 0){return 0} else return f(n-1)+g()}; f(10)", 10);
+        run("(begin (define g (lambda () 1)) (define f (lambda (n) (if (= n 0) 0 (+ (f (- n 1)) (g))))) (f 10))", 10);
       }
     
         

@@ -391,6 +391,7 @@ function jsCesk(cc)
   function EvalState(node, benva, store)
   {
     this.type = "eval";
+    assertDefinedNotNull(node);
     this.node = node;
     this.benva = benva;
     this.store = store;
@@ -1888,6 +1889,11 @@ function jsCesk(cc)
     }    
     
     store = store.allocAval(extendedBenva, extendedBenv);
+    
+    if (nodes.length === 1)
+    {
+      return evalNode(nodes[0], extendedBenva, store, kont);
+    }
     
     var frame = new BodyKont(bodyNode, 1, extendedBenva);
     return kont.push(frame, new EvalState(nodes[0], extendedBenva, store));

@@ -11,4 +11,9 @@
 .node.ReturnState ellipse
 {
 	fill:#ccf;
-} 
+}
+
+.node.ErrorState ellipse
+{
+	fill:#f00;
+}
