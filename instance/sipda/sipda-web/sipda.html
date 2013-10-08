@@ -47,9 +47,10 @@
  */    var lat = new Lattice1();
     //var lat = new SetLattice(3);
     var ag = eval($("#alloc").val());
-    var cesk = schemeCesk({a:ag, p:lat, memo:$("#memo").prop("checked")});
-    var cc = {gc:$("#gc").prop("checked")};
-    var driver = new Pushdown(cc);
+    var gc = $("#gc").prop("checked");
+    var memo = $("#memo").prop("checked");
+    var cesk = schemeCesk({a:ag, p:lat, gc:gc, memo:memo});
+    var driver = new Pushdown();
     var start = Date.now();
 		var result = driver.analyze(ast, cesk);
     var end = Date.now();

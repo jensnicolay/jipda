@@ -7,6 +7,8 @@ function jsCesk(cc)
   // primitive lattice
   var p = cc.p;
   
+  var gc = cc.gc === undefined ? true : cc.gc;
+  
   assertDefinedNotNull(a);
 //  assertDefinedNotNull(b);
   assertDefinedNotNull(p);
@@ -426,7 +428,18 @@ function jsCesk(cc)
   EvalState.prototype.next =
     function (kont)
     {
-      return evalNode(this.node, this.benva, this.store, kont);
+      var store;
+      if (gc)
+      {
+        var stackAddresses = kont.stack.flatMap(function (frame) {return frame.addresses()}).toSet();
+        var rootSet = this.addresses().concat(stackAddresses);
+        store = Agc.collect(this.store, rootSet);        
+      }
+      else
+      {
+        store = this.store;
+      }
+      return evalNode(this.node, this.benva, store, kont);
     }
   EvalState.prototype.addresses =
     function ()

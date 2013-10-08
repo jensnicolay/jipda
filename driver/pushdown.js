@@ -72,12 +72,6 @@ ErrorState.prototype.addresses =
   {
     return [];
   }
-ErrorState.prototype.setStore =
-  function (store)
-  {
-    return this;
-  }
-
 
 function Push(frame)
 {
@@ -149,9 +143,10 @@ Unch.prototype.toString =
     return "e";//"\u03B5";
   }
 
-function PushUnchKont(source)
+function PushUnchKont(source, stack)
 {
   this.source = source;
+  this.stack = stack;
 }
 
 PushUnchKont.prototype.push =
@@ -172,10 +167,11 @@ PushUnchKont.prototype.unch =
     return [new Edge(this.source, new Unch(null), target, marks)];
   }
 
-function PopKont(source, frame)
+function PopKont(source, frame, stack)
 {
   this.source = source;
   this.frame = frame;
+  this.stack = stack;
 }
 
 PopKont.prototype.push =
@@ -203,79 +199,25 @@ var ceskDriver = {};
 ceskDriver.pushUnch =
   function (q, stack)
   {
-    var kont = new PushUnchKont(q);
+    var kont = new PushUnchKont(q, stack);
     return q.next(kont);
   }
 
 ceskDriver.pop =
   function (q, frame, stack)
   {
-    var kont = new PopKont(q, frame);
+    var kont = new PopKont(q, frame, stack);
     return q.next(kont);
   }
 
-function GcDriver(driver)
+function Pushdown()
 {
-  this.driver = driver;
-}
-
-GcDriver.gc =
-  function (q, stack)
-  {
-    var stackAddresses = stack.flatMap(function (frame) {return frame.addresses()}).toSet();
-    var store = q.store;
-    var rootSet = q.addresses().concat(stackAddresses);
-    var store2 = Agc.collect(store, rootSet);
-    var gcq = q.setStore(store2); 
-    return gcq;
-  }
-
-GcDriver.prototype.pushUnch =
-  function (q, stack)
-  {
-//  try
-//  {
-//    var gcq = q.type === "eval" ? GcDriver.gc(q, stack) : q;
-    var gcq = q.type === true ? GcDriver.gc(q, stack) : q;
-    var edges = this.driver.pushUnch(gcq, stack);
-    return edges.map(function (edge){return new Edge(q, edge.g, edge.target, edge.marks)});
-//  }
-//  catch (e)
-//  {
-//    e.q = q;
-//    throw e;
-//  }
-  }
-    
-GcDriver.prototype.pop =
-  function (q, frame, stack)
-  {
-//    try
-//    {
-//      var gcq = q.type === "eval" ? GcDriver.gc(q, stack) : q;
-      var gcq = true ? GcDriver.gc(q, stack) : q;
-      var edges = this.driver.pop(gcq, frame, stack);
-      return edges.map(function (edge){return new Edge(q, edge.g, edge.target, edge.marks)});
-//    }
-//    catch (e)
-//    {
-//      e.q = q;
-//      throw e;
-//    }
-  }
-
-
-function Pushdown(cc)
-{
-  cc = cc || {};
-  this.gc = cc.gc === undefined ? true : cc.gc;
 }
 
 Pushdown.run =
-  function(q, gc)
+  function(q)
   {
-    var k = gc ? new GcDriver(ceskDriver) : ceskDriver;
-    print("gc", gc ? "true" : "false");
+    var k = ceskDriver;
 
     var etg = Graph.empty();
     var ecg = Graph.empty();
@@ -499,7 +441,7 @@ Pushdown.prototype.analyze =
   function (ast, cesk, override)
   {
     var initial = cesk.inject(ast, override);
-    var dsg = Pushdown.run(initial, this.gc);
+    var dsg = Pushdown.run(initial);
     return new Dsg(initial, dsg.etg, dsg.ecg, dsg.ss);
   }
 

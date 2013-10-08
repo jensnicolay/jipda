@@ -7,7 +7,8 @@ function schemeCesk(cc)
   // primitive lattice
   var p = cc.p;
   
-  var memo = cc.memo || false;
+  var gc = cc.gc === undefined ? true : cc.gc;
+  var memo = cc.memo === undefined ? false : cc.memo;
   
   assertDefinedNotNull(a);
 //  assertDefinedNotNull(b);
@@ -18,6 +19,7 @@ function schemeCesk(cc)
   
   print("allocator", a);
   print("lattice", p);
+  print("gc", gc);
   print("memoization", memo);
   
   // install constants
@@ -35,6 +37,7 @@ function schemeCesk(cc)
   var P_STRING = p.STRING;
   var P_DEFINED = P_TRUE.join(P_FALSE).join(P_NUMBER).join(P_STRING);
   
+
   function Closure(node, statica, params, body)
   {
     this.node = node;
@@ -328,11 +331,6 @@ function schemeCesk(cc)
     {
       return [this.benva];
     }
-  InitState.prototype.setStore =
-    function (store)
-    {
-      return new InitState(this.node, this.benva, store, this.haltFrame);
-    }
 
   function EvalState(node, benva, store)
   {
@@ -372,17 +370,23 @@ function schemeCesk(cc)
   EvalState.prototype.next =
     function (kont)
     {
-      return evalNode(this.node, this.benva, this.store, kont);
+      var store;
+      if (gc)
+      {
+        var stackAddresses = kont.stack.flatMap(function (frame) {return frame.addresses()}).toSet();
+        var rootSet = this.addresses().concat(stackAddresses);
+        store = Agc.collect(this.store, rootSet);        
+      }
+      else
+      {
+        store = this.store;
+      }
+      return evalNode(this.node, this.benva, store, kont);
     }
   EvalState.prototype.addresses =
     function ()
     {
       return [this.benva];
-    }
-  EvalState.prototype.setStore =
-    function (store)
-    {
-      return new EvalState(this.node, this.benva, store);
     }
   
   var kcc = 0;
@@ -430,11 +434,6 @@ function schemeCesk(cc)
     function ()
     {
       return this.frame.addresses().concat(this.value.addresses());
-    }
-  KontState.prototype.setStore =
-    function (store)
-    {
-      return new KontState(this.frame, this.value, store);
     }
   
   function DefineKont(node, benva)
@@ -886,11 +885,6 @@ function schemeCesk(cc)
   }
 
   var module = {};
-  module.evalState =
-    function (node, benva, store)
-    {
-      return new EvalState(node, benva, store);
-    }
   module.p = p;
   module.l = l;
   module.store = store;
