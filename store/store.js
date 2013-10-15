@@ -20,6 +20,15 @@ StoreValue.prototype.equals =
     return this.aval.equals(x.aval);
   }
 
+StoreValue.prototype.hashCode =
+  function ()
+  {
+    var prime = 5;
+    var result = 1;
+    result = prime * result + this.aval.hashCode();
+    return result;    
+  }
+
 StoreValue.prototype.compareTo =
   function (x)
   {
@@ -89,6 +98,12 @@ Store.prototype.equals =
   function (x)
   {
     return this.compareTo(x) === 0;
+  }
+
+Store.prototype.hashCode =
+  function ()
+  {
+    return this.map.hashCode();
   }
 
 Store.prototype.compareTo =

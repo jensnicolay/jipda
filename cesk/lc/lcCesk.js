@@ -9,7 +9,7 @@ function lcCesk(cc)
   
   var gcFlag = cc.gc === undefined ? true : cc.gc;
   var memoFlag = cc.memo === undefined ? false : cc.memo;
-  var memoTable = [];
+  var memoTable = HashMap.empty();
   
   assertDefinedNotNull(a);
 //  assertDefinedNotNull(b);
@@ -90,6 +90,7 @@ function lcCesk(cc)
     {
 //      print("apply", application, operandValues);
       var fun = this.node;
+      var exp = this.body.car;
       var extendedBenv = this.statc;
       var params = this.params;
       var i = 0;
@@ -103,12 +104,24 @@ function lcCesk(cc)
         params = params.cdr;
         i++;
       }
-      if (this.body.cdr instanceof Null)
+      
+      if (memoFlag)
       {
-        return kont.unch(new EvalState(this.body.car, extendedBenv, store));
+        var memoResult = memoTable.get([exp, extendedBenv, store]);
+        if (memoResult)
+        {
+          var memoValue = memoResult[0];
+          var memoStore = memoResult[1];
+          return kont.pop(function (frame) {return new KontState(frame, memoValue, memoStore)}, "MEMO");
+        }        
       }
-      var frame = new BeginKont(application, this.body, extendedBenv); // TODO 'application' or 'fun'?
-      return kont.push(frame, new EvalState(this.body.car, extendedBenv, store));
+      
+      if (!(this.body.cdr instanceof Null))
+      {
+        throw new Error("expected single body expression, got " + this.body);
+      }
+      var frame = new ReturnKont(exp, extendedBenv, store);
+      return kont.push(frame, new EvalState(exp, extendedBenv, store));
     }
 
   Closure.prototype.addresses =
@@ -614,8 +627,8 @@ function lcCesk(cc)
         {
           return kont.unch(new EvalState(body.car, benv, store));          
         }
-        var frame = new BeginKont(node, this.body, benv);
-        return kont.push(frame, new EvalState(this.body.car, benv, store));
+        var frame = new BeginKont(node, body, benv);
+        return kont.push(frame, new EvalState(body.car, benv, store));
       }
       return evalLetrecBinding(node, bindings, benv, store, kont);
     }
@@ -738,6 +751,58 @@ function lcCesk(cc)
       }
     }
   
+  function ReturnKont(node, extendedBenv, extendedStore)
+  {
+    this.node = node;
+    this.extendedBenv = extendedBenv;
+    this.extendedStore = extendedStore;
+  }
+  ReturnKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof ReturnKont
+        && this.node === x.node 
+        && Eq.equals(this.extendedBenv, x.extendedBenv)
+        && Eq.equals(this.extendedStore, x.extendedStore)
+    }
+  ReturnKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.extendedBenv.hashCode();
+      result = prime * result + this.extendedStore.hashCode();
+      return result;
+    }
+  ReturnKont.prototype.toString =
+    function ()
+    {
+      return "ret-" + this.node.tag;
+    }
+  ReturnKont.prototype.nice =
+    function ()
+    {
+      return "ret-" + this.node.tag;
+    }
+  ReturnKont.prototype.addresses =
+    function ()
+    {
+      return this.extendedBenv.addresses().concat(this.extendedStore.map.keys());
+    }
+  ReturnKont.prototype.apply =
+    function (returnValue, store, kont)
+    {
+      var node = this.node;
+      var extendedBenv = this.extendedBenv;
+      var extendedStore = this.extendedStore;
+      if (memoFlag)
+      {
+        memoTable = memoTable.put([node, extendedBenv, extendedStore], [returnValue, store]);
+      }
+      return kont.pop(function (frame) {return new KontState(frame, returnValue, store)});
+    }
+  
   function evalLiteral(node, benv, store, kont)
   {
     var value = p.abst1(node.valueOf());
@@ -835,75 +900,13 @@ function lcCesk(cc)
     return helper(s);
   }
   
-  function Memo(ratorRands, store)
-  {
-    assertTrue(ratorRands != null);
-    assertTrue(store != null);
-    this.ratorRands = ratorRands;
-    this.store = store;
-  }
-  
-  Memo.prototype.toString =
-    function ()
-    {
-      return "<ratorRands " + this.ratorRands + ">"; 
-    }
-  
-  Memo.prototype.subsumes =
-    function (x)
-    {
-      if (this.ratorRands.length !== x.ratorRands.length)
-      {
-        return false;
-      }
-      for (var i = 0; i < this.ratorRands.length; i++)
-      {
-        if (!this.ratorRands[i].subsumes(x.ratorRands[i]))
-        {
-          return false;
-        }
-      }
-      return this.store.subsumes(x.store);
-    }
-
   function applyKont(frame, value, store, kont)
   {
-    if (memoFlag)
-    {
-      var valueForStates = kont.valueFor();
-      var evalStates = valueForStates.filter(function (q) {return q.node && isApplication(q.node)});
-      var operStates = evalStates.flatMap(function (q) {return scanOpers(q, kont)});
-      memoTable = operStates.reduce(
-        function (memoTable, operState)
-        {
-          var ratorRands = operState.slice(1).map(function (q) {return q.value});
-          var memo = new Memo(ratorRands, store);
-          print("memoizing", operState[0].node, memo, value);
-          return memoTable.addLast({memo:memo, value:value});
-        }, memoTable);
-    }
     return frame.apply(value, store, kont);
   }
   
   function applyProc(node, operatorValue, operandValues, benv, store, kont)
   {
-    if (memoFlag)
-    {
-      var memo = new Memo([operatorValue].concat(operandValues), store);
-      var matchingEntries = memoTable.flatMap(
-        function (entry)
-        {
-          var entryMemo = entry.memo;
-          return entryMemo.subsumes(memo) ? [entry] : [];
-        });
-      var memoValue = matchingEntries.map(function (entry) {return entry.value}).reduce(Lattice.join, BOT);
-      var memoStore = matchingEntries.map(function (entry) {return entry.memo.store}).reduce(Lattice.join, BOT);
-      if (matchingEntries.length > 0)
-      {
-        print("using", kont.source, "#", matchingEntries.length, "value", memoValue);
-        return kont.pop(function (frame) {return new KontState(frame, memoValue, memoStore)}, "MEMO");
-      }      
-    }
     if (!(operatorValue instanceof Procedure))
     {
       throw new Error("not an operator: " + node.car);

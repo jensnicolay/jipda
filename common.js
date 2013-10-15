@@ -37,6 +37,7 @@ HashCode.hashCode =
     {
       return x >>> 0; 
     }
+//    if (!x.hashCode) {print("!!!", Object.keys(x))}
     return x.hashCode();
   }
   
