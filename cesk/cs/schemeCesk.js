@@ -7,8 +7,9 @@ function schemeCesk(cc)
   // primitive lattice
   var p = cc.p;
   
-  var gc = cc.gc === undefined ? true : cc.gc;
-  var memo = cc.memo === undefined ? false : cc.memo;
+  var gcFlag = cc.gc === undefined ? true : cc.gc;
+  var memoFlag = cc.memo === undefined ? false : cc.memo;
+  var memoTable = [];
   
   assertDefinedNotNull(a);
 //  assertDefinedNotNull(b);
@@ -19,8 +20,8 @@ function schemeCesk(cc)
   
   print("allocator", a);
   print("lattice", p);
-  print("gc", gc);
-  print("memoization", memo);
+  print("gc", gcFlag);
+  print("memoization", memoFlag);
   
   // install constants
   var L_UNDEFINED = l.abst1(undefined);
@@ -94,8 +95,8 @@ function schemeCesk(cc)
 //      print("apply", application, operandValues);
       var fun = this.node;
       var statica = this.statica;
-      var extendedBenva = a.benv(fun, benva, store, kont);
-      var extendedBenv = Benv.empty(statica);
+      var extendedBenva = a.benv(fun, application);
+      var extendedBenv = store.lookupAval(statica);
       var params = this.params;
       var i = 0;
       while (!(params instanceof Null))
@@ -110,7 +111,7 @@ function schemeCesk(cc)
       {
         return kont.unch(new EvalState(this.body.car, extendedBenva, store));
       }
-      var frame = new BeginKont(application, this.body, extendedBenva);
+      var frame = new BeginKont(application, this.body, extendedBenva); // TODO 'application' or 'fun'?
       return kont.push(frame, new EvalState(this.body.car, extendedBenva, store));
     }
 
@@ -331,6 +332,20 @@ function schemeCesk(cc)
     {
       return [this.benva];
     }
+  
+  function gc(q, kont)
+  {
+    if (gcFlag)
+    {
+      var stackAddresses = kont.stack.flatMap(function (frame) {return frame.addresses()}).toSet();
+      var rootSet = q.addresses().concat(stackAddresses);
+      return Agc.collect(q.store, rootSet);        
+    }
+    else
+    {
+      return q.store;
+    }
+  }
 
   function EvalState(node, benva, store)
   {
@@ -370,18 +385,7 @@ function schemeCesk(cc)
   EvalState.prototype.next =
     function (kont)
     {
-      var store;
-      if (gc)
-      {
-        var stackAddresses = kont.stack.flatMap(function (frame) {return frame.addresses()}).toSet();
-        var rootSet = this.addresses().concat(stackAddresses);
-        store = Agc.collect(this.store, rootSet);        
-      }
-      else
-      {
-        store = this.store;
-      }
-      return evalNode(this.node, this.benva, store, kont);
+      return evalNode(this.node, this.benva, gc(this, kont), kont);
     }
   EvalState.prototype.addresses =
     function ()
@@ -389,14 +393,12 @@ function schemeCesk(cc)
       return [this.benva];
     }
   
-  var kcc = 0;
   function KontState(frame, value, store)
   {
-    this.type = "kont";  
+    this.type = "kont";
     this.frame = frame;
     this.value = value;
     this.store = store;
-    this.age = kcc++; 
   }
   KontState.prototype.equals =
     function (x)
@@ -428,7 +430,7 @@ function schemeCesk(cc)
   KontState.prototype.next =
     function (kont)
     {
-      return applyKont(this.frame, this.value, this.store, kont)
+      return applyKont(this.frame, this.value, gc(this, kont), kont)
     }
   KontState.prototype.addresses =
     function ()
@@ -699,7 +701,7 @@ function schemeCesk(cc)
       var falseProj = conditionValue.meet(L_FALSE);
       if (falseProj === BOT) // no false in value
       {
-        return evalNode(consequent, benva, store, kont);
+        return kont.unch(new EvalState(consequent, benva, store));
       }
       else if (conditionValue.equals(falseProj)) // value is false
       {
@@ -707,7 +709,7 @@ function schemeCesk(cc)
 //        {
 //          return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
 //        }
-        return evalNode(alternate, benva, store, kont);
+        return kont.unch(new EvalState(alternate, benva, store));
       }
       else // value > false
       {
@@ -734,7 +736,7 @@ function schemeCesk(cc)
   function evalLambda(node, benva, store, kont)
   {
     var closure = new Closure(node, benva, node.cdr.car, node.cdr.cdr);
-    var closurea = a.closure(node, benva, store, kont);
+    var closurea = a.closure(node, benva); // benva here is transitive application
     var closureRef = l.abst1(closurea);
     store = store.allocAval(closurea, Procedure.from([closure]));
     return kont.pop(function (frame) {return new KontState(frame, closureRef, store)});
@@ -761,27 +763,8 @@ function schemeCesk(cc)
   function evalIdentifier(node, benva, store, kont)
   {
     var name = node.name;
-    var todo = [benva];
-    var visited = HashSet.empty();
-    var value = BOT;
-    while (todo.length > 0)
-    {
-      var a = todo.shift();
-      if (visited.contains(a))
-      {
-        continue;
-      }
-      visited = visited.add(a);
-      var benv = store.lookupAval(a);
-      var lookupValue = benv.lookup(name);
-      if (lookupValue !== BOT)
-      {
-        value = value.join(lookupValue);
-        continue;
-      }
-      var parentas = benv.parentas;
-      todo = todo.concat(parentas);
-    }
+    var benv = store.lookupAval(benva);
+    var value = benv.lookup(name);
     if (value === BOT)
     {
       throw new Error("undefined: " + node);
@@ -803,9 +786,147 @@ function schemeCesk(cc)
     var frame = new BeginKont(node, exps, benva);
     return kont.push(frame, new EvalState(exps.car, benva, store));
   }
+    
+  function isApplication(node)
+  {
+    return node instanceof Pair
+      && !SchemeParser.isSyntacticKeyword(node.car.name)
+  }
+  
+  function scanOpers(s, kont)
+  {
+    var visited = HashSet.empty();
+    
+    function helper(q)
+    {
+      if (visited.contains(q))
+      {
+        return [];
+      }
+      visited = visited.add(q);
+      var epsOperFrameSuccs = kont.ecg.outgoing(q).flatMap(
+        function (h)
+        {
+          return h.g && (h.g.frame instanceof OperatorKont || h.g.frame instanceof OperandsKont) ? [h.target] : [];
+        });
+      if (epsOperFrameSuccs.length === 0)
+      {
+        return [[q]];
+      }
+      var rs = epsOperFrameSuccs.flatMap(helper);
+      var rs2 = rs.map(function (r) {return r.addFirst(q)});
+      return rs2;
+    }
+    return helper(s);
+  }
+  
+  function Memo(ratorRands, store)
+  {
+    assertTrue(ratorRands != null);
+    assertTrue(store != null);
+    this.ratorRands = ratorRands;
+    this.store = store;
+  }
+  
+  Memo.updateTable =
+    function (memo, value, table)
+    {
+//      for (var i = 0; i < table.length; i++)
+//      {
+//        var entry = table[i];
+//        if (entry.memo.subsumes(memo))
+//        {
+//          throw new Error("memo " + entry.memo + "->" + entry.value + " already subsumes " + memo + "->" + value);
+//        }
+//      }
+      var table2 = table.filter(function (entry) {return !memo.subsumes(entry.memo)});
+      print("removed from memo table", table.length - table2.length, table2.length + 1);
+      return table2.addLast({memo:memo, value:value});
+    }
+  
+  Memo.prototype.toString =
+    function ()
+    {
+      return "<ratorRands " + this.ratorRands + ">"; 
+    }
+  
+  Memo.prototype.subsumes =
+    function (x)
+    {
+      if (this.ratorRands.length !== x.ratorRands.length)
+      {
+        return false;
+      }
+      for (var i = 0; i < this.ratorRands.length; i++)
+      {
+        if (!this.ratorRands[i].subsumes(x.ratorRands[i]))
+        {
+          return false;
+        }
+      }
+      return this.store.subsumes(x.store);
+    }
+
+  Memo.prototype.subsumesButStore = //DEBUG
+    function (x)
+    {
+      if (this.ratorRands.length !== x.ratorRands.length)
+      {
+        return false;
+      }
+      for (var i = 0; i < this.ratorRands.length; i++)
+      {
+        if (!this.ratorRands[i].subsumes(x.ratorRands[i]))
+        {
+          return false;
+        }
+      }
+      return !this.store.subsumes(x.store);
+    }
+
+  function applyKont(frame, value, store, kont)
+  {
+    if (memoFlag)
+    {
+      var valueForStates = kont.valueFor();
+      var evalStates = valueForStates.filter(function (q) {return q.node && isApplication(q.node)});
+      var operStates = evalStates.flatMap(function (q) {return scanOpers(q, kont)});
+      memoTable = operStates.reduce(
+        function (memoTable, operState)
+        {
+//          var store = operState[operState.length - 1].store;
+          var ratorRands = operState.slice(1).map(function (q) {return q.value});
+          var memo = new Memo(ratorRands, store);
+          print("memoizing", operState[0].node, memo, value);
+          return Memo.updateTable(memo, value, memoTable);
+        }, memoTable);      
+    }
+    return frame.apply(value, store, kont);
+  }
   
   function applyProc(node, operatorValue, operandValues, benva, store, kont)
   {
+    if (memoFlag)
+    {
+      var memo = new Memo([operatorValue].concat(operandValues), store);
+      var matchingEntries = memoTable.flatMap(
+        function (entry)
+        {
+          var entryMemo = entry.memo;
+          if (entryMemo.subsumesButStore(memo))
+          {
+            print("==", entryMemo, entryMemo.store.diff(store));
+          }
+          return entryMemo.subsumes(memo) ? [entry] : [];
+        });
+      var memoValue = matchingEntries.map(function (entry) {return entry.value}).reduce(Lattice.join, BOT);
+      var memoStore = matchingEntries.map(function (entry) {return entry.memo.store}).reduce(Lattice.join, BOT);
+      if (matchingEntries.length > 0)
+      {
+        print("using", kont.source, "#", matchingEntries.length, "value", memoValue);
+        return kont.pop(function (frame) {return new KontState(frame, memoValue, memoStore)}, "MEMO");
+      }      
+    }
     var operatorAs = operatorValue.addresses();
     if (operatorAs.length === 0)
     {
@@ -818,16 +939,7 @@ function schemeCesk(cc)
         return proc.apply_(node, operandValues, benva, store, kont);
       })
   }
-
-  function applyKont(frame, value, store, kont)
-  {
-    if (frame.isMarker)
-    {
-      return kont.pop(function (frame) {return new KontState(frame, value, store)});
-    }
-    return frame.apply(value, store, kont);
-  }
-
+  
   function evalIf(node, benva, store, kont)
   {
     var condition = node.cdr.car;
@@ -901,3 +1013,131 @@ function schemeCesk(cc)
   
   return module; 
 }
+
+function JipdaLattice(primLattice)
+{
+  assertDefinedNotNull(primLattice);
+  this.primLattice = primLattice;
+}
+JipdaLattice.prototype = new Lattice();
+
+JipdaLattice.prototype.toString =
+  function ()
+  {
+    return "<JipdaLattice " + this.primLattice + ">";
+  }
+
+JipdaLattice.prototype.abst =
+  function (cvalues)
+  {
+    return cvalues.map(JipdaLattice.prototype.abst1, this).reduce(Lattice.join);
+  }
+
+JipdaLattice.prototype.abst1 =
+  function (cvalue)
+  {
+    if (cvalue instanceof Addr)
+    {
+      return new JipdaValue(BOT, [cvalue]);
+    }
+    return new JipdaValue(this.primLattice.abst1(cvalue), []);
+  }
+
+JipdaLattice.prototype.product =
+  function (prim, as)
+  {
+    return new JipdaValue(prim, as);
+  }
+
+function JipdaValue(prim, as)
+{
+  this.prim = prim;
+  this.as = as;
+}
+JipdaValue.prototype = new LatticeValue();
+JipdaValue.prototype.equals =
+  function (x)
+  {
+    if (x === BOT)
+    {
+      // !! JipdaValue(BOT, []) is NOT valid value, should be encoded as BOT
+      return false;
+    }
+    return this.prim.equals(x.prim)
+      && this.as.setEquals(x.as);
+  }
+JipdaValue.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + this.prim.hashCode();
+    result = prime * result + this.as.hashCode();
+    return result;
+  }
+
+JipdaValue.prototype.accept =
+  function (visitor)
+  {
+    return visitor.visitJipdaValue(this);
+  }
+
+JipdaValue.prototype.addresses =
+  function ()
+  {
+    return this.as.slice(0);
+  }
+
+JipdaValue.prototype.toString =
+  function ()
+  {
+    return "[" + this.prim + ", " + this.as + "]";
+  }
+
+JipdaValue.prototype.join =
+  function (x)
+  {
+    if (x === BOT)
+    {
+      return this;
+    }
+    return new JipdaValue(this.prim.join(x.prim), this.as.concat(x.as).toSet());
+  }
+
+JipdaValue.prototype.meet =
+  function (x)
+  {
+    if (x === BOT)
+    {
+      return BOT;
+    }
+    var prim = this.prim.meet(x.prim);
+    var as = this.as.removeAll(x.as);
+    if (prim === BOT && as.length === 0)
+    {
+      return BOT;
+    }
+    return new JipdaValue(prim, as);
+  }
+
+JipdaValue.prototype.compareTo =
+  function (x)
+  {
+    if (x === BOT)
+    {
+      return 1;
+    }
+    
+    if (x === this)
+    {
+      return 0;
+    }
+
+    var c1 = this.prim.compareTo(x.prim);
+    if (c1 === undefined)
+    {
+      return undefined;
+    }
+    var c2 = Lattice.subsumeComparison(this.as, x.as);
+    return Lattice.joinCompareResults(c1, c2);
+  }

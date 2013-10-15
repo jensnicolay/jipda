@@ -9,14 +9,14 @@ function b()
   load("../../lattice/setLattice.js");
   load("../../lattice/cpLattice.js");
   load("../../address/address.js");
-  load("../../address/tagAg.js");
-  load("../../address/concreteAg.js");
   load("../../driver/graph.js");
   load("../../driver/pushdown.js");
   load("../../cesk/cesk.js");
-  load("../../cesk/schemeCesk.js");
+  load("../../cesk/cs/schemeCesk.js");
+  load("../../cesk/cs/benv.js");
+  load("../../cesk/cs/tagAg.js");
+  load("../../cesk/cs/concreteAg.js");
   load("../../ast/scheme.js");
-  load("benv.js");
   load("sipda.js");
   
 //  load("test/astTests.js");

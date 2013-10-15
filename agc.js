@@ -32,6 +32,5 @@ Agc.addressReachable =
     }
     var aval = store.lookupAval(address);
     var addresses = aval.addresses();
-    if (Arrays.contains(undefined, addresses, Eq.equals)) {print("aval", aval, Object.keys(aval), address)};
     return Agc.addressesReachable(addresses, store, reachable.addLast(address));
   }

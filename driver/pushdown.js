@@ -143,10 +143,12 @@ Unch.prototype.toString =
     return "e";//"\u03B5";
   }
 
-function PushUnchKont(source, stack)
+function PushUnchKont(source, stack, etg, ecg)
 {
   this.source = source;
   this.stack = stack;
+  this.etg = etg;
+  this.ecg = ecg;
 }
 
 PushUnchKont.prototype.push =
@@ -167,11 +169,25 @@ PushUnchKont.prototype.unch =
     return [new Edge(this.source, new Unch(null), target, marks)];
   }
 
-function PopKont(source, frame, stack)
+PushUnchKont.prototype.valueFor =
+  function ()
+  {
+    var source = this.source;
+    var etg = this.etg;
+    var ecg = this.ecg;
+    var popPredecessors = etg.incoming(source).flatMap(function (e) {return e.g.isPop ? [e.source] : []});
+    var epsPredecessors = popPredecessors.flatMap(function (q) {return ecg.predecessors(q)});
+    return epsPredecessors;
+  }
+
+
+function PopKont(source, frame, stack, etg, ecg)
 {
   this.source = source;
   this.frame = frame;
   this.stack = stack;
+  this.etg = etg;
+  this.ecg = ecg;
 }
 
 PopKont.prototype.push =
@@ -194,19 +210,30 @@ PopKont.prototype.unch =
     return [];
   }
 
+PopKont.prototype.valueFor =
+  function ()
+  {
+    var source = this.source;
+    var etg = this.etg;
+    var ecg = this.ecg;
+    var popPredecessors = etg.incoming(source).flatMap(function (e) {return e.g.isPop ? [e.source] : []});
+    var epsPredecessors = popPredecessors.flatMap(function (q) {return ecg.predecessors(q)});
+    return epsPredecessors;
+  }
+
 var ceskDriver = {};
 
 ceskDriver.pushUnch =
-  function (q, stack)
+  function (q, stack, etg, ecg)
   {
-    var kont = new PushUnchKont(q, stack);
+    var kont = new PushUnchKont(q, stack, etg, ecg);
     return q.next(kont);
   }
 
 ceskDriver.pop =
-  function (q, frame, stack)
+  function (q, frame, stack, etg, ecg)
   {
-    var kont = new PopKont(q, frame, stack);
+    var kont = new PopKont(q, frame, stack, etg, ecg);
     return q.next(kont);
   }
 
@@ -238,7 +265,7 @@ Pushdown.run =
     function sprout(q)
     {
       var frames = ss.get(q, emptySet).values();
-      var pushUnchEdges = k.pushUnch(q, frames); 
+      var pushUnchEdges = k.pushUnch(q, frames, etg, ecg); 
       dE = dE.concat(pushUnchEdges);
 //      dH = dH.concat(pushUnchEdges
 //                .filter(function (pushUnchEdge) {return pushUnchEdge.g.isUnch})
@@ -255,7 +282,7 @@ Pushdown.run =
         {
           propagateStack(q, q1);
           var frames = ss.get(q1).values();
-          var popEdges = k.pop(q1, frame, frames);
+          var popEdges = k.pop(q1, frame, frames, etg, ecg);
           return popEdges;
         }));
       dH = dH.concat(dE.map(function (popEdge) {return new Edge(s, new Unch(frame), popEdge.target)}));
@@ -309,7 +336,7 @@ Pushdown.run =
             {
               var frame = pushEdge.g.frame;
               var frames = ss.get(s4).values();
-              var popEdges = k.pop(s4, frame, frames);
+              var popEdges = k.pop(s4, frame, frames, etg, ecg);
               return popEdges;
             })
         });
@@ -350,7 +377,7 @@ Pushdown.run =
           var q1 = e.target;
           if (!etg.containsTarget(q1))
           {
-            dS = dS.addLast(q1);
+            dS = dS.addFirst(q1);
           }            
           etg = etg.addEdge(e);
           ecg = ecg.addEdge(new Edge(q, null, q)).addEdge(new Edge(q1, null, q1));

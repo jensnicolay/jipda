@@ -1,5 +1,6 @@
 function Edge(source, g, target, marks)
 {
+  assertFalse(target == null);
   this.source = source;
   this.g = g;
   this.target = target;

@@ -1,7 +1,4 @@
-function createKcfaTagAg(k)
-{
   var tagAg = {};
-  tagAg.toString = function () {return "kcfaTagAg"};
 
   tagAg.object =
     function (node, time)
@@ -60,6 +57,3 @@ function createKcfaTagAg(k)
     {
       return new ContextAddr(node.tag, null);
     }
-
-  return tagAg;
-}

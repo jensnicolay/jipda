@@ -736,7 +736,7 @@ var Ast = (function ()
             }        
           }
         });
-      return {funs: funs, vars: vars, scopeInfo: scopeInfo};
+      return {funs: funs, vars: vars, scopeInfo: scopeInfo, parent:parent};
     }
   
   module.nodes = nodes;

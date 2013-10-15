@@ -53,6 +53,8 @@ Sym.prototype.toString =
 
 function Pair(car, cdr)
 {
+  assertFalse(car == null);
+  assertFalse(cdr == null);
   this.car = car;
   this.cdr = cdr;
 }
@@ -190,6 +192,17 @@ SchemeReader.prototype.read =
 function SchemeParser()
 {
 }
+
+SchemeParser.isSyntacticKeyword =
+  function (name)
+  {
+    return name === "lambda"
+      || name === "define"
+      || name === "letrec"
+      || name === "if"
+      || name === "quote"
+      || name === "begin"
+  }
 
 SchemeParser.prototype.parse =
   function (str)

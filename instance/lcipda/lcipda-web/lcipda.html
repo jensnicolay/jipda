@@ -2,8 +2,8 @@
 
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<link rel="stylesheet" href="sipda.css" type="text/css" media="all"/> 
-	<title>SIPDA</title>
+	<link rel="stylesheet" href="lcipda.css" type="text/css" media="all"/> 
+	<title>LCIPDA</title>
 	<script type="text/javascript" src="../../../common.js"></script>
 	<script type="text/javascript" src="../../../agc.js"></script>
 	<script type="text/javascript" src="../../../lattice/lattice.js"></script>
@@ -12,13 +12,12 @@
 	<script type="text/javascript" src="../../../address/address.js"></script>
 	<script type="text/javascript" src="../../../ast/scheme.js"></script>
 	<script type="text/javascript" src="../../../store/store.js"></script>
-	<script type="text/javascript" src="../../../cesk/cs/schemeCesk.js"></script>
-	<script type="text/javascript" src="../../../cesk/cs/monoTagAg.js"></script>
-	<script type="text/javascript" src="../../../cesk/cs/1cfaTagAg.js"></script>
-	<script type="text/javascript" src="../../../cesk/cs/benv.js"></script>
+	<script type="text/javascript" src="../../../cesk/lc/benv.js"></script>
+	<script type="text/javascript" src="../../../cesk/lc/lcCesk.js"></script>
+	<script type="text/javascript" src="../../../cesk/lc/monoTagAg.js"></script>
 	<script type="text/javascript" src="../../../driver/graph.js"></script>
 	<script type="text/javascript" src="../../../driver/pushdown.js"></script>
-	<script type="text/javascript" src="../sipda.js"></script>
+	<script type="text/javascript" src="../lcipda.js"></script>
 	<script type="text/javascript" src="../../../lib/web/jquery-1.7.2.min.js"></script>
 	<script type="text/javascript" src="../../../lib/web/ace/ace.js"></script>
 	<script type="text/javascript" src="../../../lib/web/viz.js"></script>
@@ -48,7 +47,7 @@
     var ag = eval($("#alloc").val());
     var gc = $("#gc").prop("checked");
     var memo = $("#memo").prop("checked");
-    var cesk = schemeCesk({a:ag, p:lat, gc:gc, memo:memo});
+    var cesk = lcCesk({a:ag, p:lat, gc:gc, memo:memo});
     var driver = new Pushdown();
     var start = Date.now();
 		var result = driver.analyze(ast, cesk);
@@ -83,7 +82,6 @@
 			alloc
 			<select id="alloc">
 				<option value="createMonoTagAg()">0CFA</option>
-				<option value="create1cfaTagAg()">1CFA</option>
 			</select>
 		</div>
   </div>
