@@ -10,6 +10,8 @@ function lcCesk(cc)
   var gcFlag = cc.gc === undefined ? true : cc.gc;
   var memoFlag = cc.memo === undefined ? false : cc.memo;
   var memoTable = HashMap.empty();
+  var safeTable = HashMap.empty();
+  var readTable = HashMap.empty();
   
   assertDefinedNotNull(a);
 //  assertDefinedNotNull(b);
@@ -84,7 +86,23 @@ function lcCesk(cc)
 //    {
 //      return this.equals(x) ? 0 : undefined; 
 //    }
-
+  
+  function operandValuesSubsume(ov1, ov2)
+  {
+    if (ov1.size() !== ov2.size())
+    {
+      return false;
+    }
+    return ov1.entries().every(
+      function (entry)
+      {
+        var name = entry.key;
+        var value1 = entry.value;
+        var value2 = ov2.get(name);
+        return value1.subsumes(value2);
+      })
+  }
+  
   Closure.prototype.apply_ =
     function (application, operandValues, benv, store, kont)
     {
@@ -98,7 +116,7 @@ function lcCesk(cc)
       {
         var param = params.car;
         var name = param.name;
-        var addr = a.variable(param);
+        var addr = a.variable(param, application);
         extendedBenv = extendedBenv.add(name, addr);
         store = store.allocAval(addr, operandValues[i]);
         params = params.cdr;
@@ -107,20 +125,40 @@ function lcCesk(cc)
       
       if (memoFlag)
       {
-        var memoResult = memoTable.get([exp, extendedBenv, store]);
-        if (memoResult)
+        var memoValues = memoTable.entries().flatMap(
+          function (entry)
+          {
+            print("?", entry.key[0]);
+            if (entry.key[0].equals(this))
+            {
+              var memoOperandValues = entry.key[1];
+              print("looking at", this, memoOperandValues);
+              var names = memoOperandValues.keys();
+              var operandValues = names.reduce(
+                function (operandValues, name)
+                {
+                  return operandValues.put(name, store.lookupAval(extendedBenv.lookup(name)));
+                }, HashMap.empty());
+              if (operandValuesSubsume(memoOperandValues, operandValues))
+              {
+                return [entry.value];
+              }
+            }
+            return [];
+          }, this);
+        var memoValue = memoValues.reduce(Lattice.join, BOT);
+        if (memoValue !== BOT)
         {
-          var memoValue = memoResult[0];
-          var memoStore = memoResult[1];
-          return kont.pop(function (frame) {return new KontState(frame, memoValue, memoStore)}, "MEMO");
-        }        
+          print("MEMO!", application, memoValue);
+          return kont.pop(function (frame) {return new KontState(frame, memoValue, store)}, "MEMO");
+        }
       }
-      
+            
       if (!(this.body.cdr instanceof Null))
       {
         throw new Error("expected single body expression, got " + this.body);
       }
-      var frame = new ReturnKont(exp, extendedBenv, store);
+      var frame = new ReturnKont(application, this, extendedBenv);
       return kont.push(frame, new EvalState(exp, extendedBenv, store));
     }
 
@@ -313,7 +351,7 @@ function lcCesk(cc)
   InitState.prototype.toString =
     function ()
     {
-      return "(init " + this.node + " " + this.benv + ")";
+      return "#init " + this.node.tag; 
     }
   InitState.prototype.nice =
     function ()
@@ -751,19 +789,19 @@ function lcCesk(cc)
       }
     }
   
-  function ReturnKont(node, extendedBenv, extendedStore)
+  function ReturnKont(node, closure, benv)
   {
     this.node = node;
-    this.extendedBenv = extendedBenv;
-    this.extendedStore = extendedStore;
+    this.closure = closure;
+    this.benv = benv;
   }
   ReturnKont.prototype.equals =
     function (x)
     {
       return x instanceof ReturnKont
-        && this.node === x.node 
-        && Eq.equals(this.extendedBenv, x.extendedBenv)
-        && Eq.equals(this.extendedStore, x.extendedStore)
+        && Eq.equals(this.node, x.node)
+        && Eq.equals(this.closure, x.closure)
+        && Eq.equals(this.benv, x.benv)
     }
   ReturnKont.prototype.hashCode =
     function ()
@@ -771,8 +809,8 @@ function lcCesk(cc)
       var prime = 7;
       var result = 1;
       result = prime * result + this.node.hashCode();
-      result = prime * result + this.extendedBenv.hashCode();
-      result = prime * result + this.extendedStore.hashCode();
+      result = prime * result + this.closure.hashCode();
+      result = prime * result + this.benv.hashCode();
       return result;
     }
   ReturnKont.prototype.toString =
@@ -788,17 +826,27 @@ function lcCesk(cc)
   ReturnKont.prototype.addresses =
     function ()
     {
-      return this.extendedBenv.addresses().concat(this.extendedStore.map.keys());
+      return this.benv.addresses();
     }
   ReturnKont.prototype.apply =
     function (returnValue, store, kont)
     {
-      var node = this.node;
-      var extendedBenv = this.extendedBenv;
-      var extendedStore = this.extendedStore;
       if (memoFlag)
       {
-        memoTable = memoTable.put([node, extendedBenv, extendedStore], [returnValue, store]);
+        var readAddresses = readTable.get(this).values();
+        var benv = this.benv;
+        var operandValues = readAddresses.reduce(
+          function (operandValues, ra)
+          {
+            var names = benv.inverseLookup(ra);
+            return names.reduce(
+              function (operandValues, name)
+              {
+                return operandValues.put(name, store.lookupAval(ra));
+              }, operandValues)
+          }, HashMap.empty())
+        memoTable = memoTable.put([this.closure, operandValues], returnValue);
+        print("memoized", [this.closure, operandValues], "==>", returnValue);
       }
       return kont.pop(function (frame) {return new KontState(frame, returnValue, store)});
     }
@@ -831,6 +879,18 @@ function lcCesk(cc)
       throw new Error("undefined: " + node);
     }
     var value = store.lookupAval(addr);
+    if (memoFlag)
+    {
+      readTable = kont.stack.reduce(
+          function (readTable, frame)
+          {
+            if (frame instanceof ReturnKont)
+            {
+              return readTable.put(frame, readTable.get(frame, ArraySet.empty()).add(addr));
+            }
+            return readTable;
+          }, readTable);
+    }
     return kont.pop(function (frame) {return new KontState(frame, value, store)});
   }
   
@@ -855,14 +915,37 @@ function lcCesk(cc)
     return evalLetrecBinding(node, bindings, benv, store, kont);
   }
   
+  function computeTime(kont)
+  {
+    var visited = HashSet.empty();
+    var todo = [kont.source];
+    while (todo.length > 0)
+    {
+      var q = todo.shift();
+      if (q.node && isApplication(q.node))
+      {
+        return q.node.tag;
+      }
+      if (visited.contains(q))
+      {
+        continue;
+      }
+      visited = visited.add(q);
+      todo = todo.concat(kont.etg.predecessors(q));
+    }
+    return null;
+  }
+  
   function evalLetrecBinding(node, bindings, benv, store, kont)
   {
     var binding = bindings.car;
     var name = binding.car;
     var exp = binding.cdr.car;
-    var addr = a.variable(node);
+    var time = computeTime(kont);
+    print(name, time);
+    var addr = a.variable(binding, time);
     benv = benv.add(name, addr);
-    store = store.allocAval(addr, P_UNDEFINED);
+    store = store.allocAval(addr, BOT);
     var frame = new LetrecKont(node, bindings, benv);
     return kont.push(frame, new EvalState(exp, benv, store));
   }

@@ -169,15 +169,22 @@ PushUnchKont.prototype.unch =
     return [new Edge(this.source, new Unch(null), target, marks)];
   }
 
+PushUnchKont.prototype.pathsBwTo =
+  function (target)
+  {
+    return Pushdown.pathsBwTo(this.source, target, this.etg);
+  }
+
 PushUnchKont.prototype.valueFor =
   function ()
   {
-    var source = this.source;
-    var etg = this.etg;
-    var ecg = this.ecg;
-    var popPredecessors = etg.incoming(source).flatMap(function (e) {return e.g.isPop ? [e.source] : []});
-    var epsPredecessors = popPredecessors.flatMap(function (q) {return ecg.predecessors(q)});
-    return epsPredecessors;
+    return Pushdown.valueFor(this.source, this.etg, this.ecg);
+  }
+
+PushUnchKont.prototype.framePredecessors =
+  function (frame)
+  {
+    return Pushdown.framePredecessors(this.source, frame, this.ecg);
   }
 
 
@@ -210,15 +217,22 @@ PopKont.prototype.unch =
     return [];
   }
 
+PopKont.prototype.pathsBwTo =
+  function (target)
+  {
+    return Pushdown.pathsBwTo(this.source, target, this.etg);
+  }
+
 PopKont.prototype.valueFor =
   function ()
   {
-    var source = this.source;
-    var etg = this.etg;
-    var ecg = this.ecg;
-    var popPredecessors = etg.incoming(source).flatMap(function (e) {return e.g.isPop ? [e.source] : []});
-    var epsPredecessors = popPredecessors.flatMap(function (q) {return ecg.predecessors(q)});
-    return epsPredecessors;
+    return Pushdown.valueFor(this.source, this.etg, this.ecg);
+  }
+
+PopKont.prototype.framePredecessors =
+  function (frame)
+  {
+    return Pushdown.framePredecessors(this.source, frame, this.ecg);
   }
 
 var ceskDriver = {};
@@ -378,7 +392,7 @@ Pushdown.run =
           if (!etg.containsTarget(q1))
           {
             dS = dS.addFirst(q1);
-          }            
+          }
           etg = etg.addEdge(e);
           ecg = ecg.addEdge(new Edge(q, null, q)).addEdge(new Edge(q1, null, q1));
           if (g.isPush)
@@ -417,6 +431,36 @@ Pushdown.run =
 //    } 
   }
 
+Pushdown.pushPredecessors =
+  function (s, etg)
+  {
+    return etg.incoming(s).filter(function (e) {return e.g.isPush}).map(Edge.source);
+  }
+
+Pushdown.popSuccessors =
+  function (s, etg)
+  {
+    return etg.outgoing(s).filter(function (e) {return e.g.isPop}).map(Edge.target);
+  }
+
+Pushdown.epsPopSuccessors =
+  function (s, etg, ecg)
+  {
+    var etgSuccs = etg.outgoing(s).filter(function (e) {return !e.g.isPush}).map(Edge.target);
+    var ecgSuccs = ecg.successors(s);
+    return etgSuccs.concat(ecgSuccs);
+  }
+
+Pushdown.framePredecessors =
+  function (s, frame, ecg)
+  {
+    return ecg.incoming(s).flatMap(
+      function (h)
+      {
+        return (h.g && h.g.frame.equals(frame)) ? [h.source] : [];
+      });
+  }
+
 Pushdown.preStackUntil =
   function (s, fe, etg, ecg)
   {
@@ -444,24 +488,34 @@ Pushdown.preStackUntil =
     return {targets:targets,visited:visited};
   }
 
-Pushdown.pushPredecessors =
-  function (s, etg)
+Pushdown.pathsBwTo =
+  function (s, target, etg)
   {
-    return etg.incoming(s).filter(function (e) {return e.g.isPush}).map(Edge.source);
+    var todo = [s];
+    var visited = HashSet.empty();
+    var paths = HashSet.empty();
+    while (todo.length > 0)
+    {
+      var q = todo.shift();
+      if (q.equals(target) || visited.contains(q))
+      {
+        continue;
+      }
+      visited = visited.add(q);
+      var incoming = etg.incoming(q);
+      paths = paths.addAll(incoming);
+      var qs = incoming.map(Edge.source);
+      todo = todo.concat(qs);
+    }
+    return paths.values();
   }
 
-Pushdown.popSuccessors =
-  function (s, etg)
-  {
-    return etg.outgoing(s).filter(function (e) {return e.g.isPop}).map(Edge.target);
-  }
-
-Pushdown.epsPopSuccessors =
+Pushdown.valueFor =
   function (s, etg, ecg)
   {
-    var etgSuccs = etg.outgoing(s).filter(function (e) {return !e.g.isPush}).map(Edge.target);
-    var ecgSuccs = ecg.successors(s);
-    return etgSuccs.concat(ecgSuccs);
+    var popPredecessors = etg.incoming(s).flatMap(function (e) {return e.g.isPop ? [e.source] : []});
+    var epsPredecessors = popPredecessors.flatMap(function (q) {return ecg.predecessors(q)});
+    return epsPredecessors;
   }
 
 Pushdown.prototype.analyze =

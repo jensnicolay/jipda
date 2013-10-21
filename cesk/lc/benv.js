@@ -104,6 +104,20 @@ Benv.prototype.lookup =
     return this._map.get(name, BOT);
   }
 
+Benv.prototype.inverseLookup =
+  function (addr)
+  {
+    return this._map.entries().flatMap(
+      function (entry)
+      {
+        if (entry.value.equals(addr))
+        {
+          return [entry.key];
+        }
+        return [];
+      });
+  }
+
 Benv.prototype.join =
   function (x)
   {

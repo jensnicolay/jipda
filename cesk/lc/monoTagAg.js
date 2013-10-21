@@ -4,16 +4,10 @@ function createMonoTagAg()
   tagAg.toString = function () {return "monoTagAg"};
   
   tagAg.variable =
-    function (node)
+    function (node, application)
     {
       return new MonoAddr(node.tag);
     }
   
-  tagAg.procedure =
-    function (node)
-    {
-      return new MonoAddr("proc-" + node.tag);
-    }
-
   return tagAg;
 }
