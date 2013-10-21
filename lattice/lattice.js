@@ -209,7 +209,7 @@ BOT.join = function (other) { return other };
 BOT.meet = function (other) { return BOT };
 BOT.compareTo = function (other) { return other === BOT ? 0 : -1 };
 BOT.isAddress = function () { return false };
-BOT.addresses = function () { return false };
+BOT.addresses = function () { return [] };
 BOT.conc = function () { return [] };
 BOT.toString = function () { return "_" };
 BOT.nice = function () { return "_" };

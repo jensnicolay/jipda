@@ -147,7 +147,7 @@ function SetLattice(n)
     Top.compareTo = function (other) { return other === Top ? 0 : 1 };
     Top.hashCode = function () { return 7 };
     Top.isAddress = function () { return false };
-    Top.addresses = function () { return false };
+//    Top.addresses = function () { return false };
 //    Top.conc = function () { return false };
     Top.toString = function () { return "^" };
     Top.nice = function () { return "^" };

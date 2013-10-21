@@ -1,13 +1,13 @@
 function createMonoTagAg()
 {
-  var tagAg = {};
-  tagAg.toString = function () {return "monoTagAg"};
+  var a = {};
+  a.toString = function () {return "monoTagAg"};
   
-  tagAg.variable =
-    function (node, application)
+  a.variable =
+    function (node, time)
     {
       return new MonoAddr(node.tag);
     }
   
-  return tagAg;
+  return a;
 }

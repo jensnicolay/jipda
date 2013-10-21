@@ -3,7 +3,7 @@ function repl(cc)
   cc = cc || {};
   var sp = new SchemeParser();
   var name = cc.name || "sipda";
-  var cesk = lcCesk({a:cc.a || tagAg, p:cc.p || new Lattice1()});
+  var cesk = lcCesk({a:cc.a || createMonoTagAg(), p:cc.p || new Lattice1()});
   var src = "\"I am " + name + "\"";
   var store = cesk.store;
   var driver = new Pushdown();

@@ -656,7 +656,7 @@ function lcCesk(cc)
       var bindings = this.bindings.cdr;
       
       var addr = benv.lookup(name);
-      store = store.updateAval(addr, bindingValue);
+      store = store.allocAval(addr, bindingValue);
       
       if (bindings instanceof Null)
       {
@@ -942,7 +942,6 @@ function lcCesk(cc)
     var name = binding.car;
     var exp = binding.cdr.car;
     var time = computeTime(kont);
-    print(name, time);
     var addr = a.variable(binding, time);
     benv = benv.add(name, addr);
     store = store.allocAval(addr, BOT);

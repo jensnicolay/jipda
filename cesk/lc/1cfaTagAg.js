@@ -1,13 +1,13 @@
 function create1cfaTagAg()
 {
-  var tagAg = {};
-  tagAg.toString = function () {return "1cfaTagAg"};
+  var a = {};
+  a.toString = function () {return "1cfaTagAg"};
   
-  tagAg.variable =
+  a.variable =
     function (node, time)
     {      
       return new ContextAddr(node.tag, time);
     }
   
-  return tagAg;
+  return a;
 }
