@@ -391,7 +391,7 @@ Pushdown.run =
           var q1 = e.target;
           if (!etg.containsTarget(q1))
           {
-            dS = dS.addFirst(q1);
+            dS = dS.addLast(q1);
           }
           etg = etg.addEdge(e);
           ecg = ecg.addEdge(new Edge(q, null, q)).addEdge(new Edge(q1, null, q1));

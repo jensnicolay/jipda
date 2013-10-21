@@ -10,7 +10,6 @@ function lcCesk(cc)
   var gcFlag = cc.gc === undefined ? true : cc.gc;
   var memoFlag = cc.memo === undefined ? false : cc.memo;
   var memoTable = HashMap.empty();
-  var safeTable = HashMap.empty();
   var readTable = HashMap.empty();
   
   assertDefinedNotNull(a);
@@ -158,7 +157,7 @@ function lcCesk(cc)
       {
         throw new Error("expected single body expression, got " + this.body);
       }
-      var frame = new ReturnKont(application, this, extendedBenv);
+      var frame = new ReturnKont(application, this, extendedBenv, store);
       return kont.push(frame, new EvalState(exp, extendedBenv, store));
     }
 
@@ -789,11 +788,12 @@ function lcCesk(cc)
       }
     }
   
-  function ReturnKont(node, closure, benv)
+  function ReturnKont(node, closure, benv, store)
   {
     this.node = node;
     this.closure = closure;
     this.benv = benv;
+    this.store = store;
   }
   ReturnKont.prototype.equals =
     function (x)
@@ -802,6 +802,7 @@ function lcCesk(cc)
         && Eq.equals(this.node, x.node)
         && Eq.equals(this.closure, x.closure)
         && Eq.equals(this.benv, x.benv)
+        && Eq.equals(this.store, x.store)
     }
   ReturnKont.prototype.hashCode =
     function ()
@@ -829,12 +830,13 @@ function lcCesk(cc)
       return this.benv.addresses();
     }
   ReturnKont.prototype.apply =
-    function (returnValue, store, kont)
+    function (returnValue, returnStore, kont)
     {
       if (memoFlag)
       {
         var readAddresses = readTable.get(this).values();
         var benv = this.benv;
+        var callStore = this.store;
         var operandValues = readAddresses.reduce(
           function (operandValues, ra)
           {
@@ -842,13 +844,13 @@ function lcCesk(cc)
             return names.reduce(
               function (operandValues, name)
               {
-                return operandValues.put(name, store.lookupAval(ra));
+                return operandValues.put(name, callStore.lookupAval(ra));
               }, operandValues)
           }, HashMap.empty())
         memoTable = memoTable.put([this.closure, operandValues], returnValue);
         print("memoized", [this.closure, operandValues], "==>", returnValue);
       }
-      return kont.pop(function (frame) {return new KontState(frame, returnValue, store)});
+      return kont.pop(function (frame) {return new KontState(frame, returnValue, returnStore)});
     }
   
   function evalLiteral(node, benv, store, kont)

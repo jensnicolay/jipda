@@ -19,13 +19,9 @@ function b()
   load("../../cesk/lc/benv.js");
   load("lcipda.js");
   
-//  load("test/astTests.js");
-//  load("test/benvTests.js");
   load("test/concreteTests.js");
   load("test/lcipdaTests.js");
-//  load("test/jsAnalysisTests.js");  
-//  load("test/coverageTests.js");
-//  load("test/latticeTests.js");  
+  load("test/memoTests.js");
 }
 
 b();

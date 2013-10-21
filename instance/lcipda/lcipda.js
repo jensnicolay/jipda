@@ -1,3 +1,8 @@
+function dump()
+{
+  
+}
+
 function repl(cc)
 {
   cc = cc || {};
@@ -32,3 +37,4 @@ function concRepl()
 {
   return repl({name: "conc", p:new CpLattice(), a:concreteAg});
 }
+
