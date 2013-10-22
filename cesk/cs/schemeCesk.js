@@ -8,8 +8,8 @@ function schemeCesk(cc)
   var p = cc.p;
   
   var gcFlag = cc.gc === undefined ? true : cc.gc;
-  var memoFlag = cc.memo === undefined ? false : cc.memo;
-  var memoTable = [];
+  //var memoFlag = cc.memo === undefined ? false : cc.memo;
+  //var memoTable = [];
   
   assertDefinedNotNull(a);
 //  assertDefinedNotNull(b);
@@ -21,7 +21,7 @@ function schemeCesk(cc)
   print("allocator", a);
   print("lattice", p);
   print("gc", gcFlag);
-  print("memoization", memoFlag);
+//  print("memoization", memoFlag);
   
   // install constants
   var L_UNDEFINED = l.abst1(undefined);
@@ -886,47 +886,11 @@ function schemeCesk(cc)
 
   function applyKont(frame, value, store, kont)
   {
-    if (memoFlag)
-    {
-      var valueForStates = kont.valueFor();
-      var evalStates = valueForStates.filter(function (q) {return q.node && isApplication(q.node)});
-      var operStates = evalStates.flatMap(function (q) {return scanOpers(q, kont)});
-      memoTable = operStates.reduce(
-        function (memoTable, operState)
-        {
-//          var store = operState[operState.length - 1].store;
-          var ratorRands = operState.slice(1).map(function (q) {return q.value});
-          var memo = new Memo(ratorRands, store);
-          print("memoizing", operState[0].node, memo, value);
-          return Memo.updateTable(memo, value, memoTable);
-        }, memoTable);      
-    }
     return frame.apply(value, store, kont);
   }
   
   function applyProc(node, operatorValue, operandValues, benva, store, kont)
   {
-    if (memoFlag)
-    {
-      var memo = new Memo([operatorValue].concat(operandValues), store);
-      var matchingEntries = memoTable.flatMap(
-        function (entry)
-        {
-          var entryMemo = entry.memo;
-          if (entryMemo.subsumesButStore(memo))
-          {
-            print("==", entryMemo, entryMemo.store.diff(store));
-          }
-          return entryMemo.subsumes(memo) ? [entry] : [];
-        });
-      var memoValue = matchingEntries.map(function (entry) {return entry.value}).reduce(Lattice.join, BOT);
-      var memoStore = matchingEntries.map(function (entry) {return entry.memo.store}).reduce(Lattice.join, BOT);
-      if (matchingEntries.length > 0)
-      {
-        print("using", kont.source, "#", matchingEntries.length, "value", memoValue);
-        return kont.pop(function (frame) {return new KontState(frame, memoValue, memoStore)}, "MEMO");
-      }      
-    }
     var operatorAs = operatorValue.addresses();
     if (operatorAs.length === 0)
     {
