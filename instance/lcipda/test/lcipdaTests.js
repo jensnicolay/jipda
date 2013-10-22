@@ -105,13 +105,13 @@ var suiteLcipdaTests =
 //        run(src, cesk, cesk.p.NUMBER);
 //      }
     
-//    module.testChurchNums =
-//    function ()
-//    {
-//      var src = read("test/resources/churchNums.js");
-//      var c = Pushdown.context({p:new Lattice1(), a:tagAg});
-//      run(src, c, c.l.abst([true, false]));
-//    }    
+    module.testChurchNums =
+    function ()
+    {
+      var src = read("test/resources/churchNums.scm");
+      var cesk = createCesk();
+      run(src, cesk, cesk.p.NUMBER);
+    }    
     
   return module;
 

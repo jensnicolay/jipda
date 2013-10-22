@@ -226,6 +226,10 @@ function lcCesk(cc)
       {
         return true;
       }
+      if (!(x instanceof Procedure))
+      {
+        return false;
+      }
       return this.procs.setEquals(x.procs);
     }
   
@@ -242,6 +246,10 @@ function lcCesk(cc)
       {
         return true;
       }
+      if (!(x instanceof Procedure))
+      {
+        return false;
+      }
       return this.procs.subsumes(x.procs);
     }
   
@@ -257,6 +265,10 @@ function lcCesk(cc)
       if (x === BOT)
       {
         return this;
+      }
+      if (!(x instanceof Procedure))
+      {
+        throw new Error("cannot join proc and prim");
       }
       return new Procedure(Arrays.deleteDuplicates(this.procs.concat(x.procs), Eq.equals));
     }
@@ -832,10 +844,10 @@ function lcCesk(cc)
   ReturnKont.prototype.apply =
     function (returnValue, returnStore, kont)
     {
+      var benv = this.benv;
       if (memoFlag)
       {
-        var readAddresses = readTable.get(this).values();
-        var benv = this.benv;
+        var readAddresses = readTable.get(this, ArraySet.empty()).values();
         var callStore = this.store;
         var operandValues = readAddresses.reduce(
           function (operandValues, ra)
@@ -850,6 +862,7 @@ function lcCesk(cc)
         memoTable = memoTable.put([this.closure, operandValues], returnValue);
         print("memoized", [this.closure, operandValues], "==>", returnValue);
       }
+      
       return kont.pop(function (frame) {return new KontState(frame, returnValue, returnStore)});
     }
   

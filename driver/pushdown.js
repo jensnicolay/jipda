@@ -169,25 +169,6 @@ PushUnchKont.prototype.unch =
     return [new Edge(this.source, new Unch(null), target, marks)];
   }
 
-PushUnchKont.prototype.pathsBwTo =
-  function (target)
-  {
-    return Pushdown.pathsBwTo(this.source, target, this.etg);
-  }
-
-PushUnchKont.prototype.valueFor =
-  function ()
-  {
-    return Pushdown.valueFor(this.source, this.etg, this.ecg);
-  }
-
-PushUnchKont.prototype.framePredecessors =
-  function (frame)
-  {
-    return Pushdown.framePredecessors(this.source, frame, this.ecg);
-  }
-
-
 function PopKont(source, frame, stack, etg, ecg)
 {
   this.source = source;
@@ -215,24 +196,6 @@ PopKont.prototype.unch =
   function (target, marks)
   {
     return [];
-  }
-
-PopKont.prototype.pathsBwTo =
-  function (target)
-  {
-    return Pushdown.pathsBwTo(this.source, target, this.etg);
-  }
-
-PopKont.prototype.valueFor =
-  function ()
-  {
-    return Pushdown.valueFor(this.source, this.etg, this.ecg);
-  }
-
-PopKont.prototype.framePredecessors =
-  function (frame)
-  {
-    return Pushdown.framePredecessors(this.source, frame, this.ecg);
   }
 
 var ceskDriver = {};
@@ -607,7 +570,8 @@ Dsg.prototype.declarations =
   function (s)
   {
     var name = s.node.name;
-    var execs = HashSet.from(this.executions(s));
+    var etg = this.etg;
+    var ecg = this.ecg;
     var targets = HashSet.empty();
     var visited = HashSet.empty();
     var todo = [s];
@@ -619,18 +583,21 @@ Dsg.prototype.declarations =
         continue;
       }
       visited = visited.add(q);
-      var qExecs = HashSet.from(this.executions(q));
-      if (execs.meet(qExecs).size() === 0)
-      {
-        todo = todo.concat(this.stepBwOver(q));
-        continue;
-      }
       if (q.node && q.node.type === "VariableDeclaration" && q.node.declarations[0].id.name === name)
       {
         targets = targets.add(q);
         continue;
       }
-      todo = todo.concat(this.etg.predecessors(q));
+      var incoming = etg.incoming(q);
+      todo = incoming.reduce(
+        function (todo, e)
+        {
+          if (e.g.isPop && e.g.frame.isMarker)
+          {
+            return todo.concat(Pushdown.framePredecessors(q, e.g.frame, ecg));
+          }
+          return todo.addLast(e.source);
+        }, todo);
     }
     return targets.values();
   }

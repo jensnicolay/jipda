@@ -53,10 +53,10 @@ var suiteConcreteTests =
       run("(letrec ((sq (lambda (x) (* x x)))) (begin (sq 5) (sq 6)))", 36);
     };
 
-//    module.testChurchNums =
+//    module.testChurchNums = // TODO too slow
 //      function ()
 //      {
-//        run(read("test/resources/churchNums.js"), true);    
+//        run(read("test/resources/churchNums.scm"), true);    
 //      }
     
     module.testGcIpd =
@@ -65,7 +65,7 @@ var suiteConcreteTests =
         run(read("test/resources/gcIpdExample.scm"), 36);    
       }
     
-//    module.testRotate = TOO SLOW
+//    module.testRotate = // TODO too slow
 //      function ()
 //      {
 //        run(read("test/resources/rotate.scm"), "hallo");    
