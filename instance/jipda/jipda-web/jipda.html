@@ -43,12 +43,10 @@
     var end = Date.now();
 		var resultValue = result.stepFwOver(result.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
 		$("#resultValue").text(resultValue + " (states " + result.etg.nodes().length + ", edges " + result.etg.edges().length + ", time " + (end-start) + ")");
-    var etgEdges = result.etg.edges();
     var emptySet = ArraySet.empty();
     var meta = result.ss.entries().reduce(function (acc, entry) {return acc.put(entry.key, {ss:entry.value})}, HashMap.empty());
     //result.tf.entries().forEach(function (entry) {meta.get(entry.key).tf = entry.value});
     
-		//drawLinks(etgEdges.concat(ecgEdges), "#graph");
 		var element = $("#graph");
 		drawLinks(result.etg, result.ecg, meta, element, window);
 	}

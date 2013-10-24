@@ -28,51 +28,6 @@ HaltKont.prototype.addresses =
     return this.rootSet;
   }
 
-// only used for META errors
-function ErrorState(store, msg, stack)
-{
-  this.type = "error";
-  this.store = store;
-  this.msg = msg;
-  this.stack = stack;
-}
-ErrorState.prototype.toString =
-  function ()
-  {
-    return "#error " + this.msg;
-  }
-ErrorState.prototype.nice =
-  function ()
-  {
-    return "#error " + this.msg;
-  }
-ErrorState.prototype.equals =
-  function (x)
-  {
-    return (x instanceof ErrorState)
-      && Eq.equals(this.store, x.store)
-      && Eq.equals(this.msg, x.msg)
-      && Eq.equals(this.stack, x.stack)
-  }
-ErrorState.prototype.hashCode =
-  function ()
-  {
-    var prime = 7;
-    var result = 1;
-    result = prime * result + this.msg.hashCode();
-    return result;
-  }
-ErrorState.prototype.next =
-  function (kont)
-  {
-    return [];
-  }
-ErrorState.prototype.addresses =
-  function ()
-  {
-    return [];
-  }
-
 function Push(frame)
 {
   this.frame = frame;
@@ -385,13 +340,6 @@ Pushdown.run =
         return {etg:etg, ecg:ecg, ss:ss};
       }
     }
-//    }
-//    catch (e)
-//    {
-//      print(e, e.stack);
-//      etg = etg.addEdge(new Edge(e.q, new Unch(null), new ErrorState(e.q.store, String(e), e.stack)));
-//      return {etg:etg, ecg:ecg, ss:ss};
-//    } 
   }
 
 Pushdown.pushPredecessors =

@@ -38,6 +38,7 @@ function lcCesk(cc)
 
   function Closure(node, statc, params, body)
   {
+    assertFalse(node == null);
     this.node = node;
     this.statc = statc;
     this.params = params;
@@ -88,27 +89,31 @@ function lcCesk(cc)
   
   function operandValuesSubsume(ov1, ov2)
   {
-    if (ov1.size() !== ov2.size())
+    if (ov1.length !== ov2.length)
     {
       return false;
     }
     return ov1.entries().every(
-      function (entry)
+      function (v1, i)
       {
-        var name = entry.key;
-        var value1 = entry.value;
-        var value2 = ov2.get(name);
-        return value1.subsumes(value2);
+        return v1.subsumes(ov2[i]);
       })
   }
   
+  function storeSubsumes(memoStore, extendedStore)
+  {
+    var store = Agc.collect(extendedStore, memoStore.map.keys());
+    return memoStore.subsumes(store);
+  }
+  
   Closure.prototype.apply_ =
-    function (application, operandValues, benv, store, kont)
+    function (application, operandValues, benv, callStore, kont)
     {
 //      print("apply", application, operandValues);
       var fun = this.node;
       var exp = this.body.car;
       var extendedBenv = this.statc;
+      var extendedStore = callStore;
       var params = this.params;
       var i = 0;
       while (!(params instanceof Null))
@@ -117,48 +122,41 @@ function lcCesk(cc)
         var name = param.name;
         var addr = a.variable(param, application);
         extendedBenv = extendedBenv.add(name, addr);
-        store = store.allocAval(addr, operandValues[i]);
+        extendedStore = extendedStore.allocAval(addr, operandValues[i]);
         params = params.cdr;
         i++;
       }
       
       if (memoFlag)
       {
-        var memoValues = memoTable.entries().flatMap(
-          function (entry)
+        var memoClosures = memoTable.get(this.node.tag, ArraySet.empty()).values();
+        print(this.node, "memoClosures", memoClosures);
+        var memoValue = BOT;
+        var memoStore = BOT;
+        memoClosures.forEach(
+          function (memoClosure)
           {
-            print("?", entry.key[0]);
-            if (entry.key[0].equals(this))
+            var mStore = memoClosure[0];
+            var mValue = memoClosure[1];
+            if (mStore.subsumes(extendedStore))
             {
-              var memoOperandValues = entry.key[1];
-              print("looking at", this, memoOperandValues);
-              var names = memoOperandValues.keys();
-              var operandValues = names.reduce(
-                function (operandValues, name)
-                {
-                  return operandValues.put(name, store.lookupAval(extendedBenv.lookup(name)));
-                }, HashMap.empty());
-              if (operandValuesSubsume(memoOperandValues, operandValues))
-              {
-                return [entry.value];
-              }
+              memoValue = memoValue.join(mValue);
+              memoStore = memoStore.join(mStore);
             }
-            return [];
-          }, this);
-        var memoValue = memoValues.reduce(Lattice.join, BOT);
+          });
         if (memoValue !== BOT)
         {
-          print("MEMO!", application, memoValue);
-          return kont.pop(function (frame) {return new KontState(frame, memoValue, store)}, "MEMO");
+          print("MEMO!");
+          return kont.pop(function (frame) {return new KontState(frame, memoValue, memoStore)}, "MEMO");
         }
       }
-            
+      
       if (!(this.body.cdr instanceof Null))
       {
         throw new Error("expected single body expression, got " + this.body);
       }
-      var frame = new ReturnKont(application, this, extendedBenv, store);
-      return kont.push(frame, new EvalState(exp, extendedBenv, store));
+      var frame = new ReturnKont(application, this, extendedBenv, extendedStore);
+      return kont.push(frame, new EvalState(exp, extendedBenv, extendedStore));
     }
 
   Closure.prototype.addresses =
@@ -496,7 +494,14 @@ function lcCesk(cc)
   KontState.prototype.next =
     function (kont)
     {
-      return applyKont(this.frame, this.value, gc(this, kont), kont)
+//      try
+//      {
+        return applyKont(this.frame, this.value, gc(this, kont), kont)
+//      }
+//      catch (e)
+//      {
+//        return kont.unch(new ErrorState(String(e), e.stack))
+//      }
     }
   KontState.prototype.addresses =
     function ()
@@ -779,16 +784,23 @@ function lcCesk(cc)
       var benv = this.benv;    
       var consequent = node.cdr.cdr.car;
       var alternate = node.cdr.cdr.cdr.car;
+      // TODO rewrite following conditionals...
       if (conditionValue instanceof Procedure)
       {
         return kont.unch(new EvalState(consequent, benv, store));
+      }
+      if (p.BOOLEAN.equals(P_FALSE)) // if 'false' cannot be distinguished from 'boolean'
+      {
+        var consequentState = kont.unch(new EvalState(consequent, benv, store));
+        var alternateState = kont.unch(new EvalState(alternate, benv, store));
+        return consequentState.concat(alternateState);
       }
       var falseProj = conditionValue.meet(P_FALSE);
       if (falseProj === BOT) // no false in value
       {
         return kont.unch(new EvalState(consequent, benv, store));
       }
-      else if (conditionValue.equals(falseProj)) // value is false
+      else if (conditionValue.equals(falseProj))
       {
         return kont.unch(new EvalState(alternate, benv, store));
       }
@@ -844,25 +856,12 @@ function lcCesk(cc)
   ReturnKont.prototype.apply =
     function (returnValue, returnStore, kont)
     {
-      var benv = this.benv;
       if (memoFlag)
       {
-        var readAddresses = readTable.get(this, ArraySet.empty()).values();
-        var callStore = this.store;
-        var operandValues = readAddresses.reduce(
-          function (operandValues, ra)
-          {
-            var names = benv.inverseLookup(ra);
-            return names.reduce(
-              function (operandValues, name)
-              {
-                return operandValues.put(name, callStore.lookupAval(ra));
-              }, operandValues)
-          }, HashMap.empty())
-        memoTable = memoTable.put([this.closure, operandValues], returnValue);
-        print("memoized", [this.closure, operandValues], "==>", returnValue);
+        var memoKey = this.closure.node.tag;
+        memoTable = memoTable.put(memoKey, memoTable.get(memoKey, ArraySet.empty()).add([returnStore, returnValue]));
+        print(this.closure.node, "memoized", returnValue);
       }
-      
       return kont.pop(function (frame) {return new KontState(frame, returnValue, returnStore)});
     }
   
@@ -879,12 +878,6 @@ function lcCesk(cc)
     return kont.pop(function (frame) {return new KontState(frame, proc, store)});
   }
 
-  function evalQuote(node, benv, store, kont)
-  {
-    var value = p.abst1(node.cdr.car);
-    return kont.pop(function (frame) {return new KontState(frame, value, store)});
-  }
-  
   function evalIdentifier(node, benv, store, kont)
   {
     var name = node.name;
@@ -1006,7 +999,12 @@ function lcCesk(cc)
   {
     if (!(operatorValue instanceof Procedure))
     {
-      throw new Error("not an operator: " + node.car);
+//      throw new Error("not an operator for " + node.car + ": " + operatorValue);
+      return kont.unch(new ErrorState(operatorValue + " not operator for " + node.car));
+    }
+    if (kont.etg.nodes().length > 512)
+    {
+      return kont.unch(new ErrorState("state overflow"));
     }
     return operatorValue.apply_(node, operandValues, benv, store, kont);
   }
@@ -1053,10 +1051,6 @@ function lcCesk(cc)
         {
           return evalIf(node, benv, store, kont);
         }
-        if (name === "quote")
-        {
-          return evalQuote(node, benv, store, kont);
-        }
         if (name === "begin")
         {
           return evalBegin(node, benv, store, kont);
@@ -1083,3 +1077,45 @@ function lcCesk(cc)
   
   return module; 
 }
+
+function ErrorState(msg, payload)
+{
+  this.type = "error";
+  this.msg = msg;
+  this.payload = payload;
+}
+ErrorState.prototype.toString =
+  function ()
+  {
+    return "#error " + this.msg;
+  }
+ErrorState.prototype.nice =
+  function ()
+  {
+    return "#error " + this.msg;
+  }
+ErrorState.prototype.equals =
+  function (x)
+  {
+    return (x instanceof ErrorState)
+      && Eq.equals(this.msg, x.msg)
+      && Eq.equals(this.payload, x.payload)
+  }
+ErrorState.prototype.hashCode =
+  function ()
+  {
+    var prime = 7;
+    var result = 1;
+    result = prime * result + this.msg.hashCode();
+    return result;
+  }
+ErrorState.prototype.next =
+  function (kont)
+  {
+    return [];
+  }
+ErrorState.prototype.addresses =
+  function ()
+  {
+    return [];
+  }

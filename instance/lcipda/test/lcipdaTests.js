@@ -97,7 +97,7 @@ var suiteLcipdaTests =
 //        run(src, cesk, cesk.p.abst([true, false]));
 //      }
     
-//    module.test101 = //HANGS, !retval! ? 
+//    module.test101 = //HANGS, !retval! or finite-width lattice? 
 //      function ()
 //      {
 //        var src = "(letrec ((g (lambda () 1)) (f (lambda (n) (if (= n 0) 0 (+ (f (- n 1)) (g)))))) (f 10))";

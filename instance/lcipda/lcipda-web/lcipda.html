@@ -9,6 +9,7 @@
 	<script type="text/javascript" src="../../../lattice/lattice.js"></script>
 	<script type="text/javascript" src="../../../lattice/lattice1.js"></script>
 	<script type="text/javascript" src="../../../lattice/setLattice.js"></script>
+	<script type="text/javascript" src="../../../lattice/TypeLattice.js"></script>
 	<script type="text/javascript" src="../../../address/address.js"></script>
 	<script type="text/javascript" src="../../../ast/scheme.js"></script>
 	<script type="text/javascript" src="../../../store/store.js"></script>
@@ -48,21 +49,22 @@
     var ag = eval($("#alloc").val());
     var gc = $("#gc").prop("checked");
     var memo = $("#memo").prop("checked");
-    var cesk = lcCesk({a:ag, p:lat, gc:gc, memo:memo});
+    var p = eval($("#lattice").val());
+    var cesk = lcCesk({a:ag, p:p, gc:gc, memo:memo});
     var driver = new Pushdown();
     var start = Date.now();
 		var result = driver.analyze(ast, cesk);
     var end = Date.now();
 		var resultValue = result.stepFwOver(result.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
 		$("#resultValue").text(resultValue + " (states " + result.etg.nodes().length + ", edges " + result.etg.edges().length + ", time " + (end-start) + ")");
-    var etgEdges = result.etg.edges();
     var emptySet = ArraySet.empty();
     var meta = result.ss.entries().reduce(function (acc, entry) {return acc.put(entry.key, {ss:entry.value})}, HashMap.empty());
     //result.tf.entries().forEach(function (entry) {meta.get(entry.key).tf = entry.value});
 
-		//drawLinks(etgEdges.concat(ecgEdges), "#graph");
 		var element = $("#graph");
-		drawLinks(result.etg, result.ecg, meta, element, window);
+		graph = drawLinks(result.etg, result.ecg, meta, element, window);
+		var errorStates = graph.nodes.filter(function (q) {return q.type === "error"});
+		$("#resultValue").append(" error states: " + errorStates);
 	}
 		
 	$(function ()
@@ -77,8 +79,13 @@
 <body>
 	<div id="editor" style="width: 640px; height: 320px; float:left;"></div>
 	<div id="config" style="min-width: 320px; height: 320px; margin: 1em">
-		<div title="garbage collection">gc<input type="checkbox" id="gc"/></div>
-		<div title="memoization">memo<input type="checkbox" id="memo"/></div>
+		<div title="lattice for primitives">
+			lattice
+			<select id="lattice">
+				<option value="new TypeLattice()">type</option>
+				<option value="new Lattice1()">cp type</option>
+			</select>
+		</div>
 		<div title="address allocator">
 			alloc
 			<select id="alloc">
@@ -86,6 +93,8 @@
 				<option value="create1cfaTagAg()">1CFA</option>
 			</select>
 		</div>
+		<div title="garbage collection">gc<input type="checkbox" id="gc"/></div>
+		<div title="memoization">memo<input type="checkbox" id="memo"/></div>
   </div>
 	<div id="manip" style="clear:both">
 		<button id="eval" name="eval" onClick="doIt()">Eval</button>

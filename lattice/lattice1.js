@@ -41,7 +41,7 @@ function Lattice1()
       {
         if (x === BOT || x.Num || x === Num)
         {
-          return this;
+          return Num;
         }
         return Top;
       }
@@ -49,10 +49,10 @@ function Lattice1()
     Num.meet =
       function (x)
       {
-        var c = this.compareTo(x);
+        var c = Num.compareTo(x);
         if (c >= 0)
         {
-          return this;
+          return Num;
         }
         if (c < 0)
         {
@@ -88,7 +88,7 @@ function Lattice1()
     Num.ToNumber =
       function ()
       {
-        return this;
+        return Num;
       };
           
     Num.ToBoolean =
@@ -100,7 +100,7 @@ function Lattice1()
     Num.accept =
       function (visitor)
       {
-        return visitor.visitNum(this);
+        return visitor.visitNum(Num);
       }
     
     var StrNum = new LatticeValue();
@@ -140,7 +140,7 @@ function Lattice1()
       {
         if (x === BOT || x.StrNum || x === StrNum)
         {
-          return this;
+          return StrNum;
         }
         return Top;
       }
@@ -148,10 +148,10 @@ function Lattice1()
     StrNum.meet =
       function (x)
       {
-        var c = this.compareTo(x);
+        var c = StrNum.compareTo(x);
         if (c >= 0)
         {
-          return this;
+          return StrNum;
         }
         if (c < 0)
         {
@@ -170,7 +170,7 @@ function Lattice1()
     StrNum.ToString =
       function ()
       {
-        return this;
+        return StrNum;
       };
       
     StrNum.ToUInt32 =
@@ -200,7 +200,7 @@ function Lattice1()
     StrNum.accept =
       function (visitor)
       {
-        return visitor.visitStrNum(this);
+        return visitor.visitStrNum(StrNum);
       }
     
 		function Some(cvalue)
@@ -381,7 +381,7 @@ function Lattice1()
     Top.ToInt32 = function () { return Top };
     Top.ToNumber = function () { return Top };
     Top.length = function () { return Top };
-    Top.accept = function (visitor) { return visitor.visitTop(this) };
+    Top.accept = function (visitor) { return visitor.visitTop(Top) };
           
       module.add =
         function (x, y)
@@ -832,6 +832,7 @@ function Lattice1()
     
     module.NUMBER = Num;
     module.STRING = Top;
+    module.BOOLEAN = Top;
     
     module.toString = function () {return "Lattice1"}
       
