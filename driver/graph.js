@@ -1,6 +1,5 @@
 function Edge(source, g, target, marks)
 {
-  assertFalse(target == null);
   this.source = source;
   this.g = g;
   this.target = target;
@@ -28,7 +27,7 @@ Edge.prototype.equals =
 Edge.prototype.toString =
   function ()
   {
-    return "{" + this.source.nice() + "," + this.g + "," + this.target.nice() + "}";
+    return "{" + this.source + "," + this.g + "," + this.target + "}";
   }
 Edge.prototype.hashCode =
   function ()
@@ -50,7 +49,7 @@ function Graph(edges)
 Graph.empty =
   function ()
   {
-    return new Graph(HashSet.empty(131));
+    return new Graph(ArraySet.empty(131));
   }
 
 Graph.prototype.equals =
@@ -112,6 +111,20 @@ Graph.prototype.containsEdge =
   function (edge)
   {
     return this._edges.contains(edge);
+  }
+
+Graph.prototype.containsSource =
+  function (source)
+  {
+    var edges = this._edges.values();
+    for (var i = 0; i < edges.length; i++)
+    {
+      if (edges[i].source.equals(source))
+      {
+        return true;
+      }
+    }
+    return false;
   }
 
 Graph.prototype.containsTarget =

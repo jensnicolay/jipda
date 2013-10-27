@@ -352,6 +352,30 @@ Arrays.indexOf =
     return -1;
   }
 
+Arrays.removeFirst =
+  function (x, arr, eq)
+  {
+    var index = Arrays.indexOf(x, arr, eq);
+    if (index === -1)
+    {
+      return arr;
+    }
+    return arr.slice(0, index).concat(arr.slice(index + 1));
+  }
+
+Arrays.remove =
+  function (x, arr, eq)
+  {
+    return arr.filter(function (y) {return !eq(y, x)});
+  }
+
+Arrays.removeAll =
+  function (xs, arr, eq)
+  {
+    return xs.reduce(function (arr, x) {return Arrays.remove(x, arr, Eq.equals)}, arr);
+  }
+
+
 Arrays.contains =
   function (x, arr, eq)
   {
@@ -1072,11 +1096,11 @@ HashSet.prototype.add =
   function (value)
   {
     var existing = this._map.get(value);
-    if (existing)
+    if (existing === undefined)
     {
-      return this;
+      return new HashSet(this._map.put(value, value));
     }
-    return new HashSet(this._map.put(value, value));
+    return this;
   }
 
 HashSet.prototype.addAll =
@@ -1200,12 +1224,13 @@ ArraySet.prototype.addAll =
 ArraySet.prototype.remove =
   function (value)
   {
-    var index = Arrays.indexOf(value, this._arr, Eq.equals);
-    if (index === -1)
-    {
-      return this;
-    }
-    return new ArraySet(this._arr.slice(0, index).concat(this._arr.slice(index + 1)));
+    return new ArraySet(Arrays.removeFirst(value, this._arr, Eq.equals));
+  }
+
+ArraySet.prototype.removeAll =
+  function (values)
+  {
+    return new ArraySet(values.reduce(function (arr, value) {return Arrays.removeFirst(value, arr, Eq.equals)}, this._arr));
   }
 
 ArraySet.prototype.contains =

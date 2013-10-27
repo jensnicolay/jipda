@@ -10,6 +10,7 @@ function lcCesk(cc)
   var gcFlag = cc.gc === undefined ? true : cc.gc;
   var memoFlag = cc.memo === undefined ? false : cc.memo;
   var memoTable = HashMap.empty();
+  var readTable = HashMap.empty();
   
   assertDefinedNotNull(a);
 //  assertDefinedNotNull(b);
@@ -79,6 +80,31 @@ function lcCesk(cc)
       result = prime * result + this.statc.hashCode();
       return result;      
     }
+  
+//  Closure.prototype.compareTo =
+//    function (x)
+//    {
+//      return this.equals(x) ? 0 : undefined; 
+//    }
+  
+  function operandValuesSubsume(ov1, ov2)
+  {
+    if (ov1.length !== ov2.length)
+    {
+      return false;
+    }
+    return ov1.entries().every(
+      function (v1, i)
+      {
+        return v1.subsumes(ov2[i]);
+      })
+  }
+  
+  function storeSubsumes(memoStore, extendedStore)
+  {
+    var store = Agc.collect(extendedStore, memoStore.map.keys());
+    return memoStore.subsumes(store);
+  }
   
   Closure.prototype.apply_ =
     function (application, operandValues, benv, callStore, kont)
@@ -373,18 +399,15 @@ function lcCesk(cc)
   
   function gc(q, kont)
   {
-    var store = q.store;
     if (gcFlag)
     {
-//      var stackAddresses = kont.stack.flatMap(function (frame) {return frame.addresses()}).toSet();
-      var stackAddresses = kont.addresses();
+      var stackAddresses = kont.stack.flatMap(function (frame) {return frame.addresses()}).toSet();
       var rootSet = q.addresses().concat(stackAddresses);
-      var gcStore = Agc.collect(store, rootSet);
-      return gcStore;
+      return Agc.collect(q.store, rootSet);        
     }
     else
     {
-      return store;
+      return q.store;
     }
   }  
 
@@ -426,14 +449,7 @@ function lcCesk(cc)
   EvalState.prototype.next =
     function (kont)
     {
-      try
-      {
-        return evalNode(this.node, this.benv, gc(this, kont), kont);
-      }
-      catch (e)
-      {
-        return kont.unch(new ErrorState(String(e), e.stack))
-      }
+      return evalNode(this.node, this.benv, gc(this, kont), kont);
     }
   EvalState.prototype.addresses =
     function ()
@@ -478,14 +494,14 @@ function lcCesk(cc)
   KontState.prototype.next =
     function (kont)
     {
-      try
-      {
+//      try
+//      {
         return applyKont(this.frame, this.value, gc(this, kont), kont)
-      }
-      catch (e)
-      {
-        return kont.unch(new ErrorState(String(e), e.stack))
-      }
+//      }
+//      catch (e)
+//      {
+//        return kont.unch(new ErrorState(String(e), e.stack))
+//      }
     }
   KontState.prototype.addresses =
     function ()
@@ -871,6 +887,18 @@ function lcCesk(cc)
       throw new Error("undefined: " + node);
     }
     var value = store.lookupAval(addr);
+    if (memoFlag)
+    {
+      readTable = kont.stack.reduce(
+          function (readTable, frame)
+          {
+            if (frame instanceof ReturnKont)
+            {
+              return readTable.put(frame, readTable.get(frame, ArraySet.empty()).add(addr));
+            }
+            return readTable;
+          }, readTable);
+    }
     return kont.pop(function (frame) {return new KontState(frame, value, store)});
   }
   
@@ -897,7 +925,7 @@ function lcCesk(cc)
   
   function computeTime(kont)
   {
-    var visited = ArraySet.empty();
+    var visited = HashSet.empty();
     var todo = [kont.source];
     while (todo.length > 0)
     {
@@ -933,6 +961,33 @@ function lcCesk(cc)
   {
     return node instanceof Pair
       && !SchemeParser.isSyntacticKeyword(node.car.name)
+  }
+  
+  function scanOpers(s, kont)
+  {
+    var visited = HashSet.empty();
+    
+    function helper(q)
+    {
+      if (visited.contains(q))
+      {
+        return [];
+      }
+      visited = visited.add(q);
+      var epsOperFrameSuccs = kont.ecg.outgoing(q).flatMap(
+        function (h)
+        {
+          return h.g && (h.g.frame instanceof OperatorKont || h.g.frame instanceof OperandsKont) ? [h.target] : [];
+        });
+      if (epsOperFrameSuccs.length === 0)
+      {
+        return [[q]];
+      }
+      var rs = epsOperFrameSuccs.flatMap(helper);
+      var rs2 = rs.map(function (r) {return r.addFirst(q)});
+      return rs2;
+    }
+    return helper(s);
   }
   
   function applyKont(frame, value, store, kont)

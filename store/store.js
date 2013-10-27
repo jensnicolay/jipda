@@ -272,7 +272,7 @@ Store.prototype.join =
       return this;
     }
     var result = this.map.clear();
-    var addresses = this.map.keys().concat(store.map.keys()).toSet();
+    var addresses = this.keys().concat(store.keys()).toSet();
     addresses.forEach(
       function (address)
       {
@@ -304,9 +304,9 @@ Store.prototype.narrow =
     }
     return new Store(result);
   }
-//
-//Store.prototype.addresses =
-//  function ()
-//  {
-//    return this.map.values().flatMap(function (value) {return value.addresses()});
-//  }
+
+Store.prototype.keys =
+  function ()
+  {
+    return this.map.keys();
+  }
