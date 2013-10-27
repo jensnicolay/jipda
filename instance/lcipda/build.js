@@ -7,11 +7,12 @@ function b()
   load("../../ast/scheme.js");
   load("../../lattice/lattice.js");
   load("../../lattice/lattice1.js");
+  load("../../lattice/typeLattice.js");
   load("../../lattice/cpLattice.js");
   load("../../lattice/setLattice.js");
   load("../../address/address.js");
   load("../../driver/graph.js");
-  load("../../driver/pushdown.js");
+  load("../../driver/pushdown2.js");
   load("../../cesk/lc/monoTagAg.js");
   load("../../cesk/lc/1cfaTagAg.js");
   load("../../cesk/lc/concreteAg.js");

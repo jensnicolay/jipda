@@ -104,7 +104,7 @@ function lcCesk(cc)
       if (memoFlag)
       {
         var memoClosures = memoTable.get(this.node.tag, ArraySet.empty()).values();
-        print(this.node, "memoClosures", memoClosures);
+//        print(this.node, "memoClosures", memoClosures);
         var memoValue = BOT;
         var memoStore = BOT;
         memoClosures.forEach(
@@ -120,7 +120,7 @@ function lcCesk(cc)
           });
         if (memoValue !== BOT)
         {
-          print("MEMO!");
+//          print("MEMO!");
           return kont.pop(function (frame) {return new KontState(frame, memoValue, memoStore)}, "MEMO");
         }
       }
@@ -844,7 +844,7 @@ function lcCesk(cc)
       {
         var memoKey = this.closure.node.tag;
         memoTable = memoTable.put(memoKey, memoTable.get(memoKey, ArraySet.empty()).add([returnStore, returnValue]));
-        print(this.closure.node, "memoized", returnValue);
+//        print(this.closure.node, "memoized", returnValue);
       }
       return kont.pop(function (frame) {return new KontState(frame, returnValue, returnStore)});
     }

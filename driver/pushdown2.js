@@ -170,21 +170,19 @@ var ceskDriver = {};
 ceskDriver.pushUnch =
   function (c, etg, ecg)
   {
-    var kont = new PushUnchKont(c, c.ss.values(), etg, ecg);
+    var kont = new PushUnchKont(c, c.ss, etg, ecg);
     return c.q.next(kont);
   }
 
 ceskDriver.pop =
   function (c, frame, etg, ecg)
   {
-    var kont = new PopKont(c, frame, c.ss.values(), etg, ecg);
+    var kont = new PopKont(c, frame, c.ss, etg, ecg);
     return c.q.next(kont);
   }
 
 function C(q, ss)
 {
-  assertFalse(q == null);
-  assertFalse(ss == null);
   this.q = q;
   this.ss = ss;
 }
@@ -219,24 +217,22 @@ C.prototype.nice =
     return "<" + this.q + ">";
   }
 
-
-
 function Pushdown()
 {
 }
 
 Pushdown.run =
-  function(q)
+  function (q)
   {
     var k = ceskDriver;
 
     var etg = Graph.empty();
     var ecg = Graph.empty();
     var cs = [];
-    var emptySet = ArraySet.empty();
+    var initial = newC(q, ArraySet.empty());
     var dE = [];
     var dH = [];
-    var dS = [newC(q, emptySet)];
+    var dS = [initial];
     
     function newC(q, ss)
     {
@@ -267,7 +263,7 @@ Pushdown.run =
           function (c1)
           {
             var popEdges = k.pop(c1, frame, etg, ecg);
-            print("c", c.index, "c1", c1.index, "pop edges", popEdges.map(function (e) {return new Edge(e.source.index, e.g, e.target)}));
+//            print("c", c.index, "c1", c1.index, "pop edges", popEdges.map(function (e) {return new Edge(e.source.index, e.g, e.target)}));
             return popEdges;
           });
       dE = dE.concat(popEdges);
@@ -322,7 +318,7 @@ Pushdown.run =
             {
               var frame = pushEdge.g.frame;
               var popEdges = k.pop(c4, frame, etg, ecg);
-              print("c2", c2.index, "c3", c3.index, "c4", c4.index, "pop edges", popEdges.map(function (e) {return new Edge(e.source.index, e.g, e.target)}));
+//              print("->c1 push", pushEdges.map(function (e) {return new Edge(e.source.index, e.g, e.target.index)}), "c2", c2.index, "c3", c3.index, "c4-> pop", popEdges.map(function (e) {return new Edge(e.source.index, e.g, e.target)}));
               return popEdges;
             })
         });
@@ -417,7 +413,7 @@ Pushdown.run =
       }
       else
       {
-        return {etg:etg, ecg:ecg, ss:HashMap.empty()};
+        return {etg:etg, ecg:ecg, initial:initial};
       }
     }
   }
@@ -551,7 +547,7 @@ Pushdown.prototype.analyze =
   {
     var initial = cesk.inject(ast, override);
     var dsg = Pushdown.run(initial);
-    return new Dsg(initial, dsg.etg, dsg.ecg, dsg.ss);
+    return new Dsg(dsg.initial, dsg.etg, dsg.ecg);
   }
 
 function Dsg(initial, etg, ecg, ss)
