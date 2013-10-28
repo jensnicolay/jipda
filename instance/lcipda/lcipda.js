@@ -17,8 +17,9 @@ function computeResults()
   var facSrc = {name:"fac", src:"(letrec ((fac (lambda (n) (if (= n 0) 1 (* n (fac (- n 1))))))) (fac 10))"};
   var gcIpdSrc = {name:"gcIpd", src:read("test/resources/gcIpdExample.scm")};
   var fibSrc = {name:"fib", src:"(letrec ((fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))) (fib 4))"};
+  var churchSrc = {name:"church", src:read("test/resources/churchNums.scm")};
  
-  var srcs = [idSrc, facSrc, gcIpdSrc, fibSrc];
+  var srcs = [idSrc, facSrc, gcIpdSrc, fibSrc, churchSrc];
   
   results = srcs.map(
     function (src)
@@ -28,17 +29,27 @@ function computeResults()
         function (cc)
         {
           cc = {a:cc.a, gc:cc.gc, memo:cc.memo, p:new TypeLattice(), name:cc.name};
-          var sp = new SchemeParser();
-          var cesk = lcCesk(cc);
-          var driver = new Pushdown();
-          var ast = new SchemeParser().parse(src.src)[0];
-          var start = Date.now();
-          var dsg = driver.analyze(ast, cesk);
-          var time = Date.now() - start;
-          var numStates = dsg.etg.nodes().length;
-          var numEdges = dsg.etg.edges().length;
-          print(cc.name, "time", time, "states", numStates, "edges", numEdges);
-          return {src:src, cc:cc, time:time, numStates:numStates, numEdges:numEdges};
+          var time;
+          try
+          {
+            var sp = new SchemeParser();
+            var cesk = lcCesk(cc);
+            var driver = new Pushdown();
+            var ast = new SchemeParser().parse(src.src)[0];
+            var start = Date.now();
+            var dsg = driver.analyze(ast, cesk);
+            time = Date.now() - start;
+            var numStates = dsg.etg.nodes().length;
+            var numEdges = dsg.etg.edges().length;
+            print(cc.name, "time", time, "states", numStates, "edges", numEdges);
+            return {src:src, cc:cc, time:time, numStates:numStates, numEdges:numEdges};
+          }
+          catch (e)
+          {
+            time = time || (start ? (Date.now() - start) : null);
+            print(e);
+            return {src:src, cc:cc, time:time, error:e};            
+          }
         });
       return {src:src, srcResults:srcResults};
     });
@@ -59,7 +70,7 @@ function dumpLatex()
       var ccString = srcResults.map(
         function (cc) 
         {
-          return cc.numStates + "/" + cc.numEdges + " " + cc.time + "ms"; 
+          return cc.error || (cc.numStates + "/" + cc.numEdges + " " + cc.time + "ms"); 
         }).join(" & ");
       print(src.name, "&", ccString, "\\\\ \\hline");
     });

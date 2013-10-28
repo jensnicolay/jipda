@@ -124,7 +124,11 @@ function lcCesk(cc)
           return kont.pop(function (frame) {return new KontState(frame, memoValue, memoStore)}, "MEMO");
         }
       }
-      
+      if (kont.etg.edges().length > 2048)
+      {
+        throw new Error("state overflow (2048)");
+//        return kont.unch(new ErrorState("state overflow"));
+      }      
       if (!(this.body.cdr instanceof Null))
       {
         throw new Error("expected single body expression, got " + this.body);
@@ -426,14 +430,7 @@ function lcCesk(cc)
   EvalState.prototype.next =
     function (kont)
     {
-      try
-      {
-        return evalNode(this.node, this.benv, gc(this, kont), kont);
-      }
-      catch (e)
-      {
-        return kont.unch(new ErrorState(String(e), e.stack))
-      }
+      return evalNode(this.node, this.benv, gc(this, kont), kont);
     }
   EvalState.prototype.addresses =
     function ()
@@ -478,14 +475,7 @@ function lcCesk(cc)
   KontState.prototype.next =
     function (kont)
     {
-      try
-      {
-        return applyKont(this.frame, this.value, gc(this, kont), kont)
-      }
-      catch (e)
-      {
-        return kont.unch(new ErrorState(String(e), e.stack))
-      }
+      return applyKont(this.frame, this.value, gc(this, kont), kont)
     }
   KontState.prototype.addresses =
     function ()
@@ -944,12 +934,8 @@ function lcCesk(cc)
   {
     if (!(operatorValue instanceof Procedure))
     {
-//      throw new Error("not an operator for " + node.car + ": " + operatorValue);
-      return kont.unch(new ErrorState(operatorValue + " not operator for " + node.car));
-    }
-    if (kont.etg.nodes().length > 512)
-    {
-      return kont.unch(new ErrorState("state overflow"));
+      throw new Error("not an operator for " + node.car + ": " + operatorValue);
+//      return kont.unch(new ErrorState(operatorValue + " not operator for " + node.car));
     }
     return operatorValue.apply_(node, operandValues, benv, store, kont);
   }

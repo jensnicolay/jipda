@@ -363,7 +363,7 @@ Pushdown.run =
           var c1 = newC(q1, ss1);
           ecg = ecg.addEdge(new Edge(c1, null, c1));
           addPush(c, g.frame, c1);
-          var e1 = new Edge(c, g, c1);
+          var e1 = new Edge(c, g, c1, e.marks);
           if (!etg.containsEdge(e1))
           {
             etg = etg.addEdge(e1);
@@ -378,7 +378,7 @@ Pushdown.run =
            {
              var c1 = newC(q1, h.source.ss);
              ecg = ecg.addEdge(new Edge(c1, null, c1));
-             var e1 = new Edge(c, g, c1);
+             var e1 = new Edge(c, g, c1, e.marks);
              if (!etg.containsEdge(e1))
              {
                etg = etg.addEdge(e1);
@@ -390,7 +390,7 @@ Pushdown.run =
         {
           var c1 = newC(q1, c.ss);
           ecg = ecg.addEdge(new Edge(c1, null, c1));
-          var e1 = new Edge(c, g, c1);
+          var e1 = new Edge(c, g, c1, e.marks);
           if (!etg.containsEdge(e1))
           {
             etg = etg.addEdge(e1);
