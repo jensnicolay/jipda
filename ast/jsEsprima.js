@@ -416,48 +416,51 @@ var Ast = (function ()
   //  return prefix + ++__symCounter__; 
   //}
   
+  
+  function augmentAst(node)
+  {
+  
+    function toString()
+    {
+      return nodeToString(this);
+    }
+    
+    function hashCode()
+    {
+      return this.tag;
+    }
+
+    function nodify(x)
+    {
+      tagNode(x);
+      x.toString = toString;
+      x.hashCode = hashCode;
+    }
+  
+    function doVisit(node)
+    {
+      if (node === null)
+      {
+        return;
+      }
+      nodify(node);
+      var cs = children(node);
+      cs.forEach(function (child) { doVisit(child, node);});
+    }   
+    doVisit(node);
+  }
+
+  
   module.createAst =
     function (source, config)
   {
-    function visitNode(node)
-    {
-    
-      function toString()
-      {
-        return nodeToString(this);
-      }
-      
-      function hashCode()
-      {
-        return this.tag;
-      }
-  
-      function nodify(x)
-      {
-        tagNode(x);
-        x.toString = toString;
-        x.hashCode = hashCode;
-      }
-    
-      function doVisit(node)
-      {
-        if (node === null)
-        {
-          return;
-        }
-        nodify(node);
-        var cs = children(node);
-        cs.forEach(function (child) { doVisit(child, node);});
-      }   
-      doVisit(node);
-    }
     
     var ast = esprima.parse(source, {loc: (config ? config.loc : false)});
     if (config && config.resetTagCounter)
     {
       __nodeCounter__ = 0;
     }
-    visitNode(ast);
+    augmentAst(ast);
     return ast;
   }
   
@@ -740,5 +743,6 @@ var Ast = (function ()
     }
   
   module.nodes = nodes;
+  module.augmentAst = augmentAst;
   return module;  
 })()
