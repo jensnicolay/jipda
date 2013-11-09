@@ -8,11 +8,11 @@
 	<script type="text/javascript" src="../../../agc.js"></script>
 	<script type="text/javascript" src="../../../lattice/lattice.js"></script>
 	<script type="text/javascript" src="../../../lattice/lattice1.js"></script>
-	<script type="text/javascript" src="../../../lattice/setLattice.js"></script>
-	<script type="text/javascript" src="../../../lattice/typeLattice.js"></script>
 	<script type="text/javascript" src="../../../address/address.js"></script>
 	<script type="text/javascript" src="../../../ast/scheme.js"></script>
 	<script type="text/javascript" src="../../../store/store.js"></script>
+	<script type="text/javascript" src="../../../cesk/lc/typeLattice.js"></script>
+	<script type="text/javascript" src="../../../cesk/lc/setLattice.js"></script>
 	<script type="text/javascript" src="../../../cesk/lc/benv.js"></script>
 	<script type="text/javascript" src="../../../cesk/lc/lcCesk.js"></script>
 	<script type="text/javascript" src="../../../cesk/lc/monoTagAg.js"></script>
@@ -43,18 +43,17 @@
     {
  */      ast = ast[0];
 /*     }
- */    var lat = new Lattice1();
-    //var lat = new SetLattice(3);
+ */    
     var ag = eval($("#alloc").val());
     var gc = $("#gc").prop("checked");
     var memo = $("#memo").prop("checked");
-    var p = eval($("#lattice").val());
-    var cesk = lcCesk({a:ag, p:p, gc:gc, memo:memo});
+    var l = eval($("#lattice").val());
+    var cesk = lcCesk({a:ag, l:l, gc:gc, memo:memo});
     var driver = new Pushdown();
     var start = Date.now();
 		dsg = driver.analyze(ast, cesk);
     var end = Date.now();
-		var resultValue = dsg.stepFwOver(dsg.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
+		var resultValue = dsg.stepFwOver(dsg.initial).map(function (c) {return c.q.value}).reduce(Lattice.join, BOT);
 		var resultString = resultValue + " (states " + dsg.etg.nodes().length + ", edges " + dsg.etg.edges().length + ", time " + (end-start) + ")";
 		print(resultString);
 		$("#resultValue").text(resultString);
@@ -85,6 +84,7 @@
 			<select id="lattice">
 				<option value="new TypeLattice()">type</option>
 				<option value="new Lattice1()">cp type</option>
+				<option value="new SetLattice()">set</option>
 			</select>
 		</div>
 		<div title="address allocator">

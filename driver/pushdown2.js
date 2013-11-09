@@ -183,6 +183,7 @@ ceskDriver.pop =
 
 function C(q, ss)
 {
+  assertFalse(q == null);
   this.q = q;
   this.ss = ss;
 }
@@ -217,13 +218,17 @@ C.prototype.nice =
     return "<" + this.q + ">";
   }
 
-function Pushdown()
+function Pushdown(lim)
 {
+  this.lim = lim;
 }
 
 Pushdown.run =
-  function (q)
+  function (q, limitTime)
   {
+    var startTime = Date.now();
+    var limitTime = startTime + (this.lim || Number.MAX_VALUE);
+    print("limit time", this.lim, limitTime - startTime);
     var k = ceskDriver;
 
     var etg = Graph.empty();
@@ -249,6 +254,12 @@ Pushdown.run =
     
     function sprout(c)
     {
+      if (Date.now() > limitTime)
+      {
+        var err = new Error("overflow: exceeded limit time " + (limitTime - startTime)); 
+        err.dsg = {etg:etg, ecg:ecg, initial:initial};
+        throw err;
+      }
       var pushUnchEdges = k.pushUnch(c, etg, ecg); 
       dE = dE.concat(pushUnchEdges);
       dH = dH.concat(pushUnchEdges
@@ -341,7 +352,7 @@ Pushdown.run =
         var q1 = h.target;
         var c1 = newC(q1, c.ss);
         ecg = ecg.addEdge(new Edge(c, null, c)).addEdge(new Edge(c1, null, c1));
-        var h1 = new Edge(c, null, c1);
+        var h1 = new Edge(c, h.g, c1);
         if (!ecg.containsEdge(h1))
         {
           addEmpty(c, c1);
@@ -396,7 +407,7 @@ Pushdown.run =
             etg = etg.addEdge(e1);
             dS.push(c1);
           }
-          var h1 = new Edge(c, null, c1);
+          var h1 = new Edge(c, g, c1);
           if (!ecg.containsEdge(h1))
           {
             addEmpty(c, c1);
@@ -559,9 +570,9 @@ function Dsg(initial, etg, ecg, ss)
 }
 
 Dsg.prototype.stepFwOver =
-  function (s)
+  function (c)
   {
-    var successors = this.ecg.outgoing(s).flatMap(function (h) {return h.g ? [h.target] : []});
+    var successors = this.ecg.outgoing(c).flatMap(function (h) {return h.g ? [h.target] : []});
     return successors;
   }
 

@@ -360,6 +360,12 @@ Arrays.removeFirst =
     {
       return arr;
     }
+    return Arrays.removeIndex(index);
+  }
+
+Arrays.removeIndex =
+  function (index, arr)
+  {
     return arr.slice(0, index).concat(arr.slice(index + 1));
   }
 
@@ -718,7 +724,8 @@ Map.prototype.equals =
 Map.prototype.hashCode =
   function ()
   {
-    return this.entries().map(function (x) {return HashCode.hashCode(x.key) ^ HashCode.hashCode(x.value)}).reduce(function (acc, x) {return acc + x}, 0);
+//  return this.entries().map(function (x) {return HashCode.hashCode(x.key) ^ HashCode.hashCode(x.value)}).reduce(function (acc, x) {return acc + x}, 0);
+    return this.size();
   }
 
 Map.prototype.putAll =
@@ -752,6 +759,111 @@ Map.prototype.removeAll =
   function (keys)
   {
     return keys.reduce(function (result, key) {return result.remove(key)}, this);
+  }
+
+function ArrayMap(arr)
+{
+  this._arr = arr
+}
+ArrayMap.prototype = Object.create(Map.prototype);
+ArrayMap.empty =
+  function ()
+  {
+    return new ArrayMap([]);
+  }
+ArrayMap.from =
+  function (arr)
+  {
+    return new ArrayMap(arr);
+  }
+ArrayMap.prototype.put =
+  function (key, value)
+  {
+    var arr = this._arr;
+    for (var i = 0; i < arr.length; i++)
+    {
+      var entry = arr[i];
+      if (Eq.equals(entry.key, key))
+      {
+        if (Eq.equals(entry.value, value))
+        {
+          return this;
+        }
+        return new ArrayMap(Arrays.removeIndex(i, arr).addLast({key:key,value:value}));
+      }
+    }
+    return new ArrayMap(arr.addLast({key:key,value:value}));  
+  }
+
+ArrayMap.prototype.get =
+  function (key, bot)
+  {
+    var arr = this._arr;
+    for (var i = 0; i < arr.length; i++)
+    {
+      var entry = arr[i];
+      if (Eq.equals(entry.key, key))
+      {
+        return entry.value;
+      }
+    }
+    return bot;
+  }
+
+ArrayMap.prototype.entries =
+  function ()
+  {
+    return this._arr.slice(0);
+  }
+
+ArrayMap.prototype.iterateEntries =
+  function (f, th)
+  {
+    var arr = this._arr;
+    for (var i = 0; i < arr.length; i++)
+    {
+      if (f.call(th, arr[i]) === false)
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+ArrayMap.prototype.keys =
+  function ()
+  {
+    return this._arr.map(function (entry) {return entry.key});
+  }
+
+ArrayMap.prototype.values =
+  function ()
+  {
+    return this._arr.map(function (entry) {return entry.value});
+  }
+
+ArrayMap.prototype.size =
+  function ()
+  {
+    return this._arr.length;
+  }
+
+ArrayMap.prototype.clear =
+  function ()
+  {
+    return new ArrayMap([]);
+  }
+
+ArrayMap.prototype.toString =
+  function ()
+  {
+    return this._arr.map(function (entry) {return entry.key + " -> " + entry.value}).toString();
+  }
+
+ArrayMap.prototype.nice =
+  function ()
+  {
+    return this._arr.map(function (entry) {return entry.key + " -> " + entry.value}).join("\n");
   }
 
 function HashMap(entries)
@@ -1083,7 +1195,8 @@ HashSet.prototype.equals =
 HashSet.prototype.hashCode =
   function ()
   {
-    return this.values().hashCode();
+    //return this.values().hashCode();
+    return this.size();
   }
 
 HashSet.prototype.clear =

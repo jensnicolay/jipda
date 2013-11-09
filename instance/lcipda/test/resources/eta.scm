@@ -1,0 +1,6 @@
+(let ((do-something (lambda ()
+                      10)))
+  (let ((id (lambda (y)
+              (begin (do-something) y))))
+    ((id (lambda (a) a)) #t)
+    ((id (lambda (b) b)) #f)))

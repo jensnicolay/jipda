@@ -516,6 +516,7 @@ function CpLattice()
         
     module.NUMBER = Top;
     module.STRING = Top;
+    module.BOOLEAN = Top;
     
 		return module;
 	})();

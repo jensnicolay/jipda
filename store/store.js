@@ -29,6 +29,12 @@ StoreValue.prototype.hashCode =
     return result;    
   }
 
+StoreValue.prototype.subsumes =
+  function (x)
+  {
+    return this.aval.subsumes(x.aval);
+  }
+
 StoreValue.prototype.compareTo =
   function (x)
   {
@@ -97,7 +103,23 @@ function Store(map)
 Store.prototype.equals =
   function (x)
   {
-    return this.compareTo(x) === 0;
+    var xentries = x.map.entries();
+    for (var i = 0; i < xentries.length; i++)
+    {
+      var xentry = xentries[i];
+      var address = xentry.key;
+      var thisStoreValue = this.map.get(address);
+      if (!thisStoreValue)
+      {
+        return false;
+      }
+      var xStoreValue = xentry.value;
+      if (!(Eq.equals(thisStoreValue, xStoreValue)))
+      {
+        return false;
+      }
+    }
+    return true;
   }
 
 Store.prototype.hashCode =
@@ -126,11 +148,10 @@ Store.prototype.subsumes =
         return false;
       }
       var xStoreValue = xentry.value;
-      var c = xStoreValue.compareTo(thisStoreValue);
-      if (c === undefined || c > 0)
+      if (!thisStoreValue.subsumes(xStoreValue))
       {
         return false;
-      }
+      }      
     }
     return true;
   }

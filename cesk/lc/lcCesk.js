@@ -4,35 +4,34 @@ function lcCesk(cc)
   var a = cc.a;
   // benv creator
 //  var b = cc.b || new DefaultBenv();
-  // primitive lattice
-  var p = cc.p;
+  // lattice
+  var l = cc.l;
   
   var gcFlag = cc.gc === undefined ? true : cc.gc;
   var memoFlag = cc.memo === undefined ? false : cc.memo;
   var memoTable = HashMap.empty();
   
   assertDefinedNotNull(a);
-//  assertDefinedNotNull(b);
-  assertDefinedNotNull(p);
+  assertDefinedNotNull(l);
 
   // lattice (primitives + procs)
 //  var l = new JipdaLattice(p); // in this CESK, prims and procs don't match!
   
   print("allocator", a);
-  print("lattice", p);
+  print("lattice", l);
   print("gc", gcFlag);
   print("memoization", memoFlag);
   
   // install constants
-  var P_UNDEFINED = p.abst1(undefined);
-  var P_NULL = p.abst1(null);
-  var P_0 = p.abst1(0);
-  var P_1 = p.abst1(1);
-  var P_TRUE = p.abst1(true);
-  var P_FALSE = p.abst1(false);
-  var P_NUMBER = p.NUMBER;
-  var P_STRING = p.STRING;
-  var P_DEFINED = P_TRUE.join(P_FALSE).join(P_NUMBER).join(P_STRING);
+  var L_UNDEFINED = SetValue.from1(l.abst1(undefined));
+//  var L_NULL = SetValue.from1(l.abst1(null));
+//  var L_0 = SetValue.from1(l.abst1(0));
+//  var L_1 = SetValue.from1(l.abst1(1));
+  var L_TRUE = SetValue.from1(l.abst1(true));
+  var L_FALSE = SetValue.from1(l.abst1(false));
+  var L_NUMBER = SetValue.from1(l.NUMBER);
+//  var L_STRING = SetValue.from1(l.STRING);
+  var L_BOOLEAN = L_TRUE.join(L_FALSE);
   
 
   function Closure(node, statc, params, body)
@@ -92,9 +91,14 @@ function lcCesk(cc)
       var i = 0;
       while (!(params instanceof Null))
       {
+        if (operandValues[i] == null)
+        {
+//          return kont.unch(new ErrorState("too few arguments", application, benv, callStore));
+          return [];
+        }
         var param = params.car;
         var name = param.name;
-        var addr = a.variable(param, application);
+        var addr = a.variable(param, application.tag);
         extendedBenv = extendedBenv.add(name, addr);
         extendedStore = extendedStore.allocAval(addr, operandValues[i]);
         params = params.cdr;
@@ -124,16 +128,12 @@ function lcCesk(cc)
           return kont.pop(function (frame) {return new KontState(frame, memoValue, memoStore)}, "MEMO");
         }
       }
-      if (kont.etg.edges().length > 2048)
-      {
-        throw new Error("state overflow (2048)");
-//        return kont.unch(new ErrorState("state overflow"));
-      }      
+      
       if (!(this.body.cdr instanceof Null))
       {
         throw new Error("expected single body expression, got " + this.body);
       }
-      var frame = new ReturnKont(application, this, extendedBenv, extendedStore);
+      var frame = new ReturnKont(application, fun, extendedBenv);
       return kont.push(frame, new EvalState(exp, extendedBenv, extendedStore));
     }
 
@@ -177,96 +177,8 @@ function lcCesk(cc)
     {
       return this.name;
     }
+   
   
-  function Procedure(procs)
-  {
-    this.procs = procs;
-  }
-  
-  Procedure.empty =
-    function ()
-    {
-      return new Procedure([]);
-    }
-  
-  Procedure.from =
-    function (procs)
-    {
-      return new Procedure(procs.slice(0));
-    }
-  
-  Procedure.prototype.equals =
-    function (x)
-    {
-      if (this === x)
-      {
-        return true;
-      }
-      if (!(x instanceof Procedure))
-      {
-        return false;
-      }
-      return this.procs.setEquals(x.procs);
-    }
-  
-  Procedure.prototype.hashCode =
-    function ()
-    {
-      return this.procs.hashCode();
-    }
-  
-  Procedure.prototype.subsumes =
-    function (x)
-    {
-      if (this === x)
-      {
-        return true;
-      }
-      if (!(x instanceof Procedure))
-      {
-        return false;
-      }
-      return this.procs.subsumes(x.procs);
-    }
-  
-  Procedure.prototype.compareTo =
-    function (x)
-    {
-      return Lattice.subsumeComparison(this, x);
-    }
-  
-  Procedure.prototype.join =
-    function (x)
-    {
-      if (x === BOT)
-      {
-        return this;
-      }
-      if (!(x instanceof Procedure))
-      {
-        throw new Error("cannot join proc and prim");
-      }
-      return new Procedure(Arrays.deleteDuplicates(this.procs.concat(x.procs), Eq.equals));
-    }
-  
-  Procedure.prototype.addresses =
-    function ()
-    {
-      return this.procs.flatMap(function (proc) {return proc.addresses()});
-    }
-  
-  Procedure.prototype.apply_ =
-    function (application, operandValues, benv, store, kont)
-    {
-      return this.procs.flatMap(function (proc) {return proc.apply_(application, operandValues, benv, store, kont)});
-    }
-  
-  Procedure.prototype.toString =
-    function ()
-    {
-      return "<procedure " + this.procs + ">";
-    }
-
   // install global environment
   var global = Benv.empty();
   var store = new Store();
@@ -274,7 +186,7 @@ function lcCesk(cc)
   function installPrimitive(name, apply_)
   {
     var proca = new ContextAddr(name, 0);
-    var proc = Procedure.from([new Primitive(name, apply_)]);
+    var proc = SetValue.from1(new Primitive(name, apply_));
     global = global.add(name, proca);
     store = store.allocAval(proca, proc);    
   }
@@ -286,44 +198,314 @@ function lcCesk(cc)
     store = store.allocAval(vara, value);    
   }
   
-  installVariable("#t", P_TRUE);
-  installVariable("#f", P_FALSE);
+  function processErrors(values, node, benv, store, kont)
+  {
+//    var okValues = values.filter(function (v) {return !(v instanceof Error)});
+//    if (okValues.length === values.length)
+//    {
+//      return kont.pop(function (frame) {return new KontState(frame, SetValue.from(okValues), store)});
+//    }
+//    var errors = values.filter(function (v) {return v instanceof Error});
+//    var result = okValues.length > 0 ? kont.pop(function (frame) {return new KontState(frame, SetValue.from(okValues), store)}) : [];
+//    result = errors.reduce(
+//      function (result, error)
+//      {
+//        return result.concat(kont.unch(new ErrorState(error.toString(), node, benv, store)))
+//      }, result);
+//    return result;
+    return kont.pop(function (frame) {return new KontState(frame, SetValue.from(values), store)});
+  }
+  
+  installVariable("#t", L_TRUE);
+  installVariable("#f", L_FALSE);
   
   installPrimitive("+", 
-      function(application, operandValues, benv, store, kont)
-      {
-        var value = operandValues.reduce(function (acc, x) {return p.add(acc, x)}, P_0);
-        return kont.pop(function (frame) {return new KontState(frame, value, store)});
-      });
+    function(application, operandValues, benv, store, kont)
+    {
+      var values = operandValues[0].values()
+        .flatMap(
+          function (v1)
+          {
+            return operandValues[1].values().flatMap(
+              function (v2)
+              {
+                return l.add(v1, v2);
+              });
+          });
+      return processErrors(values, application, benv, store, kont);
+    });
   installPrimitive("-", 
-      function(application, operandValues, benv, store, kont)
-      {
-        var value = operandValues.slice(1).reduce(function (acc, x) {return p.sub(acc, x)}, operandValues[0]);
-        return kont.pop(function (frame) {return new KontState(frame, value, store)});
-      });
+    function(application, operandValues, benv, store, kont)
+    {
+      var values = operandValues[0].values()
+        .flatMap(
+          function (v1)
+          {
+            return operandValues[1].values().flatMap(
+              function (v2)
+              {
+                return l.sub(v1, v2);
+              });
+          });
+      return processErrors(values, application, benv, store, kont);
+    });
   installPrimitive("*", 
       function(application, operandValues, benv, store, kont)
       {
-        var value = operandValues.reduce(function (acc, x) {return p.mul(acc, x)}, P_1);
-        return kont.pop(function (frame) {return new KontState(frame, value, store)});
+        var values = operandValues[0].values()
+          .flatMap(
+            function (v1)
+            {
+              return operandValues[1].values().flatMap(
+                function (v2)
+                {
+                  return l.mul(v1, v2);
+                });
+            });
+        return processErrors(values, application, benv, store, kont);
       });
-  installPrimitive("=", 
+  installPrimitive("/", 
       function(application, operandValues, benv, store, kont)
       {
-        var value = p.eq(operandValues[0], operandValues[1]);
-        return kont.pop(function (frame) {return new KontState(frame, value, store)});
+        var values = operandValues[0].values()
+          .flatMap(
+            function (v1)
+            {
+              return operandValues[1].values().flatMap(
+                function (v2)
+                {
+                  return l.div(v1, v2);
+                });
+            });
+        return processErrors(values, application, benv, store, kont);
       });
+  installPrimitive("=", 
+    function(application, operandValues, benv, store, kont)
+    {
+      var values = operandValues[0].values()
+        .flatMap(
+          function (v1)
+          {
+            return operandValues[1].values().flatMap(
+              function (v2)
+              {
+                return l.equals(v1, v2);
+              });
+          });
+      return processErrors(values, application, benv, store, kont);
+    });
   installPrimitive("<", 
       function(application, operandValues, benv, store, kont)
       {
-        var value = p.lt(operandValues[0], operandValues[1])
-        return kont.pop(function (frame) {return new KontState(frame, value, store)});
+        var values = operandValues[0].values()
+          .flatMap(
+            function (v1)
+            {
+              return operandValues[1].values().flatMap(
+                function (v2)
+                {
+                  return l.lt(v1, v2);
+                });
+            });
+        return processErrors(values, application, benv, store, kont);
       });
-  installPrimitive("<=", 
+  installPrimitive(">", 
       function(application, operandValues, benv, store, kont)
       {
-        var value = p.lte(operandValues[0], operandValues[1])
-        return kont.pop(function (frame) {return new KontState(frame, value, store)});
+        var values = operandValues[0].values()
+          .flatMap(
+            function (v1)
+            {
+              return operandValues[1].values().flatMap(
+                function (v2)
+                {
+                  return l.gt(v1, v2);
+                });
+            });
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("<=", 
+    function(application, operandValues, benv, store, kont)
+    {
+      var values = operandValues[0].values()
+        .flatMap(
+          function (v1)
+          {
+            return operandValues[1].values().flatMap(
+              function (v2)
+              {
+                return l.lte(v1, v2);
+              });
+          });
+      return processErrors(values, application, benv, store, kont);
+    });
+  installPrimitive("not", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.not(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("null?", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.isNull(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("pair?", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.isPair(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("car", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.car(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("cdr", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.cdr(value); 
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("cons", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values()
+          .flatMap(
+            function (v1)
+            {
+              return operandValues[1].values().flatMap(
+                function (v2)
+                {
+                  return l.cons(v1, v2);
+                });
+            });
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("eq?", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values()
+          .flatMap(
+            function (v1)
+            {
+              return operandValues[1].values().flatMap(
+                function (v2)
+                {
+                  return l.isEq(v1, v2);
+                });
+            });
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("equal?", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values()
+          .flatMap(
+            function (v1)
+            {
+              return operandValues[1].values().flatMap(
+                function (v2)
+                {
+                  return l.isEq(v1, v2);
+                });
+            });
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("char?", 
+      function(application, operandValues, benv, store, kont)
+      {
+        return kont.pop(function (frame) {return new KontState(frame, L_BOOLEAN, store)});
+      });
+  installPrimitive("symbol?", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.isSymbol(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("random", 
+      function(application, operandValues, benv, store, kont)
+      {
+        return kont.pop(function (frame) {return new KontState(frame, L_NUMBER, store)});
+      });
+  installPrimitive("modulo", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.mod(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("quotient", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.quot(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("ceiling", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.ceil(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("log", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.log(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("gcd", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.log(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("odd?", 
+      function(application, operandValues, benv, store, kont)
+      {
+        var values = operandValues[0].values().flatMap(function (value)
+            {
+              return l.log(value);
+            })
+        return processErrors(values, application, benv, store, kont);
+      });
+  installPrimitive("error", 
+      function(application, operandValues, benv, store, kont)
+      {
+        return [];
       });
    
   
@@ -598,10 +780,9 @@ function lcCesk(cc)
       return kont.push(frame, new EvalState(operands.car, benv, store));
     }
   
-  function LetrecKont(node, bindings, benv)
+  function LetrecKont(node, benv)
   {
     this.node = node;
-    this.bindings = bindings; 
     this.benv = benv;
   }
   LetrecKont.prototype.equals =
@@ -609,7 +790,6 @@ function lcCesk(cc)
     {
       return x instanceof LetrecKont
         && this.node === x.node 
-        && this.bindings === x.bindings 
         && Eq.equals(this.benv, x.benv) 
     }
   LetrecKont.prototype.hashCode =
@@ -618,19 +798,18 @@ function lcCesk(cc)
       var prime = 7;
       var result = 1;
       result = prime * result + this.node.hashCode();
-      result = prime * result + this.bindings.hashCode();
       result = prime * result + this.benv.hashCode();
       return result;
     }
   LetrecKont.prototype.toString =
     function ()
     {
-      return "letrec-" + this.node.tag + "-" + this.bindings.tag;
+      return "letrec-" + this.node.tag;
     }
   LetrecKont.prototype.nice =
     function ()
     {
-      return "letrec-" + this.node.tag + "-" + this.bindings.tag;
+      return "letrec-" + this.node.tag;
     }
   LetrecKont.prototype.addresses =
     function ()
@@ -642,25 +821,123 @@ function lcCesk(cc)
     {
       var node = this.node;
       var benv = this.benv;
-      var name = this.bindings.car.car;
-      var bindings = this.bindings.cdr;
-      
+      var bindings = node.cdr.car;
+      var binding = bindings.car;
+      var name = binding.car.name;      
       var addr = benv.lookup(name);
-      store = store.allocAval(addr, bindingValue);
-      
-      if (bindings instanceof Null)
+      store = store.updateAval(addr, bindingValue);      
+      var body = node.cdr.cdr;
+      if (body.cdr instanceof Null)
       {
-        var body = node.cdr.cdr;
-        if (body.cdr instanceof Null)
-        {
-          return kont.unch(new EvalState(body.car, benv, store));          
-        }
-        var frame = new BeginKont(node, body, benv);
-        return kont.push(frame, new EvalState(body.car, benv, store));
+        return kont.unch(new EvalState(body.car, benv, store));          
       }
-      return evalLetrecBinding(node, bindings, benv, store, kont);
+      var frame = new BeginKont(node, body, benv);
+      return kont.push(frame, new EvalState(body.car, benv, store));
     }
   
+  function LetKont(node, benv)
+  {
+    this.node = node;
+    this.benv = benv;
+  }
+  LetKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof LetKont
+        && this.node === x.node 
+        && Eq.equals(this.benv, x.benv) 
+    }
+  LetKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.benv.hashCode();
+      return result;
+    }
+  LetKont.prototype.toString =
+    function ()
+    {
+      return "let-" + this.node.tag;
+    }
+  LetKont.prototype.nice =
+    function ()
+    {
+      return "let-" + this.node.tag;
+    }
+  LetKont.prototype.addresses =
+    function ()
+    {
+      return this.benv.addresses();
+    }
+  LetKont.prototype.apply =
+    function (bindingValue, store, kont)
+    {
+      var node = this.node;
+      var benv = this.benv;
+      var bindings = node.cdr.car;
+      var binding = bindings.car;
+      var name = binding.car.name;      
+      var addr = a.variable(binding, null);
+      benv = benv.add(name, addr);
+      store = store.allocAval(addr, bindingValue);      
+      var body = node.cdr.cdr;
+      if (body.cdr instanceof Null)
+      {
+        return kont.unch(new EvalState(body.car, benv, store));          
+      }
+      var frame = new BeginKont(node, body, benv);
+      return kont.push(frame, new EvalState(body.car, benv, store));
+    }
+    
+  function SetKont(node, benv)
+  {
+    this.node = node;
+    this.benv = benv;
+  }
+  SetKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof SetKont
+        && this.node === x.node 
+        && Eq.equals(this.benv, x.benv) 
+    }
+  SetKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.benv.hashCode();
+      return result;
+    }
+  SetKont.prototype.toString =
+    function ()
+    {
+      return "set!-" + this.node.tag;
+    }
+  SetKont.prototype.nice =
+    function ()
+    {
+      return "set!-" + this.node.tag;
+    }
+  SetKont.prototype.addresses =
+    function ()
+    {
+      return this.benv.addresses();
+    }
+  SetKont.prototype.apply =
+    function (setValue, store, kont)
+    {
+      var node = this.node;
+      var benv = this.benv;
+      var name = node.cdr.car.name;      
+      var addr = benv.lookup(name);
+      store = store.updateAval(addr, setValue);      
+      return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
+    }
+    
   function BeginKont(node, exps, benv)
   {
     this.node = node;
@@ -758,49 +1035,178 @@ function lcCesk(cc)
       var benv = this.benv;    
       var consequent = node.cdr.cdr.car;
       var alternate = node.cdr.cdr.cdr.car;
-      // TODO rewrite following conditionals...
-      if (conditionValue instanceof Procedure)
-      {
-        return kont.unch(new EvalState(consequent, benv, store));
-      }
-      if (p.BOOLEAN.equals(P_FALSE)) // if 'false' cannot be distinguished from 'boolean'
+      var tfb = trueFalse(conditionValue);
+      if (tfb.equals(L_BOOLEAN))
       {
         var consequentState = kont.unch(new EvalState(consequent, benv, store));
         var alternateState = kont.unch(new EvalState(alternate, benv, store));
         return consequentState.concat(alternateState);
       }
-      var falseProj = conditionValue.meet(P_FALSE);
-      if (falseProj === BOT) // no false in value
+      else if (tfb.equals(L_TRUE))
       {
         return kont.unch(new EvalState(consequent, benv, store));
       }
-      else if (conditionValue.equals(falseProj))
+      else
       {
         return kont.unch(new EvalState(alternate, benv, store));
       }
-      else // value > false
+    }
+  
+  function OrKont(node, benv)
+  {
+    this.node = node;
+    this.benv = benv;
+  }
+  OrKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof OrKont
+        && this.node === x.node 
+        && Eq.equals(this.benv, x.benv);
+    }
+  OrKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.benv.hashCode();
+      return result;
+    }
+  OrKont.prototype.toString =
+    function ()
+    {
+      return "or-" + this.node.tag;
+    }
+  OrKont.prototype.nice =
+    function ()
+    {
+      return "or-" + this.node.tag;
+    }
+  OrKont.prototype.addresses =
+    function ()
+    {
+      return this.benv.addresses();
+    }
+  OrKont.prototype.apply =
+    function (conditionValue, store, kont)
+    {
+      var node = this.node;
+      var benv = this.benv;    
+      var alternate = node.cdr.cdr.car;
+      var tfb = trueFalse(conditionValue);
+      if (tfb.equals(L_BOOLEAN))
       {
-        var consequentState = kont.unch(new EvalState(consequent, benv, store));
+        var consequentState = kont.pop(function (frame) {return new KontState(frame, conditionValue, store)});
         var alternateState = kont.unch(new EvalState(alternate, benv, store));
         return consequentState.concat(alternateState);
       }
+      else if (tfb.equals(L_TRUE))
+      {
+        return kont.pop(function (frame) {return new KontState(frame, conditionValue, store)});
+      }
+      else
+      {
+        return kont.unch(new EvalState(alternate, benv, store));
+      }
     }
   
-  function ReturnKont(node, closure, benv, store)
+  function AndKont(node, benv)
   {
     this.node = node;
-    this.closure = closure;
     this.benv = benv;
-    this.store = store;
+  }
+  AndKont.prototype.equals =
+    function (x)
+    {
+      return x instanceof AndKont
+        && this.node === x.node 
+        && Eq.equals(this.benv, x.benv);
+    }
+  AndKont.prototype.hashCode =
+    function ()
+    {
+      var prime = 7;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.benv.hashCode();
+      return result;
+    }
+  AndKont.prototype.toString =
+    function ()
+    {
+      return "and-" + this.node.tag;
+    }
+  AndKont.prototype.nice =
+    function ()
+    {
+      return "and-" + this.node.tag;
+    }
+  AndKont.prototype.addresses =
+    function ()
+    {
+      return this.benv.addresses();
+    }
+  AndKont.prototype.apply =
+    function (conditionValue, store, kont)
+    {
+      var node = this.node;
+      var benv = this.benv;    
+      var alternate = node.cdr.cdr.car;
+      var tfb = trueFalse(conditionValue);
+      if (tfb.equals(L_BOOLEAN))
+      {
+        var consequentState = kont.unch(new EvalState(alternate, benv, store));
+        var alternateState = kont.pop(function (frame) {return new KontState(frame, conditionValue, store)});
+        return consequentState.concat(alternateState);
+      }
+      else if (tfb.equals(L_TRUE))
+      {
+        return kont.unch(new EvalState(alternate, benv, store));
+      }
+      else
+      {
+        return kont.pop(function (frame) {return new KontState(frame, conditionValue, store)});
+      }
+    }
+  
+//  function trueFalse(conditionValue)
+//  {
+//    var falseProj = conditionValue.meet(L_FALSE);
+//    if (falseProj === BOT) // no false in value
+//    {
+//      return L_TRUE;
+//    }
+//    else if (conditionValue.equals(falseProj))
+//    {
+//      return L_FALSE;
+//    }
+//    else // value > false
+//    {
+//      return L_BOOLEAN;
+//    }
+//  }
+  
+  function trueFalse(conditionValue)
+  {
+    return SetValue.from(conditionValue._set._arr.map(function (av) {return av.ToBoolean()}));
+  }
+  
+  function ReturnKont(node, lam, benv)
+  {
+    this.node = node;
+    this.lam = lam;
+    this.benv = benv;
+//    this.store = store;
   }
   ReturnKont.prototype.equals =
     function (x)
     {
       return x instanceof ReturnKont
         && Eq.equals(this.node, x.node)
-        && Eq.equals(this.closure, x.closure)
+        && Eq.equals(this.lam, x.lam)
         && Eq.equals(this.benv, x.benv)
-        && Eq.equals(this.store, x.store)
+//        && Eq.equals(this.store, x.store)
     }
   ReturnKont.prototype.hashCode =
     function ()
@@ -808,7 +1214,7 @@ function lcCesk(cc)
       var prime = 7;
       var result = 1;
       result = prime * result + this.node.hashCode();
-      result = prime * result + this.closure.hashCode();
+      result = prime * result + this.lam.hashCode();
       result = prime * result + this.benv.hashCode();
       return result;
     }
@@ -826,13 +1232,14 @@ function lcCesk(cc)
     function ()
     {
       return this.benv.addresses();
+//      return [];
     }
   ReturnKont.prototype.apply =
     function (returnValue, returnStore, kont)
     {
       if (memoFlag)
       {
-        var memoKey = this.closure.node.tag;
+        var memoKey = this.lam.tag;
         memoTable = memoTable.put(memoKey, memoTable.get(memoKey, ArraySet.empty()).add([returnStore, returnValue]));
 //        print(this.closure.node, "memoized", returnValue);
       }
@@ -841,14 +1248,35 @@ function lcCesk(cc)
   
   function evalLiteral(node, benv, store, kont)
   {
-    var value = p.abst1(node.valueOf());
+    var value = SetValue.from1(l.abst1(node));
     return kont.pop(function (frame) {return new KontState(frame, value, store)});
+  }
+
+  function evalQuote(node, benv, store, kont)
+  {
+    var quoted = node.cdr.car;
+    var value = SetValue.from1(l.abst1(quoted));
+    return kont.pop(function (frame) {return new KontState(frame, value, store)});
+//    if (quoted instanceof Number || quoted instanceof String || quoted instanceof Boolean)
+//    {
+//      return evalLiteral(quoted, benv, store, kont);
+//    }
+//    if (quoted instanceof Sym)
+//    {
+//      var value = SetValue.from1(new ASym(quoted.name));
+//      return kont.pop(function (frame) {return new KontState(frame, value, store)});
+//    }
+//    if (quoted instanceof Pair)
+//    {
+//      var value = SetValue.from1(new APair(quoted.name))
+//      return kont.pop(function (frame) {return new KontState(frame, SetValue.from1(new ASym(quoted.name)), store)});
+//    }
   }
 
   function evalLambda(node, benv, store, kont)
   {
     var closure = new Closure(node, benv, node.cdr.car, node.cdr.cdr);
-    var proc = Procedure.from([closure]);
+    var proc = SetValue.from1(closure);
     return kont.pop(function (frame) {return new KontState(frame, proc, store)});
   }
 
@@ -869,7 +1297,7 @@ function lcCesk(cc)
     var exps = node.cdr;
     if (exps instanceof Null)
     {
-      return kont.pop(function (frame) {return new KontState(frame, P_UNDEFINED, store)});
+      return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
     }
     if (exps.cdr instanceof Null)
     {
@@ -879,46 +1307,35 @@ function lcCesk(cc)
     return kont.push(frame, new EvalState(exps.car, benv, store));
   }
   
+  function evalLet(node, benv, store, kont)
+  {
+    var bindings = node.cdr.car;
+    var binding = bindings.car;
+    var exp = binding.cdr.car;
+    var frame = new LetKont(node, benv);
+    return kont.push(frame, new EvalState(exp, benv, store));
+  }
+  
+  function evalSet(node, benv, store, kont)
+  {
+    var exp = node.cdr.cdr.car;
+    var frame = new SetKont(node, benv);
+    return kont.push(frame, new EvalState(exp, benv, store));
+  }
+  
   function evalLetrec(node, benv, store, kont)
   {
     var bindings = node.cdr.car;
-    return evalLetrecBinding(node, bindings, benv, store, kont);
-  }
-  
-  function computeTime(kont)
-  {
-    var visited = ArraySet.empty();
-    var todo = [kont.source];
-    while (todo.length > 0)
-    {
-      var q = todo.shift();
-      if (q.node && isApplication(q.node))
-      {
-        return q.node.tag;
-      }
-      if (visited.contains(q))
-      {
-        continue;
-      }
-      visited = visited.add(q);
-      todo = todo.concat(kont.etg.predecessors(q));
-    }
-    return null;
-  }
-  
-  function evalLetrecBinding(node, bindings, benv, store, kont)
-  {
     var binding = bindings.car;
-    var name = binding.car;
+    var name = binding.car.name;
     var exp = binding.cdr.car;
-    var time = computeTime(kont);
-    var addr = a.variable(binding, time);
+    var addr = a.variable(binding, null);
     benv = benv.add(name, addr);
     store = store.allocAval(addr, BOT);
-    var frame = new LetrecKont(node, bindings, benv);
+    var frame = new LetrecKont(node, benv);
     return kont.push(frame, new EvalState(exp, benv, store));
   }
-    
+  
   function isApplication(node)
   {
     return node instanceof Pair
@@ -932,18 +1349,36 @@ function lcCesk(cc)
   
   function applyProc(node, operatorValue, operandValues, benv, store, kont)
   {
-    if (!(operatorValue instanceof Procedure))
-    {
-      throw new Error("not an operator for " + node.car + ": " + operatorValue);
-//      return kont.unch(new ErrorState(operatorValue + " not operator for " + node.car));
-    }
-    return operatorValue.apply_(node, operandValues, benv, store, kont);
+    return operatorValue.values().flatMap(
+      function (operatorValue)
+      {
+        if (!(operatorValue.apply_))
+        {
+//          return kont.unch(new ErrorState("not an operator: " + operatorValue, node, benv, store));
+          return [];
+        }        
+        return operatorValue.apply_(node, operandValues, benv, store, kont);
+      });
   }
   
   function evalIf(node, benv, store, kont)
   {
     var condition = node.cdr.car;
     var frame = new IfKont(node, benv);
+    return kont.push(frame, new EvalState(condition, benv, store));
+  }
+  
+  function evalAnd(node, benv, store, kont)
+  {
+    var condition = node.cdr.car;
+    var frame = new AndKont(node, benv);
+    return kont.push(frame, new EvalState(condition, benv, store));
+  }
+  
+  function evalOr(node, benv, store, kont)
+  {
+    var condition = node.cdr.car;
+    var frame = new OrKont(node, benv);
     return kont.push(frame, new EvalState(condition, benv, store));
   }
   
@@ -956,7 +1391,7 @@ function lcCesk(cc)
 
   function evalNode(node, benv, store, kont)
   {    
-    if (node instanceof Number || node instanceof Boolean || node instanceof String || node instanceof Null)
+    if (node instanceof Number || node instanceof Boolean || node instanceof String)
     {
       return evalLiteral(node, benv, store, kont);        
     }
@@ -974,6 +1409,10 @@ function lcCesk(cc)
         {
           return evalLambda(node, benv, store, kont);
         }
+        if (name === "let")
+        {
+          return evalLet(node, benv, store, kont);
+        }
         if (name === "letrec")
         {
           return evalLetrec(node, benv, store, kont);
@@ -986,6 +1425,22 @@ function lcCesk(cc)
         {
           return evalBegin(node, benv, store, kont);
         }
+        if (name === "set!")
+        {
+          return evalSet(node, benv, store, kont);
+        }
+        if (name === "quote")
+        {
+          return evalQuote(node, benv, store, kont);
+        }
+        if (name === "and")
+        {
+          return evalAnd(node, benv, store, kont);
+        }
+        if (name === "or")
+        {
+          return evalOr(node, benv, store, kont);
+        }
       }
       return evalApplication(node, benv, store, kont);
     }
@@ -993,7 +1448,7 @@ function lcCesk(cc)
   }
 
   var module = {};
-  module.p = p;
+  module.l = l;
   module.store = store;
   module.global = global;
   
@@ -1009,11 +1464,13 @@ function lcCesk(cc)
   return module; 
 }
 
-function ErrorState(msg, payload)
+function ErrorState(msg, node, benv, store)
 {
   this.type = "error";
   this.msg = msg;
-  this.payload = payload;
+  this.node = node;
+  this.benv = benv;
+  this.store = store;
 }
 ErrorState.prototype.toString =
   function ()
@@ -1030,7 +1487,9 @@ ErrorState.prototype.equals =
   {
     return (x instanceof ErrorState)
       && Eq.equals(this.msg, x.msg)
-      && Eq.equals(this.payload, x.payload)
+      && this.node === x.node
+      && this.benv.equals(x.benv)
+      && this.store.equals(x.store)
   }
 ErrorState.prototype.hashCode =
   function ()
@@ -1038,6 +1497,8 @@ ErrorState.prototype.hashCode =
     var prime = 7;
     var result = 1;
     result = prime * result + this.msg.hashCode();
+    result = prime * result + this.node.hashCode();
+    result = prime * result + this.benv.hashCode();
     return result;
   }
 ErrorState.prototype.next =
@@ -1049,4 +1510,91 @@ ErrorState.prototype.addresses =
   function ()
   {
     return [];
+  }
+
+function SetValue(set)
+{
+  //if (set.size() > 3) {print(set)};
+  this._set = set;
+}
+
+SetValue.from1 =
+  function (x)
+  {
+    return new SetValue(ArraySet.from([x]));
+  }
+
+SetValue.from =
+  function (arr)
+  {
+    return new SetValue(ArraySet.from(arr));
+  }
+
+SetValue.prototype.equals =
+  function (x)
+  {
+    if (x === BOT)
+    {
+      return false;
+    }
+    return this._set.equals(x._set);
+  }
+
+SetValue.prototype.subsumes =
+  function (x)
+  {
+    if (!(x instanceof SetValue))
+    {
+      return false;
+    }
+    return this._set.subsumes(x._set);
+  }
+
+SetValue.prototype.hashCode =
+  function ()
+  {
+    return this._set.hashCode();
+  }
+  
+SetValue.prototype.addresses =
+  function ()
+  {
+    return this._set.values().flatMap(function (x) {return x.addresses()});
+  }
+
+SetValue.prototype.join =
+  function (x)
+  {
+    if (x === BOT)
+    {
+      return this;
+    }
+    return new SetValue(this._set.join(x._set));
+  }
+
+SetValue.prototype.meet =
+  function (x)
+  {
+    if (x === BOT)
+    {
+      return BOT;
+    }
+    var setMeet = this._set.meet(x._set);
+    if (setMeet.size() === 0)
+    {
+      return BOT;
+    }
+    return new SetValue(setMeet);
+  }
+
+SetValue.prototype.values =
+  function ()
+  {
+    return this._set.values();
+  }
+
+SetValue.prototype.toString =
+  function ()
+  {
+    return this._set.toString();
   }

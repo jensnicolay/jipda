@@ -150,6 +150,19 @@ Pair.prototype.toStringInternal =
     return sb;
   }
 
+Pair.prototype.properToArray =
+  function ()
+  {
+    var arr = [];
+    var p = this;
+    while (!(p instanceof Null))
+    {
+      arr.push(p.car);
+      p = p.cdr;
+    }
+    return arr;
+  }
+
 function SchemeReader(str)
 {
   this.str = str;
@@ -198,6 +211,8 @@ SchemeParser.isSyntacticKeyword =
   {
     return name === "lambda"
       || name === "define"
+      || name === "let"
+      || name === "let*"
       || name === "letrec"
       || name === "if"
       || name === "quote"

@@ -8,10 +8,10 @@ var suiteConcreteTests =
   {
     var ast = new SchemeParser().parse(src)[0];
     var lat = new CpLattice();
-    var cesk = lcCesk({a:createConcreteAg(), p: new CpLattice()});
+    var cesk = lcCesk({a:createConcreteAg(), l: new CpLattice()});
     var result = new Pushdown().analyze(ast, cesk);
-    var actual = result.stepFwOver(result.initial).map(function (q) {return q.value}).reduce(Lattice.join, BOT);
-    assertEquals(cesk.p.abst1(expected), actual);    
+    var actual = result.stepFwOver(result.initial).map(function (c) {return c.q.value}).reduce(Lattice.join, BOT);
+    assertEquals(SetValue.from1(cesk.l.abst1(expected)), actual);    
   }
 
   module.test1 =
@@ -65,6 +65,12 @@ var suiteConcreteTests =
         run(read("test/resources/gcIpdExample.scm"), 36);    
       }
     
+    module.testSat2 =
+      function ()
+      {
+        run(read("test/resources/sat2.scm"), true);    
+      }
+    
 //    module.testRotate = // TODO too slow
 //      function ()
 //      {
@@ -87,6 +93,16 @@ var suiteConcreteTests =
       function ()
       {
         run("(letrec ((g (lambda () 1)) (f (lambda (n) (if (= n 0) 0 (+ (f (- n 1)) (g)))))) (f 10))", 10);
+      }
+    
+    module.test200 =
+      function ()
+      {
+        run("(if 123 1 2)", 1);
+        run("(if (lambda () 123) 1 2)", 1);
+        run("(if (cons 1 2) 1 2)", 1);
+        run("(if #t 1 2)", 1);
+        run("(if #f 1 2)", 2);
       }
     
         
