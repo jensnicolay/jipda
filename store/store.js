@@ -103,23 +103,11 @@ function Store(map)
 Store.prototype.equals =
   function (x)
   {
-    var xentries = x.map.entries();
-    for (var i = 0; i < xentries.length; i++)
+    if (!(x instanceof Store))
     {
-      var xentry = xentries[i];
-      var address = xentry.key;
-      var thisStoreValue = this.map.get(address);
-      if (!thisStoreValue)
-      {
-        return false;
-      }
-      var xStoreValue = xentry.value;
-      if (!(Eq.equals(thisStoreValue, xStoreValue)))
-      {
-        return false;
-      }
+      return false;
     }
-    return true;
+    return this.map.equals(x.map);
   }
 
 Store.prototype.hashCode =
@@ -137,23 +125,11 @@ Store.prototype.compareTo =
 Store.prototype.subsumes =
   function (x)
   {
-    var xentries = x.map.entries();
-    for (var i = 0; i < xentries.length; i++)
+    if (!(x instanceof Store))
     {
-      var xentry = xentries[i];
-      var address = xentry.key;
-      var thisStoreValue = this.map.get(address);
-      if (!thisStoreValue)
-      {
-        return false;
-      }
-      var xStoreValue = xentry.value;
-      if (!thisStoreValue.subsumes(xStoreValue))
-      {
-        return false;
-      }      
+      return false;
     }
-    return true;
+    return this.map.subsumes(x.map);
   }
 
 Store.prototype.diff = // debug

@@ -49,7 +49,7 @@ function Graph(edges)
 Graph.empty =
   function ()
   {
-    return new Graph(ArraySet.empty(131));
+    return new Graph(HashSet.empty(131));
   }
 
 Graph.prototype.equals =

@@ -724,8 +724,7 @@ Map.prototype.equals =
 Map.prototype.hashCode =
   function ()
   {
-//  return this.entries().map(function (x) {return HashCode.hashCode(x.key) ^ HashCode.hashCode(x.value)}).reduce(function (acc, x) {return acc + x}, 0);
-    return this.size();
+    return this.entries().reduce(function (result, entry) {return result + HashCode.hashCode(entry.key) + HashCode.hashCode(entry.value)}, 0);
   }
 
 Map.prototype.putAll =
@@ -1132,6 +1131,14 @@ Set.prototype.equals =
     return true;
   }
 
+Set.prototype.hashCode =
+  function ()
+  {
+    var values = this.values();
+    var result = values.reduce(function (result, x) {return result + HashCode.hashCode(x)}, 0);
+    return result;
+  }
+
 Set.prototype.compareTo =
   function (x)
   {
@@ -1174,29 +1181,6 @@ HashSet.from =
   function (arr)
   {
     return arr.reduce(function (result, x) {return result.add(x)}, HashSet.empty());
-  }
-
-HashSet.prototype.equals =
-  function (x)
-  {
-    if (this === x)
-    {
-      return true;
-    }
-    if (!x.values)
-    {
-      return false;
-    }
-    var thisValues = this.values();
-    var xValues = x.values();
-    return thisValues.setEquals(xValues);
-  }
-
-HashSet.prototype.hashCode =
-  function ()
-  {
-    //return this.values().hashCode();
-    return this.size();
   }
 
 HashSet.prototype.clear =
@@ -1285,29 +1269,13 @@ ArraySet.empty =
 ArraySet.from =
   function (arr)
   {
-    return new ArraySet(arr.slice(0));
+    return new ArraySet(Arrays.deleteDuplicates(arr, Eq.equals));
   }
 
-ArraySet.prototype.equals =
+ArraySet.from1 =
   function (x)
   {
-    if (this === x)
-    {
-      return true;
-    }
-    if (!x.values)
-    {
-      return false;
-    }
-    var thisValues = this.values();
-    var xValues = x.values();
-    return thisValues.setEquals(xValues);
-  }
-
-ArraySet.prototype.hashCode =
-  function ()
-  {
-    return this._arr.hashCode();
+    return new ArraySet([x]);
   }
 
 ArraySet.prototype.clear =

@@ -538,27 +538,35 @@ function TypeLattice()
       }
     
       
-      function APair()
+      function APair(cars, cdrs)
       {
+        this.cars = cars;
+        this.cdrs = cdrs;
       }
       APair.prototype = new LatticeValue();
       APair.isPair = function (x) { return x instanceof Pair};
       APair.prototype.toString =
         function ()
         {
-          return "<pair>"; 
+          return "(" + this.cars + " . " + this.cdrs + ")"; 
         }
       
       APair.prototype.equals =
         function (x)
         {
           return x instanceof APair
+            && this.cars.equals(x.cars)
+            && this.cdrs.equals(x.cdrs)
         }
 
       APair.prototype.hashCode =
         function ()
         {
-          return 41;    
+          var prime = 41;
+          var result = 1;
+          result = prime * result + this.cars.hashCode();
+          result = prime * result + this.cdrs.hashCode();
+          return result;    
         }
 
       APair.prototype.subsumes =
@@ -568,7 +576,11 @@ function TypeLattice()
           {
             return true;
           }
-          return (x instanceof APair)
+          if (!(x instanceof APair))
+          {
+            return false;
+          }
+          return this.cars.subsumes(this.cdrs);
         }
       
       APair.prototype.compareTo =
@@ -580,17 +592,21 @@ function TypeLattice()
       APair.prototype.join =
         function (x)
         {
-          if (x === BOT || x instanceof Pair)
+          if (x === BOT)
           {
             return this;
           }
-          return Top;
+          if (x instanceof APair)
+          {
+            return new APair(this.cars.join(x.cars), this.cdrs.join(x.cdrs));
+          }
+          throw new Error("cannot join " + this + " with " + x);
         }
       
       APair.prototype.meet =
         function (x)
         {
-          if (x === Top || x instanceof Pair)
+          if (x === Top || x instanceof APair)
           {
             return this;
           }
@@ -600,7 +616,11 @@ function TypeLattice()
       APair.prototype.addresses =
         function ()
         {
-          return [];
+          function fa(x)
+          {
+            return x.addresses();
+          }
+          return this.cars.values().flatMap(fa).concat(this.cdrs.values().flatMap(fa));
         }
       
       APair.prototype.ToBoolean =
@@ -779,6 +799,12 @@ function TypeLattice()
           if (x === Num) {return [Num]};
           return [];
         }
+      module.isEven =
+        function (x)
+        {
+          if (x === Num) {return [Tru,Fals]};
+          return [];
+        }
       module.isOdd =
         function (x)
         {
@@ -815,19 +841,27 @@ function TypeLattice()
       module.car =
         function (x)
         {
-          if (x instanceof APair) { return Top};
+          if (x instanceof APair) { return x.cars.values() };
           return [];
         }
       module.cdr =
         function (x)
         {
-          if (x instanceof APair) { return Top};
+          if (x instanceof APair) { return x.cdrs.values() };
+          return [];
+        }
+      module.reverse =
+        function (x)
+        {
+          if (x instanceof APair) { return new APair(x.cars.join(x.cdrs), ArraySet.from1(Nul)) };
           return [];
         }
       module.cons =
         function (x,y)
         {
-          return new APair(x,y);
+          var xx = (x instanceof APair) ? x.cars.join(x.cdrs) : ArraySet.from1(x); 
+          var yy = (y instanceof APair) ? y.cars.join(y.cdrs) : ArraySet.from1(y); 
+          return new APair(xx, yy);
         }
 
       module.sqrt =
@@ -873,8 +907,8 @@ function TypeLattice()
         }
         if (APair.isPair(cvalue))
         {
-//          return new APair(module.abst1(cvalue.car), module.abst1(cvalue.cdr));
-          return new APair();
+          return new APair(ArraySet.from1(module.abst1(cvalue.car)), ArraySet.from1(module.abst1(cvalue.cdr)));
+//          return new APair();
         }
         return Top;
       }
@@ -884,6 +918,8 @@ function TypeLattice()
 //    module.BOOLEAN = Bool;
     module.SYMBOL = Sy;
     module.TOP = Top;
+    module.TRUE = Tru;
+    module.FALSE = Fals;
     
     module.toString = function () {return "TypeLattice"}
       

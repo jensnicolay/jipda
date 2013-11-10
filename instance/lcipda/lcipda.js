@@ -17,31 +17,32 @@ function computeResult(src, cc)
   {
     var sp = new SchemeParser();
     var cesk = lcCesk(cc);
-    var driver = new Pushdown(cc.lim);
+    var driver = new Pushdown(cc.limitMs);
     var ast = new SchemeParser().parse(src)[0];
     var start = Date.now();
     var dsg = driver.analyze(ast, cesk);
-    time = Date.now() - start;
     var numStates = dsg.etg.nodes().length;
     var numEdges = dsg.etg.edges().length;
     var numMemoEdges = dsg.etg.edges().reduce(function (numMemoEdges, e) {return numMemoEdges + (e.marks === "MEMO" ? 1 : 0)}, 0);
+    var time = dsg.time;
     print(cc.name, "time", time, "states", numStates, "edges", numEdges, "memoEdges", numMemoEdges);
     return {time:time, numStates:numStates, numEdges:numEdges, numMemoEdges:numMemoEdges};
   }
   catch (e)
   {
     time = time || (start ? (Date.now() - start) : null);
-    print(e);
-    return {cc:cc, time:time, error:e};            
+    print("after", time, e);
+    return {cc:cc, error:e, time:time};            
   }
 }
 
-function computeResults(limitMinutes, x)
+function computeResults(limitMin, x)
 {
   var sources = [];
-//  sources.push({name:"id", src:"(letrec ((id (lambda (x) x))) (id 3) (id 4))"});
   if (!x || x === 1)
   {
+//  sources.push({name:"id", src:"(letrec ((id (lambda (x) x))) (id 3) (id 4))"});
+//  sources.push({name:"rotate", src:read("test/resources/rotate.scm")});
     sources.push({name:"fac", src:"(letrec ((fac (lambda (n) (if (= n 0) 1 (* n (fac (- n 1))))))) (fac 10))"});
     sources.push({name:"gcipd", src:read("test/resources/gcIpdExample.scm")});
     sources.push({name:"fib", src:"(letrec ((fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))) (fib 4))"});
@@ -52,31 +53,33 @@ function computeResults(limitMinutes, x)
   }
   if (!x || x === 2)
   {
-    sources.push({name:"kcfa3", src:read("test/resources/kcfa3.scm")});
+    sources.push({name:"primtest", src:read("test/resources/primtest.scm")});
+    sources.push({name:"rsa", src:read("test/resources/rsa.scm")});
   }
   if (!x || x === 3)
   {
-    sources.push({name:"church", src:read("test/resources/churchNums.scm")});
+    sources.push({name:"kcfa3", src:read("test/resources/kcfa3.scm")});
   }
   if (!x || x === 4)
   {
-  sources.push({name:"loop2", src:read("test/resources/loop2.scm")});
+    sources.push({name:"loop2", src:read("test/resources/loop2.scm")});
   }
   if (!x || x === 5)
   {
-  sources.push({name:"sat", src:read("test/resources/sat.scm")});
+    sources.push({name:"cpstak", src:read("test/resources/cpstak.scm")});
   }
   if (!x || x === 6)
   {
-  sources.push({name:"primtest", src:read("test/resources/primtest.scm")});
+    sources.push({name:"factor", src:read("test/resources/factor.scm")});
+//    sources.push({name:"church", src:read("test/resources/churchNums.scm")});
   }
   if (!x || x === 7)
   {
-  sources.push({name:"rsa", src:read("test/resources/rsa.scm")});
+    sources.push({name:"regex", src:read("test/resources/regex.scm")});
   }
   if (!x || x === 8)
   {
-  sources.push({name:"regex", src:read("test/resources/regex.scm")});
+    sources.push({name:"sat", src:read("test/resources/sat.scm")});
   }
   results = sources.map(
     function (src)
@@ -88,7 +91,7 @@ function computeResults(limitMinutes, x)
           var acResults = ags.map(
             function (ac)
             {
-              var cc = {a:ac.a, gc:ccc.gc, memo:ccc.memo, l:new TypeLattice(), name:ccc.name, lim:limitMinutes * 60000};
+              var cc = {a:ac.a, gc:ccc.gc, memo:ccc.memo, l:new TypeLattice(), name:ccc.name, limitMs:limitMin * 60000};
               return computeResult(src.src, cc);
             });
           return {cc:ccc, acResults:acResults};
@@ -96,6 +99,11 @@ function computeResults(limitMinutes, x)
       return {src:src, srcResults:srcResults};
     });
   print("results", results);
+}
+
+function cr(x)
+{
+  return computeResults(30, x);
 }
 
 function dumpLatex()

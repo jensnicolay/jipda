@@ -10,6 +10,12 @@ Benv.empty =
     return new Benv(HashMap.empty());
   }
 
+Benv.prototype.copy =
+  function ()
+  {
+    return new Benv(this._map);
+  }
+
 Benv.prototype.isBenv = true;
 
 Benv.prototype.toString =

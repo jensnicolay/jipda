@@ -537,7 +537,7 @@ function lcCesk(cc)
               return l.reverse(value);
             })
         return processErrors(values, application, benv, store, kont);
-      });
+      });  
   installPrimitive("error", 
       function(application, operandValues, benv, store, kont)
       {
@@ -743,7 +743,13 @@ function lcCesk(cc)
       var node = this.node;
       var benv = this.benv;
       var operands = node.cdr;
-      return evalOperands(node, operands, operatorValue, [], benv, store, kont);
+  
+      if (operands instanceof Null)
+      {
+        return applyProc(node, operatorValue, [], benv, store, kont);
+      }
+      var frame = new OperandsKont(node, operands, operatorValue, [], benv);
+      return kont.push(frame, new EvalState(operands.car, benv, store));
     }
   
   function OperandsKont(node, operands, operatorValue, operandValues, benv)
@@ -801,7 +807,13 @@ function lcCesk(cc)
       var operatorValue = this.operatorValue;
       var operandValues = this.operandValues.addLast(operandValue);
       var operands = this.operands.cdr;
-      return evalOperands(node, operands, operatorValue, operandValues, benv, store, kont);
+      
+      if (operands instanceof Null)
+      {
+        return applyProc(node, operatorValue, operandValues, benv, store, kont);
+      }
+      var frame = new OperandsKont(node, operands, operatorValue, operandValues, benv);
+      return kont.push(frame, new EvalState(operands.car, benv, store));
     }
   
   function LetrecKont(node, benv)
@@ -1370,41 +1382,6 @@ function lcCesk(cc)
       && !SchemeParser.isSyntacticKeyword(node.car.name)
   }
   
-  function evalAtomic(node, benv, store)
-  {
-    if (node instanceof Number || node instanceof Boolean || node instanceof String)
-    {
-      var value = SetValue.from1(l.abst1(node));
-      return value;        
-    }
-    if (node instanceof Sym)
-    {
-      var name = node.name;
-      var addr = benv.lookup(name);
-      if (addr === BOT)
-      {
-        throw new Error("undefined: " + node);
-      }
-      var value = store.lookupAval(addr);
-      return value;
-    }
-    if (node instanceof Pair)
-    {
-      var car = node.car;
-      if (car instanceof Sym)
-      {
-        var name = car.name;
-        if (name === "lambda")
-        {
-          var closure = new Closure(node, benv, node.cdr.car, node.cdr.cdr);
-          var proc = SetValue.from1(closure);
-          return proc;
-        }
-      }
-    }
-    return false;
-  }
-  
   function applyKont(frame, value, store, kont)
   {
     return frame.apply(value, store, kont);
@@ -1448,34 +1425,8 @@ function lcCesk(cc)
   function evalApplication(node, benv, store, kont)
   {
     var operator = node.car;
-    var atomicOperator = evalAtomic(operator, benv, store);
-    if (atomicOperator)
-    {
-      var operands = node.cdr;
-      return evalOperands(node, operands, atomicOperator, [], benv, store, kont);
-    }
     var frame = new OperatorKont(node, benv);
-    return kont.push(frame, new EvalState(operator, benv, store));          
-  }
-  
-  function evalOperands(node, operands, operatorValue, operandValues, benv, store, kont)
-  {
-    while (!(operands instanceof Null))
-    {
-      var operand = operands.car;
-      var atomicOperand = evalAtomic(operand, benv, store)
-      if (atomicOperand)
-      {
-        operandValues = operandValues.addLast(atomicOperand);
-        operands = operands.cdr;
-      }
-      else
-      {
-        var frame = new OperandsKont(node, operands, operatorValue, operandValues, benv);
-        return kont.push(frame, new EvalState(operand, benv, store));      
-      }
-    }
-    return applyProc(node, operatorValue, operandValues, benv, store, kont);    
+    return kont.push(frame, new EvalState(operator, benv, store));      
   }
 
   function evalNode(node, benv, store, kont)

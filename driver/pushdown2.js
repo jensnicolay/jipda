@@ -218,17 +218,16 @@ C.prototype.nice =
     return "<" + this.q + ">";
   }
 
-function Pushdown(lim)
+function Pushdown(limitMs)
 {
-  this.lim = lim;
+  this.limitMs = limitMs;
 }
 
 Pushdown.run =
-  function (q, limitTime)
+  function (q, limitMs)
   {
     var startTime = Date.now();
-    var limitTime = startTime + (this.lim || Number.MAX_VALUE);
-    print("limit time", this.lim, limitTime - startTime);
+    var limitTime = limitMs ? (startTime + limitMs) : undefined;
     var k = ceskDriver;
 
     var etg = Graph.empty();
@@ -254,9 +253,9 @@ Pushdown.run =
     
     function sprout(c)
     {
-      if (Date.now() > limitTime)
+      if (limitTime && Date.now() > limitTime)
       {
-        var err = new Error("overflow: exceeded limit time " + (limitTime - startTime)); 
+        var err = new Error("overflow: exceeded limit time " + limitMs); 
         err.dsg = {etg:etg, ecg:ecg, initial:initial};
         throw err;
       }
@@ -424,7 +423,7 @@ Pushdown.run =
       }
       else
       {
-        return {etg:etg, ecg:ecg, initial:initial};
+        return {etg:etg, ecg:ecg, initial:initial, time: Date.now() - startTime};
       }
     }
   }
@@ -557,16 +556,16 @@ Pushdown.prototype.analyze =
   function (ast, cesk, override)
   {
     var initial = cesk.inject(ast, override);
-    var dsg = Pushdown.run(initial);
-    return new Dsg(dsg.initial, dsg.etg, dsg.ecg);
+    var dsg = Pushdown.run(initial, this.limitMs);
+    return new Dsg(dsg.initial, dsg.etg, dsg.ecg, {time:dsg.time});
   }
 
-function Dsg(initial, etg, ecg, ss)
+function Dsg(initial, etg, ecg, data)
 {
   this.initial = initial;
   this.etg = etg;
   this.ecg = ecg;
-  this.ss = ss;
+  this.time = data.time;
 }
 
 Dsg.prototype.stepFwOver =
