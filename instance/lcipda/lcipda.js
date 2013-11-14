@@ -38,6 +38,7 @@ function computeResult(src, cc)
 
 function computeResults(limitMin, x)
 {
+  var totalStart = Date.now();
   var sources = [];
   if (!x || x === 1)
   {
@@ -53,33 +54,33 @@ function computeResults(limitMin, x)
   }
   if (!x || x === 2)
   {
-    sources.push({name:"primtest", src:read("test/resources/primtest.scm")});
-    sources.push({name:"rsa", src:read("test/resources/rsa.scm")});
+    sources.push({name:"loop2", src:read("test/resources/loop2.scm")});
+    sources.push({name:"kcfa3", src:read("test/resources/kcfa3.scm")});
   }
   if (!x || x === 3)
   {
-    sources.push({name:"kcfa3", src:read("test/resources/kcfa3.scm")});
+    sources.push({name:"primtest", src:read("test/resources/primtest.scm")});
   }
   if (!x || x === 4)
   {
-    sources.push({name:"loop2", src:read("test/resources/loop2.scm")});
+    sources.push({name:"factor", src:read("test/resources/factor.scm")});
   }
   if (!x || x === 5)
   {
-    sources.push({name:"cpstak", src:read("test/resources/cpstak.scm")});
+    sources.push({name:"rsa", src:read("test/resources/rsa.scm")});
   }
   if (!x || x === 6)
   {
-    sources.push({name:"factor", src:read("test/resources/factor.scm")});
-//    sources.push({name:"church", src:read("test/resources/churchNums.scm")});
+    sources.push({name:"sat", src:read("test/resources/sat.scm")});
   }
   if (!x || x === 7)
   {
-    sources.push({name:"regex", src:read("test/resources/regex.scm")});
+    sources.push({name:"cpstak", src:read("test/resources/cpstak.scm")});
   }
   if (!x || x === 8)
   {
-    sources.push({name:"sat", src:read("test/resources/sat.scm")});
+//    sources.push({name:"regex", src:read("test/resources/regex.scm")});
+//  sources.push({name:"church", src:read("test/resources/churchNums.scm")});
   }
   results = sources.map(
     function (src)
@@ -99,6 +100,8 @@ function computeResults(limitMin, x)
       return {src:src, srcResults:srcResults};
     });
   print("results", results);
+  var totalTime = Date.now() - totalStart;
+  print("total time", Math.abs(totalTime/60000), "minutes");
 }
 
 function cr(x)
@@ -111,9 +114,13 @@ function dumpLatex()
   
   function timeString(ms)
   {
-    if (ms < 1000)
+    if (ms < 100)
     {
-      return "<1\''";
+      return "\\epsilon";
+    }
+    else if (ms < 10000)
+    {
+      return Math.round(ms / 100) / 10 + "''";
     }
     else
     {

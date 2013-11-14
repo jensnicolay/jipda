@@ -131,7 +131,7 @@ Pair.prototype.toStringInternal =
         }
         else
         {
-          sb += " . ฐ" + result + "ฐ";
+          sb += " . ยง" + result + "ยง";
           break;
         }
       }

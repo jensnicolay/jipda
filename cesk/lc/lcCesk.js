@@ -84,7 +84,6 @@ function lcCesk(cc)
     {
 //      print("apply", application, operandValues);
       var fun = this.node;
-      var exp = this.body.car;
       var extendedBenv = this.statc.copy();
       var extendedStore = callStore;
       var params = this.params;
@@ -107,22 +106,23 @@ function lcCesk(cc)
       
       if (memoFlag)
       {
-        var memoClosures = memoTable.get(this.node.tag, ArraySet.empty()).values();
+        var memoClosures = memoTable.get(fun.tag, ArraySet.empty()).values();
 //        print(this.node, "memoClosures", memoClosures);
         var memoValue = BOT;
         var memoStore = BOT;
         memoClosures.forEach(
           function (memoClosure)
           {
-            var mStore = memoClosure[0];
-            var mValue = memoClosure[1];
-            if (mStore.subsumes(extendedStore))
+            var meStore = memoClosure[0];
+            var mrStore = memoClosure[1];
+            var mrValue = memoClosure[2];
+            if (meStore.subsumes(extendedStore))
             {
-              memoValue = memoValue.join(mValue);
-              memoStore = memoStore.join(mStore);
+              memoValue = memoValue.join(mrValue);
+              memoStore = memoStore.join(mrStore);
             }
           });
-        if (memoValue !== BOT)
+        if (memoStore !== BOT)
         {
 //          print("MEMO!");
 //          var rootSet = benv.addresses().concat(kont.addresses()).concat(memoValue.addresses());
@@ -131,12 +131,18 @@ function lcCesk(cc)
         }
       }
       
-      if (!(this.body.cdr instanceof Null))
+//      if (!(this.body.cdr instanceof Null))
+//      {
+//        throw new Error("expected single body expression, got " + this.body);
+//      }
+      var exp = this.body.car;      
+      var atomicValue = evalAtomic(exp, extendedBenv, extendedStore);
+      if (atomicValue)
       {
-        throw new Error("expected single body expression, got " + this.body);
+        return handleReturnValue(atomicValue, fun, extendedStore, extendedStore, kont);
       }
       extendedBenv.application = application;
-      var frame = new ReturnKont(application, fun, extendedBenv);
+      var frame = new ReturnKont(application, fun, extendedBenv, extendedStore);
       return kont.push(frame, new EvalState(exp, extendedBenv, extendedStore));
     }
 
@@ -849,15 +855,25 @@ function lcCesk(cc)
       var binding = bindings.car;
       var name = binding.car.name;      
       var addr = benv.lookup(name);
-      store = store.updateAval(addr, bindingValue);      
+      store = store.updateAval(addr, bindingValue);
       var body = node.cdr.cdr;
-      if (body.cdr instanceof Null)
-      {
-        return kont.unch(new EvalState(body.car, benv, store));          
-      }
-      var frame = new BeginKont(node, body, benv);
-      return kont.push(frame, new EvalState(body.car, benv, store));
+      return evalBody(body, benv, store, kont);
     }
+    
+  function evalBody(exps, benv, store, kont)
+  {
+    if (exps.cdr instanceof Null)
+    {
+      var exp = exps.car;
+      var atomicValue = evalAtomic(exp, benv, store);
+      if (atomicValue)
+      {
+        return kont.pop(function (frame) {return new KontState(frame, atomicValue, store)});
+      }
+      return kont.unch(new EvalState(exp, benv, store));          
+    }
+    throw new Error("begin");    
+  }
   
   function LetKont(node, benv)
   {
@@ -900,20 +916,22 @@ function lcCesk(cc)
     {
       var node = this.node;
       var benv = this.benv;
-      var bindings = node.cdr.car;
-      var binding = bindings.car;
-      var name = binding.car.name;      
-      var addr = a.variable(binding, benv.application ? benv.application.tag : null);
-      benv = benv.add(name, addr);
-      store = store.allocAval(addr, bindingValue);      
-      var body = node.cdr.cdr;
-      if (body.cdr instanceof Null)
-      {
-        return kont.unch(new EvalState(body.car, benv, store));          
-      }
-      var frame = new BeginKont(node, body, benv);
-      return kont.push(frame, new EvalState(body.car, benv, store));
+      return bindLetVar(node, bindingValue, benv, store, kont);
     }
+  
+  function bindLetVar(node, bindingValue, benv, store, kont)
+  {
+    var bindings = node.cdr.car;
+    var binding = bindings.car;
+    var name = binding.car.name;      
+    var addr = a.variable(binding, benv.application ? benv.application.tag : null);
+    benv = benv.add(name, addr);
+    store = store.allocAval(addr, bindingValue);      
+    var body = node.cdr.cdr;
+    return evalBody(body, benv, store, kont);
+//    var frame = new BeginKont(node, body, benv);
+//    return kont.push(frame, new EvalState(body.car, benv, store));
+  }
     
   function SetKont(node, benv)
   {
@@ -962,59 +980,59 @@ function lcCesk(cc)
       return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
     }
     
-  function BeginKont(node, exps, benv)
-  {
-    this.node = node;
-    this.exps = exps;
-    this.benv = benv;
-  }
-  BeginKont.prototype.equals =
-    function (x)
-    {
-      return (x instanceof BeginKont)
-        && this.node === x.node
-        && this.exps === x.exps
-        && Eq.equals(this.benv, x.benv);
-    }
-  BeginKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 7;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.exps.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
-  BeginKont.prototype.toString =
-    function ()
-    {
-      return "begin-" + this.node.tag + "-" + this.exps.tag;
-    }
-  BeginKont.prototype.nice =
-    function ()
-    {
-      return "begin-" + this.node.tag + "-" + this.exps.tag;
-    }
-  BeginKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
-  BeginKont.prototype.apply =
-    function (value, store, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var exps = this.exps.cdr;
-      
-      if (exps.cdr instanceof Null)
-      {
-        return kont.unch(new EvalState(exps.car, benv, store));
-      }
-      var frame = new BeginKont(node, exps, benv);
-      return kont.push(frame, new EvalState(exps.car, benv, store));
-    }
+//  function BeginKont(node, exps, benv)
+//  {
+//    this.node = node;
+//    this.exps = exps;
+//    this.benv = benv;
+//  }
+//  BeginKont.prototype.equals =
+//    function (x)
+//    {
+//      return (x instanceof BeginKont)
+//        && this.node === x.node
+//        && this.exps === x.exps
+//        && Eq.equals(this.benv, x.benv);
+//    }
+//  BeginKont.prototype.hashCode =
+//    function ()
+//    {
+//      var prime = 7;
+//      var result = 1;
+//      result = prime * result + this.node.hashCode();
+//      result = prime * result + this.exps.hashCode();
+//      result = prime * result + this.benv.hashCode();
+//      return result;
+//    }
+//  BeginKont.prototype.toString =
+//    function ()
+//    {
+//      return "begin-" + this.node.tag + "-" + this.exps.tag;
+//    }
+//  BeginKont.prototype.nice =
+//    function ()
+//    {
+//      return "begin-" + this.node.tag + "-" + this.exps.tag;
+//    }
+//  BeginKont.prototype.addresses =
+//    function ()
+//    {
+//      return this.benv.addresses();
+//    }
+//  BeginKont.prototype.apply =
+//    function (value, store, kont)
+//    {
+//      var node = this.node;
+//      var benv = this.benv;
+//      var exps = this.exps.cdr;
+//      
+//      if (exps.cdr instanceof Null)
+//      {
+//        return kont.unch(new EvalState(exps.car, benv, store));
+//      }
+//      var frame = new BeginKont(node, exps, benv);
+//      return kont.push(frame, new EvalState(exps.car, benv, store));
+//    }
   
   function IfKont(node, benv)
   {
@@ -1056,25 +1074,30 @@ function lcCesk(cc)
     function (conditionValue, store, kont)
     {
       var node = this.node;
-      var benv = this.benv;    
-      var consequent = node.cdr.cdr.car;
-      var alternate = node.cdr.cdr.cdr.car;
-      var tfb = trueFalse(conditionValue);
-      if (tfb.equals(L_BOOLEAN))
-      {
-        var consequentState = kont.unch(new EvalState(consequent, benv, store));
-        var alternateState = kont.unch(new EvalState(alternate, benv, store));
-        return consequentState.concat(alternateState);
-      }
-      else if (tfb.equals(L_TRUE))
-      {
-        return kont.unch(new EvalState(consequent, benv, store));
-      }
-      else
-      {
-        return kont.unch(new EvalState(alternate, benv, store));
-      }
+      var benv = this.benv;
+      return dispatchConditional(node, conditionValue, benv, store, kont); 
     }
+  
+  function dispatchConditional(node, conditionValue, benv, store, kont)
+  {
+    var consequent = node.cdr.cdr.car;
+    var alternate = node.cdr.cdr.cdr.car;
+    var tfb = trueFalse(conditionValue);
+    if (tfb.equals(L_BOOLEAN))
+    {
+      var consequentState = kont.unch(new EvalState(consequent, benv, store));
+      var alternateState = kont.unch(new EvalState(alternate, benv, store));
+      return consequentState.concat(alternateState);
+    }
+    else if (tfb.equals(L_TRUE))
+    {
+      return kont.unch(new EvalState(consequent, benv, store));
+    }
+    else
+    {
+      return kont.unch(new EvalState(alternate, benv, store));
+    }    
+  }
   
   function OrKont(node, benv)
   {
@@ -1220,12 +1243,13 @@ function lcCesk(cc)
       }));
   }
   
-  function ReturnKont(node, lam, benv)
+  function ReturnKont(node, lam, extendedBenv, extendedStore)
   {
     this.node = node;
     this.lam = lam;
-    this.benv = benv;
-//    this.store = store;
+    this.extendedBenv = extendedBenv;
+    assertFalse(extendedStore == null);
+    this.extendedStore = extendedStore;
   }
   ReturnKont.prototype.equals =
     function (x)
@@ -1233,8 +1257,8 @@ function lcCesk(cc)
       return x instanceof ReturnKont
         && Eq.equals(this.node, x.node)
         && Eq.equals(this.lam, x.lam)
-        && Eq.equals(this.benv, x.benv)
-//        && Eq.equals(this.store, x.store)
+        && Eq.equals(this.extendedBenv, x.extendedBenv)
+        && Eq.equals(this.extendedStore, x.extendedStore)
     }
   ReturnKont.prototype.hashCode =
     function ()
@@ -1243,7 +1267,7 @@ function lcCesk(cc)
       var result = 1;
       result = prime * result + this.node.hashCode();
       result = prime * result + this.lam.hashCode();
-      result = prime * result + this.benv.hashCode();
+      result = prime * result + this.extendedBenv.hashCode();
       return result;
     }
   ReturnKont.prototype.toString =
@@ -1259,20 +1283,28 @@ function lcCesk(cc)
   ReturnKont.prototype.addresses =
     function ()
     {
-      return this.benv.addresses();
+      return this.extendedBenv.addresses();
 //      return [];
     }
   ReturnKont.prototype.apply =
     function (returnValue, returnStore, kont)
     {
-      if (memoFlag)
-      {
-        var memoKey = this.lam.tag;
-        memoTable = memoTable.put(memoKey, memoTable.get(memoKey, ArraySet.empty()).add([returnStore, returnValue]));
-//        print(this.closure.node, "memoized", returnValue);
-      }
-      return kont.pop(function (frame) {return new KontState(frame, returnValue, returnStore)});
+      var lam = this.lam;
+      var extendedStore = this.extendedStore; 
+      return handleReturnValue(returnValue, lam, extendedStore, returnStore, kont);
     }
+  
+  function handleReturnValue(returnValue, lam, extendedStore, returnStore, kont)
+  {
+    if (memoFlag)
+    {
+      var memoKey = lam.tag;
+      memoTable = memoTable.put(memoKey, memoTable.get(memoKey, ArraySet.empty()).add([extendedStore, returnStore, returnValue]));
+//      print(this.closure.node, "memoized", returnValue);
+    }
+    return kont.pop(function (frame) {return new KontState(frame, returnValue, returnStore)});
+
+  }
   
   function evalLiteral(node, benv, store, kont)
   {
@@ -1320,26 +1352,32 @@ function lcCesk(cc)
     return kont.pop(function (frame) {return new KontState(frame, value, store)});
   }
   
-  function evalBegin(node, benv, store, kont)
-  {
-    var exps = node.cdr;
-    if (exps instanceof Null)
-    {
-      return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
-    }
-    if (exps.cdr instanceof Null)
-    {
-      return kont.unch(new EvalState(exps.car, benv, store));
-    }
-    var frame = new BeginKont(node, exps, benv);
-    return kont.push(frame, new EvalState(exps.car, benv, store));
-  }
+//  function evalBegin(node, benv, store, kont)
+//  {
+//    var exps = node.cdr;
+//    if (exps instanceof Null)
+//    {
+//      return kont.pop(function (frame) {return new KontState(frame, L_UNDEFINED, store)});
+//    }
+//    return evalBody(exps);
+//    if (exps.cdr instanceof Null)
+//    {
+//      return kont.unch(new EvalState(exps.car, benv, store));
+//    }
+//    var frame = new BeginKont(node, exps, benv);
+//    return kont.push(frame, new EvalState(exps.car, benv, store));
+//  }
   
   function evalLet(node, benv, store, kont)
   {
     var bindings = node.cdr.car;
     var binding = bindings.car;
     var exp = binding.cdr.car;
+    var atomicValue = evalAtomic(exp, benv, store);
+    if (atomicValue)
+    {
+       return bindLetVar(node, atomicValue, benv, store, kont);
+    }
     var frame = new LetKont(node, benv);
     return kont.push(frame, new EvalState(exp, benv, store));
   }
@@ -1359,6 +1397,12 @@ function lcCesk(cc)
     var exp = binding.cdr.car;
     var addr = a.variable(binding, benv.application ? benv.application.tag : null);
     benv = benv.add(name, addr);
+    var atomicValue = evalAtomic(exp, benv, store);
+    if (atomicValue)
+    {
+      store = store.allocAval(addr, atomicValue);
+      return evalBody(node.cdr.cdr, benv, store, kont);
+    }
     store = store.allocAval(addr, BOT);
     var frame = new LetrecKont(node, benv);
     return kont.push(frame, new EvalState(exp, benv, store));
@@ -1427,6 +1471,11 @@ function lcCesk(cc)
   function evalIf(node, benv, store, kont)
   {
     var condition = node.cdr.car;
+    var atomicValue = evalAtomic(condition, benv, store);
+    if (atomicValue)
+    {
+      return dispatchConditional(node, atomicValue, benv, store, kont);
+    }
     var frame = new IfKont(node, benv);
     return kont.push(frame, new EvalState(condition, benv, store));
   }
@@ -1510,10 +1559,10 @@ function lcCesk(cc)
         {
           return evalIf(node, benv, store, kont);
         }
-        if (name === "begin")
-        {
-          return evalBegin(node, benv, store, kont);
-        }
+//        if (name === "begin")
+//        {
+//          return evalBegin(node, benv, store, kont);
+//        }
         if (name === "set!")
         {
           return evalSet(node, benv, store, kont);
