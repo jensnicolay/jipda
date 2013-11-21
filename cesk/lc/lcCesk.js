@@ -110,24 +110,26 @@ function lcCesk(cc)
 //        print(this.node, "memoClosures", memoClosures);
         var memoValue = BOT;
         var memoStore = BOT;
-        memoClosures.forEach(
-          function (memoClosure)
-          {
-            var meStore = memoClosure[0];
-            var mrStore = memoClosure[1];
-            var mrValue = memoClosure[2];
-            if (meStore.subsumes(extendedStore))
-            {
-              memoValue = memoValue.join(mrValue);
-              memoStore = memoStore.join(mrStore);
-            }
-          });
-        if (memoStore !== BOT)
+        for (var j = 0; j < memoClosures.length; j++)
         {
-//          print("MEMO!");
-//          var rootSet = benv.addresses().concat(kont.addresses()).concat(memoValue.addresses());
-//          var store2 = Agc.collect(memoStore, rootSet);
-          return kont.pop(function (frame) {return new KontState(frame, memoValue, memoStore)}, "MEMO");
+          var memoClosure = memoClosures[j];
+          var meStore = memoClosure[0];
+//            if (meStore.subsumes(extendedStore))
+          if (meStore.equals(extendedStore))
+          {
+              var mrStore = memoClosure[1];
+              var mrValue = memoClosure[2];
+            return kont.pop(function (frame) {return new KontState(frame, mrValue, mrStore)}, "MEMO");
+          }
+//        if (memoStore !== BOT)
+//        {
+//          if (hits > 1)
+//            {
+//            print ("HITS ", hits);
+//            }
+////          print("MEMO!");
+////          var rootSet = benv.addresses().concat(kont.addresses()).concat(memoValue.addresses());
+////          var store2 = Agc.collect(memoStore, rootSet);
         }
       }
       
@@ -1248,7 +1250,6 @@ function lcCesk(cc)
     this.node = node;
     this.lam = lam;
     this.extendedBenv = extendedBenv;
-    assertFalse(extendedStore == null);
     this.extendedStore = extendedStore;
   }
   ReturnKont.prototype.equals =
