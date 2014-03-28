@@ -1,6 +1,0 @@
-(let ((do-something (lambda () 10)))
-  (let ((id (lambda (y)
-              (let ((tmp1 (do-something)))
-                y))))
-    (let ((tmp2 ((id (lambda (a) a)) #t)))
-      ((id (lambda (b) b)) #f))))

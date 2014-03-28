@@ -29,15 +29,13 @@ var HashCode = {};
 HashCode.hashCode =
   function (x)
   {
-    if (!x)
+    if (x === undefined || x === null)
     {
-      return 0;
+      return 0; 
     }
-    if (x === true || typeof x === "number")
-    {
-      return x >>> 0; 
-    }
-//    if (!x.hashCode) {print("!!!", Object.keys(x))}
+    if (!x.hashCode) {
+      print(x, x.constructor)
+      };
     return x.hashCode();
   }
   
@@ -45,86 +43,98 @@ var Visitor = {};
 Visitor.accept = function (visitor) {return function (x) {return x.accept ? x.accept(visitor) : String(x)}};
   
 Boolean.prototype.equals =
-	function (x)
-	{
-		return this.valueOf() === x.valueOf();
-	};
-	
+  function (x)
+  {
+    return this.valueOf() === x.valueOf();
+  };
+  
 Boolean.prototype.hashCode =
   function ()
   {
-    return this.valueOf() ? 1 : 0;
+    return this.valueOf() ? 1231 : 1237;
   }
-	
+
+Number.prototype.equals =
+  function (x)
+  {
+    return this.valueOf() === x; 
+  };
+  
+Number.prototype.hashCode =
+  function ()
+  {
+    return this.valueOf();
+  }
+  
 Array.prototype.toString =
-	function ()
-	{
-		// return "[" + this.join(",") + "]"; doesn't work for [undefined]
-		if (this.length === 0)
-		{
-			return "[]";
-		}
-		var s = "[";
-		for (var i = 0; i < this.length - 1; i++)
-		{
-			s += this[i] + ","; 
-		}
-		s += this[i] + "]";
-		return s;		
-	};
+  function ()
+  {
+    // return "[" + this.join(",") + "]"; doesn't work for [undefined]
+    if (this.length === 0)
+    {
+      return "[]";
+    }
+    var s = "[";
+    for (var i = 0; i < this.length - 1; i++)
+    {
+      s += this[i] + ","; 
+    }
+    s += this[i] + "]";
+    return s;   
+  };
 
 Array.prototype.memberAt =
-	function (x)
-	{
-		for (var i = 0; i < this.length; i++)
-		{
-			var el = this[i];
-			if (Eq.equals(x, el))
-			{
-				return i;
-			}
-		}
-		return -1;
-	};
+  function (x)
+  {
+    for (var i = 0; i < this.length; i++)
+    {
+      var el = this[i];
+      if (Eq.equals(x, el))
+      {
+        return i;
+      }
+    }
+    return -1;
+  };
 
 Array.prototype.flatten =
-	function ()
-	{
-		return this.reduce(function (p, c) {return p.concat(c)}, []);
-	};
+  function ()
+  {
+    return this.reduce(function (p, c) {return p.concat(c)}, []);
+  };
 
 Array.prototype.flatMap =
-	function (f, th)
-	{
-		return this.map(f, th).flatten();
-	};
-	
+  function (f, th)
+  {
+    return this.map(f, th).flatten();
+  };
+  
 Array.prototype.addFirst =
-	function (x)
-	{
-		return [x].concat(this);
-	};		
+  function (x)
+  {
+    return [x].concat(this);
+  };    
 
 Array.prototype.addLast =
-	function (x)
-	{
-		if (Array.isArray(x))
-		{
-			return this.concat([x]);
-		}
-		return this.concat(x);
-	};		
-	
+  function (x)
+  {
+    if (Array.isArray(x))
+    {
+      return this.concat([x]);
+    }
+    return this.concat(x);
+  };    
+  
 Array.prototype.addUniqueLast =
-	function (x)
-	{
-		if (this.memberAt(x) > -1)
-		{
-			return this;
-		}
-		return this.addLast(x);
-	};
-	
+  function (x)
+  {
+    if (this.memberAt(x) > -1)
+    {
+      return this;
+    }
+    return this.addLast(x);
+  };
+  
 Array.prototype.remove =
   function (x)
   {
@@ -176,47 +186,65 @@ Array.prototype.toSet =
   }
   
 Array.prototype.equals =
-	function (x)
-	{
-		if (this === x)
-		{
-			return true;
-		}
-		if (x === undefined || x === null)
-		{
-			return false;
-		}
-		var length = x.length;
-		if (this.length != length)
-		{
-			return false;
-		}
-		for (var i = 0; i < length; i++)
-		{
-			var xi = x[i];
-			var thisi = this[i];
-			if (!Eq.equals(xi, thisi))
-			{
-				return false;
-			}
-		}
-		return true;
-	};
-	
+  function (x)
+  {
+    if (this === x)
+    {
+      return true;
+    }
+    if (x === undefined || x === null)
+    {
+      return false;
+    }
+    var length = x.length;
+    if (this.length != length)
+    {
+      return false;
+    }
+    for (var i = 0; i < length; i++)
+    {
+      var xi = x[i];
+      var thisi = this[i];
+      if (!Eq.equals(xi, thisi))
+      {
+        return false;
+      }
+    }
+    return true;
+  };
+  
 Array.prototype.hashCode =
   function()
   {
-    var hash = 0, i, char;
-    if (this.length == 0) return hash;
-    for (i = 0; i < this.length; i++)
+    var l = this.length;
+    if (l === 0)
     {
-      val = HashCode.hashCode(this[i]);
-      hash = ((hash<<5) - hash) + val;
-      hash = hash & hash;
+      return 0;
     }
-    return hash;
+    var result = 1;
+    for (var i = 0; i < l; i++)
+    {
+      result = (31 * result + HashCode.hashCode(this[i])) >> 0;
+    }
+    return result;
   }
-	  
+    
+Array.prototype.setHashCode =
+  function()
+  {
+    var l = this.length;
+    if (l === 0)
+    {
+      return 0;
+    }
+    var result = 1;
+    for (var i = 0; i < l; i++)
+    {
+      result = result ^ HashCode.hashCode(this[i]);
+    }
+    return result;
+  }
+      
 Array.prototype.subsumes =
   function (xs)
   {
@@ -229,46 +257,46 @@ Array.prototype.subsumes =
     }
     return true;
   };
-	  
+    
 Array.prototype.setEquals =
-	function (x)
-	{
-		var length = x.length;
-		if (this.length != length)
-		{
-			return false;
-		}
-		for (var i = 0; i < length; i++)
-		{
-			var xi = x[i];
-			if (this.memberAt(xi) === -1)
-			{
-				return false;
-			}
-		}
-		return true;
-	}
+  function (x)
+  {
+    var length = x.length;
+    if (this.length != length)
+    {
+      return false;
+    }
+    for (var i = 0; i < length; i++)
+    {
+      var xi = x[i];
+      if (this.memberAt(xi) === -1)
+      {
+        return false;
+      }
+    }
+    return true;
+  }
 
 Array.prototype.addEntry =
-	function (key, value)
-	{
-		return this.addFirst([key, value]);	
-	};
-	
+  function (key, value)
+  {
+    return this.addFirst([key, value]); 
+  };
+  
 Array.prototype.getEntry =
-	function (key)
-	{
-		for (var i = 0; i < this.length; i++)
-		{
-			var entry = this[i];
-			var entryKey = entry[0];
-			if (Eq.equals(key, entryKey))
-			{
-				return entry;
-			}
-		}
-		return false;
-	}
+  function (key)
+  {
+    for (var i = 0; i < this.length; i++)
+    {
+      var entry = this[i];
+      var entryKey = entry[0];
+      if (Eq.equals(key, entryKey))
+      {
+        return entry;
+      }
+    }
+    return false;
+  }
 
 Array.prototype.getValue =
   function (key)
@@ -277,20 +305,20 @@ Array.prototype.getValue =
   }
 
 Array.prototype.updateEntry =
-	function (key, value)
-	{
-		for (var i = 0; i < this.length; i++)
-		{
-			var entry = this[i];
-			var entryKey = entry[0];
-			if (Eq.equals(entryKey, key))
-			{
-				return this.slice(0, i).concat([[entryKey, value]]).concat(this.slice(i + 1));
-			}
-		}
-		return this.concat([[key, value]]);
-	};
-	
+  function (key, value)
+  {
+    for (var i = 0; i < this.length; i++)
+    {
+      var entry = this[i];
+      var entryKey = entry[0];
+      if (Eq.equals(entryKey, key))
+      {
+        return this.slice(0, i).concat([[entryKey, value]]).concat(this.slice(i + 1));
+      }
+    }
+    return this.concat([[key, value]]);
+  };
+  
 Array.prototype.entryKeys =
   function ()
   {
@@ -312,33 +340,33 @@ Array.prototype.entryValues =
   } 
 
 Array.prototype.getSetEntry =
-	function (key)
-	{
-		var entry = this.getEntry(key);
-		if (entry)
-		{
-			return entry[1];
-		}
-		return [];
-	}	
-	
+  function (key)
+  {
+    var entry = this.getEntry(key);
+    if (entry)
+    {
+      return entry[1];
+    }
+    return [];
+  } 
+  
 Array.prototype.updateSetEntry =
-	function (key, value)
-	{
-		for (var i = 0; i < this.length; i++)
-		{
-			var entry = this[i];
-			var entryKey = entry[0];
-			if (Eq.equals(entryKey, key))
-			{
-				return this.slice(0, i).concat([[key, entry[1].addUniqueLast(value)]]).concat(this.slice(i + 1));
-			}
-		}
-		return this.concat([[key, [value]]]);
-	};
-	
+  function (key, value)
+  {
+    for (var i = 0; i < this.length; i++)
+    {
+      var entry = this[i];
+      var entryKey = entry[0];
+      if (Eq.equals(entryKey, key))
+      {
+        return this.slice(0, i).concat([[key, entry[1].addUniqueLast(value)]]).concat(this.slice(i + 1));
+      }
+    }
+    return this.concat([[key, [value]]]);
+  };
+  
 var Arrays = {};
-	
+  
 Arrays.indexOf =
   function (x, arr, eq)
   {
@@ -472,35 +500,37 @@ Arrays.values =
   }
 
 String.prototype.startsWith =
-	function (s)
-	{
-		return this.lastIndexOf(s, 0) === 0;
-	};
-	
+  function (s)
+  {
+    return this.lastIndexOf(s, 0) === 0;
+  };
+  
 String.prototype.endsWith = 
-	function (s)
-	{
-		return this.indexOf(s, this.length - s.length) !== -1;
-	};
-	
+  function (s)
+  {
+    return this.indexOf(s, this.length - s.length) !== -1;
+  };
+  
 String.prototype.equals =
-	function (x)
-	{
-		return this.localeCompare(x) === 0;	
-	};
-	
+  function (x)
+  {
+    return this.localeCompare(x) === 0; 
+  };
+  
 String.prototype.hashCode =
   function()
   {
-    var hash = 0, i, char;
-    if (this.length == 0) return hash;
-    for (i = 0; i < this.length; i++)
+    var l = this.length;
+    if (l === 0)
     {
-      char = this.charCodeAt(i);
-      hash = ((hash<<5) - hash) + char;
-      hash = hash & hash;
+      return 0;
     }
-    return hash;
+    var result = 1;
+    for (var i = 0; i < l; i++)
+    {
+      result = (31 * result + this.charCodeAt(i)) >> 0;
+    }
+    return result;
   }
 
 var Character = {};
@@ -518,24 +548,11 @@ Character.isDigit =
   }
   
 Function.prototype.toString =
-	function ()
-	{
-		return this.name + "()";
-	};
-
-Number.prototype.equals =
-  function (x)
-  {
-    return this.valueOf() === x; 
-  };
-  
-Number.prototype.hashCode =
   function ()
   {
-    return this.valueOf();
-  }
-	  
-	
+    return this.name + "()";
+  };    
+  
 // debug
 function d(value) { print(Array.prototype.slice.call(arguments)); return value; }
 function dreadline() { var str = readline(); if (str === ":b") { throw new Error(":b"); }}
@@ -638,30 +655,6 @@ Ecma.Class =
 
 var Collections = {};
 
-Collections.add =
-  function (collection, value)
-  {
-    return collection.add(value);
-  }
-
-Collections.addAll =
-  function (collection, values)
-  {
-    return collection.addAll(values);
-  }
-
-Collections.size =
-  function (collection)
-  {
-    return collection.size();
-  }
-
-Collections.values =
-  function (collection)
-  {
-    return collection.values();
-  }
-
 /*
  * Map interface
  * 
@@ -718,13 +711,29 @@ Map.prototype.equals =
     {
       return false;
     }
-    return this.subsumes(x) && x.subsumes(this);
+    return this.iterateEntries(
+        function (entry)
+        {
+          var xValue = x.get(entry.key);
+          return xValue !== undefined && entry.value.equals(xValue);
+        });
   }
 
 Map.prototype.hashCode =
   function ()
   {
-    return this.entries().reduce(function (result, entry) {return result + HashCode.hashCode(entry.key) + HashCode.hashCode(entry.value)}, 0);
+    if (this._hashCode !== undefined)
+    {
+      return this._hashCode;
+    }
+    var result = 1;
+    this.iterateEntries(
+        function (entry)
+        {
+          result = (result + (31 * HashCode.hashCode(entry.key) ^ HashCode.hashCode(entry.value))) >> 0;
+        });
+    this._hashCode = result;
+    return result;
   }
 
 Map.prototype.putAll =
@@ -742,22 +751,49 @@ Map.prototype.join =
 Map.prototype.joinWith =
   function (x, join, bot)
   {
-    var that = this;
-    return x.entries().reduce(
-      function (result, entry)
+    print("joinWith TO CHECK");
+    var result = this;
+    return x.iterateEntries(
+      function (entry)
       {
         var key = entry.key;
-        var thisValue = that.get(key, bot);
+        var thisValue = this.get(key, bot);
         var xValue = entry.value;
         var value = join(thisValue, xValue);
-        return result.put(key, value);
+        result = result.put(key, value);
       }, this);
   }
 
-Map.prototype.removeAll =
+//Map.prototype.removeAll =
+//  function (keys)
+//  {
+//    var result = this.clear();
+//    this.iterateEntries(
+//      function (entry)
+//      {
+//        var key = entry.key;
+//        if (!Arrays.contains(key, keys, Eq.equals))
+//        {
+//          result = result.put(key, entry.value);
+//        }
+//      });
+//    return result;
+//  }
+
+Map.prototype.narrow =
   function (keys)
   {
-    return keys.reduce(function (result, key) {return result.remove(key)}, this);
+    var result = this.clear();
+    this.iterateEntries(
+      function (entry)
+      {
+        var key = entry.key;
+        if (Arrays.contains(key, keys, Eq.equals))
+        {
+          result = result.put(key, entry.value);
+        }
+      });
+    return result;
   }
 
 function ArrayMap(arr)
@@ -788,10 +824,14 @@ ArrayMap.prototype.put =
         {
           return this;
         }
-        return new ArrayMap(Arrays.removeIndex(i, arr).addLast({key:key,value:value}));
+        var newArr = arr.slice(0);
+        newArr[i] = {key:key,value:value};
+        return new ArrayMap(newArr);
       }
     }
-    return new ArrayMap(arr.addLast({key:key,value:value}));  
+    var newArr = arr.slice(0);
+    newArr.push({key:key,value:value});
+    return new ArrayMap(newArr);  
   }
 
 ArrayMap.prototype.get =
@@ -865,18 +905,18 @@ ArrayMap.prototype.nice =
     return this._arr.map(function (entry) {return entry.key + " -> " + entry.value}).join("\n");
   }
 
-function HashMap(entries)
+function HashMap(buckets)
 {
-  this._entries = entries;
+  this._buckets = buckets;
 }
 HashMap.prototype = Object.create(Map.prototype);
 
 HashMap.empty =
   function (size)
   {
-    var entries = new Array(size || 13);
-    entries.size = 0;
-    return new HashMap(entries);
+    var buckets = new Array(size || 13);
+    buckets.size = 0;
+    return new HashMap(buckets);
   }
 
 HashMap.from =
@@ -888,51 +928,53 @@ HashMap.from =
 HashMap.prototype.put =
   function (key, value)
   {
-    var hash = Math.abs(key.hashCode()) % this._entries.length;
-    var buckets = this._entries[hash];
-    if (!buckets)
+    var keyHash = key.hashCode();
+    var index = (keyHash >>> 0) % this._buckets.length;
+    var entries = this._buckets[index];
+    if (!entries)
     {
-      var newBuckets = [{key:key, value:value}];
+      var newEntries = [{key:key, value:value}];
     }
     else
     {
-      for (var i = 0; i < buckets.length; i++)
+      for (var i = 0; i < entries.length; i++)
       {
-        var bucket = buckets[i];
-        if (Eq.equals(key, bucket.key))
+        var entry = entries[i];
+        if (Eq.equals(key, entry.key))
         {
-          var newBuckets = buckets.slice(0);
-          newBuckets[i] = {key:key, value:value};
-          var newEntries = this._entries.slice(0);
-          newEntries[hash] = newBuckets;
-          newEntries.size = this.size(); 
-          return new HashMap(newEntries);      
+          var newEntries = entries.slice(0);
+          newEntries[i] = {key:key, value:value};
+          var newBuckets = this._buckets.slice(0);
+          newBuckets[index] = newEntries;
+          newBuckets.size = this.size(); 
+          return new HashMap(newBuckets);      
         }
       }
-      var newBuckets = buckets.slice(0);
-      newBuckets[i] = {key:key, value:value};      
+      var newEntries = entries.slice(0);
+      newEntries[i] = {key:key, value:value};      
     }
-    var newEntries = this._entries.slice(0);
-    newEntries[hash] = newBuckets;
-    newEntries.size = this.size() + 1;
-    return new HashMap(newEntries);      
+    var newBuckets = this._buckets.slice(0);
+    newBuckets[index] = newEntries;
+    newBuckets.size = this.size() + 1;
+    return new HashMap(newBuckets);      
   }
 
 HashMap.prototype.get =
   function (key, bot)
   {
-    var hash = Math.abs(key.hashCode()) % this._entries.length;
-    var buckets = this._entries[hash];    
-    if (!buckets)
+    var keyHash = key.hashCode();
+    var index = (keyHash >>> 0) % this._buckets.length;
+    var entries = this._buckets[index];    
+    if (!entries)
     {
       return bot;
     }
-    for (var i = 0; i < buckets.length; i++)
+    for (var i = 0; i < entries.length; i++)
     {
-      var bucket = buckets[i];
-      if (Eq.equals(key, bucket.key))
+      var entry = entries[i];
+      if (Eq.equals(key, entry.key))
       {
-        return bucket.value;
+        return entry.value;
       }
     }
     return bot;
@@ -941,22 +983,23 @@ HashMap.prototype.get =
 HashMap.prototype.remove =
   function (key)
   {
-    var hash = Math.abs(key.hashCode()) % this._entries.length;
-    var buckets = this._entries[hash];
-    if (!buckets)
+    var keyHash = key.hashCode();
+    var index = (keyHash >>> 0) % this._buckets.length;
+    var entries = this._buckets[index];
+    if (!entries)
     {
       return this;
     }
-    for (var i = 0; i < buckets.length; i++)
+    for (var i = 0; i < entries.length; i++)
     {
-      var bucket = buckets[i];
-      if (Eq.equals(key, bucket.key))
+      var entry = entries[i];
+      if (Eq.equals(key, entry.key))
       {
-        var newBuckets = buckets.slice(0, i).concat(buckets.slice(i + 1));
-        var newEntries = this._entries.slice(0);
-        newEntries[hash] = newBuckets;
-        newEntries.size = this.size() - 1; 
-        return new HashMap(newEntries);
+        var newEntries = entries.slice(0, i).concat(entries.slice(i + 1));
+        var newBuckets = this._buckets.slice(0);
+        newBuckets[index] = newEntries;
+        newBuckets.size = this.size() - 1; 
+        return new HashMap(newBuckets);
       }
     }
     return this;        
@@ -965,13 +1008,13 @@ HashMap.prototype.remove =
 HashMap.prototype.entries =
   function ()
   {
-    return this._entries.flatten();
+    return this._buckets.flatten();
   }
 
 HashMap.prototype.iterateEntries =
   function (f, th)
   {
-    var buckets = this._entries;
+    var buckets = this._buckets;
     for (var i = 0; i < buckets.length; i++)
     {
       var bucket = buckets[i];
@@ -992,27 +1035,27 @@ HashMap.prototype.iterateEntries =
 HashMap.prototype.keys =
   function ()
   {
-    return this._entries.flatten().map(function (bucket) {return bucket.key});
+    return this._buckets.flatten().map(function (entry) {return entry.key});
   }
 
 HashMap.prototype.values =
   function ()
   {
-    return this._entries.flatten().map(function (bucket) {return bucket.value});
+    return this._buckets.flatten().map(function (entry) {return entry.value});
   }
 
 HashMap.prototype.size =
   function ()
   {
-    return this._entries.size;
+    return this._buckets.size;
   }
 
 HashMap.prototype.clear =
   function ()
   {
-    var entries = new Array(this._entries.length);
-    entries.size = 0;
-    return new HashMap(entries);
+    var buckets = new Array(this._buckets.length);
+    buckets.size = 0;
+    return new HashMap(buckets);
   }
 
 HashMap.prototype.toString =
@@ -1025,51 +1068,6 @@ HashMap.prototype.nice =
   function ()
   {
     return this.entries().map(function (entry) {return entry.key + " -> " + entry.value}).join("\n");
-  }
-
-function LatticeMap(map, bot)
-{
-  this._map = map;
-  this.bot = bot;
-}
-LatticeMap.prototype = Object.create(Map.prototype);
-
-LatticeMap.empty =
-  function (bot, size)
-  {
-    return new LatticeMap(HashMap.empty(size), bot);
-  }
-LatticeMap.prototype.put =
-  function (key, value)
-  {
-    var existing = this._map.get(key, this.bot);
-    return new LatticeMap(this._map.put(key, existing.join(value)), this.bot);
-  }
-LatticeMap.prototype.get =
-  function (key)
-  {
-    return this._map.get(key, this.bot);
-  }
-
-LatticeMap.prototype.size =
-  function ()
-  {
-    return this._map.size();
-  }
-LatticeMap.prototype.toString =
-  function ()
-  {
-    return this._map.toString();
-  }
-LatticeMap.prototype.entries =
-  function ()
-  {
-    return this._map.entries();
-  }
-LatticeMap.prototype.map =
-  function (f, ths)
-  {
-    return new LatticeMap(this._map.map(f, ths));
   }
 
 /*
@@ -1098,7 +1096,7 @@ Set.prototype.subsumes =
     {
       return false;
     }
-    var xValues = this.values();
+    var xValues = x.values();
     for (var i = 0; i < xValues.length; i++)
     {
       if (!this.contains(xValues[i]))
@@ -1120,22 +1118,27 @@ Set.prototype.equals =
     {
       return false;
     }
-    var values = this.values();
-    for (var i = 0; i < values.length; i++)
-    {
-      if (!x.contains(values[i]))
-      {
-        return false;
-      }
-    }
-    return true;
+    return this.iterateValues(function (value) {return x.contains(value)}); 
+//    var values = this.values();
+//    for (var i = 0; i < values.length; i++)
+//    {
+//      if (!x.contains(values[i]))
+//      {
+//        return false;
+//      }
+//    }
+//    return true;
   }
 
 Set.prototype.hashCode =
   function ()
   {
-    var values = this.values();
-    var result = values.reduce(function (result, x) {return result + HashCode.hashCode(x)}, 0);
+    if (this._hashCode !== undefined)
+    {
+      return this._hashCode;
+    }
+    var result = this.values().setHashCode(); 
+    this._hashCode = result;
     return result;
   }
 
@@ -1174,7 +1177,7 @@ HashSet.prototype = Object.create(Set.prototype);
 HashSet.empty =
   function (size)
   {
-    return new HashSet(HashMap.empty(size));
+    return new HashSet(TrieMap.empty());
   }
 
 HashSet.from =
@@ -1203,7 +1206,12 @@ HashSet.prototype.add =
 HashSet.prototype.addAll =
   function (values)
   {
-    return values.reduce(Collections.add, this);
+    var result = this;
+    for (var i = 0; i < values.length; i++)
+    {
+      result = result.add(values[i]);
+    }
+    return result;
   }
 
 HashSet.prototype.remove =
@@ -1228,6 +1236,7 @@ HashSet.prototype.contains =
 HashSet.prototype.filter =
   function (f, ths)
   {
+    print("filter");
     return HashSet.from(this.values().filter(f, ths));
   }
 
@@ -1253,6 +1262,12 @@ HashSet.prototype.nice =
   function ()
   {
     return this.toString();
+  }
+
+HashSet.prototype.iterateValues =
+  function (f, th)
+  {
+    return this._map.iterateEntries(function (entry) {return f.call(th, entry.value)});
   }
 
 function ArraySet(arr)
@@ -1299,7 +1314,12 @@ ArraySet.prototype.add =
 ArraySet.prototype.addAll =
   function (values)
   {
-    return values.reduce(Collections.add, this);
+    var result = this;
+    for (var i = 0; i < values.length; i++)
+    {
+      result = result.add(values[i]);
+    }
+    return result;
   }
 
 ArraySet.prototype.remove =
@@ -1357,131 +1377,363 @@ ArraySet.prototype.nice =
     return this.toString();
   }
 
-
-/*
- * Deque interface
- * 
- * equals, hashCode (based on values)
- * addFirst, addLast
- * removeFirst, removeLast
- * size
- *  
- */
-function ArrayDeque(arr)
-{
-  this._arr = arr;
-}
-
-ArrayDeque.empty =
-  function ()
+ArraySet.prototype.iterateValues =
+  function (f, th)
   {
-    return new ArrayDeque([]);
-  }
-
-ArrayDeque.prototype.addFirst =
-  function (x)
-  {
-    var arr = this._arr.slice(0).unshift(x);
-    return new ArrayDeque(arr);
-  }
-
-ArrayDeque.prototype.addLast =
-  function (x)
-  {
-    var arr = this._arr.slice(0).push(x);
-    return new ArrayDeque(arr);
-  }
-
-ArrayDeque.prototype.removeFirst =
-  function ()
-  {
-    var arr = this._arr.slice(0).shift(1);
-    return new ArrayDeque(arr);
-  }
-
-ArrayDeque.prototype.removeLast =
-  function ()
-  {
-    var arr = this._arr.slice(0).pop();
-    return new ArrayDeque(arr);
-  }
-
-ArrayDeque.prototype.value =
-  function ()
-  {
-    return this._value;
-  }
-
-ArrayDeque.prototype.size =
-  function ()
-  {
-    return this._arr.length;
-  }
-
-ArrayDeque.prototype.toString =
-  function ()
-  {
-    return this._arr.toString();
-  }
-
-
-/*
- * Queue interface
- * 
- * equals, hashCode (based on values)
- * add, remove
- * size
- *  
- */
-function ArrayQueue(arr)
-{
-  this._arr = arr;
-}
-
-ArrayQueue.empty =
-  function ()
-  {
-    return new ArrayQueue([]);
-  }
-
-ArrayQueue.prototype.add =
-  function (x)
-  {
-    var arr = this._arr.slice(0).push(x);
-    return new ArrayQueue(arr);
-  }
-
-ArrayQueue.prototype.peek =
-  function ()
-  {
-    if (this._arr.length === 0)
+    var arr = this._arr;
+    for (var i = 0; i < arr.length; i++)
     {
-      throw new Error("queue empty");
+      if (f.call(th, arr[i]) === false)
+      {
+        return false;
+      }
     }
-    return this._arr[0];
+    return true;
   }
 
-ArrayQueue.prototype.remove =
-  function ()
+
+function TrieMap(node, size)
+{
+  this._node = node;
+  this._size = size;
+}
+TrieMap.prototype = Object.create(Map.prototype);
+
+TrieMap.mask =
+  function (x, p)
   {
-    var arr = this._arr.slice(0).shift(1);
-    return new ArrayQueue(arr);
+    return (x >>> p) & 31;
   }
 
-ArrayQueue.prototype.size =
+TrieMap.empty =
   function ()
   {
-    return this._arr.length;
+    return new TrieMap(TrieMap.BitmapNode.empty(), 0);
   }
 
-ArrayQueue.prototype.isEmpty =
-  function ()
+TrieMap.from =
+  function (arr)
   {
-    return this._arr.length > 0;
+    return arr.reduce(function (result, entry) {return result.put(entry.key, entry.value)}, TrieMap.empty());
   }
 
-ArrayQueue.prototype.toString =
+TrieMap.prototype.clear =
   function ()
   {
-    return this._arr.toString();
+    return TrieMap.empty();
+  }
+
+TrieMap.prototype.get =
+  function (key, bot)
+  {
+    var hash = key.hashCode();
+    return this._node.get(key, hash, bot);
+  }
+
+TrieMap.prototype.put =
+  function (key, value)
+  {
+    var sizeBox = [this._size];
+    var hash = key.hashCode();
+    var node = this._node.put(key, hash, value, sizeBox);
+    return new TrieMap(node, sizeBox[0]);
+  }
+
+TrieMap.prototype.remove =
+  function (key)
+  {
+    throw new Error("TODO");
+  }
+
+TrieMap.prototype.entries =
+  function ()
+  {
+    return this._node.entries();
+  }
+
+TrieMap.prototype.iterateEntries =
+  function (f, th)
+  {
+    return this._node.iterateEntries(f, th);
+  }
+
+TrieMap.prototype.keys =
+  function ()
+  {
+    return this._node.keys();
+  }
+
+TrieMap.prototype.values =
+  function ()
+  {
+    return this._node.values();
+  }
+
+TrieMap.prototype.size =
+  function ()
+  {
+    return this._size;
+  }
+
+TrieMap.prototype.toString =
+  function ()
+  {
+    return this.entries().map(function (entry) {return entry.key + " -> " + entry.value}).join("\n");
+  }
+
+TrieMap.BitmapNode =
+  function(arr, level)
+  {
+    this._arr = arr;
+    this._level = level;
+  }
+
+TrieMap.BitmapNode.empty =
+  function ()
+  {
+    return new TrieMap.BitmapNode(new Array(31), 0);
+  }
+
+TrieMap.BitmapNode.from =
+  function (key, hash, value, level)
+  {
+    var index = TrieMap.mask(hash, level);
+    var arr = new Array(31);
+    arr[index] = (level === 30 ? TrieMap.CollisionNode.from(key, value) : new TrieMap.LeafNode(key, hash, value, level + 5));
+    return new TrieMap.BitmapNode(arr, level); 
+  }
+
+TrieMap.BitmapNode.prototype.put =
+  function (key, hash, value, sizeBox)
+  {
+    var level = this._level;
+    var arr = this._arr;
+    var index = TrieMap.mask(hash, level);
+    var node = arr[index];
+    var newNode;
+    if (node)
+    {
+      var newNode = node.put(key, hash, value, sizeBox);
+      if (node === newNode)
+      {
+        return this;
+      }
+    }
+    else
+    {
+      newNode = (level === 30 ? TrieMap.CollisionNode.from(key, value) : new TrieMap.LeafNode(key, hash, value, level + 5));
+      sizeBox[0]++;
+    }
+    var newArr = arr.slice(0);
+    newArr[index] = newNode;
+    return new TrieMap.BitmapNode(newArr, level); 
+  }
+
+TrieMap.BitmapNode.prototype.get =
+  function (key, hash, bot)
+  {
+    var index = TrieMap.mask(hash, this._level);
+    var node = this._arr[index];
+    return node ? node.get(key, hash, bot) : bot;
+  }
+
+TrieMap.BitmapNode.prototype.iterateEntries =
+  function (f, th)
+  {
+    for (var i = 0; i < 32; i++)
+    {
+      var node = this._arr[i];
+      if (node)
+      {
+        if (node.iterateEntries(f, th) === false)
+        {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+TrieMap.BitmapNode.prototype.entries =
+  function ()
+  {
+    var result = [];
+    for (var i = 0; i < 32; i++)
+    {
+      var node = this._arr[i];
+      if (node)
+      {
+        result = result.concat(node.entries());
+      }
+    }
+    return result;
+  }
+
+TrieMap.BitmapNode.prototype.keys =
+  function ()
+  {
+    var result = [];
+    for (var i = 0; i < 32; i++)
+    {
+      var node = this._arr[i];
+      if (node)
+      {
+        result = result.concat(node.keys());
+      }
+    }
+    return result;
+  }
+
+TrieMap.BitmapNode.prototype.values =
+  function ()
+  {
+    var result = [];
+    for (var i = 0; i < 32; i++)
+    {
+      var node = this._arr[i];
+      if (node)
+      {
+        result = result.concat(node.values());
+      }
+    }
+    return result;
+  }
+
+TrieMap.LeafNode =
+  function (key, hash, value, level)
+  {
+    this._key = key;
+    this._hash = hash;
+    this._value = value;
+    this._level = level;
+  }
+
+TrieMap.LeafNode.prototype.put =
+  function (key, hash, value, sizeBox)
+  {
+    if (this._key.equals(key))
+    {
+      return new TrieMap.LeafNode(key, hash, value, this._level);
+    }
+    var node = TrieMap.BitmapNode.from(this._key, this._hash, this._value, this._level);
+    return node.put(key, hash, value, sizeBox);
+  }
+
+TrieMap.LeafNode.prototype.get =
+  function (key, hash, bot)
+  {
+    return this._key.equals(key) ? this._value : bot;
+  }
+
+TrieMap.LeafNode.prototype.iterateEntries =
+  function (f, th)
+  {
+    return f.call(th, {key:this._key,value:this._value});
+  }
+
+TrieMap.LeafNode.prototype.entries =
+  function ()
+  {
+    return [{key:this._key,value:this._value}];
+  }
+
+TrieMap.LeafNode.prototype.keys =
+  function ()
+  {
+    return [this._key];
+  }
+
+TrieMap.LeafNode.prototype.values =
+  function ()
+  {
+    return [this._value];
+  }
+
+TrieMap.CollisionNode =
+  function (arr)
+  {
+    this._arr = arr;
+  }
+
+TrieMap.CollisionNode.from =
+  function (key, value)
+  {
+    return new TrieMap.CollisionNode([{key:key,value:value}]);
+  }
+
+TrieMap.CollisionNode.prototype.put =
+  function (key, hash, value, sizeBox)
+  {
+    var arr = this._arr;
+    for (var i = 0; i < arr.length; i++)
+    {
+      var entry = arr[i];
+      if (Eq.equals(entry.key, key))
+      {
+        if (Eq.equals(entry.value, value))
+        {
+          return this;
+        }
+        var newArr = arr.slice(0);
+        newArr[i] = {key:key,value:value}; 
+        return new TrieMap.CollisionNode(newArr);
+      }
+    }
+    var newArr = arr.slice(0);
+    newArr.push({key:key,value:value});
+    sizeBox[0]++;
+    return new TrieMap.CollisionNode(newArr);  
+  }
+
+TrieMap.CollisionNode.prototype.get =
+  function (key, hash, bot)
+  {
+    var arr = this._arr;
+    for (var i = 0; i < arr.length; i++)
+    {
+      var entry = arr[i];
+      if (Eq.equals(entry.key, key))
+      {
+        return entry.value;
+      }
+    }
+    return bot;
+  }
+
+TrieMap.CollisionNode.prototype.entries =
+  function ()
+  {
+    return this._arr.slice(0);
+  }
+
+TrieMap.CollisionNode.prototype.iterateEntries =
+  function (f, th)
+  {
+    var arr = this._arr;
+    for (var i = 0; i < arr.length; i++)
+    {
+      if (f.call(th, arr[i]) === false)
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+TrieMap.CollisionNode.prototype.keys =
+  function ()
+  {
+    return this._arr.map(function (entry) {return entry.key});
+  }
+
+TrieMap.CollisionNode.prototype.values =
+  function ()
+  {
+    return this._arr.map(function (entry) {return entry.value});
+  }
+
+TrieMap.CollisionNode.prototype.toString =
+  function ()
+  {
+    return this._arr.map(function (entry) {return entry.key + " -> " + entry.value}).toString();
   }
