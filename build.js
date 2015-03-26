@@ -28,21 +28,18 @@ function b()
   load("lattice.js");
   load("abstLattice1-2.js");
   load("concLattice.js");
-  load("graph.js");
   load("ast.js");
   load("jsCesk.js");
   load("tagAg.js");
   load("concreteAg.js");
   load("benv.js");
   load("object.js");
-  load("purityAnalysis.js");
-  load("protopurity.js");
+  load("jipda.js");
   load("test.js");
   
   load("test/objectTests.js");  
   load("test/concreteTests.js");
   load("test/jipdaTests.js");
-  load("test/purityTests.js");  
 }
 
 b();
