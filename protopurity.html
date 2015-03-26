@@ -1,0 +1,211 @@
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<link rel="stylesheet" href="protopurity.css" type="text/css" media="all"/> 
+	<link rel="stylesheet" href="lib/web/jquery-ui-1.11.1/jquery-ui.min.css" type="text/css" media="all"/>  
+	<link rel="stylesheet" href="lib/web/codemirror/codemirror.css" type="text/css" media="all"/> 
+	<title>JIPDA</title>
+	<script type="text/javascript" src="lib/esprima.js"></script>
+	<script type="text/javascript" src="common.js"></script>
+	<script type="text/javascript" src="ast.js"></script>
+	<script type="text/javascript" src="agc.js"></script>
+	<script type="text/javascript" src="lattice.js"></script>
+	<script type="text/javascript" src="abstLattice1-2.js"></script>
+	<script type="text/javascript" src="concLattice.js"></script>
+	<script type="text/javascript" src="countingStore.js"></script>
+	<script type="text/javascript" src="graph.js"></script>
+	<script type="text/javascript" src="jsCesk.js"></script>
+	<script type="text/javascript" src="concreteAg.js"></script>
+	<script type="text/javascript" src="tagAg.js"></script>
+	<script type="text/javascript" src="benv.js"></script>
+	<script type="text/javascript" src="object.js"></script>
+	<script type="text/javascript" src="purityAnalysis.js"></script>
+	<script type="text/javascript" src="protopurity.js"></script>
+	<script type="text/javascript" src="lib/web/jquery-2.1.1.min.js"></script>
+	<script type="text/javascript" src="lib/web/jquery-ui-1.11.1/jquery-ui.min.js"></script>
+	<script type="text/javascript" src="lib/web/codemirror/codemirror.js"></script>
+	<script type="text/javascript" src="lib/web/codemirror/hint/show-hint.js"></script>
+	<script type="text/javascript" src="lib/web/codemirror/hint/anyword-hint.js"></script>
+	<script type="text/javascript" src="lib/web/codemirror/mode/javascript/javascript.js"></script>
+	<script type="text/javascript" src="lib/web/d3.min.js"></script>
+	<script type="text/javascript" src="lib/web/dagre-d3.min.js"></script>
+	<script type="text/javascript" src="lib/web/dagregraphs.js"></script>
+	<script type="text/javascript">
+	
+	"use strict";
+	
+  var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }		
+	var editor, meta;
+	var ast, astNodes;
+	var cesk, states, transitions, graph, initial, sstore;
+	var ag, lat;
+		
+	/* SHORTCUTS */
+	function bwStack(state)
+	{
+	  return Dsg.bwStack(etg, ecg)(state);
+	}
+	
+	function isPure(f)
+	{
+	  //console.profile();
+	  var pmap = computePurity(graph, initial, sstore);
+	  var result = !pmap.get(f);
+	  //console.profileEnd();
+	  return result;
+	}
+	/* END SHORTCUTS*/
+	
+	  function postComputeGraph(initial)
+    {
+	    states = [];
+      transitions = [];
+      var todo = [initial];
+      while (todo.length > 0)
+      {
+        var s = todo.pop();
+        states[s._id] = s;
+        s._successors.forEach(
+         function (t)
+          {
+            if (isFinite(t._id))
+            {
+              return;
+            }
+            t._id = transitions.push(t) - 1;
+            todo.push(t.state);
+          });  
+        }
+      }
+	
+	function doIt()
+	{
+	  $("#eval").attr("disabled", true);
+	  editor.setOption("readOnly", true);
+    $("#config").attr("disabled", true);
+		$("#sg").empty();
+	  var src = editor.getValue();
+    localStorage.protopuritySrc = src;
+	  ast = Ast.createAst(src, {loc:true});
+    astNodes = [];
+    Ast.nodes(ast).forEach(function (n) {astNodes[n.tag] = n});
+	  print(astNodes.length, "nodes in ast");
+    eval($("#config").val());
+    var gc = true;
+	  cesk = jsCesk({a:ag, l:lat, gc: gc});
+	  
+	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc);
+	  
+//    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date()); 
+  //  console.profile(profileName);
+    var start = Date.now();
+    var system = cesk.explore(ast);
+    var time = Date.now() - start;
+    //console.profileEnd(profileName);
+    initial = system.initial;
+    sstore = system.sstore;	  
+    console.log("analysis took " + time + " ms");
+    console.log(system.numStates + " states")
+    console.log(sstore.count() + " contexts");
+    var resultValue = graphResult(initial);
+    console.log("result value " + resultValue);
+
+    if (system.numStates > 2048)
+    {
+      console.log("no graph (too many states)");
+      return;
+    }
+    
+    postComputeGraph(initial);
+    console.log(transitions.length + " transitions");
+    logOutput("analysis", states.length + "/" + transitions.length + " " + time);
+    logOutput("result", resultValue);
+    
+    var g = createDagreGraph(states);
+    drawDagreGraph(g, states, transitions);
+ 	}		
+	
+	
+	 $(function ()
+	     {
+	       var srcParam = getUrlParameter("src");
+	       if (srcParam)
+	       {
+	         $.ajax({
+	           url : srcParam,
+	           dataType: "text",
+	           success : function (data) {
+	               editor.setValue(data);
+	           }
+	       });
+	       }
+	       
+	       CodeMirror.commands.autocomplete = function(cm) {
+	         cm.showHint({hint: CodeMirror.hint.anyword});
+	       }
+	       editor = CodeMirror(document.getElementById("editor"),
+	           {
+	             value: localStorage.protopuritySrc || "", 
+	             mode: "javascript",
+	             lineNumbers: true 
+	           });
+	       meta = CodeMirror(document.getElementById("input"), Editors.metaConfig());
+	       //meta.on("beforeChange", function (e, o) {if (e.getCursor().line < metaLine) {o.cancel()}}, false);
+	       editor.on("dblclick", function (cm, e) 
+	           {
+	             e.stopPropagation();
+	             var pos = {left: e.pageX, top: e.pageY};
+	             var editorPos = cm.coordsChar(pos, "page");
+	             var astNode = editorPosToAstNode(editorPos);
+	             logInput("astNodes[" + astNode.tag + "]");
+	             highlightAstNodeInSource(astNode);
+	             highlightAstNodeInGraph(astNode);
+	           });
+	       
+	       $('#left').resizable({handles: 'e'});
+	       
+	       if (getUrlParameter("eval"))
+	       {               
+	         console.log("doing it");
+	         setTimeout(doIt, 200);
+	       }
+	     })
+	
+	</script>
+</head>
+
+<body>
+	<div id="left">
+		<div id="editor"></div>
+    <a href="protopurity.html?src=test/resources/1.js">1</a>
+    <a href="protopurity.html?src=test/resources/2.js">2</a>
+    <a href="protopurity.html?src=test/resources/3.js&eval=true">3</a>
+    <a href="protopurity.html?src=test/resources/4.js&meta=isPure(astNodes[11])&eval=true">4</a>
+    <span>
+      <select id="config" title="value lattice">
+        <option value="(lat=new JipdaLattice(),ag=createTagAg())">abst</option>
+        <option value="(lat=new ConcLattice(),ag=createConcAg())">conc</option>
+      </select>
+    </span>
+		<button id="eval" name="eval" onClick="doIt()">Eval</button>
+		<div id="meta">
+			<div id="output"></div>
+			<div id="input"></div>
+		</div>
+	</div>
+	<div id="right">
+		<div id="graph">
+			<svg>
+				<defs>
+					<marker id="highlightarrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="5" orient="auto">
+						<path d="M 0 0 L 10 5 L 0 10 z"></path>
+					</marker>
+				</defs>	
+	    	<g transform="translate(20,20)"/>
+			</svg>
+		</div>
+	</div>
+</body>
+
+</html>

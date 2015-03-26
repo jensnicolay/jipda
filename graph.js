@@ -1,9 +1,16 @@
-function Edge(source, g, target, marks)
+"use strict";
+
+function Edge(source, g, target)
 {
   this.source = source;
   this.g = g;
   this.target = target;
-  this.marks = marks;
+  var prime = 7;
+  var result = 1;
+  result = prime * result + this.source.hashCode();
+  result = prime * result + HashCode.hashCode(this.g);
+  result = prime * result + this.target.hashCode();
+  this._hashCode = result;
 }
 Edge.source = 
   function (edge)
@@ -19,10 +26,9 @@ Edge.prototype.equals =
   function (x)
   {
     return x instanceof Edge
-      && Eq.equals(this.source, x.source)
-      && Eq.equals(this.g, x.g)
-      && Eq.equals(this.target, x.target)
-      && Eq.equals(this.marks, x.marks)
+      && (this.source === x.source || this.source.equals(x.source))
+      && (this.g === x.g || (this.g && this.g.equals(x.g)))
+      && (this.target === x.target || this.target.equals(x.target))
   }
 Edge.prototype.toString =
   function ()
@@ -32,66 +38,66 @@ Edge.prototype.toString =
 Edge.prototype.hashCode =
   function ()
   {
-    if (this._hashCode !== undefined)
-    {
-      return this._hashCode;
-    }
-    var prime = 7;
-    var result = 1;
-    result = prime * result + this.source.hashCode();
-    result = prime * result + HashCode.hashCode(this.g);
-    result = prime * result + this.target.hashCode();
-    result = prime * result + HashCode.hashCode(this.marks);
-    this._hashCode = result;
-    return result;
+    return this._hashCode;
   }
 
-function Graph(edges)
+function Graph(fw, bw)
 {
-  this._edges = edges;
+  this._fw = fw;
+  this._bw = bw;
 }
+
+Graph._emptySet = ArraySet.empty();
 
 Graph.empty =
   function ()
   {
-    return new Graph(new HashSet(TrieMap.empty()));
+    return new Graph(new TrieMap.empty(), new TrieMap.empty());
   }
 
 Graph.prototype.equals =
   function (x)
   {
     return x instanceof Graph
-      && this._edges.equals(x._edges);
+      && this._fw.equals(x._fw);
   }
 
 Graph.prototype.hashCode =
   function ()
   {
-    return this._edges.hashCode();
+    return this._fw.hashCode();
+  }
+
+Graph.prototype.toString =
+  function ()
+  {
+    return this.nodes().length + "/" + this.edges().length;
   }
 
 Graph.prototype.join =
   function (x)
   {
-    return new Graph(this._edges.join(x._edges));
-  }
-
-Graph.prototype.edges =
-  function ()
-  {
-    return this._edges.values();
+    return new Graph(this._fw.join(x._fw), this._bw.join(x._bw));
   }
 
 Graph.prototype.addEdge =
   function (edge)
   {
-    var edges = this._edges;
-    if (edges.contains(edge))
+    var fw = this._fw;
+    var source = edge.source;
+    var fwedges = fw.get(source) || Graph._emptySet;
+    if (fwedges.contains(edge))
     {
       return this;
     }
-    edge.index = edges.size();
-    return new Graph(edges.add(edge));    
+    fwedges = fwedges.add(edge);
+    fw = fw.put(source, fwedges);
+    var target = edge.target;
+    var bw = this._bw;
+    var bwedges = bw.get(target) || Graph._emptySet;
+    bwedges = bwedges.add(edge);
+    bw = bw.put(target, bwedges);
+    return new Graph(fw, bw);    
   }
 
 Graph.prototype.addEdges =
@@ -115,104 +121,61 @@ Graph.prototype.addEdges =
 Graph.prototype.containsEdge =
   function (edge)
   {
-    return this._edges.contains(edge);
+    var source = edge.source;
+    var fwedges = this._fw.get(source) || Graph._emptySet;
+    return fwedges.contains(edge);
   }
 
 Graph.prototype.containsSource =
   function (source)
   {
-    return !this._edges.iterateValues(
-      function (edge)
-      {
-        return !edge.source.equals(source);
-      });
+    var fwedges = this._fw.get(source);
+    return !!fwedges;
   }
 
 Graph.prototype.containsTarget =
   function (target)
   {
-    return !this._edges.iterateValues(
-        function (edge)
-        {
-          return !edge.target.equals(target);
-        });
+    var bwedges = this._bw.get(target);
+    return !!bwedges;
   }
 
 Graph.prototype.outgoing =
   function (source)
   {
-    var result = [];
-    this._edges.iterateValues(
-      function (edge)
-      {
-        if (edge.source.equals(source))
-        {
-          result.push(edge);
-        }
-      });
-    return result;
+    var fwedges = this._fw.get(source) || Graph._emptySet;
+    return fwedges.values();
   }
 
 Graph.prototype.incoming =
   function (target)
   {
-    var result = [];
-    this._edges.iterateValues(
-      function (edge)
-      {
-        if (edge.target.equals(target))
-        {
-          result.push(edge);
-        }
-      });
-    return result;
+    var bwedges = this._bw.get(target) || Graph._emptySet;
+    return bwedges.values();
   }
 
 Graph.prototype.successors =
   function (source)
   {
-    var result = [];
-    this._edges.iterateValues(
-      function (edge)
-      {
-        if (edge.source.equals(source))
-        {
-          result.push(edge.target);
-        }
-      });
-    return Arrays.deleteDuplicates(result, Eq.equals);
+    var fwedges = this._fw.get(source) || Graph._emptySet;
+    return Arrays.deleteDuplicates(fwedges.values().map(Edge.target));
   }
 
 Graph.prototype.predecessors =
   function (target)
   {
-    var result = [];
-    this._edges.iterateValues(
-      function (edge)
-      {
-        if (edge.target.equals(target))
-        {
-          result.push(edge.source);
-        }
-      });
-    return Arrays.deleteDuplicates(result, Eq.equals);
+    var bwedges = this._bw.get(target) || Graph._emptySet;
+    return Arrays.deleteDuplicates(bwedges.values().map(Edge.source));
   }
 
 Graph.prototype.nodes =
   function ()
   {
-    var result = [];
-    this._edges.iterateValues(
-      function (edge)
-      {
-        result.push(edge.source);
-        result.push(edge.target);
-      });
-    return Arrays.deleteDuplicates(result, Eq.equals);
+    return Arrays.union(this._fw.keys(), this._bw.keys());
   }
 
-//Graph.prototype.filterEdges =
-//  function (f)
-//  {
-//    return new Graph(this._edges.filter(f));
-//  }
+Graph.prototype.edges =
+  function ()
+  {
+    return this._fw.values().flatMap(function (x) {return x.values()});
+  }

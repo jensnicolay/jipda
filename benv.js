@@ -1,22 +1,24 @@
-function Benv(map)
+"use strict";
+
+function Benv(map, global)
 {
-  assertDefinedNotNull(map);
   this._map = map;
+  this._global = global;
 }
+
+Benv.EMPTY_FRAME = HashMap.empty();
 
 Benv.empty =
   function ()
   {
-    return new Benv(HashMap.empty());
+    return new Benv(Benv.EMPTY_FRAME, true);
   }
 
-Benv.prototype.copy =
+Benv.prototype.extend =
   function ()
   {
-    return new Benv(this._map);
+    return new Benv(this._map, false);
   }
-
-Benv.prototype.isBenv = true;
 
 Benv.prototype.toString =
   function ()
@@ -28,42 +30,20 @@ Benv.prototype.equals =
   function (x)
   {
     return (x instanceof Benv)
+      && this._global === x._global
       && this._map.equals(x._map)
   }
 
 Benv.prototype.hashCode =
   function ()
   {
-    return this._map.hashCode();
+    var prime = 17;
+    var result = 1;
+    result = prime * result + this._map.hashCode();
+    result = prime * result + this._global.hashCode();
+    return result;
   }
 
-Benv.prototype.subsumes =
-  function (x)
-  {
-    if (this === x)
-    {
-      return true;
-    }
-    return this._map.subsumes(x._map);
-  }
-
-Benv.prototype.compareTo =
-  function (x)
-  {
-    if (this.subsumes(x))
-    {
-      if (x.subsumes(this))
-      {
-        return 0;
-      }
-      return 1;
-    }
-    if (x.subsumes(this))
-    {
-      return -1;
-    }
-    return undefined;
-  }
 
 Benv.prototype.diff = //DEBUG
   function (x)
@@ -91,6 +71,10 @@ Benv.prototype.diff = //DEBUG
         diff.push(xName + "\t" + thisValue + " -- " + xValue);
       }
     }
+    if (!this._parents.equals(x._parents))
+    {
+      diff.push("<parents> " + this._parents + " -- " + x._parents);
+    }
     return ">>>BENV\n" + diff.join("\n") + "<<<";
   }
 
@@ -98,35 +82,24 @@ Benv.prototype.diff = //DEBUG
 Benv.prototype.add =
   function (name, value)
   {
-    assertDefinedNotNull(name);
-    assertTrue(value instanceof Addr);
     var map = this._map.put(name, value);
-    return new Benv(map);
+    return new Benv(map, this._global);
   }
 
 Benv.prototype.lookup =
   function (name)
   {
-    return this._map.get(name, BOT);
+    return this._map.get(name) || BOT;
   }
-
-Benv.prototype.join =
-  function (x)
-  {
-    var map = this._map.join(x._map);
-    var result = new Benv(map); 
-    return result;
-  } 
 
 Benv.prototype.addresses =
   function ()
   {
-    var frameAddresses = this._map.values();
-    return frameAddresses;
+    return ArraySet.from(this._map.values());
   }
 
 Benv.prototype.narrow =
   function (names)
   {
-    return new Benv(this._map.narrow(names));
+    return new Benv(this._map.narrow(names), this.global);
   }

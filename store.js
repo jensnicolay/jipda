@@ -1,104 +1,15 @@
-function StoreValue(aval, fresh)
-{
-  this.aval = aval;
-  this.fresh = (fresh === undefined) ? 1 : fresh;
-}
-
-StoreValue.aval =
-  function (storeValue)
-  {
-    return storeValue.aval;
-  }
-
-StoreValue.prototype.equals =
-  function (x)
-  {
-    if (this === x)
-    {
-      return true;
-    }
-    return this.aval.equals(x.aval);
-  }
-
-StoreValue.prototype.hashCode =
-  function ()
-  {
-    var prime = 5;
-    var result = 1;
-    result = prime * result + this.aval.hashCode();
-    return result;    
-  }
-
-StoreValue.prototype.subsumes =
-  function (x)
-  {
-    return this.aval.subsumes(x.aval);
-  }
-
-StoreValue.prototype.compareTo =
-  function (x)
-  {
-    return this.aval.compareTo(x.aval);
-  }
-
-StoreValue.prototype.toString =
-  function ()
-  {
-    return this.aval.toString();
-  }
-
-StoreValue.prototype.update =
-  function (aval)
-  {
-    if (this.fresh === 1)
-    {
-      return this.strongUpdate(aval);
-    }
-    return this.weakUpdate(aval);
-  }
-  
-StoreValue.prototype.strongUpdate =
-  function (aval)
-  {
-    return new StoreValue(aval, 1);
-  }
-
-StoreValue.prototype.weakUpdate =
-  function (aval)
-  {
-    return new StoreValue(this.aval.join(aval), 2);
-  }
-
-StoreValue.prototype.join =
-  function (x)
-  {
-    if (x === BOT)
-    {
-      return this;
-    }
-    return new StoreValue(this.aval.join(x.aval), Math.max(this.fresh, x.fresh));
-  }
-  
-StoreValue.prototype.reset =
-  function ()
-  {
-    return new StoreValue(BOT, 0);      
-  }
-
-StoreValue.prototype.addresses =
-  function ()
-  {
-    return this.aval.addresses();
-  }
-  
-
-///////////////
-
+"use strict";
 
 function Store(map)
 {
-  this.map = map || HashMap.empty();
+  this.map = map;
 }
+
+Store.empty =
+  function ()
+  {
+    return new Store(HashMap.empty());
+  }
 
 Store.prototype.equals =
   function (x)
@@ -116,11 +27,11 @@ Store.prototype.hashCode =
     return this.map.hashCode();
   }
 
-Store.prototype.compareTo =
-  function (x)
-  {
-    return Lattice.subsumeComparison(this, x);
-  }
+//Store.prototype.compareTo =
+//  function (x)
+//  {
+//    return Lattice.subsumeComparison(this, x);
+//  }
   
 Store.prototype.subsumes =
   function (x)
@@ -140,8 +51,8 @@ Store.prototype.diff = // debug
     for (var i = 0; i < entries.length; i++)
     {
       var entry = entries[i];
-      var address = entry.key;
-      var value = entry.value;
+      var address = entry[0];
+      var value = entry[1];
       var xvalue = x.map.get(address);
       if (xvalue)
       {
@@ -149,7 +60,7 @@ Store.prototype.diff = // debug
         {
 //          else
 //          {
-            diff.push(address + ":\n\t" + value + " (" + value.fresh + ")\n\t" + xvalue + " (" + xvalue.fresh + ")");            
+            diff.push(address + ":\n\t" + value + "\n\t" + xvalue);            
 //          }
           if (value.aval.isBenv && xvalue.aval.isBenv)
           {
@@ -159,19 +70,19 @@ Store.prototype.diff = // debug
       }
       else
       {
-        diff.push(address + ":\n\t" + value + " (" + value.fresh + ")\n\t<undefined>");
+        diff.push(address + ":\n\t" + value + "\n\t<undefined>");
       }
     }
     var xentries = x.map.entries();
     for (i = 0; i < xentries.length; i++)
     {
-      xentry = xentries[i];
-      address = xentry.key;
-      xvalue = xentry.value;
+      var xentry = xentries[i];
+      address = xentry[0];
+      xvalue = xentry[1];
       var value = this.map.get(address);
       if (!value)
       {
-        diff.push(address + ":\n\t<undefined>\n\t" + xvalue + " (" + xvalue.fresh + ")");
+        diff.push(address + ":\n\t<undefined>\n\t" + xvalue);
       }
     }
     return diff.join("\n");
@@ -180,23 +91,13 @@ Store.prototype.diff = // debug
 Store.prototype.toString =
   function ()
   {
-    var entries = this.map.entries();
-    return "{" + entries.map(
-      function (entry)
-      {
-        return entry.key + " =" + entry.value.fresh + "=> " + entry.value;
-      }).join(",") + "}";
+    return this.map.toString();
   }
 
 Store.prototype.nice =
   function ()
   {
-  var entries = this.map.entries();
-    return "\n{\n" + entries.map(
-      function (entry)
-      {
-        return entry.key + " =" + entry.value.fresh + "=> " + entry.value;
-      }).join("\n") + "\n}";
+    return this.map.nice(); 
   }
 
 Store.prototype.lookupAval =
@@ -205,67 +106,36 @@ Store.prototype.lookupAval =
     var value = this.map.get(address);
     if (value)
     {
-      return value.aval;
+      return value;
     }
-    throw new Error("Store.lookupAval: no abstract value for address " + address + "\n" + this.nice());
-  };
+    throw new Error("no value at address " + address + "\n" + this.nice());
+  }
   
 Store.prototype.allocAval =
-  function (address, aval, undef)
+  function (address, aval)
   {
-    assertDefinedNotNull(address);
-    assertDefinedNotNull(aval);
-    var value = this.map.get(address);
-    if (value && value.fresh !== 0)
-    {
-      var weaklyUpdatedValue = value.weakUpdate(aval);
-//        print("REALLOCATED", address, weaklyUpdatedValue);
-      var store = new Store(this.map.put(address, weaklyUpdatedValue)); 
-      return store;
-    }
-    var newValue = new StoreValue(aval);
-//      print("ALLOCATED", address, newValue);
-    return new Store(this.map.put(address, newValue));
-  };
-    
-//Store.prototype.allocAval2 = // DEBUG
-//  function (address, aval, undef)
-//  {
-//    assertDefinedNotNull(address);
-//    assertDefinedNotNull(aval);
-//    var value = this.map.get(address);
-//    if (value && value.fresh !== 0)
-//    {
-//      print("existing non-fresh", value.aval, value.aval.parentas);
-//      print("joining with", aval, aval.parentas);
-//      var weaklyUpdatedValue = value.weakUpdate(aval);
-//      print("REALLOCATED", address, weaklyUpdatedValue.aval, weaklyUpdatedValue.aval.parentas);
-//      var store = new Store(this.map.put(address, weaklyUpdatedValue)); 
-//      return store;
-//    }
-//    var newValue = new StoreValue(aval);
-//        print("ALLOCATED", address, newValue);
-//    return new Store(this.map.put(address, newValue));
-//  };
-      
-Store.prototype.updateAval =
-  function (address, aval, msg)
-  {
-    var value = this.map.get(address);
-    if (value)
-    {
-      var updatedValue = value.update(aval);
-//      print("UPDATED", address, updatedValue);
-      return new Store(this.map.put(address, updatedValue));
-    }
-    throw new Error("Store.updateAval: no abstract value at address " + address);
-  };
-  
-Store.prototype.join =
-  function (store)
-  {
-    return new Store(this.map.join(result.map));
+    var map = this.map;
+    var newValue = (map.get(address) || BOT).join(aval);
+    return new Store(map.put(address, newValue));
   }
+    
+Store.prototype.updateAval =
+  function (address, aval)
+  {
+    var map = this.map;
+    var value = map.get(address);
+    if (value === undefined)
+    {
+      throw new Error("no value at address " + address);  
+    }
+    return new Store(map.put(address, value.join(aval)));
+  }
+  
+//Store.prototype.join =
+//  function (store)
+//  {
+//    return new Store(this.map.join(result.map));
+//  }
 
 Store.prototype.narrow =
   function (addresses)
