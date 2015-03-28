@@ -385,6 +385,30 @@ var suiteJipdaTests =
         run(src, cesk, cesk.l.abst1(999));        
       }
     
+    module.test103 = // bug in call member with arg: this pointer passed was always global this
+      function ()
+      {
+        var src = "function Scheduler() {this.queueCount=0}; Scheduler.prototype.addIdleTask=function (x) {return this.addRunningTask};Scheduler.prototype.addRunningTask=999;function runRichards() {var scheduler=new Scheduler();return scheduler.addIdleTask(123)};runRichards()";
+        var cesk = createCesk();
+        run(src, cesk, cesk.l.abst1(999));        
+      }
+    
+    module.test104a =
+      function ()
+      {
+        var src = "var x = 'hela'; for (var i=0; i<4; i++) {x += x}; x";
+        var cesk = createCesk();
+        run(src, cesk, cesk.l.abst1("helahelahelahelahelahelahelahelahelahelahelahelahelahelahelahela"));                
+      }
+    
+    module.test104b =
+      function ()
+      {
+        var src = "var x = 'hela'; while (true) {x += x}";
+        var cesk = createCesk();
+        run(src, cesk, BOT);                
+      }
+    
 //    module.testChurchNums =
 //    function ()
 //    {

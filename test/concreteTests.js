@@ -716,6 +716,32 @@ var suiteConcreteTests =
         run("var i = 0; while (i < 10){if (i === 7){break}; i++}; i", 7);
       }
     
+    module.test104 =
+      function ()
+      {
+        run("var o={}; o != null", true);
+        run("var o={}; o != undefined", true);
+        run("var o={}; o != true", true);
+        run("var o={}; o != false", true);
+        run("var o={}; o != 123", true);
+        run("var o={}; o != 'o'", true);
+        run("var o={}; var p={}; o != p", true);
+        run("var o={}; o != o", false);
+      }
+    
+    module.test105 =
+      function ()
+      {
+        run("var o={}; o == null", false);
+        run("var o={}; o == undefined", false);
+        run("var o={}; o == true", false);
+        run("var o={}; o == false", false);
+        run("var o={}; o == 123", false);
+        run("var o={}; o == 'o'", false);
+        run("var o={}; var p={}; o == p", false);
+        run("var o={}; o == o", true);
+      }
+    
     module.testReturn1 =
       function ()
       {

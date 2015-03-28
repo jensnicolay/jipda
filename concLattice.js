@@ -42,10 +42,34 @@ ConcValue.prototype.subsumes =
     return this.equals(x);
   }
 
+ConcValue.prototype.projectString =
+  function (x)
+  {
+    return (typeof this.value === "string") ? this : BOT;
+  }
+
 ConcValue.prototype.ToString =
   function (x)
   {
     return new ConcValue(String(this.value));
+  }
+
+ConcValue.prototype.charAt =
+  function (x)
+  {
+    return new ConcValue(this.value.charAt(x.value));
+  }
+
+ConcValue.prototype.charCodeAt =
+  function (x)
+  {
+    return new ConcValue(this.value.charCodeAt(x.value));
+  }
+
+ConcValue.prototype.stringLength =
+  function (x)
+  {
+    return new ConcValue(this.value.length);
   }
 
 ConcValue.prototype.ToNumber =
@@ -279,12 +303,36 @@ ConcLattice.prototype.eqq =
 ConcLattice.prototype.eq =
   function (x, y)
   {
+    if (x instanceof ConcAddr)
+    {
+      if (y instanceof ConcAddr)
+      {
+        return new ConcValue(x.addr.equals(y.addr));        
+      }
+      return new ConcValue(false);
+    }
+    if (y instanceof ConcAddr)
+    {
+      return new ConcValue(false);
+    }
     return new ConcValue(x.value == y.value);
   }
 
 ConcLattice.prototype.neq =
   function (x, y)
   {
+    if (x instanceof ConcAddr)
+    {
+      if (y instanceof ConcAddr)
+      {
+        return new ConcValue(!(x.addr.equals(y.addr)));        
+      }
+      return new ConcValue(true);
+    }
+    if (y instanceof ConcAddr)
+    {
+      return new ConcValue(true);
+    }
     return new ConcValue(x.value != y.value);
   }
 
@@ -318,6 +366,18 @@ ConcLattice.prototype.shr =
     return new ConcValue(x.value >> y.value);
   }
 
+ConcLattice.prototype.shrr =
+  function (x, y)
+  {
+    return new ConcValue(x.value >>> y.value);
+  }
+
+ConcLattice.prototype.rem =
+  function (x, y)
+  {
+    return new ConcValue(x.value % y.value);
+  }
+
 ConcLattice.prototype.binnot =
   function (x)
   {
@@ -335,3 +395,4 @@ ConcLattice.prototype.sqrt =
   {
     return new ConcValue(Math.sqrt(x.value));
   }
+

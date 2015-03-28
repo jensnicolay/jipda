@@ -3,7 +3,7 @@
 function Obj(Class)
   {
     this.Class = Class;
-    this.frame = HashMap.empty();
+    this.frame = Obj.EMPTY_FRAME;
     this.Call = Obj.EMPTY_CALLS;
     this.PrimitiveValue = BOT;
    }
@@ -52,24 +52,25 @@ function Obj(Class)
     return newFrame.put(name, value);
   }
     
-//  function weakUpdateFrame(frame, name, value)
-//  {
-//    var newFrame = Obj.EMPTY_FRAME;
-//    frame.iterateEntries(
-//      function (entry)
-//      {
-//        var entryName = entry[0]; 
-//        if (name.subsumes(entryName))
-//        {
-//          value = value.join(entry[1]);
-//        else
-//        {
-//          newFrame = newFrame.put(entryName, entry[1]);
-//        }
-//      });
-//    return newFrame.put(name, value);
-//  }
-//    
+  function weakUpdateFrame(frame, name, value)
+  {
+    var newFrame = Obj.EMPTY_FRAME;
+    frame.iterateEntries(
+      function (entry)
+      {
+        var entryName = entry[0]; 
+        if (name.subsumes(entryName))
+        {
+          value = value.join(entry[1]);
+        }
+        else
+        {
+          newFrame = newFrame.put(entryName, entry[1]);
+        }
+      });
+    return newFrame.put(name, value);
+  }
+    
   Obj.prototype.add =
     function (name, value)
     {
@@ -77,6 +78,19 @@ function Obj(Class)
       assert(value);
       var result = new Obj(this.Class);
       result.frame = strongUpdateFrame(this.frame, name, value);
+      result.Call = this.Call;
+      result.Prototype = this.Prototype;
+      result.PrimitiveValue = this.PrimitiveValue;
+      return result;
+    }
+    
+  Obj.prototype.weakAdd =
+    function (name, value)
+    {
+      assert(name);
+      assert(value);
+      var result = new Obj(this.Class);
+      result.frame = weakUpdateFrame(this.frame, name, value);
       result.Call = this.Call;
       result.Prototype = this.Prototype;
       result.PrimitiveValue = this.PrimitiveValue;
@@ -272,15 +286,6 @@ Obj.prototype.diff = //DEBUG
     {
       var benv = new Obj(ArraySet.from1(Ecma.Class.OBJECT));
       benv.Prototype = Prototype;
-      return benv;
-    }
-  
-  Obj.createString =
-    function (prim, STRINGPA)
-    {
-      var benv = new Obj(ArraySet.from1(Ecma.Class.STRING));
-      benv.Prototype = STRINGPA;
-      benv.PrimitiveValue = prim;
       return benv;
     }
   

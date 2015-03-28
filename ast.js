@@ -465,7 +465,7 @@ Ast.createAst =
   {
     
     var ast = esprima.parse(source, {loc: (config ? config.loc : false)});
-    if (config && config.resetTagCounter)
+    if (config && !config.keepTagCounter)
     {
       __nodeCounter__ = 0;
     }

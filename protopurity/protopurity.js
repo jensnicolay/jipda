@@ -18,13 +18,16 @@ function displayPurity(ast, pmap)
 
 function runBenchmarks(benchmarks)
 {
-  var bprefix = "test/resources/";
+  var bprefix = "../test/resources/";
   benchmarks = benchmarks ||
                     ["fib.js",
                      "gcIpdExample.js",
                      "navier-stokes-light.js",
+                     "sunspider/access-nbody.js",
                      "sunspider/controlflow-recursive.js",
-                     "sunspider/access-nbody.js"]
+                     "sunspider/crypto-sha1.js",
+                     "sunspider/math-spectral-norm.js",
+                     ]
                     //;
   return benchmarks.map(
     function (benchmark)
@@ -68,21 +71,4 @@ function serverTest()
                  "octane/richards.js",
                  "sunspider/3d-cube.js",
                  "octane/splay.js"]);
-}
-
-function concEval(src)
-{
-  var ast = Ast.createAst(src);
-  var cesk = jsCesk({a:createConcAg(), l: new ConcLattice()});
-  var s = cesk.explore(ast);
-  print(s.value);
-}
-
-function typeEval(src)
-{
-  var ast = Ast.createAst(src);
-  var cesk = jsCesk({a:createTagAg(), l: new JipdaLattice()});
-  var system = cesk.explore(ast);
-  var result = statesResult(system.states);
-  print(result);
 }

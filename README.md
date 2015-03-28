@@ -1,29 +1,14 @@
-JavaScript Introspective Pushdown Analysis
-==========================================
+JIPDA: static analysis for JavaScript
+=====================================
 
-JIPDA is a collection of functions and objects to implement a pushdown analysis.
+JIPDA is a static analyzer for JavaScript, written in JavaScript.
 
 
-JIPDA projects
-==============
-
-###Abstract memoization through return-point caching 
-https://github.com/jensnicolay/abstractmemo
+JIPDA projects/clients
+======================
 
 ###STIP: Slicing Tierless JavaScript Programs
 https://github.com/lphilips/jspdg
 
 ###Purity analysis in JavaScript
-https://github.com/jensnicolay/protopurity
-
-###Abstract memoization through self-adjusting computation
-https://github.com/jensnicolay/selfadjustingmemo
-
-###Modelchecking JavaScript
-https://github.com/zahra-ahmadi/modeljs
-
-Based on
-========
-
-http://arxiv.org/abs/1007.4268
-http://arxiv.org/abs/1207.1813
+https://github.com/jensnicolay/jipda/protopurity

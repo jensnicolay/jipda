@@ -1,9 +1,8 @@
-var __conca__ = 0;
-
 function createConcAg()
 {
   var concreteAg = {};
   concreteAg.toString = function () {return "concAg"};
+  var __conca__ = 1024;
   
   function storeToAddr(store)
   {

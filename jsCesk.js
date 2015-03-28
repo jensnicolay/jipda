@@ -19,10 +19,10 @@ function jsCesk(cc)
   assert(a);
   assert(l);
   
-  var __ALLOC__NATIVE__COUNTER = 0; 
+  var __ALLOC__NATIVE__COUNTER = 1; 
   function allocNative()
   {
-    var a = __ALLOC__NATIVE__COUNTER++ + (1 << 16);
+    var a = __ALLOC__NATIVE__COUNTER++;
     return a;
   }
 
@@ -184,16 +184,16 @@ function jsCesk(cc)
     return addresses;
   }
   
+//  function storeWeakAlloc(store, addr, value)
+//  {
+//    assert(addr>>>0===addr);
+//    return store.weakAllocAval(addr, value);
+//  }
+  
   function storeAlloc(store, addr, value)
   {
     assert(addr>>>0===addr);
     return store.allocAval(addr, value);
-  }
-  
-  function storeWeakAlloc(store, addr, value)
-  {
-    assert(addr>>>0===addr);
-    return store.weakAllocAval(addr, value);
   }
   
   function storeUpdate(store, addr, value)
@@ -260,10 +260,12 @@ function jsCesk(cc)
     return benv;
   }
 
-  function createString(prim)
+  function createString(lprim)
   {
-    assertDefinedNotNull(prim, "prim");
-    var benv = Obj.createString(prim, stringProtoRef);
+    var benv = new Obj(ArraySet.from1(Ecma.Class.STRING));
+    benv.Prototype = stringProtoRef;
+    benv.PrimitiveValue = lprim;
+    benv = benv.add(P_LENGTH, lprim.stringLength());
     return benv;
   }
 
@@ -350,6 +352,9 @@ function jsCesk(cc)
   global = global.add(l.abst1("String"), l.abstRef(stringa));
   store = storeAlloc(store, stringa, string);
 
+  stringP = registerPrimitiveFunction(stringP, stringPa, "charAt", stringCharAt);
+  stringP = registerPrimitiveFunction(stringP, stringPa, "charCodeAt", stringCharCodeAt);
+    
   store = storeAlloc(store, stringPa, stringP);
   // END STRING 
           
@@ -364,7 +369,7 @@ function jsCesk(cc)
   store = storeAlloc(store, arraya, array);
   
   arrayP = registerPrimitiveFunction(arrayP, arrayPa, "toString", arrayToString);
-//  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "concat", arrayConcat);
+  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "concat", arrayConcat);
   arrayP = registerPrimitiveFunction(arrayP, arrayPa, "push", arrayPush);
 //  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "map", arrayMap);
 //  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "reduce", arrayReduce);
@@ -455,7 +460,6 @@ function jsCesk(cc)
     return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];
   }   
   
-  var arrAddress = allocNative();
   function arrayConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
   {
     var arr = createArray();
@@ -474,7 +478,7 @@ function jsCesk(cc)
     }
     arr = arr.add(P_LENGTH, length);
     
-    //var arrAddress = a.array(application, benv, store, kont);
+    var arrAddress = a.array(application, benv, store, kont);
     store = storeAlloc(store, arrAddress, arr);
     var arrRef = l.abstRef(arrAddress);
     return [{state:new KontState(arrRef, store, lkont, kont), effects:effects}];
@@ -489,7 +493,7 @@ function jsCesk(cc)
     }
     arr = arr.add(P_LENGTH, l.abst1(operandValues.length));
     
-    //var arrAddress = a.array(application, benv, store, kont);
+    var arrAddress = a.array(application, benv, store, kont);
     store = storeAlloc(store, arrAddress, arr);
     var arrRef = l.abstRef(arrAddress);
     return [{state:new KontState(arrRef, store, lkont, kont), effects:effects}];
@@ -511,6 +515,45 @@ function jsCesk(cc)
     return [{state:new KontState(l.abst1(r.join()), store, lkont, kont), effects:effects}];
   }
   
+  function arrayConcat(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    if (operandValues.length !== 1)
+    {
+      print("warning: array.concat");
+      return [];
+    }
+    var thisArr = storeLookup(store, thisa);
+    var thisLen = thisArr.lookup(P_LENGTH)[0];
+    var argAddrs = operandValues[0].addresses();
+    var resultArr = createArray();
+    var i = L_0;
+    var seen = ArraySet.empty();
+    while ((!seen.contains(i)) && l.lt(i, thisLen).isTrue())
+    {
+      seen = seen.add(i);
+      resultArr = resultArr.add(i.ToString(), thisArr.lookup(i.ToString())[0]);
+      i = l.add(i, L_1);
+    }
+    argAddrs.forEach(
+      function (argAddr)
+      {
+        var argArr = storeLookup(store, argAddr);
+        var argLen = argArr.lookup(P_LENGTH)[0];
+        var i = L_0;
+        var seen = ArraySet.empty();
+        while ((!seen.contains(i)) && l.lt(i, argLen).isTrue())
+        {
+          seen = seen.add(i);
+          resultArr = resultArr.weakAdd(l.add(thisLen, i).ToString(), argArr.lookup(i.ToString())[0]);
+          i = l.add(i, L_1);
+        }
+        resultArr = resultArr.weakAdd(P_LENGTH, l.add(thisLen, i));
+      });
+    var arrAddress = a.array(application, benv, store, lkont, kont);
+    store = storeAlloc(store, arrAddress, resultArr);
+    return [{state:new KontState(l.abstRef(arrAddress), store, lkont, kont), effects:effects}];
+  }
+  
   function arrayPush(application, operandValues, thisa, benv, store, lkont, kont, effects)
   {
     var arr = storeLookup(store, thisa);
@@ -523,6 +566,22 @@ function jsCesk(cc)
     effects.push(writeObjectEffect(thisa, lenStr));
     effects.push(writeObjectEffect(thisa, P_LENGTH))
     return [{state:new KontState(len1, store, lkont, kont), effects:effects}];
+  }
+  
+  function stringCharAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    var str = storeLookup(store, thisa);
+    var lprim = str.PrimitiveValue;
+    var value = lprim.charAt(operandValues[0]);
+    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
+  }
+  
+  function stringCharCodeAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    var str = storeLookup(store, thisa);
+    var lprim = str.PrimitiveValue;
+    var value = lprim.charCodeAt(operandValues[0]);
+    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
   }
   
   function errorConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
@@ -702,7 +761,7 @@ function jsCesk(cc)
             }
             else if (Ast.isVariableDeclarator(node))
             {
-              store = storeAlloc(store, addr, BOT);
+              store = storeAlloc(store, addr, L_UNDEFINED);
             }
             else
             {
@@ -936,6 +995,7 @@ function jsCesk(cc)
       var value = this.value;
       if (value === BOT)
       {
+        print("BOT", this);
         return [];
       }      
 
@@ -1769,6 +1829,10 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     {
       return l.shr(leftValue, rightValue);
     }
+    case ">>>":
+    {
+      return l.shrr(leftValue, rightValue);
+    }
     default: throw new Error("cannot handle binary operator " + operator);
   }
 } 
@@ -1884,6 +1948,12 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         {
           var existingValue = doScopeLookup(name, benv, store, effects);
           newValue = l.mul(existingValue, value);
+          break;
+        }
+        case "|=":
+        {
+          var existingValue = doScopeLookup(name, benv, store, effects);
+          newValue = l.binor(existingValue, value);
           break;
         }
         default: throw new Error("cannot handle assignment operator " + node.operator);
@@ -2769,11 +2839,14 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       return this.benv.addresses();
     }
   MemberKont.prototype.apply =
-    function (objectRef, store, lkont, kont)
+    function (objectValue, store, lkont, kont)
     {
       var node = this.node;
       var benv = this.benv;
       var property = node.property;
+      var objectRefStore = ToObject(node, objectValue, store);
+      var objectRef = objectRefStore[0];
+      store = objectRefStore[1];
       if (node.computed)
       {
         var frame = new MemberPropertyKont(node, benv, objectRef);
@@ -2838,6 +2911,31 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       return [{state:new KontState(value, store, lkont, kont), effects:effects}];
     }
   
+  function ToObject(node, value, store)
+  {
+    // fast path
+    if (!value.isNonRef())
+    {
+      return [value, store];
+    }
+    // end fast path
+    
+    var objectRef = BOT;
+    if (value.isRef())
+    {
+      objectRef = objectRef.join(value.projectRef());
+    }
+    var stringProj = value.projectString();
+    if (stringProj !== BOT)
+    {
+      var stringObject = createString(stringProj);
+      var addr = a.string(node);
+      store = storeAlloc(store, addr, stringObject);
+      objectRef = objectRef.join(l.abstRef(addr));
+    }
+    return [objectRef, store];
+  }
+  
   function CallMemberKont(node, benv)
   {
     this.node = node;
@@ -2876,7 +2974,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       return this.benv.addresses();
     }
   CallMemberKont.prototype.apply =
-    function (objectRef, store, lkont, kont)
+    function (objectValue, store, lkont, kont)
     {
       var node = this.node;
       var benv = this.benv;
@@ -2887,6 +2985,9 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         throw new Error("TODO");
       }
       var nameValue = l.abst1(property.name);
+      var objectRefStore = ToObject(node.callee, objectValue, store);
+      var objectRef = objectRefStore[0];
+      store = objectRefStore[1];
       var thisAddresses = objectRef.addresses();
       var operands = node.arguments;
       return thisAddresses.flatMap(
@@ -3083,6 +3184,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     {
       if (propertyValue === BOT)
       {
+        print("BOT", this);
         return [];
       }
       var node = this.node;
@@ -3163,6 +3265,12 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         {
           var existingValue = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
           var newValue = l.sub(existingValue, value);
+          break;
+        }
+        case "|=":
+        {
+          var existingValue = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
+          newValue = l.binor(existingValue, value);
           break;
         }
         default: throw new Error("cannot handle assignment operator " + node.operator);
@@ -3362,7 +3470,10 @@ function applyBinaryOperator(operator, leftValue, rightValue)
      function (node, benv, store)
      {
        var effects = this.effects;
-       var objectRef = this.evalNode(node.object, benv, store);
+       var objectValue = this.evalNode(node.object, benv, store);
+       var objectRefStore = ToObject(node, objectValue, store);
+       var objectRef = objectRefStore[0];
+       store = objectRefStore[1];
        var nameValue;
        if (node.computed)
        {
