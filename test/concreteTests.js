@@ -7,9 +7,11 @@ var suiteConcreteTests =
   function run(src, expected)
   {
     var ast = Ast.createAst(src);
-    var cesk = jsCesk({a:createConcAg(), l: new ConcLattice()});
+    var cesk = jsCesk({a:createConcAg(), l: new ConcLattice(), errors:true});
     var system = cesk.explore(ast);
-    var actual = graphResult(system.initial);
+    var result = computeResultValue(system.result);
+    result.msgs.join("\n");
+    var actual = result.value;
 //    assertEquals(1, endStates.length);
     //var actual = endStates[0].value;
     assertEquals(cesk.l.abst1(expected), actual);
@@ -64,7 +66,7 @@ var suiteConcreteTests =
     function ()
     {
       run("var f = function (x) { return function (y) { return x + y; }; }; f(1)(2);", 3);
-    };
+    }
     
 //  module.test17a =
 //    function ()
@@ -72,7 +74,7 @@ var suiteConcreteTests =
 //      var arrayStr = "[0 === 0, 0 !== 0, 1 === 0, 1 !== 0].toString()";
 //      var expected = String(eval(arrayStr));
 //      run(arrayStr, expected);
-//    };    
+//    }    
     
 //  module.test17b =
 //    function ()
@@ -414,7 +416,7 @@ var suiteConcreteTests =
     function ()
     {
       run("var a = 0; for (var i = 0; i < 10; i++); a = 1; a;", 1);
-      //run("var i = 0; for (; i < 3; i++) {i}", 2);
+      run("var i = 0; for (; i < 3; i++) {i}", 2);
     }
 //
   module.test79a =

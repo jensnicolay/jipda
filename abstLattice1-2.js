@@ -615,6 +615,18 @@ JipdaLattice.prototype.sqrt =
     return this.NUMBER;
   }
 
+JipdaLattice.prototype.abs =
+  function (x)
+  {
+    return this.NUMBER;
+  }
+
+JipdaLattice.prototype.round =
+  function (x)
+  {
+    return this.NUMBER;
+  }
+
 JipdaLattice.prototype.toString =
   function ()
   {

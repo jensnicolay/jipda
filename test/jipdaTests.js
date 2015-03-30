@@ -8,14 +8,16 @@ var suiteJipdaTests =
   {
     var ast = Ast.createAst(src);
     var system = cesk.explore(ast);
-    var actual = graphResult(system.initial);
+    var result = computeResultValue(system.result);
+    result.msgs.join("\n");
+    var actual = result.value;
     assert(actual.subsumes(expected));
   }
   
   function createCesk(cc)
   {
     cc = cc || {};
-    return jsCesk({a:cc.a || createTagAg(), l:new JipdaLattice()});
+    return jsCesk({a:cc.a || createTagAg(), l:new JipdaLattice(), errors:true});
   }
   
   module.testSanity =

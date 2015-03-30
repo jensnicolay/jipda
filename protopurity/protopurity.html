@@ -39,7 +39,7 @@
   var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }		
 	var editor, meta;
 	var ast, astNodes;
-	var cesk, states, transitions, graph, initial, sstore;
+	var cesk, states, transitions, graph, initial, result, sstore;
 	var ag, lat;
 		
 	/* SHORTCUTS */
@@ -80,11 +80,19 @@
         }
       }
 	
+	function selectErrors()
+	{
+	  print("here");
+	  alert($('#errors'));
+	  $('#errors').prop('checked', true);
+	}
+	
 	function doIt()
 	{
 	  $("#eval").attr("disabled", true);
 	  editor.setOption("readOnly", true);
     $("#config").attr("disabled", true);
+    $("#errors").attr("readOnly", true);
 		$("#sg").empty();
 	  var src = editor.getValue();
     localStorage.protopuritySrc = src;
@@ -93,10 +101,11 @@
     Ast.nodes(ast).forEach(function (n) {astNodes[n.tag] = n});
 	  print(astNodes.length, "nodes in ast");
     eval($("#config").val());
+    var errors = $("#errors").is(":checked"); 
     var gc = true;
-	  cesk = jsCesk({a:ag, l:lat, gc: gc});
+	  cesk = jsCesk({a:ag, l:lat, gc: gc, errors:errors});
 	  
-	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc);
+	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 	  
 //    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date()); 
   //  console.profile(profileName);
@@ -105,12 +114,19 @@
     var time = Date.now() - start;
     //console.profileEnd(profileName);
     initial = system.initial;
+    result = system.result;
     sstore = system.sstore;	  
     console.log("analysis took " + time + " ms");
-    console.log(system.numStates + " states")
+    console.log(system.numStates + " states", result.count(), "results")
     console.log(sstore.count() + " contexts");
-    var resultValue = graphResult(initial);
+    var result = computeResultValue(system.result);
+    var resultValue = result.value;
     console.log("result value " + resultValue);
+    if (errors)
+    {
+      console.log(result.msgs.join("\n"));
+      result.msgs.forEach(function (msg) {logOutput("error", msg)});
+    }
 
     if (system.numStates > 2048)
     {
@@ -166,13 +182,18 @@
 	       
 	       $('#left').resizable({handles: 'e'});
 	       
+/* 	       $('#config').on('change', function (e) {
+	         var optionSelected = $("option:selected", this);
+	         var valueSelected = this.value;
+	         alert(valueSelected);
+	            }) */
+	       
 	       if (getUrlParameter("eval"))
 	       {               
 	         console.log("doing it");
 	         setTimeout(doIt, 200);
 	       }
 	     })
-	
 	</script>
 </head>
 
@@ -189,6 +210,7 @@
         <option value="(lat=new ConcLattice(),ag=createConcAg())">conc</option>
       </select>
     </span>
+    <input id="errors" type="checkbox" checked="true">errors</input>
 		<button id="eval" name="eval" onClick="doIt()">Eval</button>
 		<div id="meta">
 			<div id="output"></div>

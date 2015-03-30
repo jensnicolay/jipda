@@ -463,13 +463,12 @@ Ast.augmentAst =
 Ast.createAst =
   function (source, config)
   {
-    
-    var ast = esprima.parse(source, {loc: (config ? config.loc : false)});
-    if (config && !config.keepTagCounter)
+    config = config || {loc:true, keepTagCounter:false};
+    var ast = esprima.parse(source, {loc:config.loc});
+    if (!config.keepTagCounter)
     {
       __nodeCounter__ = 0;
     }
-//    tagAst(ast);
     Ast.augmentAst(ast);
     return ast;
   }

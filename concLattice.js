@@ -396,3 +396,33 @@ ConcLattice.prototype.sqrt =
     return new ConcValue(Math.sqrt(x.value));
   }
 
+ConcLattice.prototype.abs =
+  function (x)
+  {
+    return new ConcValue(Math.abs(x.value));
+  }
+
+ConcLattice.prototype.round =
+  function (x)
+  {
+    return new ConcValue(Math.round(x.value));
+  }
+
+ConcLattice.prototype.sin =
+  function (x)
+  {
+    return new ConcValue(Math.sin(x.value));
+  }
+
+ConcLattice.prototype.cos =
+  function (x)
+  {
+    return new ConcValue(Math.cos(x.value));
+  }
+
+ConcLattice.prototype.not =
+  function (x)
+  {
+    return new ConcValue(!x.value);
+  }
+
