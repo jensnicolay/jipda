@@ -615,6 +615,18 @@ JipdaLattice.prototype.sqrt =
     return this.NUMBER;
   }
 
+JipdaLattice.prototype.sin =
+  function (x)
+  {
+    return this.NUMBER;
+  }
+
+JipdaLattice.prototype.cos =
+  function (x)
+  {
+    return this.NUMBER;
+  }
+
 JipdaLattice.prototype.abs =
   function (x)
   {

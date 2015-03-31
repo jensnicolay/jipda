@@ -16,7 +16,7 @@ var suiteJipdaDepTests =
     return pmap.get(f) === "PURE";
   }
   
-  module.DDDtestPurity1 =
+  module.testPurity1 =
     function ()
     {
       var src = "function f(){}; f()"
@@ -462,6 +462,50 @@ var suiteJipdaDepTests =
     function ()
     {
       var src = "var z=false; var x=true; function f() {return z}; f(); x=false; f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(f, result));
+    }   
+  
+  module.testPurity38 = 
+    function ()
+    {
+      var src = "var o={};function f(){return o.x};f();o.x = 123;f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(isPureFunction(f, result));
+    }   
+  
+  module.testPurity39 = 
+    function ()
+    {
+      var src = "var o={};var p=Object.create(o);function f(){return p.x};f();p.x=123;f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(isPureFunction(f, result));
+    }   
+  
+  module.testPurity40 = 
+    function ()
+    {
+      var src = "var o={};var p=Object.create(o);function f(){return p.x};f();o.x=123;f()";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(isPureFunction(f, result));
+    }   
+  
+  module.testPurity41 = 
+    function ()
+    {
+      var src = "var o={};var p=Object.create(o);function f(){return o.x};f();p.x=123;f()";
       var ast = Ast.createAst(src);
       var cesk = createCesk();
       var result = cesk.explore(ast);

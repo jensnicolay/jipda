@@ -68,52 +68,52 @@ var suiteConcreteTests =
       run("var f = function (x) { return function (y) { return x + y; }; }; f(1)(2);", 3);
     }
     
-//  module.test17a =
-//    function ()
-//    {
-//      var arrayStr = "[0 === 0, 0 !== 0, 1 === 0, 1 !== 0].toString()";
-//      var expected = String(eval(arrayStr));
-//      run(arrayStr, expected);
-//    }    
+  module.test17a =
+    function ()
+    {
+      var arrayStr = "[0 === 0, 0 !== 0, 1 === 0, 1 !== 0]";
+      var expected = eval(arrayStr).join(",");
+      run(arrayStr + ".toString()", expected);
+    }    
     
-//  module.test17b =
-//    function ()
-//    {
-//      var arrayStr = "[3<4,3<=4,3>4,3>=4,3<3,3<=3,3>3,3>=3,4<3,4<=3,4>3,4>=3]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    };    
-//    
-//  module.test18a =
-//    function ()
-//    {
-//      run("var f = function() { if (0 === 0) { return 'true'; } else { return 'false' }}; f();", "true");
-//      run("var f = function() { if (0 !== 0) { return 'true'; } else { return 'false' }}; f();", "false");
-//      run("var f = function() { if (0 === 0) { if (0 === 1) { return 'true1';} else { return 'false1';}} else { return 'false';}}; f();", "false1");
-//      run("var f = function() { if (0 === 0) { return 'true'; } return 'false'}; f();", "true");
-//      run("var f = function() { if (0 !== 0) { return 'true'; } return 'false'}; f();", "false");
-//    };
-//    
+  module.test17b =
+    function ()
+    {
+      var arrayStr = "[3<4,3<=4,3>4,3>=4,3<3,3<=3,3>3,3>=3,4<3,4<=3,4>3,4>=3]";
+      var expected = eval(arrayStr).join(",");
+      run(arrayStr + ".toString()", expected);
+    };    
+    
+  module.test18a =
+    function ()
+    {
+      run("var f = function() { if (0 === 0) { return 'true'; } else { return 'false' }}; f();", "true");
+      run("var f = function() { if (0 !== 0) { return 'true'; } else { return 'false' }}; f();", "false");
+      run("var f = function() { if (0 === 0) { if (0 === 1) { return 'true1';} else { return 'false1';}} else { return 'false';}}; f();", "false1");
+      run("var f = function() { if (0 === 0) { return 'true'; } return 'false'}; f();", "true");
+      run("var f = function() { if (0 !== 0) { return 'true'; } return 'false'}; f();", "false");
+    }
+    
   module.test19a =
     function ()
     {
       run("var count = function (n) {if (n===0) {return 'done';} else {return count(n-1);}}; count(20);", "done");
     };
     
-//    
-//  module.test22a =
-//    function ()
-//    {
-//      runStr("[1,2,3].concat([4,5]);", "[1,2,3,4,5]");
-//    };  
-//    
-//  module.test22b =
-//    function ()
-//    {
-//      runStr("function f() { return [1,2] }; f().concat([3,4,5]);", "[1,2,3,4,5]");
-//    };  
-//    
-//
+    
+  module.test22a =
+    function ()
+    {
+      run("[1,2,3].concat([4,5]).toString()", "1,2,3,4,5");
+    }  
+    
+  module.test22b =
+    function ()
+    {
+      run("function f() { return [1,2] }; f().concat([3,4,5]).toString();", "1,2,3,4,5");
+    }  
+    
+
 //  module.test23 =
 //    function ()
 //    {
@@ -142,19 +142,19 @@ var suiteConcreteTests =
       run("var z=0; var c=false; var f=function (i) {if (z === 7) {c=true} if (i<10) {z=z+1;f(i+1);}}; f(0); c;", true);
       run("var z=0; var c=false; var f=function (i) {if (z === 7) {c=true} if (i<10) {z=z+1;f(i+1);}}; f(0); z;", 10);
     };
-//    
-//  module.test28 =
-//    function ()
-//    {
+    
+  module.test28 =
+    function ()
+    {
 //      runStr("var o = {}; o;", "{}");
 //      runStr("var o = {x:3,y:4}; o;", "{y:4,x:3}"); // TODO: order follows environments (cons)
-//      run("var o = {x:3,y:4}; o.y;", 4);
-//      run("var o = {square:function (x) {return x*x;}}; o.square(4);", 16);
-//      run("var o = {x:3}; o.x=4; o.x;", 4);
-//      run("var o = {x:3}; o.x=4; o.x=5; o.x;", 5);
-//      run("var o = {x:3}; var p = {y:o}; p.y.x;", 3);
-//      run("var o = {x:3}; var p = o; p.x;", 3);
-//    };
+      run("var o = {x:3,y:4}; o.y;", 4);
+      run("var o = {square:function (x) {return x*x;}}; o.square(4);", 16);
+      run("var o = {x:3}; o.x=4; o.x;", 4);
+      run("var o = {x:3}; o.x=4; o.x=5; o.x;", 5);
+      run("var o = {x:3}; var p = {y:o}; p.y.x;", 3);
+      run("var o = {x:3}; var p = o; p.x;", 3);
+    }
 //    
 //  module.test36 =
 //    function ()
@@ -184,14 +184,14 @@ var suiteConcreteTests =
       run("function C(xx) { this.x = xx; } var o = new C(43); var oo = new C(42); o.x = oo.x; o.x;", 42);
     }  
 
-//  module.test43a = // http://jsperf.com/access-object-properties-via-closure-vs-this/2
-//    function ()
-//    {
-//      run("function C(n) {var nn=n; this.f=function () {nn=nn+1;return nn;}}; var o=new C(3); o.f(); o.f(); o.f();", 6);
-//      run("function C(n) {this.nn=n; this.f=function () {this.nn=this.nn+1;return this.nn;}}; var o=new C(30); o.f(); o.f(); o.f();", 33);
-//      run("function C(n) {var self=this; self.nn=n; self.f=function () {self.nn=self.nn+1;return this.nn;}}; var o=new C(300); o.f(); o.f(); o.f();", 303);
-//    };  
-//
+  module.test43a = // http://jsperf.com/access-object-properties-via-closure-vs-this/2
+    function ()
+    {
+      run("function C(n) {var nn=n; this.f=function () {nn=nn+1;return nn;}}; var o=new C(3); o.f(); o.f(); o.f();", 6);
+      run("function C(n) {this.nn=n; this.f=function () {this.nn=this.nn+1;return this.nn;}}; var o=new C(30); o.f(); o.f(); o.f();", 33);
+      run("function C(n) {var self=this; self.nn=n; self.f=function () {self.nn=self.nn+1;return this.nn;}}; var o=new C(300); o.f(); o.f(); o.f();", 303);
+    }  
+
   module.test44a =
     function ()
     {
@@ -260,7 +260,7 @@ var suiteConcreteTests =
       run("var o=[]; var i=5; function f1() {o[0]=1}; function f2() {return o[2*3]=2}; f1(); f2();", 2);
     };
     
-  module.XXXtest52a =
+  module.test52a =
     function ()
     {
       run("function Circle(radius) {this.radius = radius;}; Circle.prototype.y=123;Circle.prototype.y;", 123);
@@ -269,7 +269,7 @@ var suiteConcreteTests =
 //      run("var Circle=function (radius) {this.radius = radius;}; Circle.prototype.n=123;var x=new Circle(1);var y=new Circle(2);", 123); // TODO: LVPS
       run("var Circle=function (radius) {this.radius = radius;}; Circle.prototype.n=123;var x=new Circle(1);var y=new Circle(2);x.radius+y.radius;", 3);
       run("var Circle=function (radius) {this.radius = radius;}; Circle.prototype.n=123;var x=new Circle(1);x.n;", 123);
-      runStr("var Circle=function (radius) {this.radius = radius;}; Circle.prototype.area=function () { return 3*this.radius*this.radius;}; var x=new Circle(3), y=new Circle(4); [x.area(), y.area()].toString();", "27,48"); // TODO arrays
+      run("var Circle=function (radius) {this.radius = radius;}; Circle.prototype.area=function () { return 3*this.radius*this.radius;}; var x=new Circle(3), y=new Circle(4); [x.area(), y.area()].toString();", "27,48"); // TODO arrays
       run("var Circle=function (radius) {return function() {return radius}}; var x=new Circle(432);x();", 432);
     } 
 
@@ -302,16 +302,16 @@ var suiteConcreteTests =
 //      run("var o={x:3}; var f=function() {return o}; f()['x']++ + o.x;", 7);
 //      run("var o={x:3}; var f=function() {return o}; ++f()['x'] + o.x;", 8);
 //    } 
-//
-//  module.test61a =
-//    function ()
-//    {
-//      run("for (var i=0; i<3; i++) i;", 2);
-//      run("for (var i=0; i<3; i++) i; i;", 3);
-//      run("for (var i=0; false; i++) 123; i;", 0);
-//      run("for (var i=0; false; i++) 123;", undefined);
-//    } 
-//
+
+  module.test61a =
+    function ()
+    {
+      run("for (var i=0; i<3; i++) i;", 2);
+      run("for (var i=0; i<3; i++) i; i;", 3);
+      run("for (var i=0; false; i++) 123; i;", 0);
+      run("for (var i=0; false; i++) 123;", undefined);
+    } 
+
   module.test65 =
     function ()
     {
@@ -324,16 +324,16 @@ var suiteConcreteTests =
       run("function Xyz(n) { this.n = n }; var p = Xyz; p(123); n;", 123);
     }
 
-//  module.test67 =
-//    function ()
-//    {
-//      run("Object.prototype === Function.prototype", false);
-//      run("Function.prototype === String.prototype", false);
-//      run("String.prototype === Object.prototype", false);
-//      run("Array.prototype === Function.prototype", false);
-//      run("Array.prototype === String.prototype", false);
-//      run("Array.prototype === Object.prototype", false);
-//    }
+  module.test67 =
+    function ()
+    {
+      run("Object.prototype === Function.prototype", false);
+      run("Function.prototype === String.prototype", false);
+      run("String.prototype === Object.prototype", false);
+      run("Array.prototype === Function.prototype", false);
+      run("Array.prototype === String.prototype", false);
+      run("Array.prototype === Object.prototype", false);
+    }
 
   module.test68 =
     function ()
@@ -369,18 +369,18 @@ var suiteConcreteTests =
       run("var x;", undefined);
     }
 
-//  module.test73a =
-//    function ()
-//    {
-//      run("var b = 3; if (b) 1; else 2;", 1);
-//      run("var b; if (b) 1; else 2;", 2);
-//      run("var b = 0; if (b) 1; else 2;", 2);
-//      run("var b = null; if (b) 1; else 2;", 2);
-//      run("var b = NaN; if (b) 1; else 2;", 2);
-//      run("var b = ''; if (b) 1; else 2;", 2);
-//      run("var b = 'gvd'; if (b) 1; else 2;", 1);
-//    }
-//
+  module.test73a =
+    function ()
+    {
+      run("var b = 3; if (b) 1; else 2;", 1);
+      run("var b; if (b) 1; else 2;", 2);
+      run("var b = 0; if (b) 1; else 2;", 2);
+      run("var b = null; if (b) 1; else 2;", 2);
+      run("var b = NaN; if (b) 1; else 2;", 2);
+      run("var b = ''; if (b) 1; else 2;", 2);
+      run("var b = 'gvd'; if (b) 1; else 2;", 1);
+    }
+
   module.test74 =
     function ()
     {
@@ -403,22 +403,22 @@ var suiteConcreteTests =
       run("var a = new Array(10); a[3] = 3; a.length", 10);
       run("var a = []; a[3] = 3; a.length", 4);
     }
-//
-//  module.test77 =
-//    function ()
-//    {
-//      var arrayStr = "[0 || 1, 1 || 0, 0 && 1, 1 && 0, true || false, false || true, true && false, false && true]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
+
+  module.test77 =
+    function ()
+    {
+      var arrayStr = "[0 || 1, 1 || 0, 0 && 1, 1 && 0, true || false, false || true, true && false, false && true]";
+      var expected = eval(arrayStr).join(",");
+      run(arrayStr + ".toString()", expected);
+    }
+
   module.test78a =
     function ()
     {
       run("var a = 0; for (var i = 0; i < 10; i++); a = 1; a;", 1);
       run("var i = 0; for (; i < 3; i++) {i}", 2);
     }
-//
+
   module.test79a =
     function ()
     {
@@ -510,41 +510,41 @@ var suiteConcreteTests =
 //      runStr(arrayStr, expected);
 //    }
 //
-//  module.test82a =
-//    function ()
-//    {
-//      run("function F() { }; F.prototype.constructor === F", true);
-//      run("function F(x) { this.x = x }; var f = new F(123); f.constructor === F.prototype.constructor", true);
-//    }
-//  
-//  module.test82b =
-//    function ()
-//    {
-//      run("Object.getPrototypeOf(Object.prototype)", null);
-//      run("function F() {}; var f = new F(); Object.getPrototypeOf(f) === F.prototype", true);
-//    }
-//
-//  module.test82c =
-//    function ()
-//    {
-//      run("Object.prototype.constructor === Object", true);
-//      run("Function.prototype.constructor === Function", true);
-//      run("Array.prototype.constructor === Array", true);
-//    }
-//
-//  module.test82d =
-//    function ()
-//    {
-//      run("var o = {}; var oo = Object.create(o); Object.getPrototypeOf(oo) === o;", true);
-//      run("function S() {}; S.prototype.x = 123; function F() {};  F.prototype = Object.create(S.prototype); var f = new F(); f.x", 123);
-//    }
-//
-//  module.test83 =
-//    function ()
-//    {
-//      run("var o = {}; o.constructor === Object", true);
-//    }
-//
+  module.test82a =
+    function ()
+    {
+      run("function F() { }; F.prototype.constructor === F", true);
+      run("function F(x) { this.x = x }; var f = new F(123); f.constructor === F.prototype.constructor", true);
+    }
+  
+  module.test82b =
+    function ()
+    {
+      run("Object.getPrototypeOf(Object.prototype)", null);
+      run("function F() {}; var f = new F(); Object.getPrototypeOf(f) === F.prototype", true);
+    }
+
+  module.test82c =
+    function ()
+    {
+      run("Object.prototype.constructor === Object", true);
+      run("Function.prototype.constructor === Function", true);
+      run("Array.prototype.constructor === Array", true);
+    }
+
+  module.test82d =
+    function ()
+    {
+      run("var o = {}; var oo = Object.create(o); Object.getPrototypeOf(oo) === o;", true);
+      run("function S() {}; S.prototype.x = 123; function F() {};  F.prototype = Object.create(S.prototype); var f = new F(); f.x", 123);
+    }
+
+  module.test83 =
+    function ()
+    {
+      run("var o = {}; o.constructor === Object", true);
+    }
+
 //  module.test84a =
 //    function ()
 //    {
@@ -581,16 +581,16 @@ var suiteConcreteTests =
 //      run("ll:{42; break ll; 43;}", 42);
 //    }
 //
-//  module.test88a =
-//    function ()
-//    {
-//      run("function f(){return a;function a(){return 1};var a=4;function a(){return 2;}}; f()();", 2);
-//      run("function f(){return a;var a=4;function a(){return 1};function a(){return 2;}}; f()();", 2);
-//      run("function f(){var a=4;function a(){return 1};function a(){return 2;};return a;}; f();", 4);
-//      run("var foo = 1; function bar() { if (!foo) { var foo = 10; } return foo;} bar();", 10);
-//      run("var a = 1; function b() { a = 10; return; function a() {}}; b(); a;", 1);
-//    }
-//  
+  module.test88a =
+    function ()
+    {
+      run("function f(){return a;function a(){return 1};var a=4;function a(){return 2;}}; f()();", 2);
+      run("function f(){return a;var a=4;function a(){return 1};function a(){return 2;}}; f()();", 2);
+      run("function f(){var a=4;function a(){return 1};function a(){return 2;};return a;}; f();", 4);
+      run("var foo = 1; function bar() { if (!foo) { var foo = 10; } return foo;} bar();", 10);
+      run("var a = 1; function b() { a = 10; return; function a() {}}; b(); a;", 1);
+    }
+  
 //  module.test89 =
 //    function ()
 //    { 
@@ -641,22 +641,22 @@ var suiteConcreteTests =
 //      run(read("test/resources/books.js"), 2);
 //    }
 //  
-////  module.test94 =
-////    function ()
-////    {
-////      run("for (var i = 0; i < 2000; i++) { 123 }", 123); // bug: throws JS stack overflow
-////      run("var a = [1,2,3]; for (var i = 0; i < 900; i++) { a[2] = 123 }", 123); // bug: throws JS stack overflow
-////    }
-//  
-//  module.test95 =
+//  module.test94 =
 //    function ()
 //    {
-//      run("String()", "");
-//      run("String('123')", "123");
-//      run("String(456)", "456");
-//      run("String(true)", "true");
+//      run("for (var i = 0; i < 2000; i++) { 123 }", 123); // bug: throws JS stack overflow
+//      run("var a = [1,2,3]; for (var i = 0; i < 900; i++) { a[2] = 123 }", 123); // bug: throws JS stack overflow
 //    }
 //  
+  module.test95 =
+    function ()
+    {
+      run("String()", "");
+      run("String('123')", "123");
+      run("String(456)", "456");
+      run("String(true)", "true");
+    }
+  
 //  module.test96 =
 //    function ()
 //    {

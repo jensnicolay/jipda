@@ -293,11 +293,19 @@ ConcLattice.prototype.div =
 ConcLattice.prototype.eqq =
   function (x, y)
   {
-    if (x instanceof ConcAddr && y instanceof ConcAddr)
+    if (x instanceof ConcAddr)
     {
-      return new ConcValue(x.addr === y.addr);  
+      if (y instanceof ConcAddr)
+      {
+        return new ConcValue(x.addr.equals(y.addr));        
+      }
+      return new ConcValue(false);
     }
-    return new ConcValue(x.value === y.value);
+    if (y instanceof ConcAddr)
+    {
+      return new ConcValue(false);
+    }
+    return new ConcValue(x.value == y.value);
   }
 
 ConcLattice.prototype.eq =
@@ -334,6 +342,24 @@ ConcLattice.prototype.neq =
       return new ConcValue(true);
     }
     return new ConcValue(x.value != y.value);
+  }
+
+ConcLattice.prototype.neqq =
+  function (x, y)
+  {
+    if (x instanceof ConcAddr)
+    {
+      if (y instanceof ConcAddr)
+      {
+        return new ConcValue(x.addr !== y.addr);        
+      }
+      return new ConcValue(true);
+    }
+    if (y instanceof ConcAddr)
+    {
+      return new ConcValue(true);
+    }
+    return new ConcValue(x.value !== y.value);
   }
 
 ConcLattice.prototype.binor =

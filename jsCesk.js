@@ -323,8 +323,8 @@ function jsCesk(cc)
   object = object.add(P_PROTOTYPE, objectProtoRef);//was objectProtoRef
   global = global.add(l.abst1("Object"), l.abstRef(objecta));
   
-//  object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
-//  object = registerPrimitiveFunction(object, objecta, "create", objectCreate);
+  object = registerPrimitiveFunction(object, objecta, "create", objectCreate);
+  object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
 
   store = storeAlloc(store, objecta, object);
   store = storeAlloc(store, objectPa, objectP);
@@ -441,6 +441,36 @@ function jsCesk(cc)
     return [{state:new KontState(objRef, store, lkont, kont), effects:effects}];
   }    
   
+  function objectCreate(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    if (operandValues.length !== 1)
+    {
+      return [];  
+    }
+    var obj = createObject(operandValues[0]);
+    var objectAddress = a.object(application, benv, store, kont);
+    store = storeAlloc(store, objectAddress, obj);
+    var objRef = l.abstRef(objectAddress);
+    return [{state:new KontState(objRef, store, lkont, kont), effects:effects}];
+  }
+  
+  function objectGetPrototypeOf(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    if (operandValues.length !== 1)
+    {
+      return [];  
+    }
+    var objectAddresses = operandValues[0].addresses();
+    var result = BOT;
+    objectAddresses.forEach(
+      function (objectAddress)
+      {
+        var obj = storeLookup(store, objectAddress);
+        result = result.join(obj.Prototype);
+      });
+    return [{state:new KontState(result, store, lkont, kont), effects:effects}];
+  }
+  
   function stringFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
   {
     if (operandValues.length === 0)
@@ -505,13 +535,20 @@ function jsCesk(cc)
   {
     var arr = storeLookup(store, thisa);
     var len = arr.lookup(P_LENGTH)[0];
+    effects.push(readObjectEffect(thisa, P_LENGTH));
     var i = L_0;
     var r = [];
     var seen = ArraySet.empty();
+    var thisAs = ArraySet.from1(thisa); 
     while ((!seen.contains(i)) && l.lt(i, len).isTrue())
     {
       seen = seen.add(i);
-      r.push(arr.lookup(i.ToString())[0]);
+      var iname = i.ToString();
+      var v = doProtoLookup(iname, thisAs, store, effects); 
+      if (v !== BOT)
+      {
+        r.push(v);
+      }
       i = l.add(i, L_1);
     }
     return [{state:new KontState(l.abst1(r.join()), store, lkont, kont), effects:effects}];
@@ -526,6 +563,7 @@ function jsCesk(cc)
     }
     var thisArr = storeLookup(store, thisa);
     var thisLen = thisArr.lookup(P_LENGTH)[0];
+    effects.push(readObjectEffect(thisa, P_LENGTH));
     var argAddrs = operandValues[0].addresses();
     var resultArr = createArray();
     var i = L_0;
@@ -533,7 +571,9 @@ function jsCesk(cc)
     while ((!seen.contains(i)) && l.lt(i, thisLen).isTrue())
     {
       seen = seen.add(i);
-      resultArr = resultArr.add(i.ToString(), thisArr.lookup(i.ToString())[0]);
+      var iname = i.ToString();
+      var v = doProtoLookup(iname, ArraySet.from1(thisa), store, effects);
+      resultArr = resultArr.add(iname, v);
       i = l.add(i, L_1);
     }
     argAddrs.forEach(
@@ -541,12 +581,15 @@ function jsCesk(cc)
       {
         var argArr = storeLookup(store, argAddr);
         var argLen = argArr.lookup(P_LENGTH)[0];
+        effects.push(readObjectEffect(argAddr, P_LENGTH));
         var i = L_0;
         var seen = ArraySet.empty();
         while ((!seen.contains(i)) && l.lt(i, argLen).isTrue())
         {
           seen = seen.add(i);
-          resultArr = resultArr.weakAdd(l.add(thisLen, i).ToString(), argArr.lookup(i.ToString())[0]);
+          var iname = i.ToString();
+          var v = doProtoLookup(iname, ArraySet.from1(argAddr), store, effects);
+          resultArr = resultArr.weakAdd(l.add(thisLen, i).ToString(), argArr.lookup(iname)[0]);
           i = l.add(i, L_1);
         }
         resultArr = resultArr.weakAdd(P_LENGTH, l.add(thisLen, i));
@@ -560,13 +603,14 @@ function jsCesk(cc)
   {
     var arr = storeLookup(store, thisa);
     var len = arr.lookup(P_LENGTH)[0];
+    effects.push(readObjectEffect(thisa, P_LENGTH));
     var lenStr = len.ToString();
     arr = arr.add(lenStr, operandValues[0]) 
+    effects.push(writeObjectEffect(thisa, lenStr));
     var len1 = l.add(len, L_1);
     arr = arr.add(P_LENGTH, len1);
-    store = storeUpdate(store, thisa, arr);
-    effects.push(writeObjectEffect(thisa, lenStr));
     effects.push(writeObjectEffect(thisa, P_LENGTH))
+    store = storeUpdate(store, thisa, arr);
     return [{state:new KontState(len1, store, lkont, kont), effects:effects}];
   }
   
@@ -1048,86 +1092,8 @@ function jsCesk(cc)
           });
 
       return result;
-      
-//      var stacks = ReturnState.stackPop(this.lkont, this.kont, value);
-//      return stacks.flatMap(
-//        function (stack)
-//        {
-//          var lkont = stack[0];
-//          var kont = stack[1];
-//          var value = stack[2];
-//          var frame = lkont[0];
-//          var lkont2 = lkont.slice(1);
-//          return frame.apply(value, store, lkont2, kont);
-//        });
     }
-  
-//  ReturnState.stackPop = function (lkont, kont, value)
-//  {
-//    if (kont === EMPTY_KONT)
-//    {
-//      throw new Error("return outside function");
-//    }
-//    
-//    if (kont.ex.type === "NewExpression")
-//    {
-//      var returnValue = BOT;
-//      if (value.isRef())
-//      {
-//        returnValue = returnValue.join(value.projectRef()); 
-//      }
-//      if (value.isNonRef())
-//      {
-//        returnValue = returnValue.join(l.abstRef(kont.thisa));
-//      }
-//      value = returnValue;
-//    }
-//    
-//    var result = [];
-//    var todo = sstore.get(kont).values().map(
-//      function (st)
-//      {
-//        return [st[0],st[1],value];
-//      });
-//    var G = ArraySet.from1(kont);
-//    while (todo.length > 0)
-//    {
-//      var stack = todo.pop();
-//      var lkont = stack[0];
-//      var kont = stack[1];
-//      var value = stack[2];
-//      
-//      if (lkont.length === 0) 
-//      {
-//        if (kont === EMPTY_KONT || G.contains(kont))
-//        {
-//          continue;
-//        }
-//        
-//        // "dropping out" of func/ctr never happens through 'return' at this level 
-//        if (kont.ex.type === "NewExpression")
-//        {
-//          value = l.abstRef(kont.thisa);
-//        }
-//        else
-//        {
-//          value = L_UNDEFINED;
-//        }
-//        
-//        sstore.get(kont).values().forEach(
-//          function (st)
-//          {
-//            todo.push([st[0],st[1],value]);
-//          });
-//        G = G.add(kont);
-//      }
-//      else // lkont available
-//      {
-//        result.push(stack);
-//      }
-//    }
-//    return result;
-//  }
+      
   ReturnState.prototype.gc =
     function ()
     {
@@ -3355,12 +3321,12 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var a = as[0];
       as = as.slice(1);
       var benv = storeLookup(store, a);
+      effects.push(readObjectEffect(a, name));
       var valueFound = benv.lookup(name);
       var value = valueFound[0];
       var found = valueFound[1];
       if (value !== BOT)
       {
-        effects.push(readObjectEffect(a, name));
         result = result.join(value);
       }
       if (!found)
@@ -3384,8 +3350,8 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var obj = storeLookup(store, globala);
       var aname = l.abst1(name);
       obj = obj.add(aname, value);
-      store = storeUpdate(store, globala, obj);      
       effects.push(writeObjectEffect(globala, aname))
+      store = storeUpdate(store, globala, obj);      
     }
     else
     {
@@ -3404,6 +3370,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       benvs = benvs.slice(1);
       var benv = storeLookup(store, a);
       benv = benv.add(name, value);
+      effects.push(writeObjectEffect(a, name));
       if (benv.isArray())
       {
         // ES5.1 15.4.5.1 
@@ -3419,7 +3386,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
           }
         }
       }
-      effects.push(writeObjectEffect(a, name));
       store = storeUpdate(store, a, benv);
     }
     return store;
@@ -3790,7 +3756,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         return thisAddresses.flatMap(
           function (thisa)
           {
-            var effects = []; // TODO wrong!
+            effects = effects.slice(0);
             var operatorValue = doProtoLookup(nameValue, ArraySet.from1(thisa), store, effects); 
             var i = 0;
             var operandsValues = [];
@@ -4117,6 +4083,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   module.explore =
     function (ast)
     {
+      var startTime = performance.now();
       var id = 0;
       var visited = MutableHashSet.empty(104729);
       var initial = this.inject(ast);
@@ -4171,7 +4138,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         }            
       }
 //      print("sstorei-skip", skipped1, "eval-skip", skipped2, "nexted", nexted);
-      return {initial:initial, result:result, sstore:sstore, numStates:id};
+      return {initial:initial, result:result, sstore:sstore, numStates:id, time:performance.now()-startTime};
     }
   
   module.concExplore =
@@ -4335,11 +4302,36 @@ function isResultState(state)
   return state.value && state.lkont.length === 0 && state.kont === EMPTY_KONT; 
 }
 
-function computeResultValue(resultStates)
+function retrieveEndStates(initial) // not used for the moment
+{
+  var todo = [initial];
+  var result = ArraySet.empty();
+  while (todo.length > 0)
+  {
+    var s = todo.pop();
+    if (s._result)
+    {
+      continue;
+    }
+    s._result = true;
+    var successors = s._successors; 
+    if (successors.length === 0)
+    {
+      result = result.add(s);
+    }
+    else
+    {
+      todo = todo.concat(successors.map(function (t) {return t.state}));      
+    }
+  }
+  return result;
+}
+
+function computeResultValue(endStates)
 {
   var result = BOT;
   var msgs = [];
-  resultStates.forEach(
+  endStates.forEach(
     function (s)
     {
       if (isResultState(s))
