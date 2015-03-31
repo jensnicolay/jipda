@@ -1021,7 +1021,6 @@ function jsCesk(cc)
       var value = this.value;
       if (value === BOT)
       {
-        print("BOT", this);
         return [];
       }      
 
@@ -2946,7 +2945,14 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   
   function ToObject(node, value, store)
   {
+    
+    if (value === BOT)
+    {
+      return [value, store];
+    }
+    
     // fast path
+//    if (!value.isNonRef) {print(value, Object.keys(value))}
     if (!value.isNonRef())
     {
       return [value, store];
@@ -3023,23 +3029,28 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       store = objectRefStore[1];
       var thisAddresses = objectRef.addresses();
       var operands = node.arguments;
-      return thisAddresses.flatMap(
+      return xxx(node, thisAddresses, nameValue, operands, benv, store, lkont, kont);
+    }
+  
+  function xxx(application, thisAddresses, nameValue, operands, benv, store, lkont, kont)
+  {
+    return thisAddresses.flatMap(
         function (thisa)
         {
           var effects = [];
           var operatorValue = doProtoLookup(nameValue, ArraySet.from1(thisa), store, effects); 
           if (operands.length === 0)
           {
-            if (node.type === "NewExpression")
+            if (application.type === "NewExpression")
             {
-              return applyCons(node, operatorValue, [], benv, store, lkont, kont, effects);
+              return applyCons(application, operatorValue, [], benv, store, lkont, kont, effects);
             }
-            return applyProc(node, operatorValue, [], thisa, benv, store, lkont, kont, effects);
+            return applyProc(application, operatorValue, [], thisa, benv, store, lkont, kont, effects);
           }
-          var frame = new OperandsKont(node, 1, benv, operatorValue, [], thisa);
+          var frame = new OperandsKont(application, 1, benv, operatorValue, [], thisa);
           return [{state:new EvalState(operands[0], benv, store, [frame].concat(lkont), kont), effects:effects}];
         });      
-    }
+  }
   
   function AssignMemberKont(node, benv)
   {
@@ -3217,7 +3228,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     {
       if (propertyValue === BOT)
       {
-        print("BOT", this);
         return [];
       }
       var node = this.node;
@@ -3761,21 +3771,46 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     { 
       var object = calleeNode.object;
       
-//      if (isAtomic(object))
-//      {
-//        var ae = new AtomicEvaluator(effects);
-//        var objectValue = ae.evalNode(object, benv, store);
-//        var property = node.callee.property;
-//        if (node.computed)
-//        {
-//          throw new Error("TODO");
-//        }
-//        var nameValue = l.abst1(property.name);
-//        var objectRefStore = ToObject(node.callee, objectValue, store);
-//        var objectRef = objectRefStore[0];
-//        store = objectRefStore[1]; // TODO ae, should not change
-//        
-//      }
+      if (isAtomic(object))
+      {
+        var ae = new AtomicEvaluator(effects);
+        var objectValue = ae.evalNode(object, benv, store);
+        var property = node.callee.property;
+        if (node.computed)
+        {
+          throw new Error("TODO");
+        }
+        var nameValue = l.abst1(property.name);
+        var objectRefStore = ToObject(node.callee, objectValue, store);
+        var objectRef = objectRefStore[0];
+        store = objectRefStore[1]; // TODO ae, should not change
+        
+        var thisAddresses = objectRef.addresses();
+        var operands = node.arguments;
+        return thisAddresses.flatMap(
+          function (thisa)
+          {
+            var effects = []; // TODO wrong!
+            var operatorValue = doProtoLookup(nameValue, ArraySet.from1(thisa), store, effects); 
+            var i = 0;
+            var operandsValues = [];
+            while (i < operands.length && isAtomic(operands[i]))
+            {
+              operandsValues[i] = ae.evalNode(operands[i], benv, store);
+              i++;
+            }
+            if (i === operands.length)
+            {
+              if (node.type === "NewExpression")
+              {
+                return applyCons(node, operatorValue, operandsValues, benv, store, lkont, kont, effects);
+              }
+              return applyProc(node, operatorValue, operandsValues, thisa, benv, store, lkont, kont, effects);
+            }
+            var frame = new OperandsKont(node, 1, benv, operatorValue, [], thisa);
+            return [{state:new EvalState(operands[0], benv, store, [frame].concat(lkont), kont), effects:effects}];
+          });      
+      }
       
       var frame = new CallMemberKont(node, benv);
       return [{state:new EvalState(object, benv, store, [frame].concat(lkont), kont), effects:effects}];
