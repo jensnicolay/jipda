@@ -2358,3 +2358,11 @@ Indexer.prototype.toArray =
     return this.slice(0);
   }
 
+var Formatter = {};
+Formatter.displayTime =
+  function (ms)
+  {
+    var min = Math.floor(ms / 60000);
+    var sec = Math.floor((ms % 60000) / 1000);
+    return min + "'" + (sec < 10 ? "0" : "") + sec + "\"";
+  }

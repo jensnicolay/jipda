@@ -1,10 +1,3 @@
-function displayTime(ms)
-{
-  var min = Math.floor(ms / 60000);
-  var sec = Math.floor((ms % 60000) / 1000);
-  return min + "'" + (sec < 10 ? "0" : "") + sec + "\"";
-}
-
 function displayPurity(ast, pmap)
 {
   var fs = Ast.nodes(ast).filter(function (node) {return node.type === "FunctionDeclaration" || node.type === "FunctionExpression"});
@@ -42,13 +35,13 @@ function runBenchmarks(benchmarks)
       var system = cesk.explore(ast);
       var sgTime = Date.now() - sgStart;
 
-      print("sgTime", displayTime(sgTime), "states", system.numStates);
+      print("sgTime", Formatter.displayTime(sgTime), "states", system.numStates);
 
       var pmStart = Date.now();
       var pmap = computePurity(system.initial, system.sstore);
       var pmTime = Date.now() - pmStart;
       
-      print("pmTime", displayTime(pmTime), "count", pmap.count());
+      print("pmTime", Formatter.displayTime(pmTime), "count", pmap.count());
       
       displayPurity(ast, pmap);
       

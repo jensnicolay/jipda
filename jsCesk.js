@@ -221,9 +221,9 @@ function jsCesk(cc)
     return new Effect(Effect.Operations.READ, a, name);
   }
   
-  function readVarEffect(a)
+  function readVarEffect(a, vr)
   {
-    return new Effect(Effect.Operations.READ, a, BOT);
+    return new Effect(Effect.Operations.READ, a, vr);
   }
   
   function writeObjectEffect(a, name)
@@ -231,9 +231,9 @@ function jsCesk(cc)
     return new Effect(Effect.Operations.WRITE, a, name);
   }
   
-  function writeVarEffect(a)
+  function writeVarEffect(a, vr)
   {
-    return new Effect(Effect.Operations.WRITE, a, BOT);
+    return new Effect(Effect.Operations.WRITE, a, vr);
   }
   
   function createEnvironment(parents)
@@ -1508,9 +1508,8 @@ function jsCesk(cc)
     {
       var effects = [];
       var id = this.node.id;
-      var name = id.name;
       var benv = this.benv;
-      store = doScopeSet(name, value, benv, store, effects);
+      store = doScopeSet(id, value, benv, store, effects);
       return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];
     }
   
@@ -1925,25 +1924,25 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         }
         case "+=":
         {
-          var existingValue = doScopeLookup(name, benv, store, effects);
+          var existingValue = doScopeLookup(node.left, benv, store, effects);
           newValue = l.add(existingValue, value);
           break;
         }
         case "-=":
         {
-          var existingValue = doScopeLookup(name, benv, store, effects);
+          var existingValue = doScopeLookup(node.left, benv, store, effects);
           newValue = l.sub(existingValue, value);
           break;
         }
         case "*=":
         {
-          var existingValue = doScopeLookup(name, benv, store, effects);
+          var existingValue = doScopeLookup(node.left, benv, store, effects);
           newValue = l.mul(existingValue, value);
           break;
         }
         case "|=":
         {
-          var existingValue = doScopeLookup(name, benv, store, effects);
+          var existingValue = doScopeLookup(node.left, benv, store, effects);
           newValue = l.binor(existingValue, value);
           break;
         }
@@ -1953,7 +1952,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       {
         return [];
       }
-      store = doScopeSet(name, newValue, benv, store, effects);
+      store = doScopeSet(node.left, newValue, benv, store, effects);
       return [{state:new KontState(newValue, store, lkont, kont), effects:effects}];
     }
   
@@ -3293,8 +3292,9 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     }
   
   
-  function doScopeLookup(name, benv, store, effects)
+  function doScopeLookup(nameNode, benv, store, effects)
   {
+    var name = nameNode.name;
     var a = benv.lookup(name);
     if (a === BOT)
     {
@@ -3308,7 +3308,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       }      
       return value;
     }
-    effects.push(new readVarEffect(a));
+    effects.push(new readVarEffect(a, nameNode));
     return storeLookup(store, a);
   }
 
@@ -3342,8 +3342,9 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     return result;
   }
   
-  function doScopeSet(name, value, benv, store, effects)
+  function doScopeSet(nameNode, value, benv, store, effects)
   {
+    var name = nameNode.name;
     var a = benv.lookup(name);
     if (a === BOT)
     {
@@ -3356,7 +3357,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     else
     {
       store = storeUpdate(store, a, value);
-      effects.push(writeVarEffect(a));
+      effects.push(writeVarEffect(a, nameNode));
     }
     return store;
   }
@@ -3456,7 +3457,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
      function (node, benv, store)
     {
       var effects = this.effects;
-      var value = doScopeLookup(node.name, benv, store, effects);
+      var value = doScopeLookup(node, benv, store, effects);
       return value;
     }
    
@@ -3514,7 +3515,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   
   function evalIdentifier(node, benv, store, lkont, kont, effects)
    {
-     var value = doScopeLookup(node.name, benv, store, effects);
+     var value = doScopeLookup(node, benv, store, effects);
      return [{state:new KontState(value, store, lkont, kont), effects:effects}];
    }
 
@@ -3603,8 +3604,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var ae = new AtomicEvaluator(effects);
       var value = ae.evalNode(init, benv, store);
       var id = node.id;
-      var name = id.name;
-      store = doScopeSet(name, value, benv, store, effects);      
+      store = doScopeSet(id, value, benv, store, effects);      
       return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];
     }
     var frame = new VariableDeclaratorKont(node, benv);
@@ -3661,8 +3661,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       case "Identifier":
       {
         var effects = [];
-        var name = argument.name;
-        var value = doScopeLookup(name, benv, store, effects);
+        var value = doScopeLookup(argument, benv, store, effects);
         var updatedValue;
         switch (node.operator)
         {
@@ -3682,7 +3681,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         {
           return [];
         }
-        store = doScopeSet(name, updatedValue, benv, store, effects);
+        store = doScopeSet(argument, updatedValue, benv, store, effects);
         var resultingValue = node.prefix ? updatedValue : value;
         return [{state:new KontState(resultingValue, store, lkont, kont), effects:effects}];
       }
@@ -4133,7 +4132,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
           todo.push(s2);
           if (id % 10000 === 0)
           {
-            print("states", id, "todo", todo.length, "ctxs", sstore.count(), "sstorei", sstorei);
+            print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length, "ctxs", sstore.count(), "sstorei", sstorei);
           }
         }            
       }
@@ -4144,6 +4143,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   module.concExplore =
     function (ast)
     {
+      var startTime = performance.now();
       var initial = this.inject(ast);
       var s = initial;
       var id = 0;
@@ -4153,7 +4153,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         id++;
         if (id % 10000 === 0)
         {
-          print("states", id, "ctxs", sstore.count(), "sstorei", sstorei);
+          print(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
         }
         var l = next.length;
         if (l === 1)
@@ -4162,7 +4162,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         }
         else if (l === 0)
         {
-          return {initial:initial, result: ArraySet.from1(s), sstore:sstore, numStates:id};
+          return {initial:initial, result: ArraySet.from1(s), sstore:sstore, numStates:id, time:performance.now()-startTime};
         }
         else
         {

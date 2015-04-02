@@ -10,9 +10,9 @@ var suiteJipdaDepTests =
     return jsCesk({a:cc.a || createTagAg(), l:new JipdaLattice()});
   }
 
-  function isPureFunction(f, result)
+  function isPureFunction(ast, f, result)
   {
-    var pmap = computePurity(result.initial, result.sstore);
+    var pmap = computePurity(ast, result.initial, result.sstore);
     return pmap.get(f) === "PURE";
   }
   
@@ -24,7 +24,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
   
   module.testPurity2 =
@@ -35,7 +35,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity3 =
@@ -46,7 +46,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(isPureFunction(f, result));
+      assertFalse(isPureFunction(ast, f, result));
     }
     
   module.testPurity4 =
@@ -57,8 +57,19 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
+    
+//  module.testPurity4v =
+//    function ()
+//    {
+//      var src = "while (true) {var z=false; function f() {return z}; f()}";
+//      var ast = Ast.createAst(src);
+//      var cesk = createCesk();
+//      var result = cesk.explore(ast);
+//      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+//      assertTrue(isPureFunction(ast, f, result));
+//    }
     
   module.testPurity5a = 
     function ()
@@ -68,7 +79,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    } 
+  
+  module.testPurity5ab = 
+    function ()
+    {
+      var src = "var z=false; function f() {return z}; z=true; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     } 
   
   module.testPurity5b = 
@@ -79,7 +101,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    } 
+  
+  module.testPurity5bc = 
+    function ()
+    {
+      var src = "var z=false; function f() {return z}; z=true; f(); f(); while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     } 
   
   module.testPurity5c = 
@@ -90,7 +123,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(isPureFunction(f, result));
+      assertFalse(isPureFunction(ast, f, result));
+    } 
+  
+  module.testPurity5cb = 
+    function ()
+    {
+      var src = "var z=false; function f() {return z}; f(); f(); z=true; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(isPureFunction(ast, f, result));
     } 
   
   module.testPurity5d = 
@@ -101,7 +145,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    } 
+  
+  module.testPurity5db = 
+    function ()
+    {
+      var src = "var z=false; function f() {return z}; f(); while (true) f(); z=true;";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     } 
   
   module.testPurity6 =
@@ -112,7 +167,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(isPureFunction(f, result));
+      assertFalse(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity6b =
+    function ()
+    {
+      var src = "var z=false;function f(){g()}; function g(){h()}; function h(){z=true}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(isPureFunction(ast, f, result));
     }
     
   module.testPurity7 =
@@ -123,9 +189,22 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
       var g = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "g"})[0];
-      assertFalse(isPureFunction(g, result));
+      assertFalse(isPureFunction(ast, g, result));
+    }
+    
+  module.testPurity7b =
+    function ()
+    {
+      var src = "function f(){var x=0; function g() {x=x+1}; g()}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
+      var g = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "g"})[0];
+      assertFalse(isPureFunction(ast, g, result));
     }
     
   module.testPurity8 =
@@ -136,7 +215,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity8b =
+    function ()
+    {
+      var src = "function f(){var o={}; o.x=3}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity9 =
@@ -147,7 +237,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity10 =
@@ -158,7 +248,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity11 =
@@ -169,7 +259,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity11b =
+    function ()
+    {
+      var src = "function f(){var o={}; function g() {o.x=4}; g(); return o.x}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity12 =
@@ -180,7 +281,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(isPureFunction(f, result));
+      assertFalse(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity12b =
+    function ()
+    {
+      var src = "var z=0; function f(){var o={}; function g() {z=z+1;o.x=z}; g(); return o.x}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(isPureFunction(ast, f, result));
     }
     
   module.testPurity13 =
@@ -191,7 +303,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity14 =
@@ -202,7 +314,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity15 =
@@ -213,7 +325,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
   
   module.testPurity16 =
@@ -224,7 +336,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity17 =
@@ -235,7 +347,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity17b =
+    function ()
+    {
+      var src = "function g() {var o={x:{}}; return o}; function f(){return g().x}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity18 =
@@ -246,7 +369,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity18b =
+    function ()
+    {
+      var src = "function g(p) {p.x=4}; function f(){var o={}; g(o); return o.x}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity19 =
@@ -257,7 +391,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(isPureFunction(f, result));
+      assertFalse(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity19b =
+    function ()
+    {
+      var src = "var z=0; function g(p) {z=z+1;p.x=z}; function f(){var o={}; g(o); return o.x}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(isPureFunction(ast, f, result));
     }
     
   module.testPurity20 = // returns object
@@ -268,7 +413,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity21 =
@@ -279,7 +424,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity22 =
@@ -290,7 +435,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity23 =
@@ -301,7 +446,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity24 =
@@ -312,7 +457,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity25 =
@@ -323,7 +468,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity25b =
+    function ()
+    {
+      var src = "function g(p) {p.x=4}; function f(h){var o={}; h(o); return o.x}; while (true) f(g);";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity26 =
@@ -334,7 +490,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(isPureFunction(f, result));
+      assertFalse(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity26b =
+    function ()
+    {
+      var src = "var z=0; function g(p) {z=z+1;p.x=z}; function f(h){var o={}; h(o); return o.x}; while (true) f(g);";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertFalse(isPureFunction(ast, f, result));
     }
     
   module.testPurity27 =
@@ -345,10 +512,10 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
     
-  module.testPurity28 = // returns a
+  module.testPurity28 = 
     function ()
     {
       var src = "function g(){return {x:3}}; function f(h){return h()}; f(g)";
@@ -356,7 +523,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity28b = 
+    function ()
+    {
+      var src = "function g(){return {x:3}}; function f(h){return h()}; while (true) f(g);";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity29 =
@@ -367,7 +545,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    }
+
+  module.testPurity29b =
+    function ()
+    {
+      var src = "function f(){function g(){var l=3; return l}; return g()}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     }
 
   module.testPurity30 =
@@ -378,7 +567,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity30b =
+    function ()
+    {
+      var src = "function g(){var l=3; return l}; function f(){return g()}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity31 =
@@ -389,7 +589,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    }
+    
+  module.testPurity31b =
+    function ()
+    {
+      var src = "function g(){var l=3; return l}; function f(h){return h()}; while (true) f(g);";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     }
     
   module.testPurity32 =
@@ -400,7 +611,18 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
+    }
+  
+  module.testPurity32b =
+    function ()
+    {
+      var src = "function f(){var l=3;function g(){return l}; l=l+1; return g()}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
     }
   
   module.testPurity33 =
@@ -411,10 +633,21 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
   
-  module.testPurity34 = // returns a
+  module.testPurity33b =
+    function ()
+    {
+      var src = "function f(){var l=3;function g(){l=l+1;return l}; l=l+1; return g()}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
+    }
+  
+  module.testPurity34 =
     function ()
     {
       var src = "function f(){var o={}; function g() {return {x:o}}; return g()}; f()";
@@ -422,8 +655,20 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
+  
+  module.testPurity34b =
+    function ()
+    {
+      var src = "function f(){var o={}; function g() {return {x:o}}; return g()}; while (true) f();";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
+    }
+
   
   module.testPurity35 =
     function ()
@@ -433,7 +678,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(isPureFunction(f, result));
+      assertFalse(isPureFunction(ast, f, result));
     }
   
   module.testPurity36 =
@@ -444,7 +689,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
   
   module.testFib =
@@ -455,7 +700,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "fib"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }
   
   module.testPurity37 = 
@@ -466,7 +711,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }   
   
   module.testPurity38 = 
@@ -477,7 +722,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(isPureFunction(f, result));
+      assertFalse(isPureFunction(ast, f, result));
     }   
   
   module.testPurity39 = 
@@ -488,7 +733,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(isPureFunction(f, result));
+      assertFalse(isPureFunction(ast, f, result));
     }   
   
   module.testPurity40 = 
@@ -499,7 +744,7 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertFalse(isPureFunction(f, result));
+      assertFalse(isPureFunction(ast, f, result));
     }   
   
   module.testPurity41 = 
@@ -510,8 +755,21 @@ var suiteJipdaDepTests =
       var cesk = createCesk();
       var result = cesk.explore(ast);
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
-      assertTrue(isPureFunction(f, result));
+      assertTrue(isPureFunction(ast, f, result));
     }   
+  
+  module.testPurity42 =
+    function ()
+    {
+      var src = "function f(x){var xx = x;return xx};f(f(123))";
+      var ast = Ast.createAst(src);
+      var cesk = createCesk();
+      var result = cesk.explore(ast);
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === "f"})[0];
+      assertTrue(isPureFunction(ast, f, result));
+    }
+   
+  
   
   return module;
 

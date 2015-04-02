@@ -556,6 +556,7 @@ Ast.createAst =
     {
       return ast;
     }
+    var p;
     for (var i = 0; i < cs.length; i++)
     {
       if (p = parent(node, cs[i]))
@@ -724,7 +725,7 @@ Ast.functionScopeDeclarations =
     return result;
   }
 
-Ast.enclosingScope =
+Ast.enclosingFunScope =
   function (node, ast)
   {
     var p = parent(node, ast);
@@ -752,16 +753,16 @@ Ast.findDeclarationNode =
   function (nameNode, ast)
   {
     var name = nameNode.name;
-    var enclosingScope = Ast.enclosingScope(nameNode, ast);
-    while (enclosingScope)
+    var enclosingFunScope = Ast.enclosingFunScope(nameNode, ast);
+    while (enclosingFunScope)
     {
-      var varScope = Ast.functionScopeDeclarations(enclosingScope);
+      var varScope = Ast.functionScopeDeclarations(enclosingFunScope);
       var node = varScope[name];
       if (node)
       {
         return node;
       }
-      enclosingScope = Ast.enclosingScope(enclosingScope, ast);
+      enclosingFunScope = Ast.enclosingFunScope(enclosingFunScope, ast);
     }
     return false;
   }
