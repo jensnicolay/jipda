@@ -38,7 +38,7 @@ function runBenchmarks(benchmarks)
       print("sgTime", Formatter.displayTime(sgTime), "states", system.numStates);
 
       var pmStart = Date.now();
-      var pmap = computePurity(system.initial, system.sstore);
+      var pmap = computePurity(ast, system.initial, system.sstore);
       var pmTime = Date.now() - pmStart;
       
       print("pmTime", Formatter.displayTime(pmTime), "count", pmap.count());
