@@ -107,7 +107,7 @@ function Store(map)
 Store.empty =
   function ()
   {
-    return new Store(HashMap.empty());
+    return new Store(TrieMap.empty());
   }
 
 Store.prototype.equals =

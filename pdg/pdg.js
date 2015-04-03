@@ -133,11 +133,10 @@ Pdg.functionsCalled =
     {
       result = ArraySet.empty();
       var system = Pdg._explore(ast);
-      var sstore = system.sstore;
-      sstore.forEach(
-        function (entry)
+      var contexts = system.contexts;
+      contexts.forEach(
+        function (ctx)
         {
-          var ctx = entry[0];
           var ex = ctx.ex;
           if (ex === callExpression)
           {

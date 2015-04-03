@@ -66,36 +66,8 @@ function jsCesk(cc)
   var errorProtoRef = l.abstRef(errorPa);
   
   var sstorei = 0;
-  var sstore = MutableHashMap.empty(10007);
-  
   var contexts = MutableHashSet.empty(10007);
     
-  function allocateStack(ctx, lkont, kont)
-  {
-    var stack = [lkont, kont];
-    var stacks = sstore.get(ctx);
-    if (stacks)
-    {
-      
-      if (stacks.contains(stack))
-      {
-        return;
-      }
-      
-//      var stackValues = stacks.values();
-//      print("CURRENT", stackValues.join("\n"));
-//      print("ADDING", stack);
-//      if (stackValues.length === 9)
-//      { debugger }
-      
-      sstore.put(ctx, stacks.add(stack));
-      sstorei++;
-      return;
-    }
-    sstore.put(ctx, ArraySet.from1(stack));
-    // sstorei++; don't increase age for fresh stack: no need to revisit states
-  }
-  
 //function stackFrames(lkont, kont)
 //{
 //  var todo = [kont];
@@ -131,6 +103,7 @@ function jsCesk(cc)
     this.store = store;
     this.as = as;
     this._hashCode = undefined;
+    this._stacks = null;
   }
   
   Context.prototype.equals =
@@ -792,15 +765,30 @@ function jsCesk(cc)
       // we still might want to return 'this'
       stackAs = stackAs.add(thisa);
     }
+    var stack = [lkont, kont];
     var ctx0 = new Context(application, this, operandValues, thisa, store, stackAs);
     var ctx = contexts.get(ctx0);
     if (!ctx)
     {
       ctx = ctx0;
       ctx._id = contexts.count();
-      contexts.add(ctx0);
+      ctx._stacks = new MutableHashSet(7);
+      ctx._stacks.add(stack);
+      contexts.add(ctx);
+      
+      // sstorei++; don't increase age for fresh stack: no need to revisit states
     }
-    allocateStack(ctx, lkont, kont);
+    else
+    {
+      if (ctx._stacks.contains(stack))
+      {
+      }
+      else
+      {
+        ctx._stacks.add(stack);
+        sstorei++;
+      }
+    }
 
     var nodes = bodyNode.body;    
     if (nodes.length === 0)
@@ -1003,7 +991,7 @@ function jsCesk(cc)
           value = L_UNDEFINED;
         }
         
-        return sstore.get(kont).map(
+        return kont._stacks.map(
           function (stack)
           {
             return {state:new KontState(value, store, stack[0], stack[1]), effects:[]};
@@ -1094,7 +1082,7 @@ function jsCesk(cc)
       var lkont = this.lkont;
       var store = this.store;
             
-      var result = sstore.get(kont).values().map(
+      var result = kont._stacks.map(
           function (st)
           {
             return {state:new KontState(value, store, st[0], st[1]), effects: []};
@@ -1202,7 +1190,7 @@ function jsCesk(cc)
         continue;
       }
         
-      sstore.get(kont).values().forEach(
+      kont._stacks.forEach(
         function (st)
         {
           todo.push([st[0],st[1]]);
@@ -4141,12 +4129,12 @@ function applyBinaryOperator(operator, leftValue, rightValue)
           todo.push(s2);
           if (id % 10000 === 0)
           {
-            print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length, "ctxs", sstore.count(), "sstorei", sstorei);
+            print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length, "ctxs", contexts.count(), "sstorei", sstorei);
           }
         }            
       }
 //      print("sstorei-skip", skipped1, "eval-skip", skipped2, "nexted", nexted);
-      return {initial:initial, result:result, sstore:sstore, numStates:id, time:performance.now()-startTime};
+      return {initial:initial, result:result, contexts:contexts, states:visited, time:performance.now()-startTime};
     }
   
   module.concExplore =

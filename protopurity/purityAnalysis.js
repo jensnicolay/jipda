@@ -12,7 +12,7 @@ function computePurity(ast, initial, sstore)
         continue;
       }
       visited = visited.add(kont);
-      var stacks = sstore.get(kont);
+      var stacks = kont._stacks;
       stacks.values().forEach(
         function (stack)
         {

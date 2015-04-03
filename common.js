@@ -1693,7 +1693,7 @@ MutableArraySet.prototype.every =
 
 function MutableHashSet(size)
 {
-  this._buckets = new Array(size || 59);
+  this._buckets = new Array(size || 31);
   this._count = 0;
 }
 //MutableArraySet.prototype = Object.create(Set.prototype);
@@ -1706,7 +1706,7 @@ MutableHashSet.empty =
 MutableHashSet.from =
   function (arr)
   {
-    var set = new MutableHashSet(arr.length);
+    var set = new MutableHashSet(Math.max(31, arr.length));
     for (var i = 0; i < arr.length; i++)
     {
       set.add(arr[i]);
@@ -1848,6 +1848,21 @@ MutableHashSet.prototype.forEach =
         bucket.forEach(f, th);
       }
     }
+  }
+
+MutableHashSet.prototype.map =
+  function (f, th)
+  {
+    var result = [];
+    for (var i = 0; i < this._buckets.length; i++)
+    {
+      var bucket = this._buckets[i];
+      if (bucket)
+      {
+        result = result.concat(bucket.map(f, th));
+      }
+    }
+    return result;
   }
 
 MutableHashSet.prototype.reduce =
