@@ -181,7 +181,7 @@ function computePurity(ast, initial, sstore)
               funRdeps.forEach(
                 function (funRdep)
                 {
-                  print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
+//                  print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
                   addOdep(effectAddress, effectName, funRdep);
                 })
             }
@@ -191,7 +191,7 @@ function computePurity(ast, initial, sstore)
               funOdeps.forEach(
                 function (funOdep)
                 {
-                  print(t._id, "observer", funOdep.loc.start.line, effectAddress, effectName);
+//                  print(t._id, "observer", funOdep.loc.start.line, effectAddress, effectName);
                   markObserver(funOdep);
                 })
             }
@@ -204,7 +204,7 @@ function computePurity(ast, initial, sstore)
                 {
                   if (effectName.tag > -1 && declarationNodeLocalToFun(effectName, fun)) // var && local
                   {
-                    print(effect, ctx, "local r/w var effect");
+//                    print(effect, ctx, "local r/w var effect");
                     return;
                   }
 
@@ -213,20 +213,20 @@ function computePurity(ast, initial, sstore)
                   {
                     if (effect.isWriteEffect())
                     {
-                      print(effect, ctx, "non-local write addr effect");
-                      print(t._id, "procedure", fun.loc.start.line, effectAddress, effectName);
+//                      print(effect, ctx, "non-local write addr effect");
+//                      print(t._id, "procedure", fun.loc.start.line, effectAddress, effectName);
                       markProcedure(fun);
                     }
                     else // read
                     {
-                      print(effect, ctx, "non-local read addr effect");
-                      print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
+//                      print(effect, ctx, "non-local read addr effect");
+//                      print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
                       addRdep(effectAddress, effectName, fun);
                     }
                   }
                   else // local
                   {
-                    print(effect, ctx, "local r/w addr effect");
+//                    print(effect, ctx, "local r/w addr effect");
                   }
                 }
               }) // end for each ctx

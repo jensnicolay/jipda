@@ -67,6 +67,8 @@ function jsCesk(cc)
   
   var sstorei = 0;
   var sstore = MutableHashMap.empty(10007);
+  
+  var contexts = MutableHashSet.empty(10007);
     
   function allocateStack(ctx, lkont, kont)
   {
@@ -790,7 +792,14 @@ function jsCesk(cc)
       // we still might want to return 'this'
       stackAs = stackAs.add(thisa);
     }
-    var ctx = new Context(application, this, operandValues, thisa, store, stackAs);
+    var ctx0 = new Context(application, this, operandValues, thisa, store, stackAs);
+    var ctx = contexts.get(ctx0);
+    if (!ctx)
+    {
+      ctx = ctx0;
+      ctx._id = contexts.count();
+      contexts.add(ctx0);
+    }
     allocateStack(ctx, lkont, kont);
 
     var nodes = bodyNode.body;    
@@ -4184,76 +4193,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   return module; 
 }
 
-
-//var D_previouskeys = ArraySet.empty();
-//
-//module.explore =
-//function (ast)
-//{
-//  var yes = 0;
-//  var sstoreTimes = MutableHashMap.empty(911);
-//  var graph = Graph.empty();
-//  var initial = this.inject(ast);
-//  var todo = [initial];
-//  while (todo.length > 0)
-//  {
-//    var s = todo.shift();
-////    if (states.length > 10000)
-////    {
-////      print("states size >>", todo.length);
-////      break;
-////    }
-//    var kont = s.kont;
-//    var currentTime = (kont === EMPTY_KONT) ? 0 : sstore.get(kont).count();
-//    if (graph.containsSource(s))
-//    {
-//      var sstoreTime = sstoreTimes.get(s);
-//      if (sstoreTime === currentTime)
-//      {
-//        continue;
-//      }
-//    }
-//    else
-//    {
-//      
-////        var currentKeys = ArraySet.from(sstore.keys());
-////        var addedKeys = currentKeys.subtract(D_previouskeys);
-////        D_previouskeys = currentKeys;
-////        print("\nyes", yes, "sstore size", sstore.count());
-////        // ex, callable, args, thisa, store, as
-////        addedKeys.forEach(function (key) {print(key.ex, storeI.index(key.store), key.store.map.count())});
-////        if (sstore.count() > 1024)
-////        {
-////          print("sstore size >>");
-////          break;
-////        }
-//    }
-//    sstoreTimes.put(s, currentTime);
-//    var next = s.next();//.map(function (ss) {return {state:ss.state.gc(), effects:ss.effects}});
-//    for (var i = 0; i < next.length; i++)
-//    {
-//      var t2 = next[i];
-//      var s2 = t2.state;
-//      var m2 = t2.effects;
-//      if (graph.containsEdge(new Edge(s, m2, s2)))
-//      {
-//        yes++;
-////        print("AGAIN", Arrays.indexOf(s, states), "->", Arrays.indexOf(s2, states));
-//      }
-//      else
-//      {
-//        graph = graph.addEdge(new Edge(s, m2, s2));            
-//      }
-//      if (!Arrays.contains(s2, todo))
-//      {            
-//        todo.push(s2);
-//      }
-//    }
-//  }
-//  print("YES", yes);
-//  return {initial: initial, graph:graph, sstore:sstore};
-//}
-//
 //module.explore =
 //function (ast)
 //{ // orig
