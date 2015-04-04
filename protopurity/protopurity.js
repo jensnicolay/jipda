@@ -35,10 +35,10 @@ function runBenchmarks(benchmarks)
       var system = cesk.explore(ast);
       var sgTime = Date.now() - sgStart;
 
-      print("sgTime", Formatter.displayTime(sgTime), "states", system.numStates);
+      print("sgTime", Formatter.displayTime(sgTime), "states", system.states.count());
 
       var pmStart = Date.now();
-      var pmap = computePurity(ast, system.initial, system.sstore);
+      var pmap = computePurity(ast, system.initial, system.contexts);
       var pmTime = Date.now() - pmStart;
       
       print("pmTime", Formatter.displayTime(pmTime), "count", pmap.count());

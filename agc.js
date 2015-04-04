@@ -1,17 +1,18 @@
 "use strict";
+"use strong";
 
-var Agc = {};
+const Agc = {};
 
 Agc.collect =
   function (store, rootSet)
   {
-    var reachable = MutableHashSet.empty(); 
+    const reachable = MutableHashSet.empty(); 
     Agc.addressesReachable(rootSet, store, reachable);
     if (reachable.count() === store.map.count()) // we can do this since we have subsumption
     {
       return store;
     }
-    var store2 = store.narrow(reachable);
+    const store2 = store.narrow(reachable);
     return store2;
   }
 
@@ -28,8 +29,8 @@ Agc.addressReachable =
     {
       return;
     }
-    var aval = store.lookupAval(address);
-    var addresses = aval.addresses();
+    const aval = store.lookupAval(address);
+    const addresses = aval.addresses();
     reachable.add(address);
     Agc.addressesReachable(addresses, store, reachable);
   }

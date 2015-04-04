@@ -26,8 +26,8 @@ StoreValue.prototype.equals =
 StoreValue.prototype.hashCode =
   function ()
   {
-    var prime = 31;
-    var result = 1;
+    const prime = 31;
+    let result = 1;
     result = prime * result + this.aval.hashCode();
     result = prime * result + this.fresh;
     return result;    
@@ -149,14 +149,14 @@ Store.prototype.subsumes =
 Store.prototype.diff = // debug
   function (x)
   {
-    var diff = [];
-    var entries = this.map.entries();
-    for (var i = 0; i < entries.length; i++)
+    const diff = [];
+    const entries = this.map.entries();
+    for (let i = 0; i < entries.length; i++)
     {
-      var entry = entries[i];
-      var address = entry[0];
-      var value = entry[1];
-      var xvalue = x.map.get(address);
+      const entry = entries[i];
+      const address = entry[0];
+      const value = entry[1];
+      const xvalue = x.map.get(address);
       if (xvalue)
       {
         if (!value.equals(xvalue))
@@ -176,13 +176,13 @@ Store.prototype.diff = // debug
         diff.push(address + ":\n\t" + value + " (" + value.fresh + ")\n\t<undefined>");
       }
     }
-    var xentries = x.map.entries();
+    const xentries = x.map.entries();
     for (i = 0; i < xentries.length; i++)
     {
-      var xentry = xentries[i];
-      address = xentry[0];
-      xvalue = xentry[1];
-      var value = this.map.get(address);
+      const xentry = xentries[i];
+      const address = xentry[0];
+      const xvalue = xentry[1];
+      const value = this.map.get(address);
       if (!value)
       {
         diff.push(address + ":\n\t<undefined>\n\t" + xvalue + " (" + xvalue.fresh + ")");
@@ -194,7 +194,7 @@ Store.prototype.diff = // debug
 Store.prototype.toString =
   function ()
   {
-    var entries = this.map.entries();
+    const entries = this.map.entries();
     return "{" + entries.map(
       function (entry)
       {
@@ -205,7 +205,7 @@ Store.prototype.toString =
 Store.prototype.nice =
   function ()
   {
-  var entries = this.map.entries();
+    const entries = this.map.entries();
     return "\n{\n" + entries.map(
       function (entry)
       {
@@ -216,7 +216,7 @@ Store.prototype.nice =
 Store.prototype.lookupAval =
   function (address)
   {
-    var value = this.map.get(address);
+    const value = this.map.get(address);
     if (value)
     {
       return value.aval;
@@ -227,33 +227,33 @@ Store.prototype.lookupAval =
 Store.prototype.allocAval =
   function (address, aval)
   {
-    var value = this.map.get(address);
+    const value = this.map.get(address);
     if (value && value.fresh !== 0)
     {
-      var weaklyUpdatedValue = value.weakUpdate(aval);
-      var store = new Store(this.map.put(address, weaklyUpdatedValue)); 
+      const weaklyUpdatedValue = value.weakUpdate(aval);
+      const store = new Store(this.map.put(address, weaklyUpdatedValue)); 
       return store;
     }
-    var newValue = new StoreValue(aval);
+    const newValue = new StoreValue(aval);
     return new Store(this.map.put(address, newValue));
   };
       
 Store.prototype.weakAllocAval =
   function (address, aval)
   {
-    var value = this.map.get(address);
-    var weaklyUpdatedValue = value ? value.weakUpdate(aval) : new StoreValue(aval, 2);
-    var store = new Store(this.map.put(address, weaklyUpdatedValue)); 
+    const value = this.map.get(address);
+    const weaklyUpdatedValue = value ? value.weakUpdate(aval) : new StoreValue(aval, 2);
+    const store = new Store(this.map.put(address, weaklyUpdatedValue)); 
     return store;
   };
         
 Store.prototype.updateAval =
   function (address, aval)
   {
-    var value = this.map.get(address);
+    const value = this.map.get(address);
     if (value)
     {
-      var updatedValue = value.update(aval);
+      const updatedValue = value.update(aval);
 //      print("UPDATED", address, updatedValue);
       return new Store(this.map.put(address, updatedValue));
     }

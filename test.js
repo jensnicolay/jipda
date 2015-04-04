@@ -1,7 +1,6 @@
 
 function t()
 {
-	b();
 	var result = TestSuite.runSuites(arguments.length === 0 ? undefined : arguments);
 	Test.displayTestResults(result);
 }

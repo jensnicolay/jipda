@@ -1,4 +1,5 @@
 "use strict";
+"use strong";
 
 function Store(map)
 {
@@ -46,14 +47,14 @@ Store.prototype.subsumes =
 Store.prototype.diff = // debug
   function (x)
   {
-    var diff = [];
-    var entries = this.map.entries();
-    for (var i = 0; i < entries.length; i++)
+    const diff = [];
+    const entries = this.map.entries();
+    for (let i = 0; i < entries.length; i++)
     {
-      var entry = entries[i];
-      var address = entry[0];
-      var value = entry[1];
-      var xvalue = x.map.get(address);
+      const entry = entries[i];
+      const address = entry[0];
+      const value = entry[1];
+      const xvalue = x.map.get(address);
       if (xvalue)
       {
         if (!value.equals(xvalue))
@@ -73,13 +74,13 @@ Store.prototype.diff = // debug
         diff.push(address + ":\n\t" + value + "\n\t<undefined>");
       }
     }
-    var xentries = x.map.entries();
+    const xentries = x.map.entries();
     for (i = 0; i < xentries.length; i++)
     {
-      var xentry = xentries[i];
-      address = xentry[0];
-      xvalue = xentry[1];
-      var value = this.map.get(address);
+      const xentry = xentries[i];
+      const address = xentry[0];
+      const xvalue = xentry[1];
+      const value = this.map.get(address);
       if (!value)
       {
         diff.push(address + ":\n\t<undefined>\n\t" + xvalue);
@@ -103,7 +104,7 @@ Store.prototype.nice =
 Store.prototype.lookupAval =
   function (address)
   {
-    var value = this.map.get(address);
+    const value = this.map.get(address);
     if (value)
     {
       return value;
@@ -114,16 +115,16 @@ Store.prototype.lookupAval =
 Store.prototype.allocAval =
   function (address, aval)
   {
-    var map = this.map;
-    var newValue = (map.get(address) || BOT).join(aval);
+    const map = this.map;
+    const newValue = (map.get(address) || BOT).join(aval);
     return new Store(map.put(address, newValue));
   }
     
 Store.prototype.updateAval =
   function (address, aval)
   {
-    var map = this.map;
-    var value = map.get(address);
+    const map = this.map;
+    const value = map.get(address);
     if (value === undefined)
     {
       throw new Error("no value at address " + address);  

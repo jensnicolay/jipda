@@ -8,15 +8,15 @@ var EMPTY_ADDRESS_SET = ArraySet.empty();
 function jsCesk(cc)
 {
   // address generator
-  var a = cc.a;
+  const a = cc.a;
   // lattice
-  var l = cc.l || new JipdaLattice();
+  const l = cc.l || new JipdaLattice();
   // atomic evaluation
-  var aeFlag = cc.ae === undefined ? true : cc.ae;
+  const aeFlag = cc.ae === undefined ? true : cc.ae;
   // gc
-  var gcFlag = cc.gc === undefined ? true : cc.gc;
+  const gcFlag = cc.gc === undefined ? true : cc.gc;
   //
-  var errors = cc.errors === undefined ? false : cc.errors; 
+  const errors = cc.errors === undefined ? false : cc.errors; 
   
   assert(a);
   assert(l);
@@ -994,6 +994,7 @@ function jsCesk(cc)
         return kont._stacks.map(
           function (stack)
           {
+            
             return {state:new KontState(value, store, stack[0], stack[1]), effects:[]};
           });
       }
