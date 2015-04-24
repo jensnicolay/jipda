@@ -65,7 +65,7 @@ function jsCesk(cc)
   var errorPa = allocNative();
   var errorProtoRef = l.abstRef(errorPa);
   
-  var sstorei = 0;
+  const popTodo = [];
   var contexts = MutableHashSet.empty(10007);
     
 //function stackFrames(lkont, kont)
@@ -331,6 +331,7 @@ function jsCesk(cc)
 
   stringP = registerPrimitiveFunction(stringP, stringPa, "charAt", stringCharAt);
   stringP = registerPrimitiveFunction(stringP, stringPa, "charCodeAt", stringCharCodeAt);
+  stringP = registerPrimitiveFunction(stringP, stringPa, "startsWith", stringStartsWith);
     
   store = storeAlloc(store, stringPa, stringP);
   // END STRING 
@@ -395,6 +396,7 @@ function jsCesk(cc)
   global = registerProperty(global, "undefined", L_UNDEFINED);
   global = registerProperty(global, "NaN", l.abst1(NaN));
   global = registerProperty(global, "Infinity", l.abst1(Infinity));
+  global = registerPrimitiveFunction(global, globala, "parseInt", globalParseInt);
 
   // specific interpreter functions
 //  global = registerPrimitiveFunction(global, globala, "$meta", $meta);
@@ -465,6 +467,12 @@ function jsCesk(cc)
   {
     print(operandValues);
     return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];
+  }   
+  
+  function globalParseInt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    var value = operandValues[0].parseInt(); // TODO: 2nd (base) arg
+    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
   }   
   
   function arrayConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
@@ -605,9 +613,17 @@ function jsCesk(cc)
     return [{state:new KontState(value, store, lkont, kont), effects:effects}];
   }
   
+  function stringStartsWith(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    var str = storeLookup(store, thisa);
+    var lprim = str.PrimitiveValue;
+    var value = lprim.startsWith(operandValues[0]);
+    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
+  }
+  
   function errorConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
   {
-    var err = createError(operandValues.length === 1 ? operandValues[0].ToString() : L_EMPTY_STRING);
+    var err = createError(operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING);
     var errAddress = application.tag;
     store = storeAlloc(store, errAddress, err);
     var errRef = l.abstRef(errAddress);
@@ -760,7 +776,7 @@ function jsCesk(cc)
     var bodyNode = funNode.body;
     
     var stackAs = stackAddresses(lkont, kont);
-    if (application.type === "NewExpression")
+    if (Ast.isNewExpression(application))
     {
       // we still might want to return 'this'
       stackAs = stackAs.add(thisa);
@@ -786,7 +802,11 @@ function jsCesk(cc)
       else
       {
         ctx._stacks.add(stack);
-        sstorei++;
+//        sstorei++;
+        if (ctx._poppers)
+        {
+          popTodo.push([ctx._poppers, stack]);
+        }
       }
     }
 
@@ -982,7 +1002,7 @@ function jsCesk(cc)
           return [];
         }
                 
-        if (kont.ex.type === "NewExpression")
+        if (Ast.isNewExpression(kont.ex))
         {
           value = l.abstRef(kont.thisa);
         }
@@ -990,6 +1010,14 @@ function jsCesk(cc)
         {
           value = L_UNDEFINED;
         }
+        
+        var poppers = kont._poppers;
+        if (!poppers)
+        {
+          poppers = new MutableHashSet(7);
+          kont._poppers = poppers;
+        }
+        poppers.add(this);
         
         return kont._stacks.map(
           function (stack)
@@ -1066,7 +1094,7 @@ function jsCesk(cc)
         return [];
       }      
 
-      if (kont.ex.type === "NewExpression")
+      if (Ast.isNewExpression(kont.ex))
       {
         var returnValue = BOT;
         if (value.isRef())
@@ -1082,7 +1110,15 @@ function jsCesk(cc)
 
       var lkont = this.lkont;
       var store = this.store;
-            
+      
+      var poppers = kont._poppers;
+      if (!poppers)
+      {
+        poppers = new MutableHashSet(7);
+        kont._poppers = poppers;
+      }
+      poppers.add(this);
+      
       var result = kont._stacks.map(
           function (st)
           {
@@ -1154,7 +1190,7 @@ function jsCesk(cc)
       var kont = this.kont;
       var store = this.store;
       
-      var stacks = ThrowState.stackPop(lkont, kont);
+      var stacks = this.stackPop(lkont, kont);
       return stacks.flatMap(
         function (stack)
         {
@@ -1166,7 +1202,7 @@ function jsCesk(cc)
         });
     }
   
-  ThrowState.stackPop = function (lkont, kont)
+  ThrowState.prototype.stackPop = function (lkont, kont)
   {
     var todo = [[lkont, kont]];
     var result = [];
@@ -1197,6 +1233,13 @@ function jsCesk(cc)
           todo.push([st[0],st[1]]);
         });
       G = G.add(kont);
+      var poppers = kont._poppers;
+      if (!poppers)
+      {
+        poppers = new MutableHashSet(7);
+        kont._poppers = poppers;
+      }
+      poppers.add(this);
     }
     return result;
   }
@@ -1999,7 +2042,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   
       if (operands.length === 0)
       {
-        if (node.type === "NewExpression")
+        if (Ast.isNewExpression(node))
         {
           return applyCons(node, operatorValue, [], benv, store, lkont, kont, []);
         }
@@ -2072,7 +2115,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   
       if (i === operands.length)
       {
-        if (node.type === "NewExpression")
+        if (Ast.isNewExpression(node))
         {
           return applyCons(node, operatorValue, operandValues.addLast(operandValue), benv, store, lkont, kont, []);
         }
@@ -3004,7 +3047,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
           var operatorValue = doProtoLookup(nameValue, ArraySet.from1(thisa), store, effects); 
           if (operands.length === 0)
           {
-            if (application.type === "NewExpression")
+            if (Ast.isNewExpression(application))
             {
               return applyCons(application, operatorValue, [], benv, store, lkont, kont, effects);
             }
@@ -3764,7 +3807,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
             }
             if (i === operands.length)
             {
-              if (node.type === "NewExpression")
+              if (Ast.isNewExpression(node))
               {
                 return applyCons(node, operatorValue, operandsValues, benv, store, lkont, kont, effects);
               }
@@ -3794,7 +3837,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       }
       if (i === operands.length)
       {
-        if (node.type === "NewExpression")
+        if (Ast.isNewExpression(node))
         {
           return applyCons(node, operatorValue, operandsValues, benv, store, lkont, kont, effects);
         }
@@ -4088,55 +4131,125 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       visited.add(initial);
       var result = ArraySet.empty();
       var todo = [initial];
-      while (todo.length > 0)
+      while (todo.length > 0 || popTodo.length > 0)
       {
-        var s = todo.pop();
-        if (s._sstorei === sstorei)
+        while (todo.length > 0)
         {
-          continue;
-        }
-        s._sstorei = sstorei;
-        var next = s._successors;
-        if (next && s instanceof EvalState)
-        {
+          var s = todo.pop();
+          var next = s.next();
+          s._successors = next;
+          if (next.length === 0)
+          {
+            result = result.add(s);
+            continue;
+          }
           for (var i = 0; i < next.length; i++)
           {
             var t2 = next[i];
             var s2 = t2.state;
+            var ss2 = visited.get(s2);
+            if (ss2)
+            {
+              t2.state = ss2;
+              continue;
+            }
+            visited.add(s2);
+            s2._id = id++;
             todo.push(s2);
-          }
-          continue;
+            if (id % 10000 === 0)
+            {
+              print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length + "/" + popTodo.length, "ctxs", contexts.count());//, "sstorei", sstorei);
+            }
+          }            
         }
-        next = s.next();
-        s._successors = next;
-        if (next.length === 0)
+        while (popTodo.length > 0)
         {
-          result = result.add(s);
-          continue;
+          var poppy = popTodo.pop();
+          var poppers = poppy[0];
+          var stack = poppy[1];
+          poppers.forEach(
+            function (popper)
+            {
+              var todoS = new KontState(popper.value, popper.store, stack[0], stack[1]);
+              var s2 = visited.get(todoS);
+              if (s2)
+              {
+                popper._successors.push({state:s2, effects: []});
+              }
+              else
+              {
+                visited.add(todoS);
+                todoS._id = id++;
+                popper._successors.push({state:todoS, effects: []});
+                todo.push(todoS);
+              }
+            });
         }
-        for (var i = 0; i < next.length; i++)
-        {
-          var t2 = next[i];
-          var s2 = t2.state;
-          var ss2 = visited.get(s2);
-          if (ss2)
-          {
-            t2.state = ss2;
-            todo.push(ss2);
-            continue;
-          }
-          visited.add(s2);
-          s2._id = id++;
-          todo.push(s2);
-          if (id % 10000 === 0)
-          {
-            print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length, "ctxs", contexts.count(), "sstorei", sstorei);
-          }
-        }            
       }
 //      print("sstorei-skip", skipped1, "eval-skip", skipped2, "nexted", nexted);
       return {initial:initial, result:result, contexts:contexts, states:visited, time:performance.now()-startTime};
     }
+  
+//  module.explore =
+//    function (ast)
+//    {
+//      var startTime = performance.now();
+//      var id = 0;
+//      var visited = MutableHashSet.empty(104729);
+//      var initial = this.inject(ast);
+//      initial._id = id++;
+//      visited.add(initial);
+//      var result = ArraySet.empty();
+//      var todo = [initial];
+//      while (todo.length > 0)
+//      {
+//        var s = todo.pop();
+//        if (s._sstorei === sstorei)
+//        {
+//          continue;
+//        }
+//        s._sstorei = sstorei;
+//        var next = s._successors;
+//        if (next && s instanceof EvalState)
+//        {
+//          for (var i = 0; i < next.length; i++)
+//          {
+//            var t2 = next[i];
+//            var s2 = t2.state;
+//            todo.push(s2);
+//          }
+//          continue;
+//        }
+//        next = s.next();
+//        s._successors = next;
+//        if (next.length === 0)
+//        {
+//          result = result.add(s);
+//          continue;
+//        }
+//        for (var i = 0; i < next.length; i++)
+//        {
+//          var t2 = next[i];
+//          var s2 = t2.state;
+//          var ss2 = visited.get(s2);
+//          if (ss2)
+//          {
+//            t2.state = ss2;
+//            todo.push(ss2);
+//            continue;
+//          }
+//          visited.add(s2);
+//          s2._id = id++;
+//          todo.push(s2);
+//          if (id % 10000 === 0)
+//          {
+//            print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length, "ctxs", contexts.count(), "sstorei", sstorei);
+//          }
+//        }            
+//      }
+////      print("sstorei-skip", skipped1, "eval-skip", skipped2, "nexted", nexted);
+//      return {initial:initial, result:result, contexts:contexts, states:visited, time:performance.now()-startTime};
+//    }
   
   module.concExplore =
     function (ast)

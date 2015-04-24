@@ -66,10 +66,22 @@ ConcValue.prototype.charCodeAt =
     return new ConcValue(this.value.charCodeAt(x.value));
   }
 
+ConcValue.prototype.startsWith =
+  function (x)
+  {
+    return new ConcValue(this.value.startsWith(x.value));
+  }
+
 ConcValue.prototype.stringLength =
   function (x)
   {
     return new ConcValue(this.value.length);
+  }
+
+ConcValue.prototype.parseInt =
+  function ()
+  {
+    return new ConcValue(parseInt(this.value, 10));
   }
 
 ConcValue.prototype.ToNumber =

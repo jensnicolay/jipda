@@ -12,7 +12,8 @@ Array.prototype.toString =
       return "[]";
     }
     var s = "[";
-    for (var i = 0; i < this.length - 1; i++)
+    var i = 0;
+    for (; i < this.length - 1; i++)
     {
       s += this[i] + ","; 
     }

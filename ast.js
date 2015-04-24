@@ -9,7 +9,7 @@ var Ast = {}
     switch (node.type)
     {
       case "Literal":
-        return ""+node.value;
+        return String(node.value);
       case "Identifier": 
         return node.name;
       case "BinaryExpression": 
@@ -190,7 +190,8 @@ Ast.isVariableDeclarator =
     return n.type === "FunctionExpression";
   }
   
-  function isNewExpression(n)
+Ast.isNewExpression =
+  function (n)
   {
     return n.type === "NewExpression";
   }

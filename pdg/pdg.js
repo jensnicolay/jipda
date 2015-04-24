@@ -48,7 +48,7 @@ Pdg._explore =
 Pdg.getCallExpression =
   function (node)
   {
-    if (Ast.isCallExpression(node))
+    if (Ast.isCallExpression(node) || Ast.isNewExpression(node))
     {
       return node;
     }

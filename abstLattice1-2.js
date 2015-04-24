@@ -190,10 +190,22 @@ Some.prototype.charCodeAt =
     return JipdaValue._NUM;
   }
 
+Some.prototype.startsWith =
+  function (x)
+  {
+    return JipdaValue._BOOL;
+  }
+
 Some.prototype.stringLength =
   function (x)
   {
     return new Some(this.prim.length);
+  }
+
+Some.prototype.parseInt =
+  function ()
+  {
+    return new Some(parseInt(this.prim, 0));
   }
 
 function JipdaValue(type, as)
@@ -394,6 +406,20 @@ JipdaValue.prototype.stringLength =
   {
     return JipdaValue._NUMSTR;
   }
+
+JipdaValue.prototype.startsWith =
+  function (x)
+  {
+    return JipdaValue._BOOL;
+  }
+
+JipdaValue.prototype.parseInt =
+  function ()
+  {
+    return JipdaValue._NUM; 
+  }
+
+
 
 
 function JipdaLattice()
