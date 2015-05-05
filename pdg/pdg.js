@@ -1,3 +1,5 @@
+"use strict";
+
 var Pdg = {};
 
 Pdg.declarationOf =
@@ -58,7 +60,73 @@ Pdg.getCallExpression =
     }
   }
 
-Pdg.values =
+Pdg._epsSuccessors =
+  function (node, ast)
+  {
+    var result = node._epsSuccessors;
+    if (!result)
+    {
+      var system = Pdg._explore(ast);
+      var states = system.states;
+      var result = ArraySet.empty();
+      function handle(s, n)
+      {
+        if (n === node)
+        {
+          var todo = s._successors.map(function (t) {return t.state});
+          var visited = ArraySet.empty();
+          while (todo.length > 0)
+          {
+            var ss = todo.pop();
+            if (visited.contains(ss))
+            {
+              continue;
+            }
+            visited = visited.add(ss);
+            if (ss.kont.equals(s.kont) && ss.lkont.equals(s.lkont))
+            {
+              result = result.add(ss);
+              continue;
+            }
+            ss._successors.forEach(function (t) {todo.push(t.state)});
+          }
+        }
+        else if (n.type === "ExpressionStatement")
+        {
+          return handle(s, n.expression);
+        }
+        else
+        {
+          var children = Ast.children(n);
+          var i = 0;
+          while (i < children.length && system.isAtomic(children[i]))
+          {
+            if (children[i] === node)
+            {
+              result = result.add(s);
+            }
+            i++;
+          }
+        }
+      }
+      states.forEach(
+        function (s)
+        {
+          if (s.node)
+          {
+            var n = s.node;
+            if (n)
+            {
+              handle(s, n);
+            }
+          }
+        });
+      node._epsSuccessors = result;
+    }
+    return result;
+  }
+
+Pdg.values = // TODO rewrite calling _epsSuccessors
   function (node, ast)
   {
     var result = node._values;
@@ -153,7 +221,7 @@ Pdg.functionsCalled =
   }
 
 Pdg.isConstructor =
-  function (funNode)
+  function (funNode, ast) // TODO what if function is not called (solve with global flag?)
   {
     if (funNode._isConstructor === undefined)
     {
@@ -178,4 +246,14 @@ Pdg.isConstructor =
         });
     }
     return !!funNode._isConstructor;
+  }
+
+Pdg.writeAccess =
+  function (node)
+  {
+    var result = node._writeAccess;
+    if (!result)
+    {
+      result = [];
+    }
   }

@@ -533,6 +533,14 @@ var suiteJipdaDepTests =
       test(src, ["f", PURE, "g", OBS]);
     }
   
+  module.testPurity44 =
+  function ()
+  {
+    var src = "function f(n){return f(n-1)}; f(123);";
+    test(src, ["f", PURE]);
+  }  
+  
+  
   return module;
 
 })()

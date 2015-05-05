@@ -104,6 +104,7 @@ function jsCesk(cc)
     this.as = as;
     this._hashCode = undefined;
     this._stacks = null;
+    this._id = null;
   }
   
   Context.prototype.equals =
@@ -147,7 +148,7 @@ function jsCesk(cc)
   Context.prototype.toString =
     function ()
     {
-      return "@" + this.ex;
+      return "@" + this._id;
     }
   
   function stackAddresses(lkont, kont)
