@@ -1199,6 +1199,10 @@ function jsCesk(cc)
           var kont = stack[1];
           var frame = lkont[0];
           var lkont2 = lkont.slice(1);
+          if (!frame.applyThrow)
+          {
+            print("!!", frame);
+          }
           return frame.applyThrow(value, store, lkont2, kont);
         });
     }
@@ -1218,8 +1222,8 @@ function jsCesk(cc)
       {
         if (lkont[i].applyThrow)
         {
-          result.push(stack);
-          break todo;
+          result.push([lkont.slice(i), kont]);
+          continue todo;
         }
       }
       if (kont === EMPTY_KONT || G.contains(kont))
