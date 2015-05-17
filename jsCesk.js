@@ -861,8 +861,93 @@ function jsCesk(cc)
       var funNode = this.node;
       var obj = createObject(protoRef);
       var thisa = a.constructor(funNode); /// TODO: funNode and funNode.body already in use as address
-      store = storeAlloc(store, thisa, obj);
-      return this.applyFunction(application, operandValues, thisa, benv, store, lkont, kont, effects);
+      //return this.applyFunction(application, operandValues, thisa, benv, store, lkont, kont, effects);
+      
+      var stackAs = stackAddresses(lkont, kont);
+      var stack = [lkont, kont];
+      var ctx0 = new Context(application, this, operandValues, thisa, store, stackAs);
+      var ctx = contexts.get(ctx0);
+      if (!ctx)
+      {
+        ctx = ctx0;
+        ctx._id = contexts.count();
+        ctx._stacks = new MutableHashSet(7);
+        ctx._stacks.add(stack);
+        contexts.add(ctx);
+        
+        // sstorei++; don't increase age for fresh stack: no need to revisit states
+      }
+      else
+      {
+        if (ctx._stacks.contains(stack))
+        {
+        }
+        else
+        {
+          ctx._stacks.add(stack);
+//          sstorei++;
+          if (ctx._poppers)
+          {
+            popTodo.push([ctx._poppers, stack]);
+          }
+        }
+      }
+
+      store = storeAlloc(store, thisa, obj); // only here: new `this` object shouldn't be in caller store
+
+      var funNode = this.node;
+      var bodyNode = funNode.body;
+      var nodes = bodyNode.body;    
+      if (nodes.length === 0)
+      {
+        return [{state:new KontState(L_UNDEFINED, store, [], ctx), effects:effects}];
+      }
+      
+      var extendedBenv = this.scope.extend();
+      extendedBenv = extendedBenv.add("this", thisa);
+      
+      var funScopeDecls = functionScopeDeclarations(funNode);
+      var names = Object.keys(funScopeDecls);
+      if (names.length > 0)
+      {
+        var nodeAddr = names.map(function (name)
+            {
+              var node = funScopeDecls[name];
+              var addr = a.vr(node.id || node);
+              extendedBenv = extendedBenv.add(name, addr);
+              return [node, addr];
+            });
+          nodeAddr.forEach(
+            function (na)
+            {
+              var node = na[0];
+              var addr = na[1];
+              if (Ast.isIdentifier(node)) // param
+              {
+                store = storeAlloc(store, addr, operandValues[node.i]);
+              }
+              else if (Ast.isFunctionDeclaration(node))
+              {
+                var allocateResult = allocateClosure(node, extendedBenv, store, lkont, kont);
+                var closureRef = allocateResult.ref;
+                store = allocateResult.store;
+                store = storeAlloc(store, addr, closureRef);
+              }
+              else if (Ast.isVariableDeclarator(node))
+              {
+                store = storeAlloc(store, addr, L_UNDEFINED);
+              }
+              else
+              {
+                throw new Error("cannot handle declaration " + node);
+              }
+            });
+      }
+      
+      return [{state:new EvalState(bodyNode, extendedBenv, store, [], ctx), effects:effects}];
+      
+      
+      
     }
 
   ObjClosureCall.prototype.addresses =
