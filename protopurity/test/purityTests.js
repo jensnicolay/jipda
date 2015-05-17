@@ -57,12 +57,12 @@ var suiteJipdaDepTests =
       test(src, ["f", PURE]);
     }
     
-//  module.testPurity4v =
-//    function ()
-//    {
-//      var src = "while (true) {var z=false; function f() {return z}; f()}";
-//      test(src, ["f", PURE]);
-//    }
+  module.testPurity4v =
+    function ()
+    {
+      var src = "while (true) {var z=false; function f() {return z}; f()}";
+      test(src, ["f", PURE]);
+    }
     
   module.testPurity5a = 
     function ()
@@ -540,6 +540,12 @@ var suiteJipdaDepTests =
     test(src, ["f", PURE]);
   }  
   
+  module.testPurity45 =
+    function ()
+    {
+      var src = "function F(x){this.x=x};new F(123);";
+      test(src, ["F", PURE]);
+    }
   
   return module;
 

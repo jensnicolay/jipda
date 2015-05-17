@@ -153,7 +153,7 @@ function jsCesk(cc)
   
   function stackAddresses(lkont, kont)
   {
-    var addresses = (kont === EMPTY_KONT ? EMPTY_ADDRESS_SET : kont.as)
+    var addresses = (kont === EMPTY_KONT ? EMPTY_ADDRESS_SET : kont.as.add(kont.thisa))
     for (var i = 0; i < lkont.length; i++)
     {
       var frame = lkont[i];
@@ -772,16 +772,8 @@ function jsCesk(cc)
 
   ObjClosureCall.prototype.applyFunction =
     function (application, operandValues, thisa, benv, store, lkont, kont, effects)
-    {
-    var funNode = this.node;
-    var bodyNode = funNode.body;
-    
+    {    
     var stackAs = stackAddresses(lkont, kont);
-    if (Ast.isNewExpression(application))
-    {
-      // we still might want to return 'this'
-      stackAs = stackAs.add(thisa);
-    }
     var stack = [lkont, kont];
     var ctx0 = new Context(application, this, operandValues, thisa, store, stackAs);
     var ctx = contexts.get(ctx0);
@@ -811,6 +803,8 @@ function jsCesk(cc)
       }
     }
 
+    var funNode = this.node;
+    var bodyNode = funNode.body;
     var nodes = bodyNode.body;    
     if (nodes.length === 0)
     {

@@ -151,7 +151,7 @@ function computePurity(ast, initial)
     return effectName.tag > -1 && declarationNodeLocalToFun(effectName, fun) // var && local
 //      print(effect, ctx, "local r/w var effect");
   }
-
+  
   var todo = [initial];
   while (todo.length > 0)
   {

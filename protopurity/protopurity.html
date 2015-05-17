@@ -43,16 +43,11 @@
 	var ag, lat;
 		
 	/* SHORTCUTS */
-	function bwStack(state)
-	{
-	  return Dsg.bwStack(etg, ecg)(state);
-	}
-	
-	function isPure(f)
+	function purity()
 	{
 	  //console.profile();
-	  var pmap = computePurity(graph, initial, contexts);
-	  var result = !pmap.get(f);
+	  var pmap = computePurity(ast, initial);
+	  displayPurity(ast, pmap);
 	  //console.profileEnd();
 	  return result;
 	}
