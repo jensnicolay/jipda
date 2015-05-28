@@ -11,7 +11,7 @@ A.prototype.f =
 function B()
 {
   var a = new A();
-  a.f();
+  a.f(); // doesn't `return`!
 }
 
 B.prototype.x = 123;

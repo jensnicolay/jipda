@@ -202,9 +202,9 @@ function jsCesk(cc)
     return new Effect(Effect.Operations.READ, a, vr);
   }
   
-  function writeObjectEffect(a, name)
+  function writeObjectEffect(a, name, node)
   {
-    return new Effect(Effect.Operations.WRITE, a, name);
+    return new Effect(Effect.Operations.WRITE, a, name, node);
   }
   
   function writeVarEffect(a, vr)
@@ -590,10 +590,10 @@ function jsCesk(cc)
     effects.push(readObjectEffect(thisa, P_LENGTH));
     var lenStr = len.ToString();
     arr = arr.add(lenStr, operandValues[0]) 
-    effects.push(writeObjectEffect(thisa, lenStr));
+    effects.push(writeObjectEffect(thisa, lenStr, application));
     var len1 = l.add(len, L_1);
     arr = arr.add(P_LENGTH, len1);
-    effects.push(writeObjectEffect(thisa, P_LENGTH))
+    effects.push(writeObjectEffect(thisa, P_LENGTH, application))
     store = storeUpdate(store, thisa, arr);
     return [{state:new KontState(len1, store, lkont, kont), effects:effects}];
   }
@@ -3268,7 +3268,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       {
         return [];
       }      
-      store = doProtoSet(name, updatedValue, objectRef, store, effects);
+      store = doProtoSet(name, updatedValue, objectRef, store, effects, node);
       var resultingValue = node.prefix ? updatedValue : value;
       return [{state:new KontState(resultingValue, store, lkont, kont), effects:effects}];
     }
@@ -3412,7 +3412,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       {
         return [];
       }
-      store = doProtoSet(nameValue, newValue, objectRef, store, effects);
+      store = doProtoSet(nameValue, newValue, objectRef, store, effects, node);
       return [{state:new KontState(newValue, store, lkont, kont), effects:effects}];
     }
   
@@ -3476,7 +3476,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var obj = storeLookup(store, globala);
       var aname = l.abst1(name);
       obj = obj.add(aname, value);
-      effects.push(writeObjectEffect(globala, aname))
+      effects.push(writeObjectEffect(globala, aname, nameNode));
       store = storeUpdate(store, globala, obj);      
     }
     else
@@ -3487,7 +3487,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     return store;
   }
   
-  function doProtoSet(name, value, objectRef, store, effects)
+  function doProtoSet(name, value, objectRef, store, effects, node)
   {
     var benvs = objectRef.addresses().values();
     while (benvs.length !== 0)
@@ -3496,7 +3496,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       benvs = benvs.slice(1);
       var benv = storeLookup(store, a);
       benv = benv.add(name, value);
-      effects.push(writeObjectEffect(a, name));
+      effects.push(writeObjectEffect(a, name, node));
       if (benv.isArray())
       {
         // ES5.1 15.4.5.1 
@@ -3508,7 +3508,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
           if (l.gte(i, len).isTrue())
           {
             benv = benv.add(P_LENGTH, l.add(i, L_1));
-            effects.push(writeObjectEffect(a, P_LENGTH));
+            effects.push(writeObjectEffect(a, P_LENGTH, node));
           }
         }
       }
@@ -3669,12 +3669,12 @@ function applyBinaryOperator(operator, leftValue, rightValue)
             var closureRef = allocateResult.ref;
             store = allocateResult.store;
             obj = obj.add(aname, closureRef);  
-            effects.push(writeObjectEffect(globala, aname));
+            effects.push(writeObjectEffect(globala, aname, node));
           }
           else if (Ast.isVariableDeclarator(node))
           {          
             obj = obj.add(aname, L_UNDEFINED);
-            effects.push(writeObjectEffect(globala, aname));
+            effects.push(writeObjectEffect(globala, aname, node));
           }
           else
           {
@@ -4475,8 +4475,9 @@ function computeResultValue(endStates)
   return {value:result, msgs:msgs};
 }
 
-function Effect(operation, address, name)
+function Effect(operation, address, name, node)
 {
+  this.node = node;
   this.operation = operation;
   this.address = address;
   this.name = name;
@@ -4485,7 +4486,7 @@ Effect.Operations = {READ:"R", WRITE:"W", ALLOC:"A"}
 Effect.prototype.toString =
   function ()
   {
-    return "[" + this.operation + "," + this.address + "," + this.name + "]";
+    return "[" + this.node + ":" + this.operation + "," + this.address + "," + this.name + "]";
   }
 Effect.prototype.equals =
   function (x)

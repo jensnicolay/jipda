@@ -102,12 +102,12 @@
 	  
 	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 	  
-    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date()); 
-    console.profile(profileName);
+//    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date()); 
+//    console.profile(profileName);
     var start = Date.now();
     var system = cesk.explore(ast);
     var time = Date.now() - start;
-    console.profileEnd(profileName);
+//    console.profileEnd(profileName);
     initial = system.initial;
     result = system.result;
     contexts = system.contexts;	  
@@ -116,11 +116,13 @@
     var result = computeResultValue(system.result);
     var resultValue = result.value;
     console.log("result value " + resultValue);
-    if (errors)
+    if (errors && result.msgs.length > 0)
     {
       console.log(result.msgs.join("\n"));
       result.msgs.forEach(function (msg) {logOutput("error", msg)});
     }
+    
+    purity();
 
     if (system.states.count() > 2048)
     {

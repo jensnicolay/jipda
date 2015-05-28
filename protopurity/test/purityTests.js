@@ -547,6 +547,22 @@ var suiteJipdaDepTests =
       test(src, ["F", PURE]);
     }
   
+  module.testTreenode1 =
+    function ()
+    {
+      var src = read("test/resources/treenode1.js");
+      test(src, ["TreeNode", PURE]);
+      test(src, ["f", PURE]);
+    }
+  
+  module.testTreenode =
+    function ()
+    {
+      var src = read("test/resources/treenode.js");
+      test(src, ["TreeNode", PURE]);
+      test(src, ["f", PURE]);
+    }
+  
   return module;
 
 })()
