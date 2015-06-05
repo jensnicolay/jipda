@@ -3412,7 +3412,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       {
         return [];
       }
-      store = doProtoSet(nameValue, newValue, objectRef, store, effects, node);
+      store = doProtoSet(nameValue, newValue, objectRef, store, effects, node.left);
       return [{state:new KontState(newValue, store, lkont, kont), effects:effects}];
     }
   

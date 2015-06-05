@@ -1,19 +1,19 @@
 function getDeclarationNode(nameNode, ast)
 {
-//  if (!nameNode.name)
-//  {
-//    throw new Error("not a name node: " + nameNode);
-//  }
+  if (!nameNode.name)
+  {
+    throw new Error("not a name node: " + nameNode);
+  }
   var declarationNode = nameNode._declarationNode;
   if (!declarationNode)
   {
-    declarationNode = Ast.findDeclarationNode(nameNode, ast);
+    declarationNode = Ast.findDeclarationNode(nameNode.name, nameNode, ast);
     nameNode._declarationNode = declarationNode;
   }
-//  if (!declarationNode)
-//  {
-//    throw new Error("no declaration node for " + nameNode);
-//  }
+  if (!declarationNode)
+  {
+    throw new Error("no declaration node for " + nameNode);
+  }
   return declarationNode;
 }
 
@@ -33,17 +33,42 @@ var IMMUTABLE = "IMM";
 
 function getType(node, ctxHandler, ast)
 {
+  var encl = Ast.enclosingFunScope(node, ast);
   switch (node.type)
   {
     case "ThisExpression":
-      return ctxHandler.env.get("this");
+      return ctxHandler.env.get(encl);
     case "Identifier":
-      return getType(getDeclarationNode(node, ast), ctxHandler, ast);
+      var declarationNode = getDeclarationNode(node, ast);
+      var type = ctxHandler.env.get(declarationNode);
+      if (!type && isFreeVar(declarationNode, encl, ast))
+      {
+        return IMMUTABLE;
+      }
+      else
+      {
+        return type;
+      }
     case "VariableDeclarator":
       return ctxHandler.env.get(node);
+    case "ObjectExpression":
+      return MUTABLE;
+    case "CallExpression":
+      if (node.callee.toString() === "Object.create")
+      {
+        return MUTABLE;
+      }
+      return IMMUTABLE;
     default:
       return IMMUTABLE;
   }
+}
+
+function isFreeVar(declarationNode, fun, ast)
+{
+  var enclosingScope = Ast.enclosingFunScope(declarationNode, ast);
+  var free = !fun.equals(enclosingScope) && Arrays.contains(fun, Ast.nodes(enclosingScope.body));
+  return free;
 }
 
 function computeMutability(ast, initial)
@@ -96,7 +121,7 @@ function computeMutability(ast, initial)
       case "AssignmentExpression":
         var left = node.left;
         var right = node.right;
-//        if (left.type === "Identifier")
+        if (left.type === "Identifier")
         {
           updateType(getDeclarationNode(left, ast), getType(right, ctxHandler, ast), ctxHandler);          
         }
@@ -122,7 +147,7 @@ function computeMutability(ast, initial)
       handlers.put(ctx, ctxHandler);
       var params = fun.params;
       params.forEach(function (param) {updateType(param, IMMUTABLE, ctxHandler)});
-      updateType("this", isConstructorCall(ctx) ? MUTABLE : IMMUTABLE, ctxHandler);
+      updateType(fun, isConstructorCall(ctx) ? MUTABLE : IMMUTABLE, ctxHandler);
       //markPure(fun);
       //age++;
     }
@@ -292,38 +317,41 @@ function computePurity(ast, initial)
 //      print(effect, ctx, "local r/w var effect");
   }
   
-  var mutability = computeMutability(ast, initial);
-  print("mutability computed");
+//  function freeVars(fun, ast)
+//  {
+//    var funNodes = Ast.nodes(fun);
+//    var result = ArraySet.empty();
+//    funNodes.forEach(
+//      function (funNode)
+//      {
+//        if (funNode.name)
+//        {
+//          var declarationNode = Ast.declarationNode(funNode.name, funNode, ast);
+//          
+//        }
+//      }
+//  }
   
-  function isMutable(node, ctx, ast)
-  {
-    if (ctx === EMPTY_KONT)
-    {
-      return true;
-    }
-    var ctxHandler = mutability.get(ctx);
-    assert(ctxHandler);
-    var type = getType(node, ctxHandler, ast);
-    return type === MUTABLE;
-  }
   
-  function isLocalWriteEffect(effect, ctx)
+  function isMemberWrite(effect, ctx)
   {
-    if (effect.node)
-    {
-      if (effect.node.type === "AssignmentExpression" && effect.node.left.type === "MemberExpression")
-      {
-        //print("mutable?", s.lkont[0].node.left.object, "in", s.lkont[0].node);
-        if (isMutable(effect.node.left.object, ctx, ast))
-        {
-          //print("MUTABLE", s.lkont[0].node);
-          return true;
-        }
-      }
-    }
-    return false;
+    return effect.node
+      && effect.node.type === "AssignmentExpression"
+      && effect.node.left.type === "MemberExpression";
   }
 
+  function outOfScope(declarationNode, fun, ast)
+  {
+    if (Ast.enclosingFunScope(declarationNode, ast).equals(fun))
+    {
+      return false;
+    }
+    var decl2 = Ast.findDeclarationNode(declarationNode.name || declarationNode.id.name, fun, ast);
+    return !declarationNode.equals(decl2);
+  }
+  
+  var mutability = computeMutability(ast, initial);
+  
   var todo = [initial];
   while (todo.length > 0)
   {
@@ -352,83 +380,70 @@ function computePurity(ast, initial)
         effects.forEach(
           function (effect) 
           {
-            var address = effect.address;
+            //var address = effect.address;
             var varEffect = effect.name.tag > -1;
             var name = varEffect ? getDeclarationNode(effect.name, ast) : effect.name;
             var writeEffect = effect.isWriteEffect();
             var readEffect = effect.isReadEffect();
-            
-            if (writeEffect)
+                
+            if (varEffect)
             {
-              var funRdeps = getRdeps(address, name);
-              funRdeps.forEach(
-                function (funRdep)
-                {
-//                  print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
-                  addOdep(address, name, funRdep);
-                });
-              
-              if (isLocalWriteEffect(effect, s.kont))
+              if (writeEffect)
               {
-                return;
+                ctxs.forEach(
+                  function (ctx)
+                  {
+                    var fun = ctx.callable.node;
+                    if (isFreeVar(name, fun, ast))
+                    {
+                      print(effect.node, "PROC: free var write effect", effect, fun);
+                      markProcedure(fun);
+                    }
+                  })
               }
-                
-                
-              ctxs.forEach(
-                function (ctx)
-                {
-                  var fun = ctx.callable.node;
-                  assert(fun);
+              else
+              {
+                ctxs.forEach(
+                  function (ctx)
+                  {
+                    var fun = ctx.callable.node;
                     if (localVarEffect(name, fun))
                     {
                       return;
                     }
                     
-
-                    var storeAddresses = ctx.store.keys();
-                    if (Arrays.contains(address, storeAddresses)) // non-local
+                  })
+              }
+            } // end var effect
+            else // member effect
+            {
+              if (writeEffect)
+              {
+                ctxs.forEach(
+                  function (ctx)
+                  {
+                    if (ctx === EMPTY_KONT)
                     {
-                          print(effect, ctx, "non-local write addr effect");
-                          print(s, "procedure", fun.loc.start.line, address, name);
+                      //top-level = mutable
+                      return;
+                    }
+                    
+                    var ctxHandler = mutability.get(ctx);
+                    assert(ctxHandler);
+                    var type = effect.node.object ? getType(effect.node.object, ctxHandler, ast) : IMMUTABLE;
+                    if (type === IMMUTABLE)
+                    {
+                      var fun = ctx.callable.node;
+                      print("PROC:", effect.node, "in", fun);
                       markProcedure(fun);
                     }
-                    else // local
-                    {
-//                          print(effect, ctx, "local r/w addr effect");
-                    }
                   }) // end for each ctx
-            } // end write effect
-            else // read
-            {
-              var funOdeps = getOdeps(address, name);
-              ctxs.forEach(
-                function (ctx)
-                {
-                  var fun = ctx.callable.node;
-                  assert(fun);
-                  if (localVarEffect(name, fun))
-                  {
-                    return;
-                  }
+              } // end write effect
+              else // read
+              {
 
-                  var storeAddresses = ctx.store.keys();
-                  if (Arrays.contains(address, storeAddresses)) // non-local
-                  {
-//                          print(effect, ctx, "non-local read addr effect");
-//                          print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
-                      addRdep(address, name, fun);
-                      if (funOdeps.contains(fun))
-                      {
-                        // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
-                        markObserver(fun);
-                      }
-                  }
-                  else // local
-                  {
-//                        print(effect, ctx, "local r/w addr effect");
-                  }
-                }) // end for each ctx
-            }
+              }
+            } // end member effect
           }) // end for each effect
         todo.push(t.state);
       }) // end for each outgoing

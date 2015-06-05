@@ -654,20 +654,20 @@ Ast.enclosingBlock =
     return false;
   }
   
-Ast.enclosingFunction =
-  function (node, ast)
-  {
-    var p = parent(node, ast);
-    while (p)
-    {
-      if (isFunctionExpression(p) || Ast.isFunctionDeclaration(p))
-      {
-        return p;
-      }
-      p = parent(p, ast);
-    }
-    return false;
-  }
+//Ast.enclosingFunction =  // does not deal with scope per se (does not deal with top-level Program scope)
+//  function (node, ast)
+//  {
+//    var p = parent(node, ast);
+//    while (p)
+//    {
+//      if (isFunctionExpression(p) || Ast.isFunctionDeclaration(p))
+//      {
+//        return p;
+//      }
+//      p = parent(p, ast);
+//    }
+//    return false;
+//  }
   
 //
 
@@ -726,23 +726,14 @@ Ast.functionScopeDeclarations =
     return result;
   }
 
-Ast.enclosingFunScope =
+Ast.enclosingFunScope = // deals with scope (also program)
   function (node, ast)
   {
     var p = parent(node, ast);
     while (p)
     {
-      if (isProgram(p))
+      if (isFunctionExpression(p) || Ast.isFunctionDeclaration(p) || isProgram(p))
       {
-        return p;
-      }
-      if (isBlockStatement(p))
-      {
-        var pp = parent(p, ast);
-        if (isFunctionExpression(pp) || Ast.isFunctionDeclaration(pp))
-        {
-          return pp;
-        }
         return p;
       }
       p = parent(p, ast);
@@ -751,10 +742,9 @@ Ast.enclosingFunScope =
   }
 
 Ast.findDeclarationNode =
-  function (nameNode, ast)
+  function (name, node, ast)
   {
-    var name = nameNode.name;
-    var enclosingFunScope = Ast.enclosingFunScope(nameNode, ast);
+    var enclosingFunScope = Ast.enclosingFunScope(node, ast);
     while (enclosingFunScope)
     {
       var varScope = Ast.functionScopeDeclarations(enclosingFunScope);
@@ -767,3 +757,42 @@ Ast.findDeclarationNode =
     }
     return false;
   }
+
+////////////////
+
+//Ast.resolveLexicalBindings =
+//  function (ast)
+//  {
+//  
+//    function helper(node)
+//    {
+//      switch (node.type)
+//      {
+//        case "FunctionDeclaration":
+//          var decls = Ast.functionScopeDeclarations(node);
+//          node.declarations = decls;
+//          node.enclosingFunScope
+//          break;
+//        case "FunctionExpression":
+//          var decls = Ast.functionScopeDeclarations(node);
+//          node.declarations = decls;
+//          break;
+//        case "Identifier":
+//          var enclosingFunScope0 = Ast.enclosingFunScope(node, ast);
+//          var enclosingFunScope = enclosingFuncScope0;
+//          while (enclosingFunScope)
+//          {
+//            var varScope = enclosingFunScope.declarations;
+//            var dnode = varScope[name];
+//            if (dnode)
+//            {
+//              node.enclosingFunScope = enclosingFunScope0;
+//              node.targetFunScope = varScope;
+//            }
+//            enclosingFunScope = enclosingFunScope;
+//          }
+//      }      
+//    }
+//    
+//    helper(ast);
+//  }

@@ -20,7 +20,7 @@ var tagAg = {};
   tagAg.closureProtoObject =
     function (node, benva, store, kont, c)
     {
-      return node.tag + 1024;
+      return node.tag + 10024;
     }
 
   tagAg.array =

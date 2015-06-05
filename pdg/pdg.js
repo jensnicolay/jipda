@@ -9,7 +9,7 @@ Pdg.declarationOf =
     var result = nameNode._declarationOf; 
     if (!result)
     {
-      result = Ast.findDeclarationNode(nameNode, ast);
+      result = Ast.findDeclarationNode(nameNode.name, nameNode, ast);
       nameNode._declarationOf = result;
     }
     return result;

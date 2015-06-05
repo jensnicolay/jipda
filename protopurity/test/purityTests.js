@@ -10,7 +10,7 @@ var suiteJipdaDepTests =
     return jsCesk({a:cc.a || createTagAg(), l:new JipdaLattice()});
   }
   
-  var PURE="PURE", OBS="OBS", PROC="PROC";
+  var PURE="PURE", OBS=/*"OBS"*/PURE, PROC="PROC";
 
   
   function test(src, checks)
@@ -134,6 +134,13 @@ var suiteJipdaDepTests =
       test(src, ["f", PROC]);
     }
     
+  module.testPurity6c =
+    function ()
+    {
+      var src = "function f(){var z=false; function g(){h()}; function h(){z=true}; g()};f()";
+      test(src, ["f", PURE, "g", PROC, "h", PROC]);
+    }
+    
   module.testPurity7 =
     function ()
     {
@@ -180,7 +187,7 @@ var suiteJipdaDepTests =
     function ()
     {
       var src = "function f(){var o={}; function g() {o.x=4}; g(); return o.x}; f()";
-      test(src, ["f", PURE]);
+      test(src, ["f", PURE, "g", PROC]);
     }
     
   module.testPurity11b =
@@ -243,14 +250,14 @@ var suiteJipdaDepTests =
     function ()
     {
       var src = "function g() {var o={x:{}}; return o}; function f(){return g().x}; while (true) f();";
-      test(src, ["f", PURE]);
+      test(src, ["f", PURE, "g", PURE]);
     }
     
   module.testPurity18 =
     function ()
     {
       var src = "function g(p) {p.x=4}; function f(){var o={}; g(o); return o.x}; f()";
-      test(src, ["f", PURE]);
+      test(src, ["f", PURE, "g", PROC]);
     }
     
   module.testPurity18b =
@@ -545,6 +552,41 @@ var suiteJipdaDepTests =
     {
       var src = "function F(x){this.x=x};new F(123);";
       test(src, ["F", PURE]);
+    }
+  
+  module.testPurity46 =
+    function ()
+    {
+      var src = "var o={}; function f(){function g() {o.x=4}; g(); return o.x}; f()";
+      test(src, ["f", PROC, "g", PROC]);
+    }
+  
+  module.testPurity47 =
+    function ()
+    {
+      var src = "function f(){var o={}; o.g=function g(){this.x=4}; o.g()}; f()";
+      test(src, ["f", PURE, "g", PROC]);
+    }
+  
+  module.testPurity48 =
+    function ()
+    {
+      var src = "function f(){var o={}; function g(p){p.x=4}; g(o)}; f()";
+      test(src, ["f", PURE, "g", PROC]);
+    }
+  
+  module.testPurity49 =
+    function ()
+    {
+      var src = "function f(){var o={};function g(p){h(p)};function h(q){q.x=4};g(o)};f()";
+      test(src, ["f", PURE, "g", PROC, "h", PROC]);
+    }
+  
+  module.testPurity50 =
+    function ()
+    {
+      var src = "function f(){var o=g();o.x=4;function g(){return {}}};f()";
+      test(src, ["f", PURE, "g", PURE]);
     }
   
   module.testTreenode1 =
