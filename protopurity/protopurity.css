@@ -33,7 +33,7 @@ html
 #editor .CodeMirror
 {
   resize: none;
-  height: 40%;
+  height: 60%;
 }
 
 #left a:link
@@ -52,12 +52,12 @@ html
 
 #input .CodeMirror {
   border: 1px solid #eee;
-  max-height: 30%;
+  max-height: 20%;
 }
 
 #output
 {
-  max-height: 30%;  
+  max-height: 20%;  
   overflow: auto;
 }
 

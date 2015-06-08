@@ -17,7 +17,7 @@
 	<script type="text/javascript" src="../graph.js"></script>
 	<script type="text/javascript" src="../jsCesk.js"></script>
 	<script type="text/javascript" src="../concreteAg.js"></script>
-	<script type="text/javascript" src="../tagAg.js"></script>
+	<script type="text/javascript" src="../purityAg.js"></script>
 	<script type="text/javascript" src="../benv.js"></script>
 	<script type="text/javascript" src="../object.js"></script>
 	<script type="text/javascript" src="purityAnalysis.js"></script>
@@ -122,7 +122,7 @@
       result.msgs.forEach(function (msg) {logOutput("error", msg)});
     }
     
-    purity();
+    //purity();
 
     if (system.states.count() > 2048)
     {
@@ -202,7 +202,7 @@
     <a href="protopurity.html?src=test/resources/4.js&meta=isPure(astNodes[11])&eval=true">4</a>
     <span>
       <select id="config" title="value lattice">
-        <option value="(lat=new JipdaLattice(),ag=createTagAg())">abst</option>
+        <option value="(lat=new JipdaLattice(),ag=createPurityAg(ast))">abst</option>
         <option value="(lat=new ConcLattice(),ag=createConcAg())">conc</option>
       </select>
     </span>

@@ -170,19 +170,19 @@ function jsCesk(cc)
   
   function storeAlloc(store, addr, value)
   {
-    assert(addr>>>0===addr);
+    //assert(addr>>>0===addr);
     return store.allocAval(addr, value);
   }
   
   function storeUpdate(store, addr, value)
   {
-    assert(addr>>>0===addr);
+    //assert(addr>>>0===addr);
     return store.updateAval(addr, value);
   }
   
   function storeLookup(store, addr)
   {
-    assert(addr>>>0===addr);
+    //assert(addr>>>0===addr);
     return store.lookupAval(addr);
   }
   
@@ -860,7 +860,7 @@ function jsCesk(cc)
     {    
       var funNode = this.node;
       var obj = createObject(protoRef);
-      var thisa = a.constructor(funNode); /// TODO: funNode and funNode.body already in use as address
+      var thisa = a.constructor(funNode, application);
       //return this.applyFunction(application, operandValues, thisa, benv, store, lkont, kont, effects);
       
       var stackAs = stackAddresses(lkont, kont);
@@ -3830,7 +3830,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     var closurea = a.closure(node, benv, store, lkont, kont);
   
     var prototype = createObject(objectProtoRef);
-    var prototypea = a.closureProtoObject(node.body, benv, store, lkont, kont);
+    var prototypea = a.closureProtoObject(node, benv, store, lkont, kont);
     var closureRef = l.abstRef(closurea);
     prototype = prototype.add(P_CONSTRUCTOR, closureRef);
     store = storeAlloc(store, prototypea, prototype);

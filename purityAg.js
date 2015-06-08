@@ -1,29 +1,29 @@
 
-function createTagAg()
+function createPurityAg(ast)
 {
-var tagAg = {};
+var purityAg = {};
 
-  tagAg.toString = function () {return "tagAg"};
+  purityAg.toString = function () {return "purityAg"};
 
-  tagAg.object =
+  purityAg.object =
     function (node, time)
     {
-      return "obj-" + node.tag;
+      return "obj-"+node.tag;
     }
 
-  tagAg.closure =
+  purityAg.closure =
     function (node, benva, store, kont, c)
     {
       return "clo-" + node.tag;
     }
 
-  tagAg.closureProtoObject =
+  purityAg.closureProtoObject =
     function (node, benva, store, kont, c)
     {
       return "proto-" + node.tag;
     }
 
-  tagAg.array =
+  purityAg.array =
     function (node, time)
     {
       if (node.type === "NewExpression")
@@ -33,23 +33,23 @@ var tagAg = {};
       return "arr-" + node.tag;
     }
 
-  tagAg.string =
+  purityAg.string =
     function (node, time)
     {
       return "str-" + node.tag;
     }
 
-  tagAg.constructor =
+  purityAg.constructor =
     function (node, application)
     {
-      return "ctr-" + node.tag;
+      return "ctr-" + application.tag;
     }
   
-  tagAg.vr =
+  purityAg.vr =
     function (node, ctx)
     {
-      return node.name + "-" + node.tag;
+      return "var-" + node.tag;
     }
   
-  return tagAg;
+  return purityAg;
 }

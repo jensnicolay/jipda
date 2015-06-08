@@ -4,10 +4,9 @@ var suiteJipdaDepTests =
 {
   var module = new TestSuite("suiteJipdaDepTests");
 
-  function createCesk(cc)
+  function createCesk(ast)
   {
-    cc = cc || {};
-    return jsCesk({a:cc.a || createTagAg(), l:new JipdaLattice()});
+    return jsCesk({a:createPurityAg(ast), l:new JipdaLattice()});
   }
   
   var PURE="PURE", OBS=/*"OBS"*/PURE, PROC="PROC";
@@ -16,7 +15,7 @@ var suiteJipdaDepTests =
   function test(src, checks)
   {
     var ast = Ast.createAst(src);
-    var cesk = createCesk();
+    var cesk = createCesk(ast);
     var result = cesk.explore(ast);
     var pmap = computePurity(ast, result.initial, result.sstore);
     for (var i = 0; i < checks.length; i+=2)
@@ -589,20 +588,32 @@ var suiteJipdaDepTests =
       test(src, ["f", PURE, "g", PURE]);
     }
   
+  module.testPurity51 =
+    function ()
+    {
+      var src = "function f(p){if (p) {p.x=4} else {p={}};return p};var o=f();f(o)";
+      test(src, ["f", PROC]);
+    }
+  
+  module.testPurity51b =
+    function ()
+    {
+      var src = "function f(p){var a=p;if (p) {a.x=4} else {p={}};return p};var o=f();f(o)";
+      test(src, ["f", PROC]);
+    }
+  
   module.testTreenode1 =
     function ()
     {
       var src = read("test/resources/treenode1.js");
-      test(src, ["TreeNode", PURE]);
-      test(src, ["f", PURE]);
+      test(src, ["TreeNode", PURE, "f", PURE]);
     }
   
   module.testTreenode =
     function ()
     {
       var src = read("test/resources/treenode.js");
-      test(src, ["TreeNode", PURE]);
-      test(src, ["f", PURE]);
+      test(src, ["TreeNode", PURE, "f", PURE]);
     }
   
   return module;
