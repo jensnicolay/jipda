@@ -13,7 +13,8 @@ Array.prototype.toString =
       return "[]";
     }
     let s = "[";
-    for (let i = 0; i < this.length - 1; i++)
+    let i = 0;
+    for (; i < this.length - 1; i++)
     {
       s += this[i] + ","; 
     }
@@ -29,7 +30,7 @@ Array.prototype.toString =
   load("../concLattice.js");
   load("../ast.js");
   load("../jsCesk.js");
-  load("../tagAg.js");
+  load("../purityAg.js");
   load("../concreteAg.js");
   load("../benv.js");
   load("../object.js");

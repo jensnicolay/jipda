@@ -1,4 +1,4 @@
-function computePurity(ast, initial, sstore)
+function computePurity(ast, initial)
 {
   function stackContexts(kont) 
   {
@@ -117,7 +117,7 @@ function computePurity(ast, initial, sstore)
           result = result.join(entry[1]);
         }
       });
-    return result.values();
+    return result;
   }
   
   function addOdep(addr, name, fun)
@@ -143,9 +143,15 @@ function computePurity(ast, initial, sstore)
           result = result.join(entry[1]);
         }
       });
-    return result.values();
+    return result;
   }
-
+  
+  function localVarEffect(effectName, fun)
+  {
+    return effectName.tag > -1 && declarationNodeLocalToFun(effectName, fun) // var && local
+//      print(effect, ctx, "local r/w var effect");
+  }
+  
   var todo = [initial];
   while (todo.length > 0)
   {
@@ -156,7 +162,7 @@ function computePurity(ast, initial, sstore)
     }
     s._purity = age;
     var outgoing = s._successors;
-    var ctxs = stackContexts(s.kont, sstore);
+    var ctxs = stackContexts(s.kont);
     ctxs.forEach(function (ctx)
         {
           var fun = ctx.callable.node;
@@ -184,52 +190,64 @@ function computePurity(ast, initial, sstore)
 //                  print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
                   addOdep(effectAddress, effectName, funRdep);
                 })
-            }
+                ctxs.forEach(
+                    function (ctx)
+                    {
+                      var fun = ctx.callable.node;
+                      if (fun)
+                      {
+                        if (localVarEffect(effectName, fun))
+                        {
+                          return;
+                        }
+
+                        var storeAddresses = ctx.store.keys();
+                        if (Arrays.contains(effectAddress, storeAddresses)) // non-local
+                        {
+                            print(effect, ctx, "non-local write addr effect");
+                            print(t._id, "procedure", fun.loc.start.line, effectAddress, effectName);
+                            markProcedure(fun);
+                        }
+                        else // local
+                        {
+//                          print(effect, ctx, "local r/w addr effect");
+                        }
+                      }
+                    }) // end for each ctx
+            } // end write effect
             else // read
             {
               var funOdeps = getOdeps(effectAddress, effectName);
-              funOdeps.forEach(
-                function (funOdep)
-                {
-//                  print(t._id, "observer", funOdep.loc.start.line, effectAddress, effectName);
-                  markObserver(funOdep);
-                })
-            }
-            
-            ctxs.forEach(
-              function (ctx)
-              {
-                var fun = ctx.callable.node;
-                if (fun)
-                {
-                  if (effectName.tag > -1 && declarationNodeLocalToFun(effectName, fun)) // var && local
+              ctxs.forEach(
+                  function (ctx)
                   {
-//                    print(effect, ctx, "local r/w var effect");
-                    return;
-                  }
+                    var fun = ctx.callable.node;
+                    if (fun)
+                    {
+                      if (localVarEffect(effectName, fun))
+                      {
+                        return;
+                      }
 
-                  var storeAddresses = ctx.store.keys();
-                  if (Arrays.contains(effectAddress, storeAddresses)) // non-local
-                  {
-                    if (effect.isWriteEffect())
-                    {
-//                      print(effect, ctx, "non-local write addr effect");
-//                      print(t._id, "procedure", fun.loc.start.line, effectAddress, effectName);
-                      markProcedure(fun);
+                      var storeAddresses = ctx.store.keys();
+                      if (Arrays.contains(effectAddress, storeAddresses)) // non-local
+                      {
+//                          print(effect, ctx, "non-local read addr effect");
+//                          print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
+                          addRdep(effectAddress, effectName, fun);
+                          if (funOdeps.contains(fun))
+                          {
+                            // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                            markObserver(fun);
+                          }
+                      }
+                      else // local
+                      {
+//                        print(effect, ctx, "local r/w addr effect");
+                      }
                     }
-                    else // read
-                    {
-//                      print(effect, ctx, "non-local read addr effect");
-//                      print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
-                      addRdep(effectAddress, effectName, fun);
-                    }
-                  }
-                  else // local
-                  {
-//                    print(effect, ctx, "local r/w addr effect");
-                  }
-                }
-              }) // end for each ctx
+                  }) // end for each ctx
+            }
           }) // end for each effect
         todo.push(t.state);
       }) // end for each outgoing

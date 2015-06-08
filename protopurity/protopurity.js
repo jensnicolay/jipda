@@ -20,6 +20,7 @@ function runBenchmarks(benchmarks)
                      "sunspider/controlflow-recursive.js",
                      "sunspider/crypto-sha1.js",
                      "sunspider/math-spectral-norm.js",
+                     "jolden/tree-add.js",
                      ]
                     //;
   return benchmarks.map(
@@ -53,7 +54,6 @@ function runBenchmarks(benchmarks)
 
 function r()
 {
-  b();
   return runBenchmarks();
 }
 

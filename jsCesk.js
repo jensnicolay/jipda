@@ -65,7 +65,7 @@ function jsCesk(cc)
   var errorPa = allocNative();
   var errorProtoRef = l.abstRef(errorPa);
   
-  var sstorei = 0;
+  const popTodo = [];
   var contexts = MutableHashSet.empty(10007);
     
 //function stackFrames(lkont, kont)
@@ -104,6 +104,7 @@ function jsCesk(cc)
     this.as = as;
     this._hashCode = undefined;
     this._stacks = null;
+    this._id = null;
   }
   
   Context.prototype.equals =
@@ -147,12 +148,12 @@ function jsCesk(cc)
   Context.prototype.toString =
     function ()
     {
-      return "@" + this.ex;
+      return "@" + this._id;
     }
   
   function stackAddresses(lkont, kont)
   {
-    var addresses = (kont === EMPTY_KONT ? EMPTY_ADDRESS_SET : kont.as)
+    var addresses = (kont === EMPTY_KONT ? EMPTY_ADDRESS_SET : kont.as.add(kont.thisa))
     for (var i = 0; i < lkont.length; i++)
     {
       var frame = lkont[i];
@@ -169,19 +170,19 @@ function jsCesk(cc)
   
   function storeAlloc(store, addr, value)
   {
-    assert(addr>>>0===addr);
+    //assert(addr>>>0===addr);
     return store.allocAval(addr, value);
   }
   
   function storeUpdate(store, addr, value)
   {
-    assert(addr>>>0===addr);
+    //assert(addr>>>0===addr);
     return store.updateAval(addr, value);
   }
   
   function storeLookup(store, addr)
   {
-    assert(addr>>>0===addr);
+    //assert(addr>>>0===addr);
     return store.lookupAval(addr);
   }
   
@@ -201,9 +202,9 @@ function jsCesk(cc)
     return new Effect(Effect.Operations.READ, a, vr);
   }
   
-  function writeObjectEffect(a, name)
+  function writeObjectEffect(a, name, node)
   {
-    return new Effect(Effect.Operations.WRITE, a, name);
+    return new Effect(Effect.Operations.WRITE, a, name, node);
   }
   
   function writeVarEffect(a, vr)
@@ -331,6 +332,7 @@ function jsCesk(cc)
 
   stringP = registerPrimitiveFunction(stringP, stringPa, "charAt", stringCharAt);
   stringP = registerPrimitiveFunction(stringP, stringPa, "charCodeAt", stringCharCodeAt);
+  stringP = registerPrimitiveFunction(stringP, stringPa, "startsWith", stringStartsWith);
     
   store = storeAlloc(store, stringPa, stringP);
   // END STRING 
@@ -395,6 +397,7 @@ function jsCesk(cc)
   global = registerProperty(global, "undefined", L_UNDEFINED);
   global = registerProperty(global, "NaN", l.abst1(NaN));
   global = registerProperty(global, "Infinity", l.abst1(Infinity));
+  global = registerPrimitiveFunction(global, globala, "parseInt", globalParseInt);
 
   // specific interpreter functions
 //  global = registerPrimitiveFunction(global, globala, "$meta", $meta);
@@ -465,6 +468,12 @@ function jsCesk(cc)
   {
     print(operandValues);
     return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];
+  }   
+  
+  function globalParseInt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    var value = operandValues[0].parseInt(); // TODO: 2nd (base) arg
+    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
   }   
   
   function arrayConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
@@ -581,10 +590,10 @@ function jsCesk(cc)
     effects.push(readObjectEffect(thisa, P_LENGTH));
     var lenStr = len.ToString();
     arr = arr.add(lenStr, operandValues[0]) 
-    effects.push(writeObjectEffect(thisa, lenStr));
+    effects.push(writeObjectEffect(thisa, lenStr, application));
     var len1 = l.add(len, L_1);
     arr = arr.add(P_LENGTH, len1);
-    effects.push(writeObjectEffect(thisa, P_LENGTH))
+    effects.push(writeObjectEffect(thisa, P_LENGTH, application))
     store = storeUpdate(store, thisa, arr);
     return [{state:new KontState(len1, store, lkont, kont), effects:effects}];
   }
@@ -605,9 +614,17 @@ function jsCesk(cc)
     return [{state:new KontState(value, store, lkont, kont), effects:effects}];
   }
   
+  function stringStartsWith(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    var str = storeLookup(store, thisa);
+    var lprim = str.PrimitiveValue;
+    var value = lprim.startsWith(operandValues[0]);
+    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
+  }
+  
   function errorConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
   {
-    var err = createError(operandValues.length === 1 ? operandValues[0].ToString() : L_EMPTY_STRING);
+    var err = createError(operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING);
     var errAddress = application.tag;
     store = storeAlloc(store, errAddress, err);
     var errRef = l.abstRef(errAddress);
@@ -755,16 +772,8 @@ function jsCesk(cc)
 
   ObjClosureCall.prototype.applyFunction =
     function (application, operandValues, thisa, benv, store, lkont, kont, effects)
-    {
-    var funNode = this.node;
-    var bodyNode = funNode.body;
-    
+    {    
     var stackAs = stackAddresses(lkont, kont);
-    if (application.type === "NewExpression")
-    {
-      // we still might want to return 'this'
-      stackAs = stackAs.add(thisa);
-    }
     var stack = [lkont, kont];
     var ctx0 = new Context(application, this, operandValues, thisa, store, stackAs);
     var ctx = contexts.get(ctx0);
@@ -786,10 +795,16 @@ function jsCesk(cc)
       else
       {
         ctx._stacks.add(stack);
-        sstorei++;
+//        sstorei++;
+        if (ctx._poppers)
+        {
+          popTodo.push([ctx._poppers, stack]);
+        }
       }
     }
 
+    var funNode = this.node;
+    var bodyNode = funNode.body;
     var nodes = bodyNode.body;    
     if (nodes.length === 0)
     {
@@ -845,9 +860,94 @@ function jsCesk(cc)
     {    
       var funNode = this.node;
       var obj = createObject(protoRef);
-      var thisa = a.constructor(funNode); /// TODO: funNode and funNode.body already in use as address
-      store = storeAlloc(store, thisa, obj);
-      return this.applyFunction(application, operandValues, thisa, benv, store, lkont, kont, effects);
+      var thisa = a.constructor(funNode, application);
+      //return this.applyFunction(application, operandValues, thisa, benv, store, lkont, kont, effects);
+      
+      var stackAs = stackAddresses(lkont, kont);
+      var stack = [lkont, kont];
+      var ctx0 = new Context(application, this, operandValues, thisa, store, stackAs);
+      var ctx = contexts.get(ctx0);
+      if (!ctx)
+      {
+        ctx = ctx0;
+        ctx._id = contexts.count();
+        ctx._stacks = new MutableHashSet(7);
+        ctx._stacks.add(stack);
+        contexts.add(ctx);
+        
+        // sstorei++; don't increase age for fresh stack: no need to revisit states
+      }
+      else
+      {
+        if (ctx._stacks.contains(stack))
+        {
+        }
+        else
+        {
+          ctx._stacks.add(stack);
+//          sstorei++;
+          if (ctx._poppers)
+          {
+            popTodo.push([ctx._poppers, stack]);
+          }
+        }
+      }
+
+      store = storeAlloc(store, thisa, obj); // only here: new `this` object shouldn't be in caller store
+
+      var funNode = this.node;
+      var bodyNode = funNode.body;
+      var nodes = bodyNode.body;    
+      if (nodes.length === 0)
+      {
+        return [{state:new KontState(L_UNDEFINED, store, [], ctx), effects:effects}];
+      }
+      
+      var extendedBenv = this.scope.extend();
+      extendedBenv = extendedBenv.add("this", thisa);
+      
+      var funScopeDecls = functionScopeDeclarations(funNode);
+      var names = Object.keys(funScopeDecls);
+      if (names.length > 0)
+      {
+        var nodeAddr = names.map(function (name)
+            {
+              var node = funScopeDecls[name];
+              var addr = a.vr(node.id || node);
+              extendedBenv = extendedBenv.add(name, addr);
+              return [node, addr];
+            });
+          nodeAddr.forEach(
+            function (na)
+            {
+              var node = na[0];
+              var addr = na[1];
+              if (Ast.isIdentifier(node)) // param
+              {
+                store = storeAlloc(store, addr, operandValues[node.i]);
+              }
+              else if (Ast.isFunctionDeclaration(node))
+              {
+                var allocateResult = allocateClosure(node, extendedBenv, store, lkont, kont);
+                var closureRef = allocateResult.ref;
+                store = allocateResult.store;
+                store = storeAlloc(store, addr, closureRef);
+              }
+              else if (Ast.isVariableDeclarator(node))
+              {
+                store = storeAlloc(store, addr, L_UNDEFINED);
+              }
+              else
+              {
+                throw new Error("cannot handle declaration " + node);
+              }
+            });
+      }
+      
+      return [{state:new EvalState(bodyNode, extendedBenv, store, [], ctx), effects:effects}];
+      
+      
+      
     }
 
   ObjClosureCall.prototype.addresses =
@@ -982,7 +1082,7 @@ function jsCesk(cc)
           return [];
         }
                 
-        if (kont.ex.type === "NewExpression")
+        if (Ast.isNewExpression(kont.ex))
         {
           value = l.abstRef(kont.thisa);
         }
@@ -990,6 +1090,14 @@ function jsCesk(cc)
         {
           value = L_UNDEFINED;
         }
+        
+        var poppers = kont._poppers;
+        if (!poppers)
+        {
+          poppers = new MutableHashSet(7);
+          kont._poppers = poppers;
+        }
+        poppers.add(this);
         
         return kont._stacks.map(
           function (stack)
@@ -1066,7 +1174,7 @@ function jsCesk(cc)
         return [];
       }      
 
-      if (kont.ex.type === "NewExpression")
+      if (Ast.isNewExpression(kont.ex))
       {
         var returnValue = BOT;
         if (value.isRef())
@@ -1082,7 +1190,15 @@ function jsCesk(cc)
 
       var lkont = this.lkont;
       var store = this.store;
-            
+      
+      var poppers = kont._poppers;
+      if (!poppers)
+      {
+        poppers = new MutableHashSet(7);
+        kont._poppers = poppers;
+      }
+      poppers.add(this);
+      
       var result = kont._stacks.map(
           function (st)
           {
@@ -1154,7 +1270,7 @@ function jsCesk(cc)
       var kont = this.kont;
       var store = this.store;
       
-      var stacks = ThrowState.stackPop(lkont, kont);
+      var stacks = this.stackPop(lkont, kont);
       return stacks.flatMap(
         function (stack)
         {
@@ -1162,11 +1278,15 @@ function jsCesk(cc)
           var kont = stack[1];
           var frame = lkont[0];
           var lkont2 = lkont.slice(1);
+          if (!frame.applyThrow)
+          {
+            print("!!", frame);
+          }
           return frame.applyThrow(value, store, lkont2, kont);
         });
     }
   
-  ThrowState.stackPop = function (lkont, kont)
+  ThrowState.prototype.stackPop = function (lkont, kont)
   {
     var todo = [[lkont, kont]];
     var result = [];
@@ -1181,8 +1301,8 @@ function jsCesk(cc)
       {
         if (lkont[i].applyThrow)
         {
-          result.push(stack);
-          break todo;
+          result.push([lkont.slice(i), kont]);
+          continue todo;
         }
       }
       if (kont === EMPTY_KONT || G.contains(kont))
@@ -1197,6 +1317,13 @@ function jsCesk(cc)
           todo.push([st[0],st[1]]);
         });
       G = G.add(kont);
+      var poppers = kont._poppers;
+      if (!poppers)
+      {
+        poppers = new MutableHashSet(7);
+        kont._poppers = poppers;
+      }
+      poppers.add(this);
     }
     return result;
   }
@@ -1999,7 +2126,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   
       if (operands.length === 0)
       {
-        if (node.type === "NewExpression")
+        if (Ast.isNewExpression(node))
         {
           return applyCons(node, operatorValue, [], benv, store, lkont, kont, []);
         }
@@ -2072,7 +2199,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   
       if (i === operands.length)
       {
-        if (node.type === "NewExpression")
+        if (Ast.isNewExpression(node))
         {
           return applyCons(node, operatorValue, operandValues.addLast(operandValue), benv, store, lkont, kont, []);
         }
@@ -3004,7 +3131,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
           var operatorValue = doProtoLookup(nameValue, ArraySet.from1(thisa), store, effects); 
           if (operands.length === 0)
           {
-            if (application.type === "NewExpression")
+            if (Ast.isNewExpression(application))
             {
               return applyCons(application, operatorValue, [], benv, store, lkont, kont, effects);
             }
@@ -3141,7 +3268,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       {
         return [];
       }      
-      store = doProtoSet(name, updatedValue, objectRef, store, effects);
+      store = doProtoSet(name, updatedValue, objectRef, store, effects, node);
       var resultingValue = node.prefix ? updatedValue : value;
       return [{state:new KontState(resultingValue, store, lkont, kont), effects:effects}];
     }
@@ -3285,7 +3412,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       {
         return [];
       }
-      store = doProtoSet(nameValue, newValue, objectRef, store, effects);
+      store = doProtoSet(nameValue, newValue, objectRef, store, effects, node.left);
       return [{state:new KontState(newValue, store, lkont, kont), effects:effects}];
     }
   
@@ -3349,7 +3476,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var obj = storeLookup(store, globala);
       var aname = l.abst1(name);
       obj = obj.add(aname, value);
-      effects.push(writeObjectEffect(globala, aname))
+      effects.push(writeObjectEffect(globala, aname, nameNode));
       store = storeUpdate(store, globala, obj);      
     }
     else
@@ -3360,7 +3487,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     return store;
   }
   
-  function doProtoSet(name, value, objectRef, store, effects)
+  function doProtoSet(name, value, objectRef, store, effects, node)
   {
     var benvs = objectRef.addresses().values();
     while (benvs.length !== 0)
@@ -3369,7 +3496,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       benvs = benvs.slice(1);
       var benv = storeLookup(store, a);
       benv = benv.add(name, value);
-      effects.push(writeObjectEffect(a, name));
+      effects.push(writeObjectEffect(a, name, node));
       if (benv.isArray())
       {
         // ES5.1 15.4.5.1 
@@ -3381,7 +3508,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
           if (l.gte(i, len).isTrue())
           {
             benv = benv.add(P_LENGTH, l.add(i, L_1));
-            effects.push(writeObjectEffect(a, P_LENGTH));
+            effects.push(writeObjectEffect(a, P_LENGTH, node));
           }
         }
       }
@@ -3542,12 +3669,12 @@ function applyBinaryOperator(operator, leftValue, rightValue)
             var closureRef = allocateResult.ref;
             store = allocateResult.store;
             obj = obj.add(aname, closureRef);  
-            effects.push(writeObjectEffect(globala, aname));
+            effects.push(writeObjectEffect(globala, aname, node));
           }
           else if (Ast.isVariableDeclarator(node))
           {          
             obj = obj.add(aname, L_UNDEFINED);
-            effects.push(writeObjectEffect(globala, aname));
+            effects.push(writeObjectEffect(globala, aname, node));
           }
           else
           {
@@ -3703,7 +3830,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     var closurea = a.closure(node, benv, store, lkont, kont);
   
     var prototype = createObject(objectProtoRef);
-    var prototypea = a.closureProtoObject(node.body, benv, store, lkont, kont);
+    var prototypea = a.closureProtoObject(node, benv, store, lkont, kont);
     var closureRef = l.abstRef(closurea);
     prototype = prototype.add(P_CONSTRUCTOR, closureRef);
     store = storeAlloc(store, prototypea, prototype);
@@ -3764,7 +3891,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
             }
             if (i === operands.length)
             {
-              if (node.type === "NewExpression")
+              if (Ast.isNewExpression(node))
               {
                 return applyCons(node, operatorValue, operandsValues, benv, store, lkont, kont, effects);
               }
@@ -3794,7 +3921,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       }
       if (i === operands.length)
       {
-        if (node.type === "NewExpression")
+        if (Ast.isNewExpression(node))
         {
           return applyCons(node, operatorValue, operandsValues, benv, store, lkont, kont, effects);
         }
@@ -4088,55 +4215,125 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       visited.add(initial);
       var result = ArraySet.empty();
       var todo = [initial];
-      while (todo.length > 0)
+      while (todo.length > 0 || popTodo.length > 0)
       {
-        var s = todo.pop();
-        if (s._sstorei === sstorei)
+        while (todo.length > 0)
         {
-          continue;
-        }
-        s._sstorei = sstorei;
-        var next = s._successors;
-        if (next && s instanceof EvalState)
-        {
+          var s = todo.pop();
+          var next = s.next();
+          s._successors = next;
+          if (next.length === 0)
+          {
+            result = result.add(s);
+            continue;
+          }
           for (var i = 0; i < next.length; i++)
           {
             var t2 = next[i];
             var s2 = t2.state;
+            var ss2 = visited.get(s2);
+            if (ss2)
+            {
+              t2.state = ss2;
+              continue;
+            }
+            visited.add(s2);
+            s2._id = id++;
             todo.push(s2);
-          }
-          continue;
+            if (id % 10000 === 0)
+            {
+              print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length + "/" + popTodo.length, "ctxs", contexts.count());//, "sstorei", sstorei);
+            }
+          }            
         }
-        next = s.next();
-        s._successors = next;
-        if (next.length === 0)
+        while (popTodo.length > 0)
         {
-          result = result.add(s);
-          continue;
+          var poppy = popTodo.pop();
+          var poppers = poppy[0];
+          var stack = poppy[1];
+          poppers.forEach(
+            function (popper)
+            {
+              var todoS = new KontState(popper.value, popper.store, stack[0], stack[1]);
+              var s2 = visited.get(todoS);
+              if (s2)
+              {
+                popper._successors.push({state:s2, effects: []});
+              }
+              else
+              {
+                visited.add(todoS);
+                todoS._id = id++;
+                popper._successors.push({state:todoS, effects: []});
+                todo.push(todoS);
+              }
+            });
         }
-        for (var i = 0; i < next.length; i++)
-        {
-          var t2 = next[i];
-          var s2 = t2.state;
-          var ss2 = visited.get(s2);
-          if (ss2)
-          {
-            t2.state = ss2;
-            todo.push(ss2);
-            continue;
-          }
-          visited.add(s2);
-          s2._id = id++;
-          todo.push(s2);
-          if (id % 10000 === 0)
-          {
-            print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length, "ctxs", contexts.count(), "sstorei", sstorei);
-          }
-        }            
       }
 //      print("sstorei-skip", skipped1, "eval-skip", skipped2, "nexted", nexted);
       return {initial:initial, result:result, contexts:contexts, states:visited, time:performance.now()-startTime};
     }
+  
+//  module.explore =
+//    function (ast)
+//    {
+//      var startTime = performance.now();
+//      var id = 0;
+//      var visited = MutableHashSet.empty(104729);
+//      var initial = this.inject(ast);
+//      initial._id = id++;
+//      visited.add(initial);
+//      var result = ArraySet.empty();
+//      var todo = [initial];
+//      while (todo.length > 0)
+//      {
+//        var s = todo.pop();
+//        if (s._sstorei === sstorei)
+//        {
+//          continue;
+//        }
+//        s._sstorei = sstorei;
+//        var next = s._successors;
+//        if (next && s instanceof EvalState)
+//        {
+//          for (var i = 0; i < next.length; i++)
+//          {
+//            var t2 = next[i];
+//            var s2 = t2.state;
+//            todo.push(s2);
+//          }
+//          continue;
+//        }
+//        next = s.next();
+//        s._successors = next;
+//        if (next.length === 0)
+//        {
+//          result = result.add(s);
+//          continue;
+//        }
+//        for (var i = 0; i < next.length; i++)
+//        {
+//          var t2 = next[i];
+//          var s2 = t2.state;
+//          var ss2 = visited.get(s2);
+//          if (ss2)
+//          {
+//            t2.state = ss2;
+//            todo.push(ss2);
+//            continue;
+//          }
+//          visited.add(s2);
+//          s2._id = id++;
+//          todo.push(s2);
+//          if (id % 10000 === 0)
+//          {
+//            print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length, "ctxs", contexts.count(), "sstorei", sstorei);
+//          }
+//        }            
+//      }
+////      print("sstorei-skip", skipped1, "eval-skip", skipped2, "nexted", nexted);
+//      return {initial:initial, result:result, contexts:contexts, states:visited, time:performance.now()-startTime};
+//    }
   
   module.concExplore =
     function (ast)
@@ -4278,8 +4475,9 @@ function computeResultValue(endStates)
   return {value:result, msgs:msgs};
 }
 
-function Effect(operation, address, name)
+function Effect(operation, address, name, node)
 {
+  this.node = node;
   this.operation = operation;
   this.address = address;
   this.name = name;
@@ -4288,7 +4486,7 @@ Effect.Operations = {READ:"R", WRITE:"W", ALLOC:"A"}
 Effect.prototype.toString =
   function ()
   {
-    return "[" + this.operation + "," + this.address + "," + this.name + "]";
+    return "[" + this.node + ":" + this.operation + "," + this.address + "," + this.name + "]";
   }
 Effect.prototype.equals =
   function (x)
