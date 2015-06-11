@@ -6,7 +6,7 @@ var suiteJipdaDepTests =
 
   function createCesk(ast)
   {
-    return jsCesk({a:createPurityAg(ast), l:new JipdaLattice()});
+    return jsCesk({a:createTagAg(), l:new JipdaLattice()});
   }
   
   var PURE="PURE", OBS=/*"OBS"*/PURE, PROC="PROC";

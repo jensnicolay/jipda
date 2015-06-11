@@ -30,7 +30,7 @@ Array.prototype.toString =
   load("../concLattice.js");
   load("../ast.js");
   load("../jsCesk.js");
-  load("../purityAg.js");
+  load("../tagAg.js");
   load("../concreteAg.js");
   load("../benv.js");
   load("../object.js");

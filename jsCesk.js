@@ -832,7 +832,7 @@ function jsCesk(cc)
             var addr = na[1];
             if (Ast.isIdentifier(node)) // param
             {
-              store = storeAlloc(store, addr, operandValues[node.i]);
+              store = storeAlloc(store, addr, node.i < operandValues.length ? operandValues[node.i] : L_UNDEFINED);
             }
             else if (Ast.isFunctionDeclaration(node))
             {
@@ -924,7 +924,7 @@ function jsCesk(cc)
               var addr = na[1];
               if (Ast.isIdentifier(node)) // param
               {
-                store = storeAlloc(store, addr, operandValues[node.i]);
+                store = storeAlloc(store, addr, node.i < operandValues.length ? operandValues[node.i] : L_UNDEFINED);
               }
               else if (Ast.isFunctionDeclaration(node))
               {
