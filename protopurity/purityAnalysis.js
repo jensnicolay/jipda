@@ -348,6 +348,13 @@ function computePurity(ast, initial)
             {
               if (writeEffect)
               {
+                var funRdeps = getRdeps(address, name);
+                funRdeps.forEach(
+                  function (funRdep)
+                  {
+  //                      print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
+                    addOdep(address, name, funRdep);
+                  })
                 ctxs.forEach(
                   function (ctx)
                   {
@@ -361,6 +368,7 @@ function computePurity(ast, initial)
               }
               else
               {
+                var funOdeps = getOdeps(address, name);
                 ctxs.forEach(
                   function (ctx)
                   {
@@ -369,7 +377,19 @@ function computePurity(ast, initial)
                     {
                       return;
                     }
-                    
+                    var storeAddresses = ctx.store.keys();
+                    if (!Arrays.contains(address, storeAddresses)) // non-local
+                    {
+                      return;
+                    }
+  //                  print(effect, ctx, "non-local read addr effect");
+  //                  print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
+                    addRdep(address, name, fun);
+                    if (funOdeps.contains(fun))
+                    {
+                      // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                      markObserver(fun);
+                    }                    
                   })
               }
             } // end var effect
@@ -377,6 +397,14 @@ function computePurity(ast, initial)
             {
               if (writeEffect)
               {
+                var funRdeps = getRdeps(address, name);
+                funRdeps.forEach(
+                  function (funRdep)
+                  {
+  //                      print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
+                    addOdep(address, name, funRdep);
+                  })
+
                 var effectNode;
                 if (s.node)
                 {
@@ -408,15 +436,10 @@ function computePurity(ast, initial)
                     }
                   }
                 }
-                
+
                 ctxs.forEach(
                   function (ctx)
                   {
-                    if (ctx === EMPTY_KONT)
-                    {
-                      //top-level = mutable
-                      return;
-                    }
                     var storeAddresses = ctx.store.keys();
                     if (!Arrays.contains(address, storeAddresses)) // local
                     {
@@ -424,13 +447,32 @@ function computePurity(ast, initial)
                     }
                     
                     var fun = ctx.callable.node;
-                    print("PROC:", effectNode, "in", fun);
+//                    print("PROC:", effectNode, "in", fun);
                     markProcedure(fun);
+                    
+                    
                   }) // end for each ctx
               } // end write effect
               else // read
               {
-
+                var funOdeps = getOdeps(address, name);
+                ctxs.forEach(
+                  function (ctx)
+                  {
+                    var storeAddresses = ctx.store.keys();
+                    if (!Arrays.contains(address, storeAddresses)) // local
+                    {
+                      return;
+                    }
+                    
+                    var fun = ctx.callable.node;
+                    addRdep(address, name, fun);
+                    if (funOdeps.contains(fun))
+                    {
+                      // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                      markObserver(fun);
+                    }                    
+                  }) // end for each ctx
               }
             } // end member effect
           }) // end for each effect
