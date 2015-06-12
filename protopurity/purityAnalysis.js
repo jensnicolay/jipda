@@ -154,7 +154,7 @@ function computePurity(ast, initial)
     while (todo.length > 0)
     {
       var kont = todo.pop();
-      if (kont === EMPTY_KONT || visited.contains(kont))
+      if (kont.ex === null || visited.contains(kont))
       {
         continue;
       }

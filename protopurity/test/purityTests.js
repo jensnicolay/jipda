@@ -602,6 +602,20 @@ var suiteJipdaDepTests =
       test(src, ["f", PROC]);
     }
   
+  module.testPurity52 =
+    function ()
+    {
+      var src = "function f(){var x=10;function g(){return x};x;g();x=11;g()};f()";
+      test(src, ["f", PURE, "g", OBS]);
+    }
+  
+  module.testPurity52o =
+    function ()
+    {
+      var src = "function f(){var o={x:10};function g(){return o.x};o.x;g();o.x=11;g()};f()";
+      test(src, ["f", PURE, "g", OBS]);
+    }
+  
   module.testTreenode1 =
     function ()
     {
