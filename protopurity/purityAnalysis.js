@@ -298,13 +298,6 @@ function computePurity(ast, initial)
 //  }
   
   
-  function isMemberWrite(effect, ctx)
-  {
-    return effect.node
-      && effect.node.type === "AssignmentExpression"
-      && effect.node.left.type === "MemberExpression";
-  }
-
   function outOfScope(declarationNode, fun, ast)
   {
     if (Ast.enclosingFunScope(declarationNode, ast).equals(fun))
@@ -361,7 +354,7 @@ function computePurity(ast, initial)
                     var fun = ctx.callable.node;
                     if (isFreeVar(name, fun, ast))
                     {
-                      print(effect.node, "PROC: free var write effect", effect, fun);
+//                      print(effect.node, "PROC: free var write effect", effect, fun);
                       markProcedure(fun);
                     }
                   })
@@ -384,17 +377,30 @@ function computePurity(ast, initial)
             {
               if (writeEffect)
               {
-                
-                if (effect.node.object)
+                var effectNode;
+                if (s.node)
                 {
-                  if (effect.node.object.type === "ThisExpression" && isConstructorCall(s.kont))
+                  effectNode = s.node;
+                }
+                if (s.value && s.lkont[0].node)
+                {
+                  effectNode = s.lkont[0].node;
+                }
+                assert(effectNode);
+                if (effectNode.type === "AssignmentExpression")
+                {
+                  effectNode = effectNode.left;
+                }
+                if (effectNode.object)
+                {
+                  if (effectNode.object.type === "ThisExpression" && isConstructorCall(s.kont))
                   {
                     return;
                   }
                   
-                  if (effect.node.object.type === "Identifier")
+                  if (effectNode.object.type === "Identifier")
                   {
-                    var dn = getDeclarationNode(effect.node.object, ast, s.kont); 
+                    var dn = getDeclarationNode(effectNode.object, ast, s.kont); 
                     var fresh = s.fresh;
                     if (fresh.contains(dn))
                     {
@@ -418,7 +424,7 @@ function computePurity(ast, initial)
                     }
                     
                     var fun = ctx.callable.node;
-                    print("PROC:", effect.node, "in", fun);
+                    print("PROC:", effectNode, "in", fun);
                     markProcedure(fun);
                   }) // end for each ctx
               } // end write effect
