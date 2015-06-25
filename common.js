@@ -2381,3 +2381,8 @@ Formatter.displayTime =
     var sec = Math.floor((ms % 60000) / 1000);
     return min + "'" + (sec < 10 ? "0" : "") + sec + "\"";
   }
+Formatter.displayWidth =
+  function (s, w)
+  {
+    return (s+"                                          ").substring(0,w);
+  }

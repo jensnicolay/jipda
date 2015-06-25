@@ -28,8 +28,6 @@ function isConstructorCall(ctx)
   return ctx.ex && Ast.isNewExpression(ctx.ex);
 }
 
-
-
 function isFreeVar(declarationNode, fun, ast)
 {
   var enclosingScope = Ast.enclosingFunScope(declarationNode, ast);
@@ -37,7 +35,7 @@ function isFreeVar(declarationNode, fun, ast)
   return free;
 }
 
-function computeMutability(ast, initial)
+function computeFreshness(ast, initial)
 {
   function handleNode(node, fresh, ctx)
   {
@@ -47,25 +45,9 @@ function computeMutability(ast, initial)
         node.declarations.forEach(function (declarator) {fresh = handleNode(declarator, fresh, ctx)});
         return fresh;
       case "VariableDeclarator":
-        var init = node.init;
-        if (init)
+        if (isFresh(node, ast, ctx, fresh))
         {
-          if (init.type === "ObjectExpression")
-          {
-            return fresh.add(node);          
-          }
-          if (init.type === "Identifier")
-          {
-            if (fresh.contains(getDeclarationNode(init, ast, ctx)))
-            {
-              return fresh.add(node);
-            }
-          }
-          if (init.type === "ThisExpression" && isConstructorCall(ctx))
-          {
-            return fresh.add(node);
-          }
-          return fresh;
+          return fresh.add(node);
         }
         return fresh;
       case "BlockStatement":
@@ -82,20 +64,9 @@ function computeMutability(ast, initial)
         if (left.type === "Identifier")
         {
           var dn = getDeclarationNode(left, ast, ctx);
-          if (right.type === "ObjectExpression")
+          if (isFresh(right, ast, ctx, fresh))
           {
-            return fresh.add(dn);          
-          }
-          if (right.type === "Identifier")
-          {
-            if (fresh.contains(getDeclarationNode(right, ast, ctx)))
-            {
-              return fresh.add(dn);
-            }
-          }
-          if (right.type === "ThisExpression" && ctrCall)
-          {
-            return fresh.add(dn);
+            return fresh.add(node);
           }
         }
         return fresh;
@@ -145,6 +116,25 @@ function computeMutability(ast, initial)
   }
 }
 
+function isFresh(node, ast, kont, freshVars)
+{
+  switch (node.type)
+  {
+    case "Identifier":
+    {
+      var dn = getDeclarationNode(node, ast, kont);
+      return freshVars.contains(dn);
+    }
+    case "AssignmentExpression":
+      return isFresh(node.right, ast, kont, freshVars);
+    case "ObjectExpression": return true;
+    case "NewExpression": return true;
+    case "ThisExpression": return isConstructorCall(kont);
+    case "VariableDeclarator": return node.init &&  isFresh(node.init, ast, kont, freshVars);
+    default: return false;
+  }
+}
+
 function computePurity(ast, initial)
 {
   function stackContexts(kont) 
@@ -186,6 +176,30 @@ function computePurity(ast, initial)
     }
     return false; 
   }
+  
+  function fresh(s)
+  {
+    var effectNode;
+    if (s.node)
+    {
+      effectNode = s.node;
+    }
+    if (s.value && s.lkont[0].node)
+    {
+      effectNode = s.lkont[0].node;
+    }
+    assert(effectNode);
+    if (effectNode.type === "AssignmentExpression")
+    {
+      if (effectNode.left.object)
+      {
+        return isFresh(effectNode.left.object, ast, s.kont, s.fresh);
+      }
+    }
+    return false;
+  }
+
+  
     
   var pmap = HashMap.empty(); // fun -> {PURE, OBSERVER, PROC}
   var rdep = HashMap.empty(); // [addr, name] -> P(fun): read deps
@@ -282,33 +296,7 @@ function computePurity(ast, initial)
 //      print(effect, ctx, "local r/w var effect");
   }
   
-//  function freeVars(fun, ast)
-//  {
-//    var funNodes = Ast.nodes(fun);
-//    var result = ArraySet.empty();
-//    funNodes.forEach(
-//      function (funNode)
-//      {
-//        if (funNode.name)
-//        {
-//          var declarationNode = Ast.declarationNode(funNode.name, funNode, ast);
-//          
-//        }
-//      }
-//  }
-  
-  
-  function outOfScope(declarationNode, fun, ast)
-  {
-    if (Ast.enclosingFunScope(declarationNode, ast).equals(fun))
-    {
-      return false;
-    }
-    var decl2 = Ast.findDeclarationNode(declarationNode.name || declarationNode.id.name, fun, ast);
-    return !declarationNode.equals(decl2);
-  }
-  
-  computeMutability(ast, initial);
+  computeFreshness(ast, initial);
   
   var todo = [initial];
   while (todo.length > 0)
@@ -343,10 +331,10 @@ function computePurity(ast, initial)
             var name = varEffect ? getDeclarationNode(effect.name, ast, s.kont) : effect.name;
             var writeEffect = effect.isWriteEffect();
             var readEffect = effect.isReadEffect();
-                
-            if (varEffect)
+            
+            if (writeEffect)
             {
-              if (writeEffect)
+              if (varEffect)
               {
                 var funRdeps = getRdeps(address, name);
                 funRdeps.forEach(
@@ -366,36 +354,7 @@ function computePurity(ast, initial)
                     }
                   })
               }
-              else
-              {
-                var funOdeps = getOdeps(address, name);
-                ctxs.forEach(
-                  function (ctx)
-                  {
-                    var fun = ctx.callable.node;
-                    if (localVarEffect(name, fun))
-                    {
-                      return;
-                    }
-                    var storeAddresses = ctx.store.keys();
-                    if (!Arrays.contains(address, storeAddresses)) // non-local
-                    {
-                      return;
-                    }
-  //                  print(effect, ctx, "non-local read addr effect");
-  //                  print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
-                    addRdep(address, name, fun);
-                    if (funOdeps.contains(fun))
-                    {
-                      // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
-                      markObserver(fun);
-                    }                    
-                  })
-              }
-            } // end var effect
-            else // member effect
-            {
-              if (writeEffect)
+              else // member effect
               {
                 var funRdeps = getRdeps(address, name);
                 funRdeps.forEach(
@@ -405,36 +364,9 @@ function computePurity(ast, initial)
                     addOdep(address, name, funRdep);
                   })
 
-                var effectNode;
-                if (s.node)
+                if (fresh(s, ast))
                 {
-                  effectNode = s.node;
-                }
-                if (s.value && s.lkont[0].node)
-                {
-                  effectNode = s.lkont[0].node;
-                }
-                assert(effectNode);
-                if (effectNode.type === "AssignmentExpression")
-                {
-                  effectNode = effectNode.left;
-                }
-                if (effectNode.object)
-                {
-                  if (effectNode.object.type === "ThisExpression" && isConstructorCall(s.kont))
-                  {
-                    return;
-                  }
-                  
-                  if (effectNode.object.type === "Identifier")
-                  {
-                    var dn = getDeclarationNode(effectNode.object, ast, s.kont); 
-                    var fresh = s.fresh;
-                    if (fresh.contains(dn))
-                    {
-                      return;
-                    }
-                  }
+                  return;
                 }
 
                 ctxs.forEach(
@@ -449,35 +381,38 @@ function computePurity(ast, initial)
                     var fun = ctx.callable.node;
 //                    print("PROC:", effectNode, "in", fun);
                     markProcedure(fun);
-                    
-                    
-                  }) // end for each ctx
-              } // end write effect
-              else // read
-              {
-                var funOdeps = getOdeps(address, name);
-                ctxs.forEach(
-                  function (ctx)
-                  {
-                    var storeAddresses = ctx.store.keys();
-                    if (!Arrays.contains(address, storeAddresses)) // local
-                    {
-                      return;
-                    }
-                    
-                    var fun = ctx.callable.node;
-                    addRdep(address, name, fun);
-                    if (funOdeps.contains(fun))
-                    {
-                      // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
-                      markObserver(fun);
-                    }                    
                   }) // end for each ctx
               }
-            } // end member effect
-          }) // end for each effect
-        todo.push(t.state);
-      }) // end for each outgoing
+            }
+            else // read
+            {
+              var funOdeps = getOdeps(address, name);
+              ctxs.forEach(
+                function (ctx)
+                {
+                  var fun = ctx.callable.node;
+                  if (varEffect && localVarEffect(name, fun))
+                  {
+                    return;
+                  }
+                  var storeAddresses = ctx.store.keys();
+                  if (!Arrays.contains(address, storeAddresses)) // non-local
+                  {
+                    return;
+                  }
+//                  print(effect, ctx, "non-local read addr effect");
+//                  print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
+                  addRdep(address, name, fun);
+                  if (funOdeps.contains(fun))
+                  {
+                    // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                    markObserver(fun);
+                  }                    
+                })
+            }
+          });
+          todo.push(t.state);
+        });
   }
   return pmap;
 }

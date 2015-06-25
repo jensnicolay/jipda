@@ -801,14 +801,9 @@ function jsCesk(cc)
     }
     return ctx; 
   }
-
-  ObjClosureCall.prototype.applyFunction =
-    function (application, operandValues, thisa, benv, store, lkont, kont, effects)
-    {    
-    var stackAs = stackAddresses(lkont, kont);
-    var previousStack = [lkont, kont];
-    var ctx = createContext(application, this, operandValues, thisa, store, stackAs, previousStack);
-    var funNode = this.node;
+  
+  function performApply(operandValues, funNode, scope, store, lkont, kont, ctx, effects)
+  {    
     var bodyNode = funNode.body;
     var nodes = bodyNode.body;    
     if (nodes.length === 0)
@@ -816,7 +811,7 @@ function jsCesk(cc)
       return [{state:new KontState(L_UNDEFINED, store, [], ctx), effects:effects}];
     }
     
-    var extendedBenv = this.scope.extend();
+    var extendedBenv = scope.extend();
     
     var funScopeDecls = functionScopeDeclarations(funNode);
     var names = Object.keys(funScopeDecls);
@@ -855,76 +850,31 @@ function jsCesk(cc)
             }
           });
     }
-    
     return [{state:new EvalState(bodyNode, extendedBenv, store, [], ctx), effects:effects}];
+  }
+  
+
+  ObjClosureCall.prototype.applyFunction =
+    function (application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {    
+    var stackAs = stackAddresses(lkont, kont);
+    var previousStack = [lkont, kont];
+    var ctx = createContext(application, this, operandValues, thisa, store, stackAs, previousStack);
+    return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects)
   }
   
   ObjClosureCall.prototype.applyConstructor =
     function (application, operandValues, protoRef, benv, store, lkont, kont, effects)
     {    
-      var funNode = this.node;
-      var obj = createObject(protoRef);
-      var thisa = a.constructor(funNode, application);
-      //return this.applyFunction(application, operandValues, thisa, benv, store, lkont, kont, effects);
-      
       var stackAs = stackAddresses(lkont, kont);
       var previousStack = [lkont, kont];
-      var ctx = createContext(application, this, operandValues, thisa, store, stackAs, previousStack);
-
-      store = storeAlloc(store, thisa, obj); // only here: new `this` object shouldn't be in caller store
-
       var funNode = this.node;
-      var bodyNode = funNode.body;
-      var nodes = bodyNode.body;    
-      if (nodes.length === 0)
-      {
-        return [{state:new KontState(L_UNDEFINED, store, [], ctx), effects:effects}];
-      }
-      
-      var extendedBenv = this.scope.extend();
-      
-      var funScopeDecls = functionScopeDeclarations(funNode);
-      var names = Object.keys(funScopeDecls);
-      if (names.length > 0)
-      {
-        var nodeAddr = names.map(function (name)
-            {
-              var node = funScopeDecls[name];
-              var addr = a.vr(node.id || node);
-              extendedBenv = extendedBenv.add(name, addr);
-              return [node, addr];
-            });
-          nodeAddr.forEach(
-            function (na)
-            {
-              var node = na[0];
-              var addr = na[1];
-              if (Ast.isIdentifier(node)) // param
-              {
-                store = storeAlloc(store, addr, node.i < operandValues.length ? operandValues[node.i] : L_UNDEFINED);
-              }
-              else if (Ast.isFunctionDeclaration(node))
-              {
-                var allocateResult = allocateClosure(node, extendedBenv, store, lkont, kont);
-                var closureRef = allocateResult.ref;
-                store = allocateResult.store;
-                store = storeAlloc(store, addr, closureRef);
-              }
-              else if (Ast.isVariableDeclarator(node))
-              {
-                store = storeAlloc(store, addr, L_UNDEFINED);
-              }
-              else
-              {
-                throw new Error("cannot handle declaration " + node);
-              }
-            });
-      }
-      
-      return [{state:new EvalState(bodyNode, extendedBenv, store, [], ctx), effects:effects}];
-      
-      
-      
+      var thisa = a.constructor(funNode, application);
+      // call store should not contain freshly allocated `this`
+      var ctx = createContext(application, this, operandValues, thisa, store, stackAs, previousStack);
+      var obj = createObject(protoRef);
+      store = store.allocAval(thisa, obj);
+      return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects);
     }
 
   ObjClosureCall.prototype.addresses =
@@ -3863,7 +3813,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
             var operandsValues = [];
             while (i < operands.length && isAtomic(operands[i]))
             {
-              operandsValues[i] = ae.evalNode(operands[i], benv, store);
+              operandsValues[i] = ae.evalNode(operands[i], benv, store, kont);
               i++;
             }
             if (i === operands.length)
@@ -3893,7 +3843,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var operandsValues = [];
       while (i < operands.length && isAtomic(operands[i]))
       {
-        operandsValues[i] = ae.evalNode(operands[i], benv, store);
+        operandsValues[i] = ae.evalNode(operands[i], benv, store, kont);
         i++;
       }
       if (i === operands.length)
