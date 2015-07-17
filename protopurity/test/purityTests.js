@@ -616,6 +616,13 @@ var suiteJipdaDepTests =
       test(src, ["f", PURE, "g", OBS]);
     }
   
+  module.testPurity53 =
+    function ()
+    {
+      var src = "function glob(){var z=false;function h(){z=true};function g(){h()};function f(){g()};f()};glob()";
+      test(src, ["f", PROC, "g", PROC, "h", PROC, "glob", PURE]);
+    }
+  
   module.testTreenode1 =
     function ()
     {
@@ -629,6 +636,7 @@ var suiteJipdaDepTests =
       var src = read("test/resources/treenode.js");
       test(src, ["TreeNode", PURE, "f", PURE]);
     }
+
   
   return module;
 

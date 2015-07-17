@@ -387,32 +387,62 @@ function computePurity(ast, initial)
             else // read
             {
               var funOdeps = getOdeps(address, name);
-              ctxs.forEach(
-                function (ctx)
+              if (varEffect)
+              {
+                ctxs.forEach(
+                  function (ctx)
+                  {
+                    var fun = ctx.callable.node;
+                    if (localVarEffect(name, fun))
+                    {
+                      return;
+                    }
+                    if (isFreeVar(name, fun, ast))
+                    {                                        
+                    }
+                    else
+                    {
+                      return;
+                    }
+                    addRdep(address, name, fun);
+                    if (funOdeps.contains(fun))
+                    {
+                      // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                      markObserver(fun);
+                    }                    
+                  })
+              }
+              else // member
+              {
+                if (fresh(s, ast))
                 {
-                  var fun = ctx.callable.node;
-                  if (varEffect && localVarEffect(name, fun))
+                  print("fresh for reading!");
+                  return;
+                }
+                
+                ctxs.forEach(
+                  function (ctx)
                   {
-                    return;
-                  }
-                  var storeAddresses = ctx.store.keys();
-                  if (!Arrays.contains(address, storeAddresses)) // non-local
-                  {
-                    return;
-                  }
-//                  print(effect, ctx, "non-local read addr effect");
-//                  print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
-                  addRdep(address, name, fun);
-                  if (funOdeps.contains(fun))
-                  {
-                    // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
-                    markObserver(fun);
-                  }                    
-                })
-            }
-          });
-          todo.push(t.state);
+                    var fun = ctx.callable.node;
+                    var storeAddresses = ctx.store.keys();
+                    if (!Arrays.contains(address, storeAddresses)) // local
+                    {
+                      return;
+                    }
+  //                print(effect, ctx, "non-local read addr effect");
+  //                print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
+                    addRdep(address, name, fun);
+                    if (funOdeps.contains(fun))
+                    {
+                      // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                      markObserver(fun);
+                    }                    
+                  })
+              }
+          }
         });
+        todo.push(t.state);
+      })
   }
   return pmap;
 }
