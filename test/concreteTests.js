@@ -751,6 +751,12 @@ var suiteConcreteTests =
         run(src, 123);
       }
     
+    module.testCoen1 =
+      function ()
+      {
+        var src = read("test/resources/coen1.js");
+        run(src, 20);
+      }    
         
   return module;
   
