@@ -9,6 +9,22 @@ function displayPurity(ast, pmap)
     });
 }
 
+function computeResult(benchmark, ast, pmap, sgTime, pmTime)
+{
+  var pureFuns = 0;
+  var fs = Ast.nodes(ast).filter(function (node) {return node.type === "FunctionDeclaration" || node.type === "FunctionExpression"});
+  fs.forEach(
+    function (f, i)
+    {
+      var effClass = pmap.get(f);
+      if (effClass === "PURE" || effClass === "OBS")
+      {
+        pureFuns++;
+      }
+    });  
+  return {benchmark:benchmark,sgTime:sgTime,pmTime:pmTime,funs:fs.length,pureFuns:pureFuns};
+}
+
 function runBenchmarks(benchmarks)
 {
   var bprefix = "../test/resources/";
@@ -45,10 +61,9 @@ function runBenchmarks(benchmarks)
       print("pmTime", Formatter.displayTime(pmTime), "count", pmap.count());
       
       displayPurity(ast, pmap);
-      
-      var result = {};
       print();
-      return result;
+      
+      return computeResult(benchmark,ast,pmap,sgTime,pmTime);
     });
 }
 
@@ -59,9 +74,29 @@ function r()
 
 function serverTest()
 {
-  runBenchmarks([
+  var results = runBenchmarks([
+                 "sunspider/access-nbody.js",
+                 "sunspider/controlflow-recursive.js",
+                 "sunspider/crypto-sha1.js",
+                 "sunspider/math-spectral-norm.js",
+                 "jolden/tree-add.js",
                  "octane/navier-stokes.js", 
-                 "octane/richards.js",
-                 "sunspider/3d-cube.js",
-                 "octane/splay.js"]);
+                 "octane/richards.js"
+                 //"sunspider/3d-cube.js"
+                 //"octane/splay.js"
+                 ]);
+  displayResults(results);
+  return results;
+}
+
+function displayResults(results)
+{
+  results.forEach(function (result)
+    {
+      print(Formatter.displayWidth(result.benchmark, 30),
+          Formatter.displayWidth(result.funs,4),
+          Formatter.displayWidth(result.pureFuns,4),
+          Formatter.displayTime(result.sgTime),
+          Formatter.displayTime(result.pmTime));
+    })
 }

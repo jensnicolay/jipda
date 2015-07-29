@@ -6,10 +6,10 @@ var suiteJipdaDepTests =
 
   function createCesk(ast)
   {
-    return jsCesk({a:createPurityAg(ast), l:new JipdaLattice()});
+    return jsCesk({a:createTagAg(), l:new JipdaLattice()});
   }
   
-  var PURE="PURE", OBS=/*"OBS"*/PURE, PROC="PROC";
+  var PURE="PURE", OBS="OBS", PROC="PROC";
 
   
   function test(src, checks)
@@ -602,6 +602,48 @@ var suiteJipdaDepTests =
       test(src, ["f", PROC]);
     }
   
+  module.testPurity52 =
+    function ()
+    {
+      var src = "function f(){var x=10;function g(){return x};x;g();x=11;g()};f()";
+      test(src, ["f", PURE, "g", OBS]);
+    }
+  
+  module.testPurity52o =
+    function ()
+    {
+      var src = "function f(){var o={x:10};function g(){return o.x};o.x;g();o.x=11;g()};f()";
+      test(src, ["f", PURE, "g", OBS]);
+    }
+  
+  module.testPurity53 =
+    function ()
+    {
+      var src = "function glob(){var z=false;function h(){z=true};function g(){h()};function f(){g()};f()};glob()";
+      test(src, ["f", PROC, "g", PROC, "h", PROC, "glob", PURE]);
+    }
+  
+  module.testPurity54 =
+    function ()
+    {
+      var src = "function f() {var z={}; z.x=true; f()};f()"
+      test(src, ["f", PURE]);
+    }
+  
+  module.testPurity54b =
+    function ()
+    {
+      var src = "var z={};function f() {var y={}; y.x=true; y=z; y.x=false; f()};f()"
+      test(src, ["f", PROC]);
+    }
+  
+  module.testPurity54c =
+    function ()
+    {
+      var src = "var z={};function f() {var y={}; y.x=true; var y=z; y.x=false; f()};f()"
+      test(src, ["f", PROC]);
+    }
+  
   module.testTreenode1 =
     function ()
     {
@@ -615,6 +657,7 @@ var suiteJipdaDepTests =
       var src = read("test/resources/treenode.js");
       test(src, ["TreeNode", PURE, "f", PURE]);
     }
+
   
   return module;
 

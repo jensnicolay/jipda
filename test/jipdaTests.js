@@ -411,6 +411,20 @@ var suiteJipdaTests =
         run(src, cesk, BOT);                
       }
     
+    module.test105 =
+      function ()
+      {
+        var src = "function f(p){if (p) {p.x=4} else {p={}};return p};var o=f();f(o)"
+      }
+    
+    module.testCoen1 =
+      function ()
+      {
+        var src = read("test/resources/coen1.js")
+        var cesk = createCesk();
+        run(src, cesk, cesk.l.abst1(20));                
+      }    
+    
 //    module.testChurchNums =
 //    function ()
 //    {

@@ -48,7 +48,7 @@ var tagAg = {};
   tagAg.vr =
     function (node, ctx)
     {
-      return node.name + "-" + node.tag;
+      return "var-" + node.tag;
     }
   
   return tagAg;

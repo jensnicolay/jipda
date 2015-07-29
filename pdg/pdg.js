@@ -169,7 +169,7 @@ Pdg.values = // TODO rewrite calling _epsSuccessors
           {
             if (children[i] === node)
             {
-              result = result.join(system.evalAtomic(children[i], s.benv, s.store, []));
+              result = result.join(system.evalAtomic(children[i], s.benv, s.store, s.kont));
             }
             i++;
           }
