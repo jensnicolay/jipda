@@ -623,6 +623,27 @@ var suiteJipdaDepTests =
       test(src, ["f", PROC, "g", PROC, "h", PROC, "glob", PURE]);
     }
   
+  module.testPurity54 =
+    function ()
+    {
+      var src = "function f() {var z={}; z.x=true; f()};f()"
+      test(src, ["f", PURE]);
+    }
+  
+  module.testPurity54b =
+    function ()
+    {
+      var src = "var z={};function f() {var y={}; y.x=true; y=z; y.x=false; f()};f()"
+      test(src, ["f", PROC]);
+    }
+  
+  module.testPurity54c =
+    function ()
+    {
+      var src = "var z={};function f() {var y={}; y.x=true; var y=z; y.x=false; f()};f()"
+      test(src, ["f", PROC]);
+    }
+  
   module.testTreenode1 =
     function ()
     {

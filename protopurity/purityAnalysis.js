@@ -1,4 +1,4 @@
-function getDeclarationNode(nameNode, ast, ctx)
+function getDeclarationNode(nameNode, ast)
 {
   if (!nameNode.name)
   {
@@ -45,11 +45,16 @@ function computeFreshness(ast, initial)
         node.declarations.forEach(function (declarator) {fresh = handleNode(declarator, fresh, ctx)});
         return fresh;
       case "VariableDeclarator":
-        if (isFresh(node, ast, ctx, fresh))
+        var dn = getDeclarationNode(node.id, ast);
+        if (!node.init)
         {
-          return fresh.add(node);
+          return fresh;
         }
-        return fresh;
+        if (isFresh(node.init, ast, ctx, fresh))
+        {
+          return fresh.add(dn);
+        }
+        return fresh.remove(dn);
       case "BlockStatement":
         if (node.body.length === 1)
         {
@@ -63,11 +68,12 @@ function computeFreshness(ast, initial)
         var right = node.right;
         if (left.type === "Identifier")
         {
-          var dn = getDeclarationNode(left, ast, ctx);
+          var dn = getDeclarationNode(left, ast);
           if (isFresh(right, ast, ctx, fresh))
           {
-            return fresh.add(node);
+            return fresh.add(dn);
           }
+          return fresh.remove(dn);
         }
         return fresh;
       default:
@@ -122,7 +128,7 @@ function isFresh(node, ast, kont, freshVars)
   {
     case "Identifier":
     {
-      var dn = getDeclarationNode(node, ast, kont);
+      var dn = getDeclarationNode(node, ast);
       return freshVars.contains(dn);
     }
     case "AssignmentExpression":
@@ -130,7 +136,7 @@ function isFresh(node, ast, kont, freshVars)
     case "ObjectExpression": return true;
     case "NewExpression": return true;
     case "ThisExpression": return isConstructorCall(kont);
-    case "VariableDeclarator": return node.init &&  isFresh(node.init, ast, kont, freshVars);
+//    case "VariableDeclarator": return node.init && isFresh(node.init, ast, kont, freshVars);
     default: return false;
   }
 }
@@ -328,7 +334,7 @@ function computePurity(ast, initial)
           {
             var address = effect.address;
             var varEffect = effect.name.tag > -1;
-            var name = varEffect ? getDeclarationNode(effect.name, ast, s.kont) : effect.name;
+            var name = varEffect ? getDeclarationNode(effect.name, ast) : effect.name;
             var writeEffect = effect.isWriteEffect();
             var readEffect = effect.isReadEffect();
             

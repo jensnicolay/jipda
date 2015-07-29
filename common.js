@@ -226,7 +226,7 @@ Arrays.removeFirst =
     {
       return arr;
     }
-    return Arrays.removeIndex(index);
+    return Arrays.removeIndex(index, arr);
   }
 
 Arrays.removeIndex =
