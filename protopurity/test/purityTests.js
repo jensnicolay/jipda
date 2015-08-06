@@ -644,6 +644,15 @@ var suiteJipdaDepTests =
       test(src, ["f", PROC]);
     }
   
+  module.testPurity55 =
+    function ()
+    {
+      var src = "var z={};function f() {var y=z; y={}; y.x=false; f()};f()"
+      test(src, ["f", PURE]);
+    }
+    
+
+  
   module.testTreenode1 =
     function ()
     {
