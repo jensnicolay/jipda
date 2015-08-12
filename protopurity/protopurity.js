@@ -46,7 +46,7 @@ function runBenchmarks(benchmarks)
       print(benchmark);
       var src = read(bprefix + benchmark);
       var ast = Ast.createAst(src, {loc:true});
-      var cesk = jsCesk({a:createTagAg(), l:new JipdaLattice()});
+      var cesk = jsCesk({a:createConcAg(), l:new ConcLattice()});
       
       var sgStart = Date.now();
       var system = cesk.explore(ast);
@@ -75,13 +75,13 @@ function r()
 function serverTest()
 {
   var results = runBenchmarks([
-                 "sunspider/access-nbody.js",
-                 "sunspider/controlflow-recursive.js",
-                 "sunspider/crypto-sha1.js",
-                 "sunspider/math-spectral-norm.js",
-                 "jolden/tree-add.js",
+//                 "sunspider/access-nbody.js",
+//                 "sunspider/controlflow-recursive.js",
+//                 "sunspider/crypto-sha1.js",
+//                 "sunspider/math-spectral-norm.js",
+//                 "jolden/tree-add.js",
                  "octane/navier-stokes.js", 
-                 "octane/richards.js"
+//                 "octane/richards.js"
                  //"sunspider/3d-cube.js"
                  //"octane/splay.js"
                  ]);

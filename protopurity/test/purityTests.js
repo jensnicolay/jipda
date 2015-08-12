@@ -9,7 +9,7 @@ var suiteJipdaDepTests =
     return jsCesk({a:createTagAg(), l:new JipdaLattice()});
   }
   
-  var PURE="PURE", OBS="OBS", PROC="PROC";
+  var PURE="PURE", OBS=PURE, PROC="PROC";
 
   
   function test(src, checks)

@@ -340,41 +340,26 @@ function computePurity(ast, initial)
             
             if (writeEffect)
             {
-              if (varEffect)
-              {
-                var funRdeps = getRdeps(address, name);
-                funRdeps.forEach(
-                  function (funRdep)
-                  {
-  //                      print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
-                    addOdep(address, name, funRdep);
-                  })
-                ctxs.forEach(
-                  function (ctx)
-                  {
-                    var fun = ctx.callable.node;
-                    if (isFreeVar(name, fun, ast))
-                    {
-//                      print(effect.node, "PROC: free var write effect", effect, fun);
-                      markProcedure(fun);
-                    }
-                  })
-              }
-              else // member effect
-              {
-                var funRdeps = getRdeps(address, name);
-                funRdeps.forEach(
-                  function (funRdep)
-                  {
-  //                      print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
-                    addOdep(address, name, funRdep);
-                  })
-
-                if (fresh(s, ast))
-                {
-                  return;
-                }
-
+//              if (varEffect)
+//              {
+//                ctxs.forEach(
+//                  function (ctx)
+//                  {
+//                    var fun = ctx.callable.node;
+//                    if (isFreeVar(name, fun, ast))
+//                    {
+////                      print(effect.node, "PROC: free var write effect", effect, fun);
+//                      markProcedure(fun);
+//                    }
+//                  })
+//              }
+//              else // member effect
+//              {
+//                if (fresh(s, ast))
+//                {
+//                  return;
+//                }
+//
                 ctxs.forEach(
                   function (ctx)
                   {
@@ -388,64 +373,8 @@ function computePurity(ast, initial)
 //                    print("PROC:", effectNode, "in", fun);
                     markProcedure(fun);
                   }) // end for each ctx
-              }
+//              }
             }
-            else // read
-            {
-              var funOdeps = getOdeps(address, name);
-              if (varEffect)
-              {
-                ctxs.forEach(
-                  function (ctx)
-                  {
-                    var fun = ctx.callable.node;
-                    if (localVarEffect(name, fun))
-                    {
-                      return;
-                    }
-                    if (isFreeVar(name, fun, ast))
-                    {                                        
-                    }
-                    else
-                    {
-                      return;
-                    }
-                    addRdep(address, name, fun);
-                    if (funOdeps.contains(fun))
-                    {
-                      // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
-                      markObserver(fun);
-                    }                    
-                  })
-              }
-              else // member
-              {
-                if (fresh(s, ast))
-                {
-                  print("fresh for reading!");
-                  return;
-                }
-                
-                ctxs.forEach(
-                  function (ctx)
-                  {
-                    var fun = ctx.callable.node;
-                    var storeAddresses = ctx.store.keys();
-                    if (!Arrays.contains(address, storeAddresses)) // local
-                    {
-                      return;
-                    }
-  //                print(effect, ctx, "non-local read addr effect");
-  //                print(t._id, "->r", fun.loc.start.line, effectAddress, effectName);
-                    addRdep(address, name, fun);
-                    if (funOdeps.contains(fun))
-                    {
-                      // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
-                      markObserver(fun);
-                    }                    
-                  })
-              }
-          }
         });
         todo.push(t.state);
       })
