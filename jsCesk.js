@@ -3,10 +3,16 @@
 var EMPTY_LKONT = [];
 var EMPTY_ADDRESS_SET = ArraySet.empty();
 
+var ast0src = "";
+ast0src += "Array.prototype.map = function (f) { var result = [];for (var i = 0; i < this.length; i++){result.push(f(this[i]))}; return result}\n";
+ast0src += "Array.prototype.filter = function (f) { var result = [];for (var i = 0; i < this.length; i++){var x = this[i]; if (f(x)) (result.push(x))}; return result}\n";
+ast0src += "Array.prototype.indexOf = function (x) { for (var i = 0; i < this.length; i++){if (this[i]===x) return i}; return -1}\n";
+const ast0 = Ast.createAst(ast0src);
+
 function jsCesk(cc)
 {
   // address generator
-  const a = cc.a;
+  var a = cc.a;
   // lattice
   const l = cc.l || new JipdaLattice();
   // atomic evaluation
@@ -350,7 +356,6 @@ function jsCesk(cc)
   arrayP = registerPrimitiveFunction(arrayP, arrayPa, "push", arrayPush);
 //  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "map", arrayMap);
 //  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "reduce", arrayReduce);
-//  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "filter", arrayFilter);
   store = storeAlloc(store, arrayPa, arrayP);
   // END ARRAY
   
@@ -402,8 +407,7 @@ function jsCesk(cc)
   global = registerPrimitiveFunction(global, globala, "print", _print);
   // end specific interpreter functions
   
-//  store = storeAlloc(store, globalenva, globalEnv);
-  store = storeAlloc(store, globala, global);
+  store = storeAlloc(store, globala, global);  
   // END GLOBAL
   
   // BEGIN PRIMITIVES
@@ -4118,7 +4122,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
 
   var module = {};
   module.l = l;
-  module.store = store;
+  //module.store = store;
   module.globala = globala;
   
   module.inject = 
@@ -4133,12 +4137,12 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   
   
   module.explore =
-    function (ast)
+    function (ast, override)
     {
       var startTime = performance.now();
       var id = 0;
       var visited = MutableHashSet.empty(104729);
-      var initial = this.inject(ast);
+      var initial = this.inject(ast, override);
       initial._id = id++;
       visited.add(initial);
       var result = ArraySet.empty();
@@ -4294,6 +4298,90 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       }
     }
   
+  function preludeExplore(ast)
+    {
+      var startTime = performance.now();
+      var oldA = a;
+      a = {};
+      a.object =
+        function (node, benva, store, kont)
+        {
+        return allocNative();
+        }
+
+      a.closure =
+        function (node, benva, store, kont)
+        {
+        return allocNative();
+        }
+
+      a.closureProtoObject =
+        function (node, benva, store, kont)
+        {
+        return allocNative();
+        }
+
+      a.array =
+        function (node, benva, store, kont)
+        {
+        return allocNative();
+        }
+
+      a.string =
+        function (node, benva, store, kont)
+        {
+        return allocNative();
+        }
+
+      a.benv =
+        function (node, benva, store, kont)
+        {
+        return allocNative();
+        }
+
+      a.constructor =
+        function (node, benva, store, kont)
+        {
+        return allocNative();
+        }
+      
+      a.vr =
+        function (name, ctx)
+        {
+        return allocNative();
+        }
+
+      var initial = module.inject(ast);
+      var s = initial;
+      var id = 0;
+      while (true)
+      {
+        var next = s.next();
+        id++;
+        if (id % 10000 === 0)
+        {
+          print(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
+        }
+        var l = next.length;
+        if (l === 1)
+        {
+          s = next[0].state;
+        }
+        else if (l === 0)
+        {
+          print("loaded prelude", Formatter.displayTime(performance.now()-startTime), "states", id);
+          a = oldA;
+          store = s.store;
+          return;
+        }
+        else
+        { 
+          a = oldA;
+          throw new Error("more than one next state");
+        }
+      }
+    }
+  module.preludeExplore = preludeExplore;
   
   module.isAtomic = isAtomic;
   module.evalAtomic =
@@ -4304,6 +4392,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       return value;
     }
       
+  preludeExplore(ast0);    
   return module; 
 }
 
