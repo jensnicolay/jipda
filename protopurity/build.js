@@ -3,7 +3,7 @@
 
 load("../lib/esprima.js");
 
-let console = {log:print}
+var console = {log:print}
 
 Array.prototype.toString =
   function ()
@@ -12,8 +12,8 @@ Array.prototype.toString =
     {
       return "[]";
     }
-    let s = "[";
-    let i = 0;
+    var s = "[";
+    var i = 0;
     for (; i < this.length - 1; i++)
     {
       s += this[i] + ","; 

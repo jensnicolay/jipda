@@ -336,30 +336,30 @@ function computePurity(ast, initial)
             var varEffect = effect.name.tag > -1;
             var name = varEffect ? getDeclarationNode(effect.name, ast) : effect.name;
             var writeEffect = effect.isWriteEffect();
-            var readEffect = effect.isReadEffect();
+            //var readEffect = effect.isReadEffect();
             
             if (writeEffect)
             {
-//              if (varEffect)
-//              {
-//                ctxs.forEach(
-//                  function (ctx)
-//                  {
-//                    var fun = ctx.callable.node;
-//                    if (isFreeVar(name, fun, ast))
-//                    {
-////                      print(effect.node, "PROC: free var write effect", effect, fun);
-//                      markProcedure(fun);
-//                    }
-//                  })
-//              }
-//              else // member effect
-//              {
-//                if (fresh(s, ast))
-//                {
-//                  return;
-//                }
-//
+              if (varEffect)
+              {
+                ctxs.forEach(
+                  function (ctx)
+                  {
+                    var fun = ctx.callable.node;
+                    if (isFreeVar(name, fun, ast))
+                    {
+//                      print(effect.node, "PROC: free var write effect", effect, fun);
+                      markProcedure(fun);
+                    }
+                  })
+              }
+              else // member effect
+              {
+                if (fresh(s, ast))
+                {
+                  return;
+                }
+
                 ctxs.forEach(
                   function (ctx)
                   {
@@ -373,7 +373,7 @@ function computePurity(ast, initial)
 //                    print("PROC:", effectNode, "in", fun);
                     markProcedure(fun);
                   }) // end for each ctx
-//              }
+              }
             }
         });
         todo.push(t.state);
