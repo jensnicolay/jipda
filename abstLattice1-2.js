@@ -442,7 +442,7 @@ JipdaLattice.prototype.abstRef =
 JipdaLattice.prototype.abst1 =
   function (value)
   {
-    if (typeof value === "string" || value === true || value === false)
+    if (typeof value === "string")
     {
       return new Some(value);
     }
@@ -450,10 +450,10 @@ JipdaLattice.prototype.abst1 =
     {
       return JipdaValue._NUM;
     }
-//    if (value === true || value === false)
-//    {
-//      return JipdaValue._BOOL;
-//    }
+    if (value === true || value === false)
+    {
+      return JipdaValue._BOOL;
+    }
     if (value === undefined)
     {
       return JipdaValue._UND;
