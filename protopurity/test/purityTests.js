@@ -92,7 +92,7 @@ var suiteJipdaDepTests =
   module.testPurity5ab = 
     function ()
     {
-      var src = "var z=false; function f() {return z}; z=true; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "var z=false; function f() {return z}; z=true; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     } 
   
@@ -106,7 +106,7 @@ var suiteJipdaDepTests =
   module.testPurity5bc = 
     function ()
     {
-      var src = "var z=false; function f() {return z}; z=true; f(); f(); function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "var z=false; function f() {return z}; z=true; f(); f(); function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     } 
   
@@ -120,7 +120,7 @@ var suiteJipdaDepTests =
   module.testPurity5cb = 
     function ()
     {
-      var src = "var z=false; function f() {return z}; f(); f(); z=true; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true);";
+      var src = "var z=false; function f() {return z}; f(); f(); z=true; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true);";
       test(src, ["f", PURE]);
     } 
   
@@ -134,7 +134,7 @@ var suiteJipdaDepTests =
   module.testPurity5db = 
     function ()
     {
-      var src = "var z=false; function f() {return z}; f(); function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "var z=false; function f() {return z}; f(); function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     } 
   
@@ -148,7 +148,7 @@ var suiteJipdaDepTests =
   module.testPurity6b =
     function ()
     {
-      var src = "var z=false;function f(){g()}; function g(){h()}; function h(){z=true}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "var z=false;function f(){g()}; function g(){h()}; function h(){z=true}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PROC]);
     }
     
@@ -169,7 +169,7 @@ var suiteJipdaDepTests =
   module.testPurity7b =
     function ()
     {
-      var src = "function f(){var x=0; function g() {x=x+1}; g()}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "function f(){var x=0; function g() {x=x+1}; g()}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE, "g", PROC]);
     }
     
@@ -183,7 +183,7 @@ var suiteJipdaDepTests =
   module.testPurity8b =
     function ()
     {
-      var src = "function f(){var o={}; o.x=3}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "function f(){var o={}; o.x=3}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -211,7 +211,7 @@ var suiteJipdaDepTests =
   module.testPurity11b =
     function ()
     {
-      var src = "function f(){var o={}; function g() {o.x=4}; g(); return o.x}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "function f(){var o={}; function g() {o.x=4}; g(); return o.x}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -225,7 +225,7 @@ var suiteJipdaDepTests =
   module.testPurity12b =
     function ()
     {
-      var src = "var z=0; function f(){var o={}; function g() {z=z+1;o.x=z}; g(); return o.x}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "var z=0; function f(){var o={}; function g() {z=z+1;o.x=z}; g(); return o.x}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PROC]);
     }
     
@@ -267,7 +267,7 @@ var suiteJipdaDepTests =
   module.testPurity17b =
     function ()
     {
-      var src = "function g() {var o={x:{}}; return o}; function f(){return g().x}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "function g() {var o={x:{}}; return o}; function f(){return g().x}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE, "g", PURE]);
     }
     
@@ -281,7 +281,7 @@ var suiteJipdaDepTests =
   module.testPurity18b =
     function ()
     {
-      var src = "function g(p) {p.x=4}; function f(){var o={}; g(o); return o.x}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "function g(p) {p.x=4}; function f(){var o={}; g(o); return o.x}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -295,7 +295,7 @@ var suiteJipdaDepTests =
   module.testPurity19b =
     function ()
     {
-      var src = "var z=0; function g(p) {z=z+1;p.x=z}; function f(){var o={}; g(o); return o.x}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "var z=0; function g(p) {z=z+1;p.x=z}; function f(){var o={}; g(o); return o.x}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PROC]);
     }
     
@@ -344,7 +344,7 @@ var suiteJipdaDepTests =
   module.testPurity25b =
     function ()
     {
-      var src = "function g(p) {p.x=4}; function f(h){var o={}; h(o); return o.x}; function l(b) {if (b) {f(g);l(false)}; return 'done'}; l(true)";
+      var src = "function g(p) {p.x=4}; function f(h){var o={}; h(o); return o.x}; function l(b) {if (b) {f(g);return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -358,7 +358,7 @@ var suiteJipdaDepTests =
   module.testPurity26b =
     function ()
     {
-      var src = "var z=0; function g(p) {z=z+1;p.x=z}; function f(h){var o={}; h(o); return o.x}; function l(b) {if (b) {f(g);l(false)}; return 'done'}; l(true)";
+      var src = "var z=0; function g(p) {z=z+1;p.x=z}; function f(h){var o={}; h(o); return o.x}; function l(b) {if (b) {f(g);return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PROC]);
     }
     
@@ -379,7 +379,7 @@ var suiteJipdaDepTests =
   module.testPurity28b = 
     function ()
     {
-      var src = "function g(){return {x:3}}; function f(h){return h()}; function l(b) {if (b) {f(g);l(false)}; return 'done'}; l(true)";
+      var src = "function g(){return {x:3}}; function f(h){return h()}; function l(b) {if (b) {f(g);return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -393,7 +393,7 @@ var suiteJipdaDepTests =
   module.testPurity29b =
     function ()
     {
-      var src = "function f(){function g(){var l=3; return l}; return g()}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "function f(){function g(){var l=3; return l}; return g()}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
 
@@ -407,7 +407,7 @@ var suiteJipdaDepTests =
   module.testPurity30b =
     function ()
     {
-      var src = "function g(){var l=3; return l}; function f(){return g()}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "function g(){var l=3; return l}; function f(){return g()}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -421,7 +421,7 @@ var suiteJipdaDepTests =
   module.testPurity31b =
     function ()
     {
-      var src = "function g(){var l=3; return l}; function f(h){return h()}; function l(b) {if (b) {f(g);l(false)}; return 'done'}; l(true)";
+      var src = "function g(){var l=3; return l}; function f(h){return h()}; function l(b) {if (b) {f(g);return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -435,7 +435,7 @@ var suiteJipdaDepTests =
   module.testPurity32b =
     function ()
     {
-      var src = "function f(){var l=3;function g(){return l}; l=l+1; return g()}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "function f(){var l=3;function g(){return l}; l=l+1; return g()}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
   
@@ -449,7 +449,7 @@ var suiteJipdaDepTests =
   module.testPurity33b =
     function ()
     {
-      var src = "function f(){var l=3;function g(){l=l+1;return l}; l=l+1; return g()}; function l(b) {if (b) {f();l(false)}; return 'done'}; l(true)";
+      var src = "function f(){var l=3;function g(){l=l+1;return l}; l=l+1; return g()}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
   
@@ -645,28 +645,28 @@ var suiteJipdaDepTests =
   module.testPurity54 =
     function ()
     {
-      var src = "function f(b) {if (b) {var z={}; z.x=true; f(false)}; return 'done'};f(true)"
+      var src = "function f(b) {if (b) {var z={}; z.x=true; return f(false)}; return 'done'};f(true)"
       test(src, ["f", PURE]);
     }
   
   module.testPurity54b =
     function ()
     {
-      var src = "var z={};function f(b) {if (b) {var y={}; y.x=true; y=z; y.x=false; f(false)}; return 'done'};f(true)"
+      var src = "var z={};function f(b) {if (b) {var y={}; y.x=true; y=z; y.x=false; return f(false)}; return 'done'};f(true)"
       test(src, ["f", PROC]);
     }
   
   module.testPurity54c =
     function ()
     {
-      var src = "var z={};function f(b) {if (b) {var y={}; y.x=true; var y=z; y.x=false; f(false)}; return 'done'};f(true)"
+      var src = "var z={};function f(b) {if (b) {var y={}; y.x=true; var y=z; y.x=false; return f(false)}; return 'done'};f(true)"
       test(src, ["f", PROC]);
     }
   
   module.testPurity55 =
     function ()
     {
-      var src = "var z={};function f(b) {if (b) {var y=z; y={}; y.x=false; f(false)}; return 'done'};f(true)"
+      var src = "var z={};function f(b) {if (b) {var y=z; y={}; y.x=false; return f(false)}; return 'done'};f(true)"
       test(src, ["f", PURE]);
     }
 
@@ -696,6 +696,71 @@ var suiteJipdaDepTests =
       {
         var src = "function global(){function f(h) {h()};(function (z){function g() {z=false};f(g)})(true)};global()";
         test(src, ["global", PURE, "f", PROC, "g", PROC]);
+      }
+
+  // synced with Scheme purity
+
+  module.testPuritys61 =
+      function ()
+      {
+        var src = "function f(h) {var z=true; if (h) return h(); return f(function g() {z=false})};f(false)";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPuritys62 =
+      function ()
+      {
+        var src = "function f(h) {var z={}; if (h) return h(); return f(function g() {z.x=123})};f(false)";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPuritys62b =
+      function ()
+      {
+        var src = "function f(h) {var z={x:456}; if (h) return h(); return f(function g() {z.x=123})};f(false)";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPuritys62c =
+      function ()
+      {
+        var src = "function f(h) {var z=[]; if (h) return h(); return f(function g() {z[0]=123})};f(false)";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPuritys62d =
+      function ()
+      {
+        var src = "function f(h) {var z=[456]; if (h) return h(); return f(function g() {z[0]=123})};f(false)";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPuritys63 =
+      function ()
+      {
+        var src = "function f(b) {if (b) {var x;var y;x=y={};x.car=3;return f(false)}; return 'done'};f(true)";
+        test(src, ["f", PURE]);
+      }
+
+  module.testPuritys65 =
+      function ()
+      {
+        var src = "function f(b) {if (b) {var x;var y;x=y={};x.car=3;f(false);return x}; return 'done'};f(true)";
+        test(src, ["f", PURE]);
+      }
+
+  module.testPuritys66 =
+      function ()
+      {
+        var src = "function f(p) {var o={};if (p) {p.x=3} else f(o)}; f(false)";
+        test(src, ["f", PROC]);
+      }
+
+  module.testPuritys67 =
+      function ()
+      {
+        var src = "function f(b) {if (b) {var z={};function g() {z.x=3}; g(); f(false); return z}; return 'done'};f(true)";
+        test(src, ["f", PURE, "g", PROC]);
       }
 
   return module;
