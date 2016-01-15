@@ -650,9 +650,7 @@ var suiteJipdaDepTests =
       var src = "var z={};function f() {var y=z; y={}; y.x=false; f()};f()"
       test(src, ["f", PURE]);
     }
-    
 
-  
   module.testTreenode1 =
     function ()
     {
@@ -667,7 +665,20 @@ var suiteJipdaDepTests =
       test(src, ["TreeNode", PURE, "f", PURE]);
     }
 
-  
+  module.testPurity56 = // TODO fix p=o assignment
+      function ()
+      {
+        var src = "var o={};function f() {var p={};function g(){p=o};g();p.x=123};f()";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPurity57 =
+      function ()
+      {
+        var src = "function global(){function f(h) {h()};(function (z){function g() {z=false};f(g)})(true)};global()";
+        test(src, ["global", PURE, "f", PROC, "g", PROC]);
+      }
+
   return module;
 
 })()

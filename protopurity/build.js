@@ -1,9 +1,8 @@
 "use strict";
-"use strong";
 
 load("../lib/esprima.js");
 
-let console = {log:print}
+var console = {log:print};
 
 Array.prototype.toString =
   function ()
@@ -12,15 +11,15 @@ Array.prototype.toString =
     {
       return "[]";
     }
-    let s = "[";
-    let i = 0;
+    var s = "[";
+    var i = 0;
     for (; i < this.length - 1; i++)
     {
       s += this[i] + ","; 
     }
     s += this[i] + "]";
     return s;   
-  }
+  };
 
   load("../common.js");
   load("../countingStore.js");
@@ -39,4 +38,4 @@ Array.prototype.toString =
   load("purityAnalysis.js");
   load("protopurity.js");
   
-  load("test/purityTests.js")
+  load("test/purityTests.js");
