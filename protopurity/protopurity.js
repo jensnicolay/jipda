@@ -9,20 +9,19 @@ function displayPurity(ast, pmap)
     });
 }
 
-function computeResult(benchmark, ast, pmap, sgTime, pmTime)
+function computeResult(fs, pmap, pmTime)
 {
   var pureFuns = 0;
-  var fs = Ast.nodes(ast).filter(function (node) {return node.type === "FunctionDeclaration" || node.type === "FunctionExpression"});
   fs.forEach(
     function (f, i)
     {
       var effClass = pmap.get(f);
-      if (effClass === "PURE" || effClass === "OBS")
+      if (effClass === "PURE")
       {
         pureFuns++;
       }
     });  
-  return {benchmark:benchmark,sgTime:sgTime,pmTime:pmTime,funs:fs.length,pureFuns:pureFuns};
+  return {pmTime:pmTime,pureFuns:pureFuns};
 }
 
 function runBenchmarks(benchmarks)
@@ -47,23 +46,26 @@ function runBenchmarks(benchmarks)
       var src = read(bprefix + benchmark);
       var ast = Ast.createAst(src, {loc:true});
       var cesk = jsCesk({a:createTagAg(), l:new JipdaLattice()});
-      
+      var fs = Ast.nodes(ast).filter(function (node) {return node.type === "FunctionDeclaration" || node.type === "FunctionExpression"});
+
       var sgStart = Date.now();
       var system = cesk.explore(ast);
       var sgTime = Date.now() - sgStart;
-
       print("sgTime", Formatter.displayTime(sgTime), "states", system.states.count());
+      var calledFs = ArraySet.from(system.contexts.map(function (ctx) {return ctx.callable.node})).remove(undefined); // `undefined` = root context
 
-      var pmStart = Date.now();
-      var pmap = computePurity(ast, system.initial, system.contexts);
-      var pmTime = Date.now() - pmStart;
+      var aStart = Date.now();
+      var amap = computePurity(ast, system.initial, system.contexts);
+      var aTime = Date.now() - aStart;
+      print("aTime", Formatter.displayTime(aTime), "count", amap.count());
+
+      var faStart = Date.now();
+      var famap = computePurity(ast, system.initial, system.contexts);
+      var faTime = Date.now() - faStart;
+      print("faTime", Formatter.displayTime(faTime), "count", famap.count());
+
       
-      print("pmTime", Formatter.displayTime(pmTime), "count", pmap.count());
-      
-      displayPurity(ast, pmap);
-      print();
-      
-      return computeResult(benchmark,ast,pmap,sgTime,pmTime);
+      return {benchmark:benchmark,sgTime:sgTime,funs:fs.length,called:calledFs.count(),a:computeResult(fs,amap,aTime), fa:computeResult(fs,amap,aTime)};
     });
 }
 
@@ -72,19 +74,32 @@ function r()
   return runBenchmarks();
 }
 
+function test()
+{
+  var results = runBenchmarks([
+    "sunspider/access-nbody.js",
+    "sunspider/controlflow-recursive.js",
+    "sunspider/crypto-sha1.js",
+    "sunspider/math-spectral-norm.js",
+    "jolden/tree-add.js"
+  ]);
+  displayResults(results);
+  return results;
+}
+
 function serverTest()
 {
   var results = runBenchmarks([
-                 "sunspider/access-nbody.js",
-                 "sunspider/controlflow-recursive.js",
-                 "sunspider/crypto-sha1.js",
-                 "sunspider/math-spectral-norm.js",
-                 "jolden/tree-add.js",
-                 "octane/navier-stokes.js", 
-                 "octane/richards.js"
-                 //"sunspider/3d-cube.js"
-                 //"octane/splay.js"
-                 ]);
+    "sunspider/access-nbody.js",
+    "sunspider/controlflow-recursive.js",
+    "sunspider/crypto-sha1.js",
+    "sunspider/math-spectral-norm.js",
+    "jolden/tree-add.js",
+    "octane/navier-stokes.js",
+    "octane/richards.js"
+    //"sunspider/3d-cube.js"
+    //"octane/splay.js"
+  ]);
   displayResults(results);
   return results;
 }
@@ -92,11 +107,14 @@ function serverTest()
 function displayResults(results)
 {
   results.forEach(function (result)
-    {
-      print(Formatter.displayWidth(result.benchmark, 30),
-          Formatter.displayWidth(result.funs,4),
-          Formatter.displayWidth(result.pureFuns,4),
-          Formatter.displayTime(result.sgTime),
-          Formatter.displayTime(result.pmTime));
-    })
+  {
+    var aresult = result.a;
+    var faresult = result.fa;
+    print(Formatter.displayWidth(result.benchmark, 30),
+        "flowTime", Formatter.displayTime(result.sgTime),
+        "funs", Formatter.displayWidth(result.funs,4), "called ", Formatter.displayWidth(result.called,4),
+        "pure a ", Formatter.displayWidth(aresult.pureFuns,4), "fa ", Formatter.displayWidth(faresult.pureFuns, 4),
+        "time a ", Formatter.displayTime(aresult.pmTime), "fa ", Formatter.displayTime(faresult.pmTime)
+        );
+  })
 }
