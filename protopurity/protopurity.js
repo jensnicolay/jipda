@@ -55,12 +55,12 @@ function runBenchmarks(benchmarks)
       var calledFs = ArraySet.from(system.contexts.map(function (ctx) {return ctx.callable.node})).remove(undefined); // `undefined` = root context
 
       var aStart = Date.now();
-      var amap = computePurity(ast, system.initial, system.contexts);
+      var amap = computePurity(ast, system.initial, system.contexts, false);
       var aTime = Date.now() - aStart;
       print("aTime", Formatter.displayTime(aTime), "count", amap.count());
 
       var faStart = Date.now();
-      var famap = computePurity(ast, system.initial, system.contexts);
+      var famap = computePurity(ast, system.initial, system.contexts, true);
       var faTime = Date.now() - faStart;
       print("faTime", Formatter.displayTime(faTime), "count", famap.count());
 

@@ -39,3 +39,5 @@ Array.prototype.toString =
   load("protopurity.js");
   
   load("test/purityTests.js");
+
+// ~/git/v8/out/native/d8 --use_strict --max_old_space_size=4096 --shell build.js

@@ -141,9 +141,9 @@ function isFresh(node, ast, kont, freshVars)
   }
 }
 
-function computePurity(ast, initial)
+function computePurity(ast, initial, freshnessFlag)
 {
-  function stackContexts(kont) 
+  function stackContexts(kont)
   {
     var todo = [kont];
     var visited = ArraySet.empty();
@@ -305,14 +305,16 @@ function computePurity(ast, initial)
   //computeFreshness(ast, initial);
   
   var todo = [initial];
+  var visited = ArraySet.empty();
   while (todo.length > 0)
   {
     var s = todo.pop();
-    if (s._purity === age) 
+    if (visited.contains(s))
     {
       continue;
     }
-    s._purity = age;
+    visited = visited.add(s);
+    var oldAge = age;
     
     var ctxs = stackContexts(s.kont);
     ctxs.forEach(function (ctx)
@@ -341,6 +343,12 @@ function computePurity(ast, initial)
             {
               if (varEffect)
               {
+
+                if (freshnessFlag && declarationNodeLocalToFun(name, s.kont.callable.node))
+                {
+                  return;
+                }
+
                 ctxs.forEach(
                   function (ctx)
                   {
@@ -386,6 +394,15 @@ function computePurity(ast, initial)
         });
         todo.push(t.state);
       })
+
+    if (age !== oldAge)
+    {
+      visited = visited.clear();
+    }
+    else
+    {
+      visited = visited.add(s);
+    }
   }
   return pmap;
 }

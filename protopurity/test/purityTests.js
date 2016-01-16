@@ -21,7 +21,7 @@ var suiteJipdaDepTests =
     var ast = Ast.createAst(src);
     var concCesk = createConcCesk(ast);
     var concResult = concCesk.explore(ast);
-    var concMap = computePurity(ast, concResult.initial, concResult.sstore);
+    var concMap = computePurity(ast, concResult.initial, false);
     for (var i = 0; i < checks.length; i+=2)
     {
       var funName = checks[i];
@@ -30,20 +30,35 @@ var suiteJipdaDepTests =
       var actual = concMap.get(f);
       assertEquals(expected, actual, "equality " + funName + " expected " + expected + ", was " + actual);
     }
+
     var typeCesk = createTypeCesk(ast);
     var typeResult = typeCesk.explore(ast);
-    var typeMap = computePurity(ast, typeResult.initial, typeResult.sstore);
+    var typeMap = computePurity(ast, typeResult.initial, false);
     for (var i = 0; i < checks.length; i+=2)
     {
       var funName = checks[i];
       var expected = checks[i+1];
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === funName})[0];
-      var actual = concMap.get(f);
+      var actual = typeMap.get(f);
       if (expected===PROC)
       {
-        assertEquals(PROC, actual, "subsumption " + funName);
+        assertEquals(PROC, actual, "a subsumption " + funName);
       }
     }
+
+    var faTypeMap = computePurity(ast, typeResult.initial, true);
+    for (var i = 0; i < checks.length; i+=2)
+    {
+      var funName = checks[i];
+      var expected = checks[i+1];
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === funName})[0];
+      var actual = faTypeMap.get(f);
+      if (expected===PROC)
+      {
+        assertEquals(PROC, actual, "fa subsumption " + funName);
+      }
+    }
+
   }
 
 
