@@ -16,7 +16,7 @@ function jsCesk(cc)
   // lattice
   const l = cc.l || new JipdaLattice();
   // atomic evaluation
-  const aeFlag = false; //cc.ae === undefined ? true : cc.ae;
+  const aeFlag = cc.ae === undefined ? true : cc.ae;
   // gc
   const gcFlag = cc.gc === undefined ? true : cc.gc;
   //

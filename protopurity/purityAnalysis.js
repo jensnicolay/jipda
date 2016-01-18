@@ -110,35 +110,7 @@ function computeFreshness(system)
           }
         }
         break;
-      case "VariableDeclarationKont":
-      case "OperatorKont":
-      case "OperandsKont":
-      case "BodyKont":
-      case "LeftKont":
-      case "LogicalLeftKont":
-      case "UnaryKont":
-      case "RightKont":
-      case "IfKont":
-      case "ForInitKont":
-      case "ForTestKont":
-      case "ForUpdateKont":
-      case "ForBodyKont":
-      case "WhileBodyKont":
-      case "WhileTestKont":
-      case "AssignMemberKont":
-      case "MemberKont":
-      case "ThrowKont":
-      case "MemberPropertyKont":
-      case "CallMemberKont":
-      case "MemberAssignmentValueKont":
-      case "AssignIdentifierKont":
-      case "AssignMemberPropertyKont":
-      case "ReturnKont":
-      case "ArrayKont":
-      case "ObjectKont":
-      case "HaltKont":
-        break;
-      default: throw new Error("cannot handle " + frame.constructor.name);
+      default: break;
     }
   }
 
