@@ -1021,7 +1021,6 @@ function jsCesk(cc)
         return kont._stacks.map(
           function (stack)
           {
-            
             return {state:new KontState(value, store, stack[0], stack[1]), effects:[]};
           });
       }

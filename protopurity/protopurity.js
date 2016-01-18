@@ -55,17 +55,17 @@ function runBenchmarks(benchmarks)
       var calledFs = ArraySet.from(system.contexts.map(function (ctx) {return ctx.callable.node})).remove(undefined); // `undefined` = root context
 
       var aStart = Date.now();
-      var amap = computePurity(ast, system.initial, system.contexts, false);
+      var amap = computePurity(system, false);
       var aTime = Date.now() - aStart;
-      print("aTime", Formatter.displayTime(aTime), "count", amap.count());
+      print("aTime", Formatter.displayTime(aTime));
 
       var faStart = Date.now();
-      var famap = computePurity(ast, system.initial, system.contexts, true);
+      var famap = computePurity(system, true);
       var faTime = Date.now() - faStart;
-      print("faTime", Formatter.displayTime(faTime), "count", famap.count());
+      print("faTime", Formatter.displayTime(faTime));
 
       
-      return {benchmark:benchmark,sgTime:sgTime,funs:fs.length,called:calledFs.count(),a:computeResult(fs,amap,aTime), fa:computeResult(fs,amap,aTime)};
+      return {benchmark:benchmark,sgTime:sgTime,funs:fs.length,called:calledFs.count(),a:computeResult(fs,amap,aTime), fa:computeResult(fs,famap,faTime)};
     });
 }
 
@@ -81,7 +81,7 @@ function test()
     "sunspider/controlflow-recursive.js",
     "sunspider/crypto-sha1.js",
     "sunspider/math-spectral-norm.js",
-    "jolden/tree-add.js"
+    "jolden/tree-add.js",
   ]);
   displayResults(results);
   return results;

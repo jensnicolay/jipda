@@ -21,7 +21,7 @@ var suiteJipdaDepTests =
     var ast = Ast.createAst(src);
     var concCesk = createConcCesk(ast);
     var concResult = concCesk.explore(ast);
-    var concMap = computePurity(ast, concResult.initial, false);
+    var concMap = computePurity(concResult, false);
     for (var i = 0; i < checks.length; i+=2)
     {
       var funName = checks[i];
@@ -31,9 +31,12 @@ var suiteJipdaDepTests =
       assertEquals(expected, actual, "equality " + funName + " expected " + expected + ", was " + actual);
     }
 
+    var faConcMap = computePurity(concResult, true);
+    assertEquals(concMap, faConcMap, "fa conc equality");
+
     var typeCesk = createTypeCesk(ast);
     var typeResult = typeCesk.explore(ast);
-    var typeMap = computePurity(ast, typeResult.initial, false);
+    var typeMap = computePurity(typeResult, false);
     for (var i = 0; i < checks.length; i+=2)
     {
       var funName = checks[i];
@@ -46,7 +49,7 @@ var suiteJipdaDepTests =
       }
     }
 
-    var faTypeMap = computePurity(ast, typeResult.initial, true);
+    var faTypeMap = computePurity(typeResult, true);
     for (var i = 0; i < checks.length; i+=2)
     {
       var funName = checks[i];
@@ -58,7 +61,6 @@ var suiteJipdaDepTests =
         assertEquals(PROC, actual, "fa subsumption " + funName);
       }
     }
-
   }
 
 

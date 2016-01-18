@@ -35,114 +35,196 @@ function isFreeVar(declarationNode, fun, ast)
   return free;
 }
 
-function computeFreshness(ast, initial)
+const UNFRESH = false;
+const FRESH = true;
+
+function computeFreshness(system)
 {
-  function handleNode(node, fresh, ctx)
+  var initial = system.initial;
+  var ast = initial.node;
+  var age = 0;
+  //var states2vars2fresh = new Array(system.states.count());
+  var vars2fresh = new Array();
+
+  function stackPop(kont)
   {
-    switch (node.type)
+    var result = ArraySet.empty();
+    var seen = ArraySet.empty();
+    var todo = [kont];
+    while (todo.length > 0)
     {
-      case "VariableDeclaration":
-        node.declarations.forEach(function (declarator) {fresh = handleNode(declarator, fresh, ctx)});
-        return fresh;
-      case "VariableDeclarator":
-        var dn = getDeclarationNode(node.id, ast);
-        if (!node.init)
+      var kont = todo.pop();
+      if (seen.contains(kont))
+      {
+        continue;
+      }
+      seen = seen.add(kont);
+      if (kont._stacks)
+      {
+        kont._stacks.forEach(
+            function (stack)
+            {
+              var lkont2 = stack[0];
+              var kont2 = stack[1];
+              if (lkont2.length > 0)
+              {
+                result = result.add([lkont2,kont2]);
+              }
+              else
+              {
+                todo.push([kont2]);
+              }
+            })
+      }
+    }
+    return result;
+  }
+
+  function handleFrame(fresh, s, frame, kont)
+  {
+    switch (frame.constructor.name)
+    {
+      case "VariableDeclaratorKont":
+        // always local target
+        //var vars2fresh = states2vars2fresh[s._id];
+        //if (!vars2fresh)
+        //{
+        //  vars2fresh = [];
+        //  states2vars2fresh[s._id] = vars2fresh;
+        //}
+        var existingFreshnessForVar = vars2fresh[frame.node.id.tag];
+        if (existingFreshnessForVar === undefined)
         {
-          return fresh;
+          vars2fresh[frame.node.id.tag] = fresh;
         }
-        if (isFresh(node.init, ast, ctx, fresh))
+        else if (existingFreshnessForVar === FRESH)
         {
-          return fresh.add(dn);
-        }
-        return fresh.remove(dn);
-      case "BlockStatement":
-        if (node.body.length === 1)
-        {
-          return handleNode(node.body[0], fresh, ctx);
-        }
-        return fresh;
-      case "ExpressionStatement":
-        return handleNode(node.expression, fresh, ctx);
-      case "AssignmentExpression":
-        var left = node.left;
-        var right = node.right;
-        if (left.type === "Identifier")
-        {
-          var dn = getDeclarationNode(left, ast);
-          if (isFresh(right, ast, ctx, fresh))
+          if (fresh === UNFRESH)
           {
-            return fresh.add(dn);
+            vars2fresh[frame.node.id.tag] = UNFRESH;
+            age++;
           }
-          return fresh.remove(dn);
+          else
+          {
+            // nothing
+          }
         }
-        return fresh;
-      default:
-        return fresh;
+        break;
+      case "VariableDeclarationKont":
+      case "OperatorKont":
+      case "OperandsKont":
+      case "BodyKont":
+      case "LeftKont":
+      case "LogicalLeftKont":
+      case "UnaryKont":
+      case "RightKont":
+      case "IfKont":
+      case "ForInitKont":
+      case "ForTestKont":
+      case "ForUpdateKont":
+      case "ForBodyKont":
+      case "WhileBodyKont":
+      case "WhileTestKont":
+      case "AssignMemberKont":
+      case "MemberKont":
+      case "ThrowKont":
+      case "MemberPropertyKont":
+      case "CallMemberKont":
+      case "MemberAssignmentValueKont":
+      case "AssignIdentifierKont":
+      case "AssignMemberPropertyKont":
+      case "ReturnKont":
+      case "ArrayKont":
+      case "ObjectKont":
+      case "HaltKont":
+        break;
+      default: throw new Error("cannot handle " + frame.constructor.name);
     }
   }
-  
+
   function handleState(s)
   {
     var node = s.node;
-    var fresh = s.fresh;
     if (!node)
     {
-      return fresh;
+      return;
     }
-    var ctx = s.kont;
-    return handleNode(node, fresh, ctx);
+    var frames;
+    var lkont = s.lkont;
+    if (lkont.length === 0)
+    {
+      frames = stackPop(s.kont);
+    }
+    else
+    {
+      frames = ArraySet.from([[lkont, s.kont]]);
+    }
+    frames.forEach(
+        function (frameKont)
+        {
+          handleFrame(false, s, frameKont[0][0], frameKont[1]);
+        });
   }
-    
-  var todo = [[initial, HashMap.empty()]];
-  while (todo.length > 0)
+
+  function traverseGraph()
   {
-    var config = todo.pop();
-    var s = config[0];
-    if (s.fresh)
+    var todo = [initial];
+    var visited = new Array(system.states.count());
+    while (todo.length > 0)
     {
-      continue
-    }
-    var handler = config[1];
-    var fresh = handler.get(s.kont);
-    if (!fresh)
-    {
-      fresh = ArraySet.empty();
-    }
-    s.fresh = fresh; 
-    
-    var newFresh = handleState(s);
-    var newHandler = handler.put(s.kont, newFresh);
-    
-    var outgoing = s._successors;
-    outgoing.forEach(
-      function (t) 
+      var s = todo.pop();
+      if (visited[s._id] === age)
       {
-        todo.push([t.state, newHandler]);
-      });
+        continue;
+      }
+      visited[s._id] = age;
+      handleState(s);
+      var outgoing = s._successors;
+      outgoing.forEach(
+        function (t)
+        {
+          todo.push(t.state);
+        });
+    }
   }
+
+  traverseGraph();
+  return vars2fresh;
 }
 
-function isFresh(node, ast, kont, freshVars)
+function isFresh(node, ast, kont, vars2fresh)
 {
   switch (node.type)
   {
     case "Identifier":
     {
       var dn = getDeclarationNode(node, ast);
-      return freshVars.contains(dn);
+      var fun = kont.callable.node;
+      if (fun && declarationNodeLocalToFun(dn, fun))
+      {
+        return vars2fresh[dn.tag] === FRESH;
+      }
+      return false;
     }
     case "AssignmentExpression":
-      return isFresh(node.right, ast, kont, freshVars);
-    case "ObjectExpression": return true;
-    case "NewExpression": return true;
-    case "ThisExpression": return isConstructorCall(kont);
+      return isFresh(node.right, ast, kont, vars2fresh);
+    case "ObjectExpression":
+      return true;
+    case "NewExpression":
+      return true;
+    case "ThisExpression":
+      return isConstructorCall(kont);
 //    case "VariableDeclarator": return node.init && isFresh(node.init, ast, kont, freshVars);
     default: return false;
   }
 }
 
-function computePurity(ast, initial, freshnessFlag)
+function computePurity(system, freshnessFlag)
 {
+
+  var initial = system.initial;
+  var ast = initial.node;
+
   function stackContexts(kont)
   {
     var todo = [kont];
@@ -199,7 +281,7 @@ function computePurity(ast, initial, freshnessFlag)
     {
       if (effectNode.left.object)
       {
-        return isFresh(effectNode.left.object, ast, s.kont, s.fresh);
+        return isFresh(effectNode.left.object, ast, s.kont, vars2fresh);
       }
     }
     return false;
@@ -302,20 +384,19 @@ function computePurity(ast, initial, freshnessFlag)
 //      print(effect, ctx, "local r/w var effect");
   }
   
-  //computeFreshness(ast, initial);
+  var vars2fresh = computeFreshness(system);
   
   var todo = [initial];
-  var visited = ArraySet.empty();
+  var visited = new Array(system.states.count());
   while (todo.length > 0)
   {
     var s = todo.pop();
-    if (visited.contains(s))
+    if (visited[s._id] === age)
     {
       continue;
     }
-    visited = visited.add(s);
-    var oldAge = age;
-    
+    visited[s._id] = age;
+
     var ctxs = stackContexts(s.kont);
     ctxs.forEach(function (ctx)
       {
@@ -368,10 +449,10 @@ function computePurity(ast, initial, freshnessFlag)
               }
               else // member effect
               {
-                //if (fresh(s, ast))
-                //{
-                //  return;
-                //}
+                if (freshnessFlag && fresh(s))
+                {
+                  return;
+                }
 
                 ctxs.forEach(
                   function (ctx)
@@ -394,15 +475,6 @@ function computePurity(ast, initial, freshnessFlag)
         });
         todo.push(t.state);
       })
-
-    if (age !== oldAge)
-    {
-      visited = visited.clear();
-    }
-    else
-    {
-      visited = visited.add(s);
-    }
   }
   return pmap;
 }
