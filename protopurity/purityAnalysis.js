@@ -28,13 +28,6 @@ function isConstructorCall(ctx)
   return ctx.ex && Ast.isNewExpression(ctx.ex);
 }
 
-function isFreeVar(declarationNode, fun, ast)
-{
-  var enclosingScope = Ast.enclosingFunScope(declarationNode, ast);
-  var free = !fun.equals(enclosingScope) && Arrays.contains(fun, Ast.nodes(enclosingScope.body));
-  return free;
-}
-
 const UNFRESH = false;
 const FRESH = true;
 
@@ -277,16 +270,16 @@ function computePurity(system, freshnessFlag)
     age++;
   }
   
-  //function markObserver(fun)
-  //{
-  //  var current = pmap.get(fun);
-  //  if (current === "OBS" || current === "PROC")
-  //  {
-  //    return ;
-  //  }
-  //  pmap = pmap.put(fun, "OBS");
-  //  age++;
-  //}
+  function markObserver(fun)
+  {
+    var current = pmap.get(fun);
+    if (current === "OBS" || current === "PROC")
+    {
+      return ;
+    }
+    pmap = pmap.put(fun, "OBS");
+    age++;
+  }
   
   function markPure(fun)
   {
@@ -294,61 +287,60 @@ function computePurity(system, freshnessFlag)
     if (!current)
     {
       pmap = pmap.put(fun, "PURE");
-      //age++;
-    } 
+    }
   }
   
-  //function addRdep(addr, name, fun)
-  //{
-  //  var currentRdep = rdep.get([addr, name]) || ArraySet.empty();
-  //  if (currentRdep.contains(fun))
-  //  {
-  //    return;
-  //  }
-  //  rdep = rdep.put([addr, name], currentRdep.add(fun));
-  //  age++;
-  //}
-  //
-  //function getRdeps(addr, name)
-  //{
-  //  var result = ArraySet.empty();
-  //  rdep.iterateEntries(
-  //    function (entry)
-  //    {
-  //      var key = entry[0];
-  //      if (subsumes(key, addr, name))
-  //      {
-  //        result = result.join(entry[1]);
-  //      }
-  //    });
-  //  return result;
-  //}
-  //
-  //function addOdep(addr, name, fun)
-  //{
-  //  var currentOdep = odep.get([addr, name]) || ArraySet.empty();
-  //  if (currentOdep.contains(fun))
-  //  {
-  //    return;
-  //  }
-  //  odep = odep.put([addr, name], currentOdep.add(fun));
-  //  age++;
-  //}
-  //
-  //function getOdeps(addr, name)
-  //{
-  //  var result = ArraySet.empty();
-  //  odep.iterateEntries(
-  //    function (entry)
-  //    {
-  //      var key = entry[0];
-  //      if (subsumes(key, addr, name))
-  //      {
-  //        result = result.join(entry[1]);
-  //      }
-  //    });
-  //  return result;
-  //}
+  function addRdep(addr, name, fun)
+  {
+    var currentRdep = rdep.get([addr, name]) || ArraySet.empty();
+    if (currentRdep.contains(fun))
+    {
+      return;
+    }
+    rdep = rdep.put([addr, name], currentRdep.add(fun));
+    age++;
+  }
+
+  function getRdeps(addr, name)
+  {
+    var result = ArraySet.empty();
+    rdep.iterateEntries(
+      function (entry)
+      {
+        var key = entry[0];
+        if (subsumes(key, addr, name))
+        {
+          result = result.join(entry[1]);
+        }
+      });
+    return result;
+  }
+
+  function addOdep(addr, name, fun)
+  {
+    var currentOdep = odep.get([addr, name]) || ArraySet.empty();
+    if (currentOdep.contains(fun))
+    {
+      return;
+    }
+    odep = odep.put([addr, name], currentOdep.add(fun));
+    age++;
+  }
+
+  function getOdeps(addr, name)
+  {
+    var result = ArraySet.empty();
+    odep.iterateEntries(
+      function (entry)
+      {
+        var key = entry[0];
+        if (subsumes(key, addr, name))
+        {
+          result = result.join(entry[1]);
+        }
+      });
+    return result;
+  }
   
   function localVarEffect(effectName, fun)
   {
@@ -397,6 +389,15 @@ function computePurity(system, freshnessFlag)
               if (varEffect)
               {
 
+                var funRdeps = getRdeps(address, name);
+                funRdeps.forEach(
+                    function (funRdep)
+                    {
+                      //                      print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
+                      addOdep(address, name, funRdep);
+                    })
+
+
                 if (freshnessFlag && declarationNodeLocalToFun(name, s.kont.callable.node))
                 {
                   //print("VFRESH", s._id, name, "local in", s.kont);
@@ -420,6 +421,14 @@ function computePurity(system, freshnessFlag)
               }
               else // member effect
               {
+                var funRdeps = getRdeps(address, name);
+                funRdeps.forEach(
+                    function (funRdep)
+                    {
+                      //                      print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
+                      addOdep(address, name, funRdep);
+                    })
+
                 if (freshnessFlag && fresh(s))
                 {
                   //print("OFRESH", s._id, "fresh in", s.kont);
@@ -443,6 +452,48 @@ function computePurity(system, freshnessFlag)
             }
             else // read
             {
+              var funOdeps = getOdeps(address, name);
+              if (varEffect) {
+                if (freshnessFlag && declarationNodeLocalToFun(name, s.kont.callable.node)) {
+                  //print("VFRESH", s._id, name, "local in", s.kont);
+                  return;
+                }
+                ctxs.forEach(
+                    function (ctx) {
+                      var storeAddresses = ctx.store.keys();
+                      if (!Arrays.contains(address, storeAddresses)) // local
+                      {
+                        return;
+                      }
+                      var fun = ctx.callable.node;
+                      addRdep(address, name, fun);
+                      if (funOdeps.contains(fun)) {
+                        // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                        markObserver(fun);
+                      }
+                    })
+              }
+              else // member effect
+              {
+                if (freshnessFlag && fresh(s)) {
+                  //print("OFRESH", s._id, "fresh in", s.kont);
+                  return;
+                }
+                ctxs.forEach(
+                    function (ctx) {
+                      var storeAddresses = ctx.store.keys();
+                      if (!Arrays.contains(address, storeAddresses)) // local
+                      {
+                        return;
+                      }
+                      var fun = ctx.callable.node;
+                      addRdep(address, name, fun);
+                      if (funOdeps.contains(fun)) {
+                        // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                        markObserver(fun);
+                      }
+                    })
+              }
             }
         });
         todo.push(t.state);

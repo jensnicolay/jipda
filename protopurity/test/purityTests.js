@@ -14,7 +14,7 @@ var suiteJipdaDepTests =
     return jsCesk({a:createConcAg(), l:new ConcLattice()});
   }
 
-  var PURE="PURE", PROC="PROC";
+  var PURE="PURE", OBS="OBS", PROC="PROC";
 
   function test(src, checks)
   {
@@ -45,7 +45,11 @@ var suiteJipdaDepTests =
       var actual = typeMap.get(f);
       if (expected===PROC)
       {
-        assertEquals(PROC, actual, "a subsumption " + funName);
+        assertTrue(actual===PROC, "a subsumption " + funName);
+      }
+      else if (expected===OBS)
+      {
+        assertTrue((actual===PROC)||(actual===OBS), "a subsumption " + funName);
       }
     }
 
@@ -58,7 +62,11 @@ var suiteJipdaDepTests =
       var actual = faTypeMap.get(f);
       if (expected===PROC)
       {
-        assertEquals(PROC, actual, "fa subsumption " + funName);
+        assertTrue(actual===PROC, "fa subsumption " + funName);
+      }
+      else if (expected===OBS)
+      {
+        assertTrue((actual===PROC)||(actual===OBS), "fa subsumption " + funName);
       }
     }
   }
@@ -91,15 +99,37 @@ var suiteJipdaDepTests =
       var src = "var z=false; function f() {return z}; f()";
       test(src, ["f", PURE]);
     }
-    
-  module.testPurity4v =
-    function ()
-    {
-      var src = "while (true) {var z=false; function f() {return z}; f()}";
-      test(src, ["f", PURE]);
-    }
-    
-  module.testPurity5a = 
+
+  module.testPurity4p = // idempotent write to prop on global obj
+      function ()
+      {
+        var src = "while (true) {var z=false; function f() {return z}; f()}";
+        test(src, ["f", OBS]);
+      }
+
+  module.testPurity4v = // idempotent write to var of g
+      function ()
+      {
+        var src = "function g(){while (true) {var z=false; function f() {return z}; f()}};g()";
+        test(src, ["f", OBS]);
+      }
+
+  module.testPurity4vv = // write to var of f
+      function ()
+      {
+        var src = "while (true) {function f() {var z=false; return z}; f()}";
+        test(src, ["f", PURE]);
+      }
+
+  // f OBS atm
+  //module.testPurity4vvv = // write to var of h
+  //    function ()
+  //    {
+  //      var src = "while (true) {function h(){var z=false;function f() {return z}; f()};h()}";
+  //      test(src, ["f", PURE]);
+  //    }
+
+  module.testPurity5a =
     function ()
     {
       var src = "var z=false; function f() {return z}; z=true; f()";
@@ -131,14 +161,14 @@ var suiteJipdaDepTests =
     function ()
     {
       var src = "var z=false; function f() {return z}; f(); z=true; f()";
-      test(src, ["f", PURE]);
+      test(src, ["f", OBS]);
     } 
   
   module.testPurity5cb = 
     function ()
     {
       var src = "var z=false; function f() {return z}; f(); f(); z=true; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true);";
-      test(src, ["f", PURE]);
+      test(src, ["f", OBS]);
     } 
   
   module.testPurity5d = 
@@ -516,35 +546,35 @@ var suiteJipdaDepTests =
     function ()
     {
       var src = "var o={};function f(){return o.x};f();o.x = 123;f()";
-      test(src, ["f", PURE]);
+      test(src, ["f", OBS]);
     }   
   
   module.testPurity39 = 
     function ()
     {
       var src = "var o={};var p=Object.create(o);function f(){return p.x};f();p.x=123;f()";
-      test(src, ["f", PURE]);
+      test(src, ["f", OBS]);
     }   
   
   module.testPurity39o = 
     function ()
     {
       var src = "function g(){var o={};var p=Object.create(o);function f(){return p.x};f();p.x=123;f()};g()";
-      test(src, ["f", PURE, "g", PURE]);
+      test(src, ["f", OBS, "g", PURE]);
     }   
   
   module.testPurity40 = 
     function ()
     {
       var src = "var o={};var p=Object.create(o);function f(){return p.x};f();o.x=123;f()";
-      test(src, ["f", PURE]);
+      test(src, ["f", OBS]);
     }   
   
   module.testPurity40o = 
     function ()
     {
       var src = "function g(){var o={};var p=Object.create(o);function f(){return p.x};f();o.x=123;f()};g()";
-      test(src, ["f", PURE, "g", PURE]);
+      test(src, ["f", OBS, "g", PURE]);
     }   
   
   module.testPurity41 = 
@@ -572,7 +602,7 @@ var suiteJipdaDepTests =
     function ()
     {
       var src = "function f(){var x=1;function g(){return x};g();x=5;return g()};f()";
-      test(src, ["f", PURE, "g", PURE]);
+      test(src, ["f", PURE, "g", OBS]);
     }
   
   module.testPurity44 =
@@ -642,14 +672,14 @@ var suiteJipdaDepTests =
     function ()
     {
       var src = "function f(){var x=10;function g(){return x};x;g();x=11;g()};f()";
-      test(src, ["f", PURE, "g", PURE]);
+      test(src, ["f", PURE, "g", OBS]);
     }
   
   module.testPurity52o =
     function ()
     {
       var src = "function f(){var o={x:10};function g(){return o.x};o.x;g();o.x=11;g()};f()";
-      test(src, ["f", PURE, "g", PURE]);
+      test(src, ["f", PURE, "g", OBS]);
     }
   
   module.testPurity53 =
