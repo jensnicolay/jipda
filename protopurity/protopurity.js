@@ -12,6 +12,8 @@ function displayPurity(ast, pmap)
 function computeResult(fs, pmap, pmTime)
 {
   var pureFuns = 0;
+  var obsFuns = 0;
+  var procFuns = 0;
   fs.forEach(
     function (f, i)
     {
@@ -20,8 +22,20 @@ function computeResult(fs, pmap, pmTime)
       {
         pureFuns++;
       }
+      else if (effClass === "OBS")
+      {
+        obsFuns++;
+      }
+      else if (effClass === "PROC")
+      {
+        procFuns++;
+      }
+      //else
+      //{
+      //  throw new Error("Helaba!");
+      //}
     });  
-  return {pmTime:pmTime,pureFuns:pureFuns};
+  return {pmTime:pmTime,pureFuns:pureFuns,obsFuns:obsFuns,procFuns:procFuns};
 }
 
 function runBenchmarks(benchmarks)
@@ -113,8 +127,8 @@ function displayResults(results)
     print(Formatter.displayWidth(result.benchmark, 30),
         "flowTime", Formatter.displayTime(result.sgTime),
         "funs", Formatter.displayWidth(result.funs,4), "called ", Formatter.displayWidth(result.called,4),
-        "pure a ", Formatter.displayWidth(aresult.pureFuns,4), "fa ", Formatter.displayWidth(faresult.pureFuns, 4),
-        "time a ", Formatter.displayTime(aresult.pmTime), "fa ", Formatter.displayTime(faresult.pmTime)
+        "a  time",  Formatter.displayTime(aresult.pmTime), "pure", Formatter.displayWidth(aresult.pureFuns,4), "obs", Formatter.displayWidth(aresult.obsFuns,4), "proc", Formatter.displayWidth(aresult.procFuns,4),
+        "fa time",  Formatter.displayTime(faresult.pmTime), "pure", Formatter.displayWidth(faresult.pureFuns,4), "obs", Formatter.displayWidth(faresult.obsFuns,4), "proc", Formatter.displayWidth(faresult.procFuns,4)
         );
   })
 }
