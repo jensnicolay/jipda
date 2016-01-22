@@ -715,6 +715,13 @@ var suiteJipdaDepTests =
         test(src, ["global", PURE, "f", PROC, "g", PROC]);
       }
 
+  module.testPurity58 =
+      function ()
+      {
+        var src = "function f(p) {if (p) {var z={};function g() {z=p}; g(); z.x=3; f(false); return z}; return 'done'};f({})";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
   // synced with Scheme purity
 
   module.testPuritys61 =

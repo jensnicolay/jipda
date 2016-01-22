@@ -399,6 +399,7 @@ function computePurity(system, freshnessFlag)
 
                 if (freshnessFlag && declarationNodeLocalToFun(name, s.kont.callable.node))
                 {
+                  //print("VFRESH", s._id, name, "local in", s.kont);
                   return;
                 }
 
@@ -412,9 +413,7 @@ function computePurity(system, freshnessFlag)
                     }
 
                     var fun = ctx.callable.node;
-                    //if (isFreeVar(name, fun, ast))
-                    //{
-//                      print(effect.node, "PROC: free var write effect", effect, fun);
+                    //print("VPROC: var write effect", effect, fun);
                     markProcedure(fun);
                     //}
                   })
@@ -423,6 +422,7 @@ function computePurity(system, freshnessFlag)
               {
                 if (freshnessFlag && fresh(s))
                 {
+                  //print("OFRESH", s._id, "fresh in", s.kont);
                   return;
                 }
 
@@ -436,7 +436,7 @@ function computePurity(system, freshnessFlag)
                     }
                     
                     var fun = ctx.callable.node;
-//                    print("PROC:", effectNode, "in", fun);
+                    //print("PPROC:", effect, "in", fun);
                     markProcedure(fun);
                   }) // end for each ctx
               }
