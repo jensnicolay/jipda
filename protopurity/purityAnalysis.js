@@ -99,32 +99,50 @@ function computeFreshness(system)
     }
   }
 
-  function handleFrame(freshness, s, frame)
+  function handleNode(node, s)
   {
-    switch (frame.constructor.name)
+    switch (node.type)
     {
-      case "VariableDeclaratorKont":
+      case "VariableDeclaration":
+        node.declarations.forEach(function (declarator) {handleNode(declarator, s)});
+        break;
+      case "VariableDeclarator":
         // always local target
-        var target = frame.node.id;
-        updateFreshness(target, freshness);
-        break;
-      case "AssignIdentifierKont":
-        var target = getDeclarationNode(frame.node.left, ast);
-        var right = frame.node.right;
-        // check locality
-        var fun = s.kont.callable.node;
-        if (fun && localVar(target, fun))
+        var target = node.id;
+        var init = node.init;
+        if (init)
         {
-          // local target
-          updateFreshness(target, freshness);
-        }
-        else
-        {
-          // free var, conservative
-          updateFreshness(target, UNFRESH);
+          updateFreshness(target, getFresh(init, ast, s.kont,vars2fresh));
         }
         break;
-      default: break;
+      case "BlockStatement":
+        if (node.body.length === 1)
+        {
+          handleNode(node.body[0], s);
+        }
+        break;
+      case "ExpressionStatement":
+        handleNode(node.expression, s);
+        break;
+      case "AssignmentExpression":
+        if (Ast.isIdentifier(node.left))
+        {
+          var target = getDeclarationNode(node.left, ast);
+          // check locality
+          var fun = s.kont.callable.node;
+          if (fun && localVar(target, fun))
+          {
+            // local target
+            var right = node.right;
+            updateFreshness(target, getFresh(right,ast, s.kont,vars2fresh));
+          }
+          else
+          {
+            // free var, conservative
+            updateFreshness(target, UNFRESH);
+          }
+        }
+      default: break;//print("did not handle", node.type, node);
     }
   }
 
@@ -135,21 +153,7 @@ function computeFreshness(system)
     {
       return;
     }
-    var frames;
-    var lkont = s.lkont;
-    if (lkont.length === 0)
-    {
-      frames = stackPop(s.kont);
-    }
-    else
-    {
-      frames = ArraySet.from([[lkont, s.kont]]);
-    }
-    frames.forEach(
-        function (frameKont)
-        {
-          handleFrame(getFresh(node,ast,s.kont,vars2fresh), s, frameKont[0][0]);
-        });
+    handleNode(node, s);
   }
 
   function traverseGraph()
