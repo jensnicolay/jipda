@@ -665,6 +665,12 @@ JipdaLattice.prototype.round =
     return this.NUMBER;
   }
 
+JipdaLattice.prototype.floor =
+  function (x)
+  {
+    return this.NUMBER;
+  }
+
 JipdaLattice.prototype.toString =
   function ()
   {

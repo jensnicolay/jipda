@@ -376,6 +376,7 @@ function jsCesk(cc)
   var matha = allocNative();
   math = registerPrimitiveFunction(math, matha, "abs", mathAbs);
   math = registerPrimitiveFunction(math, matha, "round", mathRound);
+  math = registerPrimitiveFunction(math, matha, "floor", mathFloor);
   math = registerPrimitiveFunction(math, matha, "sin", mathSin);
   math = registerPrimitiveFunction(math, matha, "cos", mathCos);
   math = registerPrimitiveFunction(math, matha, "sqrt", mathSqrt);
@@ -648,6 +649,12 @@ function jsCesk(cc)
   {
     var value = l.round(operandValues[0]);
     return [{state:new KontState(value, store, lkont, kont), effects:effects}];
+  }
+  
+  function mathFloor(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    var value = l.floor(operandValues[0]);
+    return [{state: new KontState(value, store, lkont, kont), effects:effects}];
   }
   
   function mathCos(application, operandValues, thisa, benv, store, lkont, kont, effects)

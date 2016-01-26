@@ -446,6 +446,12 @@ ConcLattice.prototype.round =
     return new ConcValue(Math.round(x.value));
   }
 
+ConcLattice.prototype.floor =
+  function (x)
+  {
+    return new ConcValue(Math.floor(x.value));
+  }
+
 ConcLattice.prototype.sin =
   function (x)
   {
