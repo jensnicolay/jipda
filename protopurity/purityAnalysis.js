@@ -17,9 +17,15 @@ function getDeclarationNode(nameNode, ast)
   return declarationNode;
 }
 
-function declarationNodeLocalToFun(declarationNode, fun)
+function localVar(declarationNode, fun)
 {
-  var local = Arrays.contains(declarationNode, fun.params) || Arrays.contains(declarationNode, Ast.nodes(fun))
+  var local = Arrays.contains(declarationNode, Ast.nodes(fun))
+  return local;
+}
+
+function localVarNotParam(declarationNode, fun)
+{
+  var local = !Arrays.contains(declarationNode, fun.params) && Arrays.contains(declarationNode, Ast.nodes(fun))
   return local;
 }
 
@@ -36,7 +42,6 @@ function computeFreshness(system)
   var initial = system.initial;
   var ast = initial.node;
   var age = 0;
-  //var states2vars2fresh = new Array(system.states.count());
   var vars2fresh = new Array();
 
   function stackPop(kont)
@@ -73,37 +78,71 @@ function computeFreshness(system)
     return result;
   }
 
-  function handleFrame(fresh, s, frame, kont)
+  function updateFreshness(target, freshness)
   {
-    switch (frame.constructor.name)
+    var existingFreshnessForVar = vars2fresh[target.tag];
+    if (existingFreshnessForVar === undefined)
     {
-      case "VariableDeclaratorKont":
+      vars2fresh[target.tag] = freshness;
+    }
+    else if (existingFreshnessForVar === FRESH)
+    {
+      if (freshness === UNFRESH)
+      {
+        vars2fresh[target.tag] = UNFRESH;
+        age++;
+      }
+      else
+      {
+        // nothing
+      }
+    }
+  }
+
+  function handleNode(node, s)
+  {
+    switch (node.type)
+    {
+      case "VariableDeclaration":
+        node.declarations.forEach(function (declarator) {handleNode(declarator, s)});
+        break;
+      case "VariableDeclarator":
         // always local target
-        //var vars2fresh = states2vars2fresh[s._id];
-        //if (!vars2fresh)
-        //{
-        //  vars2fresh = [];
-        //  states2vars2fresh[s._id] = vars2fresh;
-        //}
-        var existingFreshnessForVar = vars2fresh[frame.node.id.tag];
-        if (existingFreshnessForVar === undefined)
+        var target = node.id;
+        var init = node.init;
+        if (init)
         {
-          vars2fresh[frame.node.id.tag] = fresh;
+          updateFreshness(target, getFresh(init, ast, s.kont,vars2fresh));
         }
-        else if (existingFreshnessForVar === FRESH)
+        break;
+      case "BlockStatement":
+        if (node.body.length === 1)
         {
-          if (fresh === UNFRESH)
+          handleNode(node.body[0], s);
+        }
+        break;
+      case "ExpressionStatement":
+        handleNode(node.expression, s);
+        break;
+      case "AssignmentExpression":
+        if (Ast.isIdentifier(node.left))
+        {
+          var target = getDeclarationNode(node.left, ast);
+          // check locality
+          var fun = s.kont.callable.node;
+          if (fun && localVar(target, fun))
           {
-            vars2fresh[frame.node.id.tag] = UNFRESH;
-            age++;
+            // local target
+            var right = node.right;
+            updateFreshness(target, getFresh(right,ast, s.kont,vars2fresh));
           }
           else
           {
-            // nothing
+            // free var, conservative
+            updateFreshness(target, UNFRESH);
           }
         }
-        break;
-      default: break;
+      default: break;//print("did not handle", node.type, node);
     }
   }
 
@@ -114,21 +153,7 @@ function computeFreshness(system)
     {
       return;
     }
-    var frames;
-    var lkont = s.lkont;
-    if (lkont.length === 0)
-    {
-      frames = stackPop(s.kont);
-    }
-    else
-    {
-      frames = ArraySet.from([[lkont, s.kont]]);
-    }
-    frames.forEach(
-        function (frameKont)
-        {
-          handleFrame(false, s, frameKont[0][0], frameKont[1]);
-        });
+    handleNode(node, s);
   }
 
   function traverseGraph()
@@ -157,7 +182,7 @@ function computeFreshness(system)
   return vars2fresh;
 }
 
-function isFresh(node, ast, kont, vars2fresh)
+function getFresh(node, ast, kont, vars2fresh)
 {
   switch (node.type)
   {
@@ -165,14 +190,14 @@ function isFresh(node, ast, kont, vars2fresh)
     {
       var dn = getDeclarationNode(node, ast);
       var fun = kont.callable.node;
-      if (fun && declarationNodeLocalToFun(dn, fun))
+      if (fun && localVarNotParam(dn, fun))
       {
-        return vars2fresh[dn.tag] === FRESH;
+        return vars2fresh[dn.tag];
       }
-      return false;
+      return UNFRESH;
     }
     case "AssignmentExpression":
-      return isFresh(node.right, ast, kont, vars2fresh);
+      return getFresh(node.right, ast, kont, vars2fresh);
     case "ObjectExpression":
       return true;
     case "NewExpression":
@@ -180,7 +205,7 @@ function isFresh(node, ast, kont, vars2fresh)
     case "ThisExpression":
       return isConstructorCall(kont);
 //    case "VariableDeclarator": return node.init && isFresh(node.init, ast, kont, freshVars);
-    default: return false;
+    default: return UNFRESH;
   }
 }
 
@@ -232,24 +257,27 @@ function computePurity(system, freshnessFlag)
   
   function fresh(s)
   {
-    var effectNode;
-    if (s.node)
-    {
-      effectNode = s.node;
-    }
-    if (s.value && s.lkont[0].node)
-    {
-      effectNode = s.lkont[0].node;
-    }
-    assert(effectNode);
-    if (effectNode.type === "AssignmentExpression")
-    {
-      if (effectNode.left.object)
-      {
-        return isFresh(effectNode.left.object, ast, s.kont, vars2fresh);
+    function ff() {
+      var effectNode;
+      if (s.node) {
+        effectNode = s.node;
       }
+      if (s.value && s.lkont[0].node) {
+        effectNode = s.lkont[0].node;
+      }
+      assert(effectNode);
+      //print(s._id, effectNode);
+      if (effectNode.type === "AssignmentExpression") {
+        if (effectNode.left.object) {
+          return getFresh(effectNode.left.object, ast, s.kont, vars2fresh) === FRESH;
+        }
+      }
+      return false;
     }
-    return false;
+
+    var fff = ff();
+    //print(s._id, "fresh?", fff);
+    return fff;
   }
 
   
@@ -344,11 +372,14 @@ function computePurity(system, freshnessFlag)
   
   function localVarEffect(effectName, fun)
   {
-    return effectName.tag > -1 && declarationNodeLocalToFun(effectName, fun) // var && local
+    return effectName.tag > -1 && localVar(effectName, fun) // var && local
 //      print(effect, ctx, "local r/w var effect");
   }
-  
-  var vars2fresh = computeFreshness(system);
+
+  if (freshnessFlag)
+  {
+    var vars2fresh = computeFreshness(system);
+  }
   
   var todo = [initial];
   var visited = new Array(system.states.count());
@@ -398,7 +429,7 @@ function computePurity(system, freshnessFlag)
                     })
 
 
-                if (freshnessFlag && declarationNodeLocalToFun(name, s.kont.callable.node))
+                if (freshnessFlag && localVar(name, s.kont.callable.node))
                 {
                   //print("VFRESH", s._id, name, "local in", s.kont);
                   return;
@@ -454,7 +485,7 @@ function computePurity(system, freshnessFlag)
             {
               var funOdeps = getOdeps(address, name);
               if (varEffect) {
-                if (freshnessFlag && declarationNodeLocalToFun(name, s.kont.callable.node)) {
+                if (freshnessFlag && localVar(name, s.kont.callable.node)) {
                   //print("VFRESH", s._id, name, "local in", s.kont);
                   return;
                 }

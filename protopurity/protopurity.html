@@ -39,7 +39,7 @@
   var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }		
 	var editor, meta;
 	var ast, astNodes;
-	var cesk, states, transitions, graph, initial, result, contexts;
+	var system, cesk, states, transitions, graph, initial, result, contexts;
 	var ag, lat;
 		
 	/* SHORTCUTS */
@@ -105,7 +105,7 @@
 //    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date()); 
 //    console.profile(profileName);
     var start = Date.now();
-    var system = cesk.explore(ast);
+    system = cesk.explore(ast);
     var time = Date.now() - start;
 //    console.profileEnd(profileName);
     initial = system.initial;
