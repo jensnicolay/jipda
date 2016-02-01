@@ -3159,6 +3159,10 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var name = l.abst1(property.name);
       var effects = [];
       var value = doProtoLookup(name, objectRef.addresses(), store, effects);
+      if (value === BOT)
+      {
+        return [];
+      }
       var updatedValue;
       switch (node.operator)
       {
@@ -4394,7 +4398,7 @@ function computeResultValue(endStates)
       }
       else
       {
-        msgs.push("ERROR: no successors for " + s);
+        msgs.push("ERROR: no successors for " + s + " (" + (s.node) + ")");
       }
     });
   return {value:result, msgs:msgs};

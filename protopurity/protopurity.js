@@ -110,7 +110,9 @@ function serverTest()
     "sunspider/math-spectral-norm.js",
     "jolden/tree-add.js",
     "octane/navier-stokes.js",
-    "octane/richards.js"
+    "octane/richards.js",
+    "jolden/bisort.js",
+    "jolden/em3d.js"
     //"sunspider/3d-cube.js"
     //"octane/splay.js"
   ]);

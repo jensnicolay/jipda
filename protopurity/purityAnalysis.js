@@ -370,11 +370,11 @@ function computePurity(system, freshnessFlag)
     return result;
   }
   
-  function localVarEffect(effectName, fun)
-  {
-    return effectName.tag > -1 && localVar(effectName, fun) // var && local
-//      print(effect, ctx, "local r/w var effect");
-  }
+//  function localVarEffect(effectName, fun)
+//  {
+//    return effectName.tag > -1 && localVar(effectName, fun) // var && local
+////      print(effect, ctx, "local r/w var effect");
+//  }
 
   if (freshnessFlag)
   {
