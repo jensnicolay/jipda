@@ -1,5 +1,3 @@
-"use strict";
-
 function Node(degree) {
     this.value = Math.random();
     this.toNodes = [];
@@ -165,78 +163,19 @@ BiGraph.prototype.toString =
         }
     }
 
-var numNodes = 0;
-var numDegree = 0;
+var numNodes = 2;
+var numDegree = 1;
 var numIter = 1;
 var printResult = false;
-var printMsgs = false;
-function main(args) {
-    parseCmdLine(args);
 
-    if (printMsgs)
-        print("Iniializing em3d random graph...");
-
-    var start0 = performance.now();
+function main() {
     var graph = BiGraph.create(numNodes, numDegree, printResult);
-    var end0 = performance.now();
-
-    if (printMsgs)
-        print("Propagating field values for " + numIter + " iteration(s)...");
-    var start1 = performance.now();
     for (var i = 0; i < numIter; i++) {
         graph.compute();
     }
-    var end1 = performance.now();
-
     if (printResult)
         print(graph);
-
-    if (printMsgs) {
-        print("EM3D build time " + (end0 - start0)/1000.0);
-        print("EM3D compute time " + (end1 - start1)/1000.0);
-        print("EM3D total time " + (end1 - start0)/1000.0);
-    }
     print("Done!");
 }
 
-function parseCmdLine(args) {
-    var i = 0;
-    var arg;
-
-    while (i < args.length && args[i].startsWith("-")) {
-        arg = args[i++];
-
-        if (arg === "-n") {
-            if (i < args.length) {
-                numNodes = parseInt(args[i++], 10);
-            } else throw new Error("-n requires the number of nodes");
-        } else if (arg === "-d") {
-            if (i < args.length) {
-                numDegree = parseInt(args[i++], 10);
-            } else throw new Error("-d requires the out degree");
-        } else if (arg === "-i") {
-            if (i < args.length) {
-                numIter = parseInt(args[i++], 10);
-            } else throw new Error("-i requires the number of iterations");
-        } else if (arg === "-p") {
-            printResult = true;
-        } else if (arg === "-m") {
-            printMsgs = true;
-        } else if (arg === "-h") {
-            usage();
-        }
-    }
-    if (numNodes == 0 || numDegree == 0) usage();
-}
-
-function usage() {
-    print("usage: java Em3d -n <nodes> -d <degree> [-p] [-m] [-h]");
-    print("    -n the number of nodes");
-    print("    -d the out-degree of each node");
-    print("    -i the number of iterations");
-    print("    -p (print detailed results)");
-    print("    -m (print informative messages)");
-    print("    -h (this message)");
-}
-
-main(["-n", "2", "-d", "1"]);
+main();
