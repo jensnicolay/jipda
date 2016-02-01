@@ -65,7 +65,7 @@ Node.prototype.updateFromNodes =
 Node.prototype.computeNewValue =
     function () {
         for (var i = 0; i < this.fromCount; i++) {
-            value -= this.coeffs[i] * this.fromNodes[i].value;
+            this.value -= this.coeffs[i] * this.fromNodes[i].value;
         }
     }
 
@@ -76,6 +76,10 @@ Node.prototype.elements =
             result.push(p);
         }
         return result;
+    }
+Node.prototype.toString =
+    function () {
+        return "value " + this.value + ", from_count " + this.fromCount;
     }
 
 function BiGraph(e, h) {
@@ -144,6 +148,20 @@ BiGraph.prototype.compute =
         for (var i = 0; i < elements.length; i++) {
             var n = elements[i];
             n.computeNewValue();
+        }
+    }
+BiGraph.prototype.toString =
+    function () {
+        var retval = "";
+        var elements = this.eNodes.elements();
+        for (var i = 0; i < elements.length; i++) {
+            var n = elements[i];
+            retval += "E: " + n + "\n";
+        }
+        elements = this.hNodes.elements();
+        for (var i = 0; i < elements.length; i++) {
+            var n = elements[i];
+            retval += "H: " + n + "\n";
         }
     }
 
