@@ -10,10 +10,10 @@ function getDeclarationNode(nameNode, ast)
     declarationNode = Ast.findDeclarationNode(nameNode.name, nameNode, ast);
     nameNode._declarationNode = declarationNode;
   }
-  if (!declarationNode)
-  {
-    throw new Error("no declaration node for " + nameNode);
-  }
+  //if (!declarationNode)
+  //{
+  //  throw new Error("no declaration node for " + nameNode);
+  //}
   return declarationNode;
 }
 
@@ -189,19 +189,22 @@ function getFresh(node, ast, kont, vars2fresh)
     case "Identifier":
     {
       var dn = getDeclarationNode(node, ast);
-      var fun = kont.callable.node;
-      if (fun && localVarNotParam(dn, fun))
+      if (dn)
       {
-        return vars2fresh[dn.tag];
+        var fun = kont.callable.node;
+        if (fun && localVarNotParam(dn, fun))
+        {
+          return vars2fresh[dn.tag];
+        }
       }
       return UNFRESH;
     }
     case "AssignmentExpression":
       return getFresh(node.right, ast, kont, vars2fresh);
     case "ObjectExpression":
-      return true;
+      return FRESH;
     case "NewExpression":
-      return true;
+      return FRESH;
     case "ThisExpression":
       return isConstructorCall(kont);
 //    case "VariableDeclarator": return node.init && isFresh(node.init, ast, kont, freshVars);
@@ -257,26 +260,46 @@ function computePurity(system, freshnessFlag)
   
   function fresh(s)
   {
-    function ff() {
-      var effectNode;
-      if (s.node) {
-        effectNode = s.node;
+    function ff(effectNode) {
+      if (effectNode.type === "Identifier")
+      {
+        return getFresh(effectNode, ast, s.kont, vars2fresh);
       }
-      if (s.value && s.lkont[0].node) {
-        effectNode = s.lkont[0].node;
+      else if (effectNode.type === "ExpressionStatement")
+      {
+        return ff(effectNode.expression);
       }
-      assert(effectNode);
-      //print(s._id, effectNode);
-      if (effectNode.type === "AssignmentExpression") {
-        if (effectNode.left.object) {
-          return getFresh(effectNode.left.object, ast, s.kont, vars2fresh) === FRESH;
+      else if (effectNode.type === "MemberExpression")
+      {
+        return ff(effectNode.object);
+      }
+      else if (effectNode.type === "AssignmentExpression")
+      {
+        if (effectNode.left.object)
+        {
+          return ff(effectNode.left.object)
         }
+        return UNFRESH;
       }
-      return false;
+      else if (effectNode.type === "CallExpression")
+      {
+        var callee = effectNode.callee;
+        return ff(callee);
+      }
+      return UNFRESH;
     }
 
-    var fff = ff();
-    //print(s._id, "fresh?", fff);
+    var effectNode;
+    if (s.node) {
+      effectNode = s.node;
+    }
+    if (s.value && s.lkont[0].node)
+    {
+      effectNode = s.lkont[0].node;
+    }
+    assert(effectNode);
+
+    var fff = ff(effectNode);
     return fff;
   }
 
@@ -507,7 +530,6 @@ function computePurity(system, freshnessFlag)
               else // member effect
               {
                 if (freshnessFlag && fresh(s)) {
-                  //print("OFRESH", s._id, "fresh in", s.kont);
                   return;
                 }
                 ctxs.forEach(
