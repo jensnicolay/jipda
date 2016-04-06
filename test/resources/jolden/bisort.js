@@ -1,3 +1,5 @@
+"use strict";
+
 function Value(value, left, right)
 {
     this.value = value;
@@ -147,29 +149,82 @@ Value.random =
         return tmp;
     }
 
-var size = 5;
+var size = 0;
 var printMsgs = false;
 var printResults = false;
 
-function main() {
+function main(args) {
+    parseCmdLine(args);
+    if (printMsgs)
+        print("Bisort with " + size + " values");
+
+    var start2 = performance.now();
     var tree = Value.createTree(size, 12345678);
+    var end2 = performance.now();
     var sval = Value.random(245867) % Value.RANGE;
+
     if (printResults) {
         tree.inOrder();
         print(sval);
     }
+
     if (printMsgs)
         print("BEGINNING BITONIC SORT ALGORITHM HERE");
+
+    var start0 = performance.now();
     sval = tree.bisort(sval, Value.FORWARD);
+    var end0 = performance.now();
+
     if (printResults) {
         tree.inOrder();
         print(sval);
     }
+
+    var start1 = performance.now();
     sval = tree.bisort(sval, Value.BACKWARD);
+    var end1 = performance.now();
+
     if (printResults) {
         tree.inOrder();
         print(sval);
+    }
+
+    if (printMsgs) {
+        print("Creation time: " + (end2 - start2)/1000.0);
+        print("Time to sort forward = " + (end0 - start0)/1000.0);
+        print("Time to sort backward = " + (end1 - start1)/1000.0);
+        print("Total: " + (end1 - start0)/1000.0);
     }
     print("Done!");
 }
-main()
+
+function parseCmdLine(args) {
+    var i = 0;
+    var arg;
+    while (i < args.length && args[i].startsWith("-")) {
+        arg = args[i++];
+
+        if (arg === "-s") {
+            if (i < args.length) {
+                size = parseInt(args[i++], 10);
+            } else throw new Error("-s requires the number of levels");
+        } else if (arg === "-m") {
+            printMsgs = true;
+        } else if (arg === "-p") {
+            printResults = true;
+        } else if (arg === "-h") {
+            usage();
+        }
+    }
+    if (size == 0) usage();
+}
+
+function usage() {
+    print("usage: java BiSort -s <size> [-p] [-m] [-h]");
+    print("    -s the number of values to sort");
+    print("    -m (print informative messages)");
+    print("    -p (print the binary tree after each step)");
+    print("    -h (print this message)");
+}
+
+main(["-s", 5]);

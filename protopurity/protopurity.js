@@ -92,10 +92,10 @@ function test()
 {
   var results = runBenchmarks([
     "sunspider/access-nbody.js",
-    "sunspider/controlflow-recursive.js",
-    "sunspider/crypto-sha1.js",
-    "sunspider/math-spectral-norm.js",
-    "jolden/tree-add.js",
+    //"sunspider/controlflow-recursive.js",
+    //"sunspider/crypto-sha1.js",
+    //"sunspider/math-spectral-norm.js",
+    //"jolden/tree-add.js",
   ]);
   displayResults(results);
   return results;
@@ -112,7 +112,8 @@ function serverTest()
     "octane/navier-stokes.js",
     "octane/richards.js",
     "jolden/bisort.js",
-    "jolden/em3d.js"
+    "jolden/em3d.js",
+    "jolden/mst.js"
     //"sunspider/3d-cube.js"
     //"octane/splay.js"
   ]);

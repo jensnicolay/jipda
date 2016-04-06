@@ -257,15 +257,12 @@ function computePurity(system, freshnessFlag)
     }
     return false; 
   }
-  
+
+  //getFresh(node, ast, kont, vars2fresh)
   function fresh(s)
   {
     function ff(effectNode) {
-      if (effectNode.type === "Identifier")
-      {
-        return getFresh(effectNode, ast, s.kont, vars2fresh);
-      }
-      else if (effectNode.type === "ExpressionStatement")
+      if (effectNode.type === "ExpressionStatement")
       {
         return ff(effectNode.expression);
       }
@@ -279,14 +276,13 @@ function computePurity(system, freshnessFlag)
         {
           return ff(effectNode.left.object)
         }
-        return UNFRESH;
       }
       else if (effectNode.type === "CallExpression")
       {
         var callee = effectNode.callee;
         return ff(callee);
       }
-      return UNFRESH;
+      return effectNode;
     }
 
     var effectNode;
@@ -297,14 +293,13 @@ function computePurity(system, freshnessFlag)
     {
       effectNode = s.lkont[0].node;
     }
-    assert(effectNode);
-
     var fff = ff(effectNode);
-    return fff;
+    assert(fff);
+    var freshness = getFresh(fff, ast, s.kont, vars2fresh);
+    //print("effect node", freshness, fff.type, "from", effectNode);
+    return freshness;
   }
 
-  
-    
   var pmap = HashMap.empty(); // fun -> {PURE, OBSERVER, PROC}
   var rdep = HashMap.empty(); // [addr, name] -> P(fun): read deps
   var odep = HashMap.empty(); // [addr, name] -> P(fun): if written, then mark funs as obs
@@ -483,10 +478,14 @@ function computePurity(system, freshnessFlag)
                       addOdep(address, name, funRdep);
                     })
 
-                if (freshnessFlag && fresh(s))
+                if (freshnessFlag)
                 {
-                  //print("OFRESH", s._id, "fresh in", s.kont);
-                  return;
+                  if (fresh(s))
+                  {
+                    //print("OFRESH", s._id, "fresh in", s.kont);
+                    return;
+                  }
+                  //print("not ofresh", effect, (s.node || "?").toString().substr(0,30));
                 }
 
                 ctxs.forEach(
