@@ -4,34 +4,78 @@ var suiteJipdaDepTests =
 {
   var module = new TestSuite("suiteJipdaDepTests");
 
-  function createCesk(ast)
+  function createTypeCesk(ast)
   {
     return jsCesk({a:createTagAg(), l:new JipdaLattice()});
   }
-  
+
+  function createConcCesk(ast)
+  {
+    return jsCesk({a:createConcAg(), l:new ConcLattice()});
+  }
+
   var PURE="PURE", OBS="OBS", PROC="PROC";
 
-  
   function test(src, checks)
   {
     var ast = Ast.createAst(src);
-    var cesk = createCesk(ast);
-    var result = cesk.explore(ast);
-    var pmap = computePurity(ast, result.initial, result.sstore);
+    var concCesk = createConcCesk(ast);
+    var concResult = concCesk.explore(ast);
+    var concMap = computePurity(concResult, false);
     for (var i = 0; i < checks.length; i+=2)
     {
       var funName = checks[i];
       var expected = checks[i+1];
       var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === funName})[0];
-      var actual = pmap.get(f);
-      assertEquals(expected, actual);
+      var actual = concMap.get(f);
+      assertEquals(expected, actual, "equality " + funName + " expected " + expected + ", was " + actual);
+    }
+
+    var faConcMap = computePurity(concResult, true);
+    assertEquals(concMap, faConcMap, "fa conc equality");
+
+    var typeCesk = createTypeCesk(ast);
+    var typeResult = typeCesk.explore(ast);
+    var typeMap = computePurity(typeResult, false);
+    for (var i = 0; i < checks.length; i+=2)
+    {
+      var funName = checks[i];
+      var expected = checks[i+1];
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === funName})[0];
+      var actual = typeMap.get(f);
+      if (expected===PROC)
+      {
+        assertTrue(actual===PROC, "a subsumption " + funName);
+      }
+      else if (expected===OBS)
+      {
+        assertTrue((actual===PROC)||(actual===OBS), "a subsumption " + funName);
+      }
+    }
+
+    var faTypeMap = computePurity(typeResult, true);
+    for (var i = 0; i < checks.length; i+=2)
+    {
+      var funName = checks[i];
+      var expected = checks[i+1];
+      var f = Ast.nodes(ast).filter(function (node) {return node.id && node.id.name === funName})[0];
+      var actual = faTypeMap.get(f);
+      if (expected===PROC)
+      {
+        assertTrue(actual===PROC, "fa subsumption " + funName);
+      }
+      else if (expected===OBS)
+      {
+        assertTrue((actual===PROC)||(actual===OBS), "fa subsumption " + funName);
+      }
     }
   }
-  
+
+
   module.testPurity1 =
     function ()
     {
-      var src = "function f(){}; f()"
+      var src = "function f(){}; f()";
       test(src, ["f", PURE]);
     }
   
@@ -55,15 +99,37 @@ var suiteJipdaDepTests =
       var src = "var z=false; function f() {return z}; f()";
       test(src, ["f", PURE]);
     }
-    
-  module.testPurity4v =
-    function ()
-    {
-      var src = "while (true) {var z=false; function f() {return z}; f()}";
-      test(src, ["f", PURE]);
-    }
-    
-  module.testPurity5a = 
+
+  module.testPurity4p = // idempotent write to prop on global obj
+      function ()
+      {
+        var src = "while (true) {var z=false; function f() {return z}; f()}";
+        test(src, ["f", OBS]);
+      }
+
+  module.testPurity4v = // idempotent write to var of g
+      function ()
+      {
+        var src = "function g(){while (true) {var z=false; function f() {return z}; f()}};g()";
+        test(src, ["f", OBS]);
+      }
+
+  module.testPurity4vv = // write to var of f
+      function ()
+      {
+        var src = "while (true) {function f() {var z=false; return z}; f()}";
+        test(src, ["f", PURE]);
+      }
+
+  // f OBS atm
+  //module.testPurity4vvv = // write to var of h
+  //    function ()
+  //    {
+  //      var src = "while (true) {function h(){var z=false;function f() {return z}; f()};h()}";
+  //      test(src, ["f", PURE]);
+  //    }
+
+  module.testPurity5a =
     function ()
     {
       var src = "var z=false; function f() {return z}; z=true; f()";
@@ -73,7 +139,7 @@ var suiteJipdaDepTests =
   module.testPurity5ab = 
     function ()
     {
-      var src = "var z=false; function f() {return z}; z=true; while (true) f();";
+      var src = "var z=false; function f() {return z}; z=true; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     } 
   
@@ -87,7 +153,7 @@ var suiteJipdaDepTests =
   module.testPurity5bc = 
     function ()
     {
-      var src = "var z=false; function f() {return z}; z=true; f(); f(); while (true) f();";
+      var src = "var z=false; function f() {return z}; z=true; f(); f(); function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     } 
   
@@ -101,7 +167,7 @@ var suiteJipdaDepTests =
   module.testPurity5cb = 
     function ()
     {
-      var src = "var z=false; function f() {return z}; f(); f(); z=true; while (true) f();";
+      var src = "var z=false; function f() {return z}; f(); f(); z=true; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true);";
       test(src, ["f", OBS]);
     } 
   
@@ -115,7 +181,7 @@ var suiteJipdaDepTests =
   module.testPurity5db = 
     function ()
     {
-      var src = "var z=false; function f() {return z}; f(); while (true) f(); z=true;";
+      var src = "var z=false; function f() {return z}; f(); function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     } 
   
@@ -129,7 +195,7 @@ var suiteJipdaDepTests =
   module.testPurity6b =
     function ()
     {
-      var src = "var z=false;function f(){g()}; function g(){h()}; function h(){z=true}; while (true) f();";
+      var src = "var z=false;function f(){g()}; function g(){h()}; function h(){z=true}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PROC]);
     }
     
@@ -150,7 +216,7 @@ var suiteJipdaDepTests =
   module.testPurity7b =
     function ()
     {
-      var src = "function f(){var x=0; function g() {x=x+1}; g()}; while (true) f();";
+      var src = "function f(){var x=0; function g() {x=x+1}; g()}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE, "g", PROC]);
     }
     
@@ -164,7 +230,7 @@ var suiteJipdaDepTests =
   module.testPurity8b =
     function ()
     {
-      var src = "function f(){var o={}; o.x=3}; while (true) f();";
+      var src = "function f(){var o={}; o.x=3}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -192,7 +258,7 @@ var suiteJipdaDepTests =
   module.testPurity11b =
     function ()
     {
-      var src = "function f(){var o={}; function g() {o.x=4}; g(); return o.x}; while (true) f();";
+      var src = "function f(){var o={}; function g() {o.x=4}; g(); return o.x}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -206,7 +272,7 @@ var suiteJipdaDepTests =
   module.testPurity12b =
     function ()
     {
-      var src = "var z=0; function f(){var o={}; function g() {z=z+1;o.x=z}; g(); return o.x}; while (true) f();";
+      var src = "var z=0; function f(){var o={}; function g() {z=z+1;o.x=z}; g(); return o.x}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PROC]);
     }
     
@@ -248,7 +314,7 @@ var suiteJipdaDepTests =
   module.testPurity17b =
     function ()
     {
-      var src = "function g() {var o={x:{}}; return o}; function f(){return g().x}; while (true) f();";
+      var src = "function g() {var o={x:{}}; return o}; function f(){return g().x}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE, "g", PURE]);
     }
     
@@ -262,7 +328,7 @@ var suiteJipdaDepTests =
   module.testPurity18b =
     function ()
     {
-      var src = "function g(p) {p.x=4}; function f(){var o={}; g(o); return o.x}; while (true) f();";
+      var src = "function g(p) {p.x=4}; function f(){var o={}; g(o); return o.x}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -276,7 +342,7 @@ var suiteJipdaDepTests =
   module.testPurity19b =
     function ()
     {
-      var src = "var z=0; function g(p) {z=z+1;p.x=z}; function f(){var o={}; g(o); return o.x}; while (true) f();";
+      var src = "var z=0; function g(p) {z=z+1;p.x=z}; function f(){var o={}; g(o); return o.x}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PROC]);
     }
     
@@ -325,7 +391,7 @@ var suiteJipdaDepTests =
   module.testPurity25b =
     function ()
     {
-      var src = "function g(p) {p.x=4}; function f(h){var o={}; h(o); return o.x}; while (true) f(g);";
+      var src = "function g(p) {p.x=4}; function f(h){var o={}; h(o); return o.x}; function l(b) {if (b) {f(g);return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -339,7 +405,7 @@ var suiteJipdaDepTests =
   module.testPurity26b =
     function ()
     {
-      var src = "var z=0; function g(p) {z=z+1;p.x=z}; function f(h){var o={}; h(o); return o.x}; while (true) f(g);";
+      var src = "var z=0; function g(p) {z=z+1;p.x=z}; function f(h){var o={}; h(o); return o.x}; function l(b) {if (b) {f(g);return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PROC]);
     }
     
@@ -360,7 +426,7 @@ var suiteJipdaDepTests =
   module.testPurity28b = 
     function ()
     {
-      var src = "function g(){return {x:3}}; function f(h){return h()}; while (true) f(g);";
+      var src = "function g(){return {x:3}}; function f(h){return h()}; function l(b) {if (b) {f(g);return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -374,7 +440,7 @@ var suiteJipdaDepTests =
   module.testPurity29b =
     function ()
     {
-      var src = "function f(){function g(){var l=3; return l}; return g()}; while (true) f();";
+      var src = "function f(){function g(){var l=3; return l}; return g()}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
 
@@ -388,7 +454,7 @@ var suiteJipdaDepTests =
   module.testPurity30b =
     function ()
     {
-      var src = "function g(){var l=3; return l}; function f(){return g()}; while (true) f();";
+      var src = "function g(){var l=3; return l}; function f(){return g()}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -402,7 +468,7 @@ var suiteJipdaDepTests =
   module.testPurity31b =
     function ()
     {
-      var src = "function g(){var l=3; return l}; function f(h){return h()}; while (true) f(g);";
+      var src = "function g(){var l=3; return l}; function f(h){return h()}; function l(b) {if (b) {f(g);return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
     
@@ -416,7 +482,7 @@ var suiteJipdaDepTests =
   module.testPurity32b =
     function ()
     {
-      var src = "function f(){var l=3;function g(){return l}; l=l+1; return g()}; while (true) f();";
+      var src = "function f(){var l=3;function g(){return l}; l=l+1; return g()}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
   
@@ -430,7 +496,7 @@ var suiteJipdaDepTests =
   module.testPurity33b =
     function ()
     {
-      var src = "function f(){var l=3;function g(){l=l+1;return l}; l=l+1; return g()}; while (true) f();";
+      var src = "function f(){var l=3;function g(){l=l+1;return l}; l=l+1; return g()}; function l(b) {if (b) {f();return l(false)}; return 'done'}; l(true)";
       test(src, ["f", PURE]);
     }
   
@@ -441,12 +507,12 @@ var suiteJipdaDepTests =
       test(src, ["f", PURE]);
     }
   
-//  module.testPurity34b =  example that works in conc but not in abst
-//    function ()
-//    {
-//      var src = "function f(){var o={}; function g() {return {x:o}}; return g()}; for (var i=0; i<10; i++) f();";
-//      test(src, ["f", PURE, "g", PURE]);
-//    }
+  module.testPurity34b =
+    function ()
+    {
+      var src = "function f(){var o={}; function g() {return {x:o}}; return g()}; for (var i=0; i<10; i++) f();";
+      test(src, ["f", PURE, "g", PURE]);
+    }
 
   module.testPurity35 =
     function ()
@@ -542,14 +608,14 @@ var suiteJipdaDepTests =
   module.testPurity44 =
   function ()
   {
-    var src = "function f(n){return f(n-1)}; f(123);";
+    var src = "function f(n){if (n===0) return 'done'; return f(n-1)}; f(3)";
     test(src, ["f", PURE]);
   }  
   
   module.testPurity45 =
     function ()
     {
-      var src = "function F(x){this.x=x};new F(123);";
+      var src = "function F(x){this.x=x};new F(3);";
       test(src, ["F", PURE]);
     }
   
@@ -626,33 +692,31 @@ var suiteJipdaDepTests =
   module.testPurity54 =
     function ()
     {
-      var src = "function f() {var z={}; z.x=true; f()};f()"
+      var src = "function f(b) {if (b) {var z={}; z.x=true; return f(false)}; return 'done'};f(true)"
       test(src, ["f", PURE]);
     }
   
   module.testPurity54b =
     function ()
     {
-      var src = "var z={};function f() {var y={}; y.x=true; y=z; y.x=false; f()};f()"
+      var src = "var z={};function f(b) {if (b) {var y={}; y.x=true; y=z; y.x=false; return f(false)}; return 'done'};f(true)"
       test(src, ["f", PROC]);
     }
   
   module.testPurity54c =
     function ()
     {
-      var src = "var z={};function f() {var y={}; y.x=true; var y=z; y.x=false; f()};f()"
+      var src = "var z={};function f(b) {if (b) {var y={}; y.x=true; var y=z; y.x=false; return f(false)}; return 'done'};f(true)"
       test(src, ["f", PROC]);
     }
   
   module.testPurity55 =
     function ()
     {
-      var src = "var z={};function f() {var y=z; y={}; y.x=false; f()};f()"
+      var src = "var z={};function f(b) {if (b) {var y=z; y={}; y.x=false; return f(false)}; return 'done'};f(true)"
       test(src, ["f", PURE]);
     }
-    
 
-  
   module.testTreenode1 =
     function ()
     {
@@ -667,7 +731,92 @@ var suiteJipdaDepTests =
       test(src, ["TreeNode", PURE, "f", PURE]);
     }
 
-  
+  module.testPurity56 =
+      function ()
+      {
+        var src = "var o={};function f() {var p={};function g(){p=o};g();p.x=123};f()";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPurity57 =
+      function ()
+      {
+        var src = "function global(){function f(h) {h()};(function (z){function g() {z=false};f(g)})(true)};global()";
+        test(src, ["global", PURE, "f", PROC, "g", PROC]);
+      }
+
+  module.testPurity58 =
+      function ()
+      {
+        var src = "function f(p) {if (p) {var z={};function g() {z=p}; g(); z.x=3; f(false); return z}; return 'done'};f({})";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  // synced with Scheme purity
+
+  module.testPuritys61 =
+      function ()
+      {
+        var src = "function f(h) {var z=true; if (h) return h(); return f(function g() {z=false})};f(false)";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPuritys62 =
+      function ()
+      {
+        var src = "function f(h) {var z={}; if (h) return h(); return f(function g() {z.x=123})};f(false)";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPuritys62b =
+      function ()
+      {
+        var src = "function f(h) {var z={x:456}; if (h) return h(); return f(function g() {z.x=123})};f(false)";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPuritys62c =
+      function ()
+      {
+        var src = "function f(h) {var z=[]; if (h) return h(); return f(function g() {z[0]=123})};f(false)";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPuritys62d =
+      function ()
+      {
+        var src = "function f(h) {var z=[456]; if (h) return h(); return f(function g() {z[0]=123})};f(false)";
+        test(src, ["f", PROC, "g", PROC]);
+      }
+
+  module.testPuritys63 =
+      function ()
+      {
+        var src = "function f(b) {if (b) {var x;var y;x=y={};x.car=3;return f(false)}; return 'done'};f(true)";
+        test(src, ["f", PURE]);
+      }
+
+  module.testPuritys65 =
+      function ()
+      {
+        var src = "function f(b) {if (b) {var x;var y;x=y={};x.car=3;f(false);return x}; return 'done'};f(true)";
+        test(src, ["f", PURE]);
+      }
+
+  module.testPuritys66 =
+      function ()
+      {
+        var src = "function f(p) {var o={};if (p) {p.x=3} else f(o)}; f(false)";
+        test(src, ["f", PROC]);
+      }
+
+  module.testPuritys67 =
+      function ()
+      {
+        var src = "function f(b) {if (b) {var z={};function g() {z.x=3}; g(); f(false); return z}; return 'done'};f(true)";
+        test(src, ["f", PURE, "g", PROC]);
+      }
+
   return module;
 
 })()

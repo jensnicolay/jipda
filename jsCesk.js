@@ -69,7 +69,7 @@ function jsCesk(cc)
   var errorPa = allocNative();
   var errorProtoRef = l.abstRef(errorPa);
   
-  const popTodo = [];
+  var sstorei = 0;
   var contexts = MutableHashSet.empty(10007);
     
 //function stackFrames(lkont, kont)
@@ -376,6 +376,7 @@ function jsCesk(cc)
   var matha = allocNative();
   math = registerPrimitiveFunction(math, matha, "abs", mathAbs);
   math = registerPrimitiveFunction(math, matha, "round", mathRound);
+  math = registerPrimitiveFunction(math, matha, "floor", mathFloor);
   math = registerPrimitiveFunction(math, matha, "sin", mathSin);
   math = registerPrimitiveFunction(math, matha, "cos", mathCos);
   math = registerPrimitiveFunction(math, matha, "sqrt", mathSqrt);
@@ -650,6 +651,12 @@ function jsCesk(cc)
     return [{state:new KontState(value, store, lkont, kont), effects:effects}];
   }
   
+  function mathFloor(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    var value = l.floor(operandValues[0]);
+    return [{state: new KontState(value, store, lkont, kont), effects:effects}];
+  }
+  
   function mathCos(application, operandValues, thisa, benv, store, lkont, kont, effects)
   {
     var value = l.cos(operandValues[0]);
@@ -796,11 +803,7 @@ function jsCesk(cc)
       else
       {
         ctx._stacks.add(previousStack);
-//        sstorei++;
-        if (ctx._poppers)
-        {
-          popTodo.push([ctx._poppers, previousStack]);
-        }
+        sstorei++;
       }
     }
     return ctx; 
@@ -1021,19 +1024,10 @@ function jsCesk(cc)
         {
           value = L_UNDEFINED;
         }
-        
-        var poppers = kont._poppers;
-        if (!poppers)
-        {
-          poppers = new MutableHashSet(7);
-          kont._poppers = poppers;
-        }
-        poppers.add(this);
-        
+
         return kont._stacks.map(
           function (stack)
           {
-            
             return {state:new KontState(value, store, stack[0], stack[1]), effects:[]};
           });
       }
@@ -1121,15 +1115,7 @@ function jsCesk(cc)
 
       var lkont = this.lkont;
       var store = this.store;
-      
-      var poppers = kont._poppers;
-      if (!poppers)
-      {
-        poppers = new MutableHashSet(7);
-        kont._poppers = poppers;
-      }
-      poppers.add(this);
-      
+
       var result = kont._stacks.map(
           function (st)
           {
@@ -1248,13 +1234,6 @@ function jsCesk(cc)
           todo.push([st[0],st[1]]);
         });
       G = G.add(kont);
-      var poppers = kont._poppers;
-      if (!poppers)
-      {
-        poppers = new MutableHashSet(7);
-        kont._poppers = poppers;
-      }
-      poppers.add(this);
     }
     return result;
   }
@@ -3180,6 +3159,10 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var name = l.abst1(property.name);
       var effects = [];
       var value = doProtoLookup(name, objectRef.addresses(), store, effects);
+      if (value === BOT)
+      {
+        return [];
+      }
       var updatedValue;
       switch (node.operator)
       {
@@ -4135,137 +4118,66 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       return new EvalState(node, override.benv || globalEnv, override.store || store, [haltFrame], globalContext);    
     }
   
-  
   module.explore =
-    function (ast, override)
+    function (ast)
     {
       var startTime = performance.now();
       var id = 0;
       var visited = MutableHashSet.empty(104729);
-      var initial = this.inject(ast, override);
+      var initial = this.inject(ast);
       initial._id = id++;
       visited.add(initial);
       var result = ArraySet.empty();
       var todo = [initial];
-      while (todo.length > 0 || popTodo.length > 0)
+      while (todo.length > 0)
       {
-        while (todo.length > 0)
+        var s = todo.pop();
+        if (s._sstorei === sstorei)
         {
-          var s = todo.pop();
-          var next = s.next();
-          s._successors = next;
-          if (next.length === 0)
-          {
-            result = result.add(s);
-            continue;
-          }
+          continue;
+        }
+        s._sstorei = sstorei;
+        var next = s._successors;
+        if (next && s instanceof EvalState)
+        {
           for (var i = 0; i < next.length; i++)
           {
             var t2 = next[i];
             var s2 = t2.state;
-            var ss2 = visited.get(s2);
-            if (ss2)
-            {
-              t2.state = ss2;
-              continue;
-            }
-            visited.add(s2);
-            s2._id = id++;
             todo.push(s2);
-            if (id % 10000 === 0)
-            {
-              print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length + "/" + popTodo.length, "ctxs", contexts.count());//, "sstorei", sstorei);
-            }
-          }            
+          }
+          continue;
         }
-        while (popTodo.length > 0)
+        next = s.next();
+        s._successors = next;
+        if (next.length === 0)
         {
-          var poppy = popTodo.pop();
-          var poppers = poppy[0];
-          var stack = poppy[1];
-          poppers.forEach(
-            function (popper)
-            {
-              var todoS = new KontState(popper.value, popper.store, stack[0], stack[1]);
-              var s2 = visited.get(todoS);
-              if (s2)
-              {
-                popper._successors.push({state:s2, effects: []});
-              }
-              else
-              {
-                visited.add(todoS);
-                todoS._id = id++;
-                popper._successors.push({state:todoS, effects: []});
-                todo.push(todoS);
-              }
-            });
+          result = result.add(s);
+          continue;
+        }
+        for (var i = 0; i < next.length; i++)
+        {
+          var t2 = next[i];
+          var s2 = t2.state;
+          var ss2 = visited.get(s2);
+          if (ss2)
+          {
+            t2.state = ss2;
+            todo.push(ss2);
+            continue;
+          }
+          visited.add(s2);
+          s2._id = id++;
+          todo.push(s2);
+          if (id % 10000 === 0)
+          {
+            print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length, "ctxs", contexts.count(), "sstorei", sstorei);
+          }
         }
       }
 //      print("sstorei-skip", skipped1, "eval-skip", skipped2, "nexted", nexted);
       return {initial:initial, result:result, contexts:contexts, states:visited, time:performance.now()-startTime};
     }
-  
-//  module.explore =
-//    function (ast)
-//    {
-//      var startTime = performance.now();
-//      var id = 0;
-//      var visited = MutableHashSet.empty(104729);
-//      var initial = this.inject(ast);
-//      initial._id = id++;
-//      visited.add(initial);
-//      var result = ArraySet.empty();
-//      var todo = [initial];
-//      while (todo.length > 0)
-//      {
-//        var s = todo.pop();
-//        if (s._sstorei === sstorei)
-//        {
-//          continue;
-//        }
-//        s._sstorei = sstorei;
-//        var next = s._successors;
-//        if (next && s instanceof EvalState)
-//        {
-//          for (var i = 0; i < next.length; i++)
-//          {
-//            var t2 = next[i];
-//            var s2 = t2.state;
-//            todo.push(s2);
-//          }
-//          continue;
-//        }
-//        next = s.next();
-//        s._successors = next;
-//        if (next.length === 0)
-//        {
-//          result = result.add(s);
-//          continue;
-//        }
-//        for (var i = 0; i < next.length; i++)
-//        {
-//          var t2 = next[i];
-//          var s2 = t2.state;
-//          var ss2 = visited.get(s2);
-//          if (ss2)
-//          {
-//            t2.state = ss2;
-//            todo.push(ss2);
-//            continue;
-//          }
-//          visited.add(s2);
-//          s2._id = id++;
-//          todo.push(s2);
-//          if (id % 10000 === 0)
-//          {
-//            print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length, "ctxs", contexts.count(), "sstorei", sstorei);
-//          }
-//        }            
-//      }
-////      print("sstorei-skip", skipped1, "eval-skip", skipped2, "nexted", nexted);
-//      return {initial:initial, result:result, contexts:contexts, states:visited, time:performance.now()-startTime};
-//    }
   
   module.concExplore =
     function (ast)
@@ -4297,7 +4209,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         }
       }
     }
-  
+
   function preludeExplore(ast)
     {
       var startTime = performance.now();
@@ -4344,7 +4256,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         {
         return allocNative();
         }
-      
+
       a.vr =
         function (name, ctx)
         {
@@ -4369,20 +4281,20 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         }
         else if (l === 0)
         {
-          print("loaded prelude", Formatter.displayTime(performance.now()-startTime), "states", id);
+          //print("loaded prelude", Formatter.displayTime(performance.now()-startTime), "states", id);
           a = oldA;
           store = s.store;
           return;
         }
         else
-        { 
+        {
           a = oldA;
           throw new Error("more than one next state");
         }
       }
     }
   module.preludeExplore = preludeExplore;
-  
+
   module.isAtomic = isAtomic;
   module.evalAtomic =
     function (atom, benv, store, kont)
@@ -4391,9 +4303,9 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var value = ae.evalNode(atom, benv, store, kont);
       return value;
     }
-      
-  preludeExplore(ast0);    
-  return module; 
+
+  preludeExplore(ast0);
+  return module;
 }
 
 //module.explore =
@@ -4486,7 +4398,7 @@ function computeResultValue(endStates)
       }
       else
       {
-        msgs.push("ERROR: no successors for " + s);
+        msgs.push("ERROR: no successors for " + s + " (" + (s.node) + ")");
       }
     });
   return {value:result, msgs:msgs};
