@@ -20,7 +20,9 @@ function jsCesk(cc)
   // gc
   const gcFlag = cc.gc === undefined ? true : cc.gc;
   //
-  const errors = cc.errors === undefined ? false : cc.errors; 
+  const errors = cc.errors === undefined ? false : cc.errors;
+  //
+  const lenient = cc.lenient === undefined ? false : cc.lenient;
   
   assert(a);
   assert(l);
@@ -2948,6 +2950,18 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     
     if (value === BOT)
     {
+
+      if (lenient)
+      {
+        var obj = createObject(objectProtoRef);
+        var objectAddress = a.object(node);
+        store = storeAlloc(store, objectAddress, obj);
+//      effects.push(allocObjectEffect(objectAddress));
+        var objectRef = l.abstRef(objectAddress);
+
+        return [objectRef, store];
+      }
+
       return [value, store];
     }
     
