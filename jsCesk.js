@@ -4322,48 +4322,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   return module;
 }
 
-//module.explore =
-//function (ast)
-//{ // orig
-//  var yes = 0;
-//  var visited = MutableHashSet.empty(104729);
-//  var graph = Graph.empty();
-//  var initial = this.inject(ast);
-//  var todo = [initial];
-//  while (todo.length > 0)
-//  {
-//    var s = todo.pop();
-//    if (visited.contains(s))
-//    {
-//      continue;
-//    }
-//    visited.add(s); 
-//    var currSstorei = sstorei; 
-//    var next = s.next();
-//    if (sstorei > currSstorei)
-//    {
-//      visited.clear();
-//    }
-//    for (var i = 0; i < next.length; i++)
-//    {
-//      var t2 = next[i];
-//      var s2 = t2.state;
-//      var m2 = t2.effects;
-////      if (graph.containsEdge(new Edge(s, m2, s2)))
-////      {
-////        yes++;
-////      }
-////      else
-//      {
-//        graph = graph.addEdge(new Edge(s, m2, s2));            
-//      }
-//      todo.push(s2);
-//    }
-//  }
-//  print("YES", yes);
-//  return {initial: initial, graph:graph, sstore: sstore};
-//}  
-
 
 function isResultState(state)
 {

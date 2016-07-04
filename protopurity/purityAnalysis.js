@@ -134,6 +134,7 @@ function computeFreshness(system)
           {
             // local target
             var right = node.right;
+            print("updateFresh", target, getFresh(right,ast, s.kont,vars2fresh));
             updateFreshness(target, getFresh(right,ast, s.kont,vars2fresh));
           }
           else
@@ -485,7 +486,7 @@ function computePurity(system, freshnessFlag)
                     //print("OFRESH", s._id, "fresh in", s.kont);
                     return;
                   }
-                  //print("not ofresh", effect, (s.node || "?").toString().substr(0,30));
+                  print("not ofresh", effect, (s.node || "?").toString().substr(0,30));
                 }
 
                 ctxs.forEach(
@@ -521,7 +522,7 @@ function computePurity(system, freshnessFlag)
                       var fun = ctx.callable.node;
                       addRdep(address, name, fun);
                       if (funOdeps.contains(fun)) {
-                        // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                        //print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
                         markObserver(fun);
                       }
                     })
@@ -541,7 +542,7 @@ function computePurity(system, freshnessFlag)
                       var fun = ctx.callable.node;
                       addRdep(address, name, fun);
                       if (funOdeps.contains(fun)) {
-                        // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                        //print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
                         markObserver(fun);
                       }
                     })

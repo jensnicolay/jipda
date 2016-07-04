@@ -91,11 +91,12 @@ function r()
 function test()
 {
   var results = runBenchmarks([
-    "sunspider/access-nbody.js",
+    //"sunspider/access-nbody.js",
     //"sunspider/controlflow-recursive.js",
     //"sunspider/crypto-sha1.js",
     //"sunspider/math-spectral-norm.js",
     //"jolden/tree-add.js",
+    "jolden/bisort.js",
   ]);
   displayResults(results);
   return results;
