@@ -99,37 +99,37 @@ svg
     fill: #fff;
 }
 
-.node.EvalState rect
+.node.eval rect
 {
 	fill:#fcc;
 }
 
-.node.KontState rect
+.node.kont rect
 {
   fill:#cfc;
 }
 
-.node.ReturnState rect
+.node.return rect
 {
   fill:#ccf;
 }
 
-.node.ThrowState rect
+.node.throw rect
 {
   fill:#ccf;
 }
 
-.node.BreakState rect
+.node.break rect
 {
   fill:#ccf;
 }
 
-.node.ResultState rect
+.node.result rect
 {
   fill:#ffc;
 } 
 
-.node.ErrorState rect
+.node.error rect
 {
 	fill:red;
 } 

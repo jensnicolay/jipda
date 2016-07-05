@@ -1273,20 +1273,20 @@ MutableHashMap.prototype.nice =
 
 /*
  * Set interface
- * 
+ *
  * equals, hashCode (based on values)
  * add
  * addAll
  * contains
  * values
  * size
- *  
+ *
  */
-function Set()
+function Set_()
 {
 }
 
-Set.prototype.subsumes =
+Set_.prototype.subsumes =
   function (x)
   {
     if (this === x)
@@ -1308,13 +1308,13 @@ Set.prototype.subsumes =
     return true;
   }
 
-Set.prototype.equals =
+Set_.prototype.equals =
   function (x)
   {
     if (this === x)
     {
       return true;
-    }    
+    }
     if (this.count() !== x.count())
     {
       return false;
@@ -1323,7 +1323,7 @@ Set.prototype.equals =
     {
       return false;
     }
-    return this.iterateValues(function (value) {return x.contains(value)}); 
+    return this.iterateValues(function (value) {return x.contains(value)});
 //    var values = this.values();
 //    for (var i = 0; i < values.length; i++)
 //    {
@@ -1335,19 +1335,19 @@ Set.prototype.equals =
 //    return true;
   }
 
-Set.prototype.hashCode =
+Set_.prototype.hashCode =
   function ()
   {
     if (this._hashCode !== undefined)
     {
       return this._hashCode;
     }
-    var result = this.values().setHashCode(); 
+    var result = this.values().setHashCode();
     this._hashCode = result;
     return result;
   }
 
-Set.prototype.compareTo =
+Set_.prototype.compareTo =
   function (x)
   {
     var s1 = this.subsumes(x);
@@ -1355,19 +1355,19 @@ Set.prototype.compareTo =
     return s1 ? (s2 ? 0 : 1) : (s2 ? -1 : undefined);
   }
 
-Set.prototype.join =
+Set_.prototype.join =
   function (x)
   {
     return x.values().reduce(function (result, value) {return result.add(value)}, this);
-  } 
+  }
 
-Set.prototype.meet =
+Set_.prototype.meet =
   function (x)
   {
     return this.values().reduce(function (result, value) {return x.contains(value) ? result.add(value) : result}, this.clear());
-  } 
+  }
 
-Set.prototype.subtract =
+Set_.prototype.subtract =
   function (x)
   {
     return this.values().reduce(function (result, value) {return x.contains(value) ? result : result.add(value)}, this.clear());
@@ -1377,7 +1377,7 @@ function ArraySet(arr)
 {
   this._arr = arr;
 }
-ArraySet.prototype = Object.create(Set.prototype);
+ArraySet.prototype = Object.create(Set_.prototype);
 
 ArraySet.empty =
   function ()

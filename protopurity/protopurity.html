@@ -112,7 +112,7 @@
     result = system.result;
     contexts = system.contexts;	  
     console.log("analysis took " + time + " ms");
-    console.log(system.states.count() + " states; " + result.count() + " results; " + contexts.count() + " contexts");
+    console.log(system.states.length + " states; " + result.count() + " results; " + contexts.count() + " contexts");
     var result = computeResultValue(system.result);
     var resultValue = result.value;
     console.log("result value " + resultValue);
@@ -124,7 +124,7 @@
     
     //purity();
 
-    if (system.states.count() > 2048)
+    if (system.states.length > 2048)
     {
       console.log("no graph (too many states)");
       return;
