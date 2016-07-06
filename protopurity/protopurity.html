@@ -4,7 +4,8 @@
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 	<link rel="stylesheet" href="protopurity.css" type="text/css" media="all"/> 
 	<link rel="stylesheet" href="../lib/web/jquery-ui-1.11.1/jquery-ui.min.css" type="text/css" media="all"/>  
-	<link rel="stylesheet" href="../lib/web/codemirror/codemirror.css" type="text/css" media="all"/> 
+	<link rel="stylesheet" href="../lib/web/codemirror/codemirror.css" type="text/css" media="all"/>
+  <link rel="import" href="../prelude.js"/>
 	<title>JIPDA</title>
 	<script type="text/javascript" src="../lib/esprima.js"></script>
 	<script type="text/javascript" src="../common.js"></script>
@@ -98,7 +99,8 @@
     eval($("#config").val());
     var errors = $("#errors").is(":checked"); 
     var gc = true;
-	  cesk = jsCesk({a:ag, l:lat, gc: gc, errors:errors});
+    var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
+    cesk = jsCesk({a:ag, l:lat, gc: gc, errors:errors, ast0src});
 	  
 	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 	  

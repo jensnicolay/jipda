@@ -10,7 +10,7 @@ function concEval(src)
 function typeEval(src)
 {
   var ast = Ast.createAst(src);
-  var cesk = jsCesk({a:createTagAg(), l: new JipdaLattice()});
+  var cesk = jsCesk({a:createTagAg(), l: new JipdaLattice(), ast0src});
   var system = cesk.explore(ast);
   var result = computeResultValue(system.result); 
   print(result.value);

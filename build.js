@@ -1,6 +1,7 @@
 "use strict";
 
 load("lib/esprima.js");
+const ast0src = read("prelude.js");
 
 var console = {log:print}
 

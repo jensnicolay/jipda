@@ -3,12 +3,6 @@
 var EMPTY_LKONT = [];
 var EMPTY_ADDRESS_SET = ArraySet.empty();
 
-var ast0src = "";
-ast0src += "Array.prototype.map = function (f) { var result = [];for (var i = 0; i < this.length; i++){result.push(f(this[i]))}; return result}\n";
-ast0src += "Array.prototype.filter = function (f) { var result = [];for (var i = 0; i < this.length; i++){var x = this[i]; if (f(x)) (result.push(x))}; return result}\n";
-ast0src += "Array.prototype.indexOf = function (x) { for (var i = 0; i < this.length; i++){if (this[i]===x) return i}; return -1}\n";
-const ast0 = Ast.createAst(ast0src);
-
 function jsCesk(cc)
 {
   // address generator
@@ -24,6 +18,8 @@ function jsCesk(cc)
   //
   const lenient = cc.lenient === undefined ? false : cc.lenient;
   
+  const ast0src = cc.ast0src || "";
+
   assert(a);
   assert(l);
   
@@ -4318,7 +4314,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       return value;
     }
 
-  preludeExplore(ast0);
+  preludeExplore(Ast.createAst(ast0src));
   return module;
 }
 
