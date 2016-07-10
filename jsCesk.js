@@ -887,6 +887,93 @@ function jsCesk(cc)
     {
       return this.scope.addresses();
     }
+
+  const states = []; // do not pre-alloc
+  const kont2states = new Array(2048);
+
+  function stateGet(s)
+  {
+    let statesReg = kont2states[s.kont._id];
+    if (!statesReg)
+    {
+      statesReg = new Array(7);
+      kont2states[s.kont._id] = statesReg;
+    }
+    let stateReg = null;
+    if (s instanceof EvalState)
+    {
+      stateReg = statesReg[0];
+      if (!stateReg)
+      {
+        stateReg = [];
+        statesReg[0] = stateReg;
+      }
+    }
+    else if (s instanceof KontState)
+    {
+      stateReg = statesReg[1];
+      if (!stateReg)
+      {
+        stateReg = [];
+        statesReg[1] = stateReg;
+      }
+    }
+    else if (s instanceof ReturnState)
+    {
+      stateReg = statesReg[2];
+      if (!stateReg)
+      {
+        stateReg = [];
+        statesReg[2] = stateReg;
+      }
+    }
+    else if (s instanceof ThrowState)
+    {
+      stateReg = statesReg[3];
+      if (!stateReg)
+      {
+        stateReg = [];
+        statesReg[3] = stateReg;
+      }
+    }
+    else if (s instanceof BreakState)
+    {
+      stateReg = statesReg[4];
+      if (!stateReg)
+      {
+        stateReg = [];
+        statesReg[4] = stateReg;
+      }
+    }
+    else if (s instanceof ErrorState)
+    {
+      stateReg = statesReg[5];
+      if (!stateReg)
+      {
+        stateReg = [];
+        statesReg[5] = stateReg;
+      }
+    }
+    else if (s instanceof ResultState)
+    {
+      stateReg = statesReg[6];
+      if (!stateReg)
+      {
+        stateReg = [];
+        statesReg[6] = stateReg;
+      }
+    }
+    for (let i = 0; i < stateReg.length; i++)
+    {
+      if (stateReg[i].equals(s))
+      {
+        return stateReg[i];
+      }
+    }
+    s._id = states.push(s) - 1;
+    stateReg.push(s);
+    return s;
+  }
   
   function EvalState(node, benv, store, lkont, kont)
   {
@@ -4133,10 +4220,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     {
       var startTime = performance.now();
       var id = 0;
-      var visited = MutableHashSet.empty(104729);
-      var initial = this.inject(ast);
-      initial._id = id++;
-      visited.add(initial);
+      var initial = stateGet(this.inject(ast));
       var result = ArraySet.empty();
       var todo = [initial];
       while (todo.length > 0)
@@ -4169,24 +4253,22 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         {
           var t2 = next[i];
           var s2 = t2.state;
-          var ss2 = visited.get(s2);
-          if (ss2)
+          var ss2 = stateGet(s2);
+          if (ss2 !== s2)
           {
             t2.state = ss2;
             todo.push(ss2);
             continue;
           }
-          visited.add(s2);
-          s2._id = id++;
-          todo.push(s2);
-          if (id % 10000 === 0)
+          todo.push(ss2);
+          if (states.length % 10000 === 0)
           {
-            print(Formatter.displayTime(performance.now()-startTime), "states", id, "todo", todo.length, "ctxs", contexts.count(), "sstorei", sstorei);
+            print(Formatter.displayTime(performance.now()-startTime), "states", states.length, "todo", todo.length, "ctxs", contexts.count(), "sstorei", sstorei);
           }
         }
       }
 //      print("sstorei-skip", skipped1, "eval-skip", skipped2, "nexted", nexted);
-      return {initial:initial, result:result, contexts:contexts, states:visited, time:performance.now()-startTime};
+      return {initial, result, contexts, states, time:performance.now()-startTime};
     }
   
   module.concExplore =
