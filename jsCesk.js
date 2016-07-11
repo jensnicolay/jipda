@@ -68,8 +68,7 @@ function jsCesk(cc)
   var errorProtoRef = l.abstRef(errorPa);
   
   var sstorei = 0;
-  var contexts = MutableHashSet.empty(10007);
-    
+
 //function stackFrames(lkont, kont)
 //{
 //  var todo = [kont];
@@ -96,61 +95,96 @@ function jsCesk(cc)
 //  return result;
 //}
 
+  const contexts = []; // do not pre-alloc
+  const stacks = []; // do not pre-alloc
+
+  function Stack(lkont, kont)
+  {
+    return {lkont, kont, _id:-1}
+  }
+
+  function Stack_equals(st1, st2)
+  {
+    if (st1 === st2)
+    {
+      return true;
+    }
+    return st1.lkont.equals(st2.lkont)
+      && st1.kont === st2.kont;
+  }
+
+  function Stackget(st)
+  {
+    for (let i = 0; i < stacks.length; i++)
+    {
+      if (Stack_equals(stacks[i], st))
+      {
+        return stacks[i];
+      }
+    }
+    st._id = stacks.push(st) - 1;
+    return st;
+  }
+
+
   function Context(ex, callable, args, thisa, store, as)
   {
-    this.ex = ex;
-    this.callable = callable;
-    this.args = args;
-    this.thisa = thisa;
-    this.store = store;
-    this.as = as;
-    this._hashCode = undefined;
-    this._stacks = null;
-    this._id = null;
+    return {ex, callable, args, thisa, store, as, _hashCode:undefined, _stacks:null, _id: -1};
   }
-  
-  Context.prototype.equals =
-    function (x)
+
+  function contextGet(ctx)
+  {
+    for (let i = 0; i < contexts.length; i++)
     {
-      if (this === x)
+      if (Context_equals(contexts[i], ctx))
+      {
+        assertDefinedNotNull(contexts[i]._id);
+        return contexts[i];
+      }
+    }
+    ctx._id = contexts.push(ctx) - 1;
+    return ctx;
+  }
+
+  function Context_equals(ctx1, ctx2)
+    {
+      if (ctx1 === ctx2)
       {
         return true;
       }
-      if (!(x instanceof Context))
-      {
-        return false;
-      }
-      return this.ex === x.ex
-        && this.thisa.equals(x.thisa)
-        && this.callable.equals(x.callable)
-        && this.args.equals(x.args)
-        && this.store.equals(x.store)
-        && this.as.equals(x.as)
+      // if (!(x instanceof Context))
+      // {
+      //   return false;
+      // }
+      return ctx1.ex === ctx2.ex
+        && ctx1.thisa.equals(ctx2.thisa)
+        && ctx1.callable.equals(ctx2.callable)
+        && ctx1.args.equals(ctx2.args)
+        && ctx1.store.equals(ctx2.store)
+        && ctx1.as.equals(ctx2.as)
     }
   
-  Context.prototype.hashCode =
-    function ()
+  function Context_hashCode(ctx)
     {
-      if (this._hashCode !== undefined)
+      if (ctx._hashCode !== undefined)
       {
-        return this._hashCode;
+        return ctx._hashCode;
       }
       var prime = 31;
       var result = 1;
-      result = prime * result + (this.ex && this.ex.hashCode());
-      result = prime * result + this.callable.hashCode();
-      result = prime * result + this.args.hashCode();
-      result = prime * result + this.thisa.hashCode();
-      result = prime * result + this.store.hashCode();
-      result = prime * result + this.as.hashCode();
-      this._hashCode = result;
+      result = prime * result + (ctx.ex && ctx.ex.hashCode());
+      result = prime * result + ctx.callable.hashCode();
+      result = prime * result + ctx.args.hashCode();
+      result = prime * result + ctx.thisa.hashCode();
+      result = prime * result + ctx.store.hashCode();
+      result = prime * result + ctx.as.hashCode();
+      ctx._hashCode = result;
       return result;
     }
   
-  Context.prototype.toString =
-    function ()
+  function Context_toString(ctx)
     {
-      return "@" + this._id;
+      return "@" + ctx._id;
     }
   
   function stackAddresses(lkont, kont)
@@ -778,24 +812,20 @@ function jsCesk(cc)
   
   function createContext(application, callable, operandValues, thisa, store, stackAs, previousStack)
   {
-    var ctx0 = new Context(application, callable, operandValues, thisa, store, stackAs);
-    var ctx = contexts.get(ctx0);
-    if (!ctx)
+    var ctx0 = Context(application, callable, operandValues, thisa, store, stackAs);
+    var ctx = contextGet(ctx0);
+    if (ctx === ctx0)
     {
-      ctx = ctx0;
-      ctx._id = contexts.count();
-      ctx._stacks = new MutableHashSet(7);
+      ctx._stacks = new Set();
       if (previousStack) // TODO no underlying stacks should signal root context, iso ctx.ex === null
       {
-        ctx._stacks.add(previousStack);        
+        ctx._stacks.add(previousStack);
       }
-      contexts.add(ctx);
-      
       // sstorei++; don't increase age for fresh stack: no need to revisit states
     }
     else if (previousStack) // TODO no underlying stacks should signal root context, iso ctx.ex === null
     {
-      if (ctx._stacks.contains(previousStack))
+      if (ctx._stacks.has(previousStack))
       {
       }
       else
@@ -863,7 +893,7 @@ function jsCesk(cc)
     function (application, operandValues, thisa, benv, store, lkont, kont, effects)
     {    
     var stackAs = stackAddresses(lkont, kont);
-    var previousStack = [lkont, kont];
+    var previousStack = Stackget(Stack(lkont, kont));
     var ctx = createContext(application, this, operandValues, thisa, store, stackAs, previousStack);
     return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects)
   }
@@ -872,7 +902,7 @@ function jsCesk(cc)
     function (application, operandValues, protoRef, benv, store, lkont, kont, effects)
     {    
       var stackAs = stackAddresses(lkont, kont);
-      var previousStack = [lkont, kont];
+      var previousStack = Stackget(Stack(lkont, kont));
       var funNode = this.node;
       var thisa = a.constructor(funNode, application);
       // call store should not contain freshly allocated `this`
@@ -982,6 +1012,7 @@ function jsCesk(cc)
     this.store = store;
     this.lkont = lkont;
     this.kont = kont;
+    assert(kont);
     this._successors = null;
     this._sstorei = -1;
     this._id = -1;
@@ -1049,6 +1080,7 @@ function jsCesk(cc)
     this.store = store;
     this.lkont = lkont;
     this.kont = kont;
+    assert(kont);
     this._successors = null;
     this._sstorei = -1;
     this._id = -1;
@@ -1110,11 +1142,12 @@ function jsCesk(cc)
           value = L_UNDEFINED;
         }
 
-        return kont._stacks.map(
-          function (stack)
-          {
-            return {state:new KontState(value, store, stack[0], stack[1]), effects:[]};
-          });
+        let result = [];
+        for (let stack of kont._stacks)
+        {
+          result.push({state:new KontState(value, store, stack.lkont, stack.kont), effects:[]});
+        }
+        return result;
       }
       
       return lkont[0].apply(value, store, lkont.slice(1), kont);
@@ -1201,11 +1234,11 @@ function jsCesk(cc)
       var lkont = this.lkont;
       var store = this.store;
 
-      var result = kont._stacks.map(
-          function (st)
-          {
-            return {state:new KontState(value, store, st[0], st[1]), effects: []};
-          });
+      var result = [];
+      for (let stack of kont._stacks)
+      {
+        result.push({state:new KontState(value, store, stack.lkont, stack.kont), effects: []});
+      }
 
       return result;
     }
@@ -1237,7 +1270,7 @@ function jsCesk(cc)
       return (x instanceof ThrowState)
         && (this.value === x.value || this.value.equals(x.value)) 
         && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont || this.kont.equals(x.kont))
+        && (this.kont === x.kont)
         && (this.store === x.store || this.store.equals(x.store))
     }
   ThrowState.prototype.hashCode =
@@ -1273,37 +1306,39 @@ function jsCesk(cc)
       var store = this.store;
       
       var stacks = this.stackPop(lkont, kont);
-      return stacks.flatMap(
+      let result = [];
+      stacks.forEach(
         function (stack)
         {
-          var lkont = stack[0];
-          var kont = stack[1];
+          var lkont = stack.lkont;
+          var kont = stack.kont;
           var frame = lkont[0];
           var lkont2 = lkont.slice(1);
           if (!frame.applyThrow)
           {
             print("!!", frame);
           }
-          return frame.applyThrow(value, store, lkont2, kont);
+          result = result.concat(frame.applyThrow(value, store, lkont2, kont));
         });
+      return result;
     }
   
   ThrowState.prototype.stackPop = function (lkont, kont)
   {
-    var todo = [[lkont, kont]];
+    var todo = [Stack(lkont, kont)];
     var result = [];
     var G = ArraySet.empty();
     todo: while (todo.length > 0)
     {
       var stack = todo.pop();
-      var lkont = stack[0];
-      var kont = stack[1];
+      var lkont = stack.lkont;
+      var kont = stack.kont;
       
       for (var i = 0; i < lkont.length; i++)
       {
         if (lkont[i].applyThrow)
         {
-          result.push([lkont.slice(i), kont]);
+          result.push(Stack(lkont.slice(i), kont));
           continue todo;
         }
       }
@@ -1316,7 +1351,7 @@ function jsCesk(cc)
       kont._stacks.forEach(
         function (st)
         {
-          todo.push([st[0],st[1]]);
+          todo.push(Stack(st.lkont,st.kont));
         });
       G = G.add(kont);
     }
@@ -4263,7 +4298,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
           todo.push(ss2);
           if (states.length % 10000 === 0)
           {
-            print(Formatter.displayTime(performance.now()-startTime), "states", states.length, "todo", todo.length, "ctxs", contexts.count(), "sstorei", sstorei);
+            print(Formatter.displayTime(performance.now()-startTime), "states", states.length, "todo", todo.length, "ctxs", contexts.length, "sstorei", sstorei);
           }
         }
       }
