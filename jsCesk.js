@@ -1439,7 +1439,7 @@ function jsCesk(cc)
   HaltKont.prototype.equals =
     function (x)
     {
-      return this instanceof HaltKont;
+      return x instanceof HaltKont;
     }
   HaltKont.prototype.addresses =
     function ()
