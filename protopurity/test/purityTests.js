@@ -816,6 +816,13 @@ var suiteJipdaDepTests =
         var src = "function f(b) {if (b) {var z={};function g() {z.x=3}; g(); f(false); return z}; return 'done'};f(true)";
         test(src, ["f", PURE, "g", PROC]);
       }
+      
+  module.testPurity68 =
+      function ()
+      {
+        var src = "var solver=null;function setupNavierStokes(){solver = new FluidField(null)};function FluidField(canvas){};setupNavierStokes()";
+        test(src, ["setupNavierStokes", PROC]);
+      }
 
   return module;
 

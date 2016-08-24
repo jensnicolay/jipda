@@ -46,7 +46,7 @@
 	function purity()
 	{
 	  //console.profile();
-	  var pmap = computePurity(ast, initial);
+	  var pmap = computePurity(system, true);
 	  displayPurity(ast, pmap);
 	  //console.profileEnd();
 	  return result;
@@ -122,7 +122,7 @@
       result.msgs.forEach(function (msg) {logOutput("error", msg)});
     }
     
-    //purity();
+    purity();
 
     if (system.states.count() > 2048)
     {

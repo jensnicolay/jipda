@@ -2,10 +2,13 @@ var vertices = 0;
 var printResult = false;
 var printMsgs = false;
 
+var __NOEFF__vindex = 0;
+
 function Vertex(n, numvert) {
     this.mindist = 9999999;
     this.next = n;
     this.neighbors = [];
+    this.index = __NOEFF__vindex++;
 }
 
 Vertex.prototype.setMindist =
@@ -48,6 +51,7 @@ Graph.prototype.firstNode =
         return this.nodes[0];
     }
 
+var counter = 0;
 Graph.prototype.addEdges =
     function (numvert) {
         var count1 = 0;
@@ -56,7 +60,7 @@ Graph.prototype.addEdges =
             for (var i = 0; i < numvert; i++) {
                 if (i != count1) {
                     var dist = this.computeDist(i, count1, numvert);
-                    hash[this.nodes[i]] = dist;
+                    hash[this.nodes[i].index] = dist;
                 }
             }
             count1++;
@@ -163,7 +167,7 @@ function BlueRule(inserted, vlist) {
     retval.setVert(vlist);
     retval.setDist(vlist.mindist);
     var hash = vlist.neighbors;
-    var o = hash[inserted];
+    var o = hash[inserted.index];
     if (o != null) {
         var dist = o;
         if (dist < retval.dist) {
@@ -182,7 +186,7 @@ function BlueRule(inserted, vlist) {
         } else {
             hash = tmp.neighbors;
             var dist2 = tmp.mindist;
-            o = hash[inserted];
+            o = hash[inserted.index];
             if (o != null) {
                 var dist = o;
                 if (dist < dist2) {

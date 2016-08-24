@@ -135,3 +135,119 @@ function displayResults(results)
         );
   })
 }
+
+function paperTest()
+{
+  const benchmarks = [
+      "navier-stokes-conc.js",   // CONC!
+      "fib.js",
+      "octane/richards.js",
+      "sunspider/access-nbody.js",
+      "sunspider/controlflow-recursive.js",
+      "sunspider/crypto-sha1.js",
+      "sunspider/math-spectral-norm.js",
+      "jolden/tree-add.js",
+      "jolden/bisort.js",
+      "jolden/em3d.js",
+      "jolden/mst.js"
+    ];
+  
+  const PURE="PURE", OBS="OBS", PROC="PROC";
+  
+  function createTypeCesk(ast)
+  {
+    return jsCesk({a:createTagAg(), l:new JipdaLattice()});
+  }
+  
+  function createConcCesk(ast)
+  {
+    return jsCesk({a:createConcAg(), l:new ConcLattice()});
+  }
+  
+  
+  function test(benchmark)
+  {
+    var src = read(bprefix + benchmark);
+    var ast = Ast.createAst(src);
+    var concCesk = createConcCesk(ast);
+    var concResult = concCesk.explore(ast);
+    print("explored conc");
+    var concMap = computePurity(concResult, false);
+    var concFuns = concMap.keys();
+    var concP = computeResult(concFuns, concMap, 0);
+    print("a conc   ", concP.pureFuns, concP.obsFuns, concP.procFuns);
+    
+    var faConcMap = computePurity(concResult, true);
+    displayPurity(ast, concMap);
+    displayPurity(ast, faConcMap);
+    assertEquals(concMap, faConcMap, "fa conc equality");
+    var faConcP = computeResult(concFuns, faConcMap, 0);
+    print("fa conc  ", faConcP.pureFuns, faConcP.obsFuns, faConcP.procFuns);
+
+    
+    var typeCesk = createTypeCesk(ast);
+    var typeResult = typeCesk.explore(ast);
+    print("explored type");
+    var typeMap = computePurity(typeResult, false);
+    for (var i = 0; i < concFuns.length; i++)
+    {
+      var f = concFuns[i];
+      var funName = f.id ? f.id.name : f.loc;
+      var expected = concMap.get(f);
+      var actual = typeMap.get(f);
+      if (expected===PROC)
+      {
+        assertTrue(actual===PROC, "a subsumption " + funName);
+      }
+      else if (expected===OBS)
+      {
+        assertTrue((actual===PROC)||(actual===OBS), "a subsumption " + funName);
+      }
+    }
+    var typeP = computeResult(concFuns, typeMap, 0);
+    print("a type   ", typeP.pureFuns, typeP.obsFuns, typeP.procFuns);
+  
+  
+    var faTypeMap = computePurity(typeResult, true);
+    for (var i = 0; i < concFuns.length; i++)
+    {
+      var f = concFuns[i];
+      var funName = f.id ? f.id.name : f.loc;
+      var expected = concMap.get(f);
+      var actual = faTypeMap.get(f);
+      if (expected===PROC)
+      {
+        assertTrue(actual===PROC, "fa subsumption " + funName);
+      }
+      else if (expected===OBS)
+      {
+        assertTrue((actual===PROC)||(actual===OBS), "fa subsumption " + funName);
+      }
+    }
+    var faTypeP = computeResult(concFuns, faTypeMap, 0);
+    print("fa type  ", faTypeP.pureFuns, faTypeP.obsFuns, faTypeP.procFuns);
+    return {benchmark, concFuns, concP, faConcP, typeP, faTypeP};
+  }
+  var bprefix = "../test/resources/";
+  var results = benchmarks.map(
+      function (benchmark)
+      {
+        print("=======================");
+        print(benchmark);
+        return test(benchmark);
+      });
+  results.forEach(
+      function (result)
+      {
+        print("=======================");
+        print(result.benchmark);
+        var concP = result.concP;
+        print("a conc   ", concP.pureFuns, concP.obsFuns, concP.procFuns);
+        var faConcP = result.faConcP;
+        print("fa conc  ", faConcP.pureFuns, faConcP.obsFuns, faConcP.procFuns);
+        var typeP = result.typeP;
+        print("a type   ", typeP.pureFuns, typeP.obsFuns, typeP.procFuns);
+        var faTypeP = result.faTypeP;
+        print("fa type  ", faTypeP.pureFuns, faTypeP.obsFuns, faTypeP.procFuns);
+      })
+}

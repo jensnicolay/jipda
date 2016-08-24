@@ -43,41 +43,7 @@ function computeFreshness(system)
   var ast = initial.node;
   var age = 0;
   var vars2fresh = new Array();
-
-  function stackPop(kont)
-  {
-    var result = ArraySet.empty();
-    var seen = ArraySet.empty();
-    var todo = [kont];
-    while (todo.length > 0)
-    {
-      var kont = todo.pop();
-      if (seen.contains(kont))
-      {
-        continue;
-      }
-      seen = seen.add(kont);
-      if (kont._stacks)
-      {
-        kont._stacks.forEach(
-            function (stack)
-            {
-              var lkont2 = stack[0];
-              var kont2 = stack[1];
-              if (lkont2.length > 0)
-              {
-                result = result.add([lkont2,kont2]);
-              }
-              else
-              {
-                todo.push([kont2]);
-              }
-            })
-      }
-    }
-    return result;
-  }
-
+  
   function updateFreshness(target, freshness)
   {
     var existingFreshnessForVar = vars2fresh[target.tag];
@@ -142,7 +108,8 @@ function computeFreshness(system)
             updateFreshness(target, UNFRESH);
           }
         }
-      default: break;//print("did not handle", node.type, node);
+        break;
+      default: break;
     }
   }
 
@@ -431,6 +398,10 @@ function computePurity(system, freshnessFlag)
             var address = effect.address;
             var varEffect = effect.name.tag > -1;
             var name = varEffect ? getDeclarationNode(effect.name, ast) : effect.name;
+            if (String(name).startsWith("__NOEFF__"))
+            {
+              return;
+            }
             var writeEffect = effect.isWriteEffect();
 
             if (writeEffect)
