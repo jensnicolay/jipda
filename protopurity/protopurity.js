@@ -139,15 +139,15 @@ function displayResults(results)
 function paperTest()
 {
   const benchmarks = [
-      "navier-stokes-conc.js",   // CONC!
       "fib.js",
-      "octane/richards.js",
-      "sunspider/access-nbody.js",
-      "sunspider/controlflow-recursive.js",
-      "sunspider/crypto-sha1.js",
-      "sunspider/math-spectral-norm.js",
-      "jolden/tree-add.js",
-      "jolden/bisort.js",
+    "sunspider/access-nbody.js",
+    "sunspider/controlflow-recursive.js",
+    "sunspider/crypto-sha1.js",
+    "sunspider/math-spectral-norm.js",
+    "jolden/tree-add.js",
+    "navier-stokes-conc.js",   // CONC!
+    "octane/richards.js",
+    "jolden/bisort.js",
       "jolden/em3d.js",
       "jolden/mst.js"
     ];
@@ -169,19 +169,20 @@ function paperTest()
   {
     var src = read(bprefix + benchmark);
     var ast = Ast.createAst(src);
+    var allFuns = Ast.nodes(ast).filter(function (node) {return node.type === "FunctionDeclaration" || node.type === "FunctionExpression"});
+   
     var concCesk = createConcCesk(ast);
     var concResult = concCesk.explore(ast);
     print("explored conc");
     var concMap = computePurity(concResult, false);
-    var concFuns = concMap.keys();
-    var concP = computeResult(concFuns, concMap, 0);
+    var concP = computeResult(allFuns, concMap, 0);
     print("a conc   ", concP.pureFuns, concP.obsFuns, concP.procFuns);
     
     var faConcMap = computePurity(concResult, true);
-    displayPurity(ast, concMap);
-    displayPurity(ast, faConcMap);
+    //displayPurity(ast, concMap);
+    //displayPurity(ast, faConcMap);
     assertEquals(concMap, faConcMap, "fa conc equality");
-    var faConcP = computeResult(concFuns, faConcMap, 0);
+    var faConcP = computeResult(allFuns, faConcMap, 0);
     print("fa conc  ", faConcP.pureFuns, faConcP.obsFuns, faConcP.procFuns);
 
     
@@ -189,9 +190,9 @@ function paperTest()
     var typeResult = typeCesk.explore(ast);
     print("explored type");
     var typeMap = computePurity(typeResult, false);
-    for (var i = 0; i < concFuns.length; i++)
+    for (var i = 0; i < allFuns.length; i++)
     {
-      var f = concFuns[i];
+      var f = allFuns[i];
       var funName = f.id ? f.id.name : f.loc;
       var expected = concMap.get(f);
       var actual = typeMap.get(f);
@@ -204,14 +205,14 @@ function paperTest()
         assertTrue((actual===PROC)||(actual===OBS), "a subsumption " + funName);
       }
     }
-    var typeP = computeResult(concFuns, typeMap, 0);
+    var typeP = computeResult(allFuns, typeMap, 0);
     print("a type   ", typeP.pureFuns, typeP.obsFuns, typeP.procFuns);
   
   
     var faTypeMap = computePurity(typeResult, true);
-    for (var i = 0; i < concFuns.length; i++)
+    for (var i = 0; i < allFuns.length; i++)
     {
-      var f = concFuns[i];
+      var f = allFuns[i];
       var funName = f.id ? f.id.name : f.loc;
       var expected = concMap.get(f);
       var actual = faTypeMap.get(f);
@@ -224,9 +225,13 @@ function paperTest()
         assertTrue((actual===PROC)||(actual===OBS), "fa subsumption " + funName);
       }
     }
-    var faTypeP = computeResult(concFuns, faTypeMap, 0);
+    var faTypeP = computeResult(allFuns, faTypeMap, 0);
     print("fa type  ", faTypeP.pureFuns, faTypeP.obsFuns, faTypeP.procFuns);
-    return {benchmark, concFuns, concP, faConcP, typeP, faTypeP};
+
+    var concFuns = concMap.keys();
+    var faTypePc = computeResult(concFuns, faTypeMap, 0);
+    print("fa type c", faTypePc.pureFuns, faTypePc.obsFuns, faTypePc.procFuns);
+    return {benchmark, concP, faConcP, typeP, faTypeP, faTypePc};
   }
   var bprefix = "../test/resources/";
   var results = benchmarks.map(
@@ -243,8 +248,10 @@ function paperTest()
         print(result.benchmark);
         var concP = result.concP;
         print("a conc   ", concP.pureFuns, concP.obsFuns, concP.procFuns);
-        var faConcP = result.faConcP;
-        print("fa conc  ", faConcP.pureFuns, faConcP.obsFuns, faConcP.procFuns);
+        // var faConcP = result.faConcP;
+        // print("fa conc  ", faConcP.pureFuns, faConcP.obsFuns, faConcP.procFuns);
+        var faTypePc = result.faTypePc;
+        print("fa type c", faTypePc.pureFuns, faTypePc.obsFuns, faTypePc.procFuns);
         var typeP = result.typeP;
         print("a type   ", typeP.pureFuns, typeP.obsFuns, typeP.procFuns);
         var faTypeP = result.faTypeP;

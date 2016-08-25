@@ -3181,7 +3181,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       if (updatedValue === BOT)
       {
         return [];
-      }      
+      }
       store = doProtoSet(name, node.object, updatedValue, objectRef, store, effects);
       var resultingValue = node.prefix ? updatedValue : value;
       return [{state:new KontState(resultingValue, store, lkont, kont), effects:effects}];
@@ -3326,7 +3326,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       {
         return [];
       }
-      store = doProtoSet(nameValue, node.object, newValue, objectRef, store, effects);
+      store = doProtoSet(nameValue, node.left.object, newValue, objectRef, store, effects);
       return [{state:new KontState(newValue, store, lkont, kont), effects:effects}];
     }
   

@@ -46,6 +46,7 @@ function computeFreshness(system)
   
   function updateFreshness(target, freshness)
   {
+    //print("updating freshness", target, target.tag, freshness);
     var existingFreshnessForVar = vars2fresh[target.tag];
     if (existingFreshnessForVar === undefined)
     {
@@ -70,15 +71,18 @@ function computeFreshness(system)
     switch (node.type)
     {
       case "VariableDeclaration":
-        node.declarations.forEach(function (declarator) {handleNode(declarator, s)});
+        var fun = s.kont.callable.node;
+        if (fun) // not top-level
+        {
+          node.declarations.forEach(function (declarator) {handleNode(declarator, s)});
+        }
         break;
       case "VariableDeclarator":
-        // always local target
-        var target = node.id;
+        var target = getDeclarationNode(node.id, ast); // in case declaration is actually redeclaration
         var init = node.init;
         if (init)
         {
-          updateFreshness(target, getFresh(init, ast, s.kont,vars2fresh));
+          updateFreshness(target, getFresh(init, ast, s.kont, vars2fresh));
         }
         break;
       case "BlockStatement":
@@ -223,48 +227,6 @@ function computePurity(system, freshnessFlag)
       return key[1].subsumes(name);      
     }
     return false; 
-  }
-
-  //getFresh(node, ast, kont, vars2fresh)
-  function fresh(s)
-  {
-    function ff(effectNode) {
-      if (effectNode.type === "ExpressionStatement")
-      {
-        return ff(effectNode.expression);
-      }
-      else if (effectNode.type === "MemberExpression")
-      {
-        return ff(effectNode.object);
-      }
-      else if (effectNode.type === "AssignmentExpression")
-      {
-        if (effectNode.left.object)
-        {
-          return ff(effectNode.left.object)
-        }
-      }
-      else if (effectNode.type === "CallExpression")
-      {
-        var callee = effectNode.callee;
-        return ff(callee);
-      }
-      return effectNode;
-    }
-
-    var effectNode;
-    if (s.node) {
-      effectNode = s.node;
-    }
-    if (s.value && s.lkont[0].node)
-    {
-      effectNode = s.lkont[0].node;
-    }
-    var fff = ff(effectNode);
-    assert(fff);
-    var freshness = getFresh(fff, ast, s.kont, vars2fresh);
-    //print("effect node", freshness, fff.type, "from", effectNode);
-    return freshness;
   }
 
   var pmap = HashMap.empty(); // fun -> {PURE, OBSERVER, PROC}
@@ -448,17 +410,16 @@ function computePurity(system, freshnessFlag)
                       //                      print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
                       addOdep(address, name, funRdep);
                     })
-
-                if (freshnessFlag)
+  
+                if (freshnessFlag && effect.node)
                 {
-                  if (fresh(s))
+                  var fresh = getFresh(effect.node, ast, s.kont, vars2fresh);
+                  if (fresh)
                   {
-                    //print("OFRESH", s._id, "fresh in", s.kont);
                     return;
                   }
-                  //print("not ofresh", effect, (s.node || "?").toString().substr(0,30));
                 }
-
+                
                 ctxs.forEach(
                   function (ctx)
                   {
@@ -499,9 +460,15 @@ function computePurity(system, freshnessFlag)
               }
               else // member effect
               {
-                if (freshnessFlag && fresh(s)) {
-                  return;
+                if (freshnessFlag && effect.node)
+                {
+                  let fresh = getFresh(effect.node, ast, s.kont, vars2fresh);
+                  if (fresh)
+                  {
+                    return;
+                  }
                 }
+                
                 ctxs.forEach(
                     function (ctx) {
                       var storeAddresses = ctx.store.keys();
