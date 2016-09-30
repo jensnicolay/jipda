@@ -40,6 +40,28 @@ function computeResult(fs, pmap, pmTime)
 
 function runBenchmarks(benchmarks)
 {
+  
+  function transitions(initial)
+  {
+    let ts = [];
+    let todo = [initial];
+    while (todo.length > 0)
+    {
+      let s = todo.pop();
+      s._successors.forEach(
+          function (t)
+          {
+            if (isFinite(t._id))
+            {
+              return;
+            }
+            t._id = ts.push(ts) - 1;
+            todo.push(t.state);
+          });
+    }
+    return ts;
+  }
+  
   var bprefix = "../test/resources/";
   benchmarks = benchmarks ||
                     ["fib.js",
@@ -65,7 +87,8 @@ function runBenchmarks(benchmarks)
       var sgStart = Date.now();
       var system = cesk.explore(ast);
       var sgTime = Date.now() - sgStart;
-      print("sgTime", Formatter.displayTime(sgTime), "states", system.states.count());
+      var ts = transitions(system.initial);
+      print("sgTime", Formatter.displayTime(sgTime), "states", system.states.count(), "edges", ts.length);
       var calledFs = ArraySet.from(system.contexts.map(function (ctx) {return ctx.callable.node})).remove(undefined); // `undefined` = root context
 
       var aStart = Date.now();

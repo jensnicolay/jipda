@@ -392,7 +392,8 @@ function FluidField(canvas) {
     this.setResolution = function (hRes, wRes)
     {
         var res = wRes * hRes;
-        if (res > 0 && res < 1000000 && (wRes != width || hRes != height)) {
+        if (res > 0 && res < 1000000 && (wRes != width || hRes != height))
+        {
             width = wRes;
             height = hRes;
             reset();
