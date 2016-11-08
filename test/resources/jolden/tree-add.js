@@ -153,11 +153,6 @@ TreeNode.createTree =
       print("    -p (print the result>)");
       print("    -h (this message)");
     }
-
-  
-  
-/////
-  
-  
+ 
 main(["-l", 5]);
   

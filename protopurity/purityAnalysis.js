@@ -43,43 +43,10 @@ function computeFreshness(system)
   var ast = initial.node;
   var age = 0;
   var vars2fresh = new Array();
-
-  function stackPop(kont)
-  {
-    var result = ArraySet.empty();
-    var seen = ArraySet.empty();
-    var todo = [kont];
-    while (todo.length > 0)
-    {
-      var kont = todo.pop();
-      if (seen.contains(kont))
-      {
-        continue;
-      }
-      seen = seen.add(kont);
-      if (kont._stacks)
-      {
-        kont._stacks.forEach(
-            function (stack)
-            {
-              var lkont2 = stack[0];
-              var kont2 = stack[1];
-              if (lkont2.length > 0)
-              {
-                result = result.add([lkont2,kont2]);
-              }
-              else
-              {
-                todo.push([kont2]);
-              }
-            })
-      }
-    }
-    return result;
-  }
-
+  
   function updateFreshness(target, freshness)
   {
+    //print("updating freshness", target, target.tag, freshness);
     var existingFreshnessForVar = vars2fresh[target.tag];
     if (existingFreshnessForVar === undefined)
     {
@@ -104,15 +71,18 @@ function computeFreshness(system)
     switch (node.type)
     {
       case "VariableDeclaration":
-        node.declarations.forEach(function (declarator) {handleNode(declarator, s)});
+        var fun = s.kont.callable.node;
+        if (fun) // not top-level
+        {
+          node.declarations.forEach(function (declarator) {handleNode(declarator, s)});
+        }
         break;
       case "VariableDeclarator":
-        // always local target
-        var target = node.id;
+        var target = getDeclarationNode(node.id, ast); // in case declaration is actually redeclaration
         var init = node.init;
         if (init)
         {
-          updateFreshness(target, getFresh(init, ast, s.kont,vars2fresh));
+          updateFreshness(target, getFresh(init, ast, s.kont, vars2fresh));
         }
         break;
       case "BlockStatement":
@@ -134,7 +104,6 @@ function computeFreshness(system)
           {
             // local target
             var right = node.right;
-            print("updateFresh", target, getFresh(right,ast, s.kont,vars2fresh));
             updateFreshness(target, getFresh(right,ast, s.kont,vars2fresh));
           }
           else
@@ -143,7 +112,8 @@ function computeFreshness(system)
             updateFreshness(target, UNFRESH);
           }
         }
-      default: break;//print("did not handle", node.type, node);
+        break;
+      default: break;
     }
   }
 
@@ -160,7 +130,7 @@ function computeFreshness(system)
   function traverseGraph()
   {
     var todo = [initial];
-    var visited = new Array(system.states.count());
+    var visited = new Array(system.states.length);
     while (todo.length > 0)
     {
       var s = todo.pop();
@@ -231,13 +201,11 @@ function computePurity(system, freshnessFlag)
         continue;
       }
       visited = visited.add(kont);
-      var stacks = kont._stacks;
-      stacks.values().forEach(
-        function (stack)
-        {
-          var kont = stack[1];          
-          todo.push(kont);
-        });
+      for (let stack of kont._stacks)
+      {
+        var kont = stack.kont;
+        todo.push(kont);
+      }
     }
     return visited.values();
   }
@@ -257,48 +225,6 @@ function computePurity(system, freshnessFlag)
       return key[1].subsumes(name);      
     }
     return false; 
-  }
-
-  //getFresh(node, ast, kont, vars2fresh)
-  function fresh(s)
-  {
-    function ff(effectNode) {
-      if (effectNode.type === "ExpressionStatement")
-      {
-        return ff(effectNode.expression);
-      }
-      else if (effectNode.type === "MemberExpression")
-      {
-        return ff(effectNode.object);
-      }
-      else if (effectNode.type === "AssignmentExpression")
-      {
-        if (effectNode.left.object)
-        {
-          return ff(effectNode.left.object)
-        }
-      }
-      else if (effectNode.type === "CallExpression")
-      {
-        var callee = effectNode.callee;
-        return ff(callee);
-      }
-      return effectNode;
-    }
-
-    var effectNode;
-    if (s.node) {
-      effectNode = s.node;
-    }
-    if (s.value && s.lkont[0].node)
-    {
-      effectNode = s.lkont[0].node;
-    }
-    var fff = ff(effectNode);
-    assert(fff);
-    var freshness = getFresh(fff, ast, s.kont, vars2fresh);
-    //print("effect node", freshness, fff.type, "from", effectNode);
-    return freshness;
   }
 
   var pmap = HashMap.empty(); // fun -> {PURE, OBSERVER, PROC}
@@ -401,7 +327,7 @@ function computePurity(system, freshnessFlag)
   }
   
   var todo = [initial];
-  var visited = new Array(system.states.count());
+  var visited = new Array(system.states.length);
   while (todo.length > 0)
   {
     var s = todo.pop();
@@ -432,6 +358,10 @@ function computePurity(system, freshnessFlag)
             var address = effect.address;
             var varEffect = effect.name.tag > -1;
             var name = varEffect ? getDeclarationNode(effect.name, ast) : effect.name;
+            if (String(name).startsWith("__NOEFF__"))
+            {
+              return;
+            }
             var writeEffect = effect.isWriteEffect();
 
             if (writeEffect)
@@ -478,17 +408,16 @@ function computePurity(system, freshnessFlag)
                       //                      print(t._id, "r->o", funRdep.loc.start.line, effectAddress, effectName);
                       addOdep(address, name, funRdep);
                     })
-
-                if (freshnessFlag)
+  
+                if (freshnessFlag && effect.node)
                 {
-                  if (fresh(s))
+                  var fresh = getFresh(effect.node, ast, s.kont, vars2fresh);
+                  if (fresh)
                   {
-                    //print("OFRESH", s._id, "fresh in", s.kont);
                     return;
                   }
-                  print("not ofresh", effect, (s.node || "?").toString().substr(0,30));
                 }
-
+                
                 ctxs.forEach(
                   function (ctx)
                   {
@@ -522,16 +451,22 @@ function computePurity(system, freshnessFlag)
                       var fun = ctx.callable.node;
                       addRdep(address, name, fun);
                       if (funOdeps.contains(fun)) {
-                        //print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                        // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
                         markObserver(fun);
                       }
                     })
               }
               else // member effect
               {
-                if (freshnessFlag && fresh(s)) {
-                  return;
+                if (freshnessFlag && effect.node)
+                {
+                  let fresh = getFresh(effect.node, ast, s.kont, vars2fresh);
+                  if (fresh)
+                  {
+                    return;
+                  }
                 }
+                
                 ctxs.forEach(
                     function (ctx) {
                       var storeAddresses = ctx.store.keys();
@@ -542,7 +477,7 @@ function computePurity(system, freshnessFlag)
                       var fun = ctx.callable.node;
                       addRdep(address, name, fun);
                       if (funOdeps.contains(fun)) {
-                        //print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
+                        // print(t._id, "observer", fun.loc.start.line, effectAddress, effectName);
                         markObserver(fun);
                       }
                     })
