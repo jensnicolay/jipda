@@ -95,7 +95,9 @@ function jsCesk(cc)
 
   const contexts = []; // do not pre-alloc
   const stacks = []; // do not pre-alloc
-
+  const states = []; // do not pre-alloc
+  
+  
   function Stack(lkont, kont)
   {
     return {lkont, kont, _id:-1}
@@ -916,7 +918,6 @@ function jsCesk(cc)
       return this.scope.addresses();
     }
 
-  const states = []; // do not pre-alloc
   const kont2states = new Array(2048);
 
   function stateGet(s)
@@ -1089,7 +1090,7 @@ function jsCesk(cc)
       return (x instanceof KontState)
         && (this.value === x.value || this.value.equals(x.value)) 
         && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont || this.kont.equals(x.kont))
+        && (this.kont === x.kont)
         && (this.store === x.store || this.store.equals(x.store))
     }
   KontState.prototype.hashCode =
@@ -1177,7 +1178,7 @@ function jsCesk(cc)
       return (x instanceof ReturnState)
         && (this.value === x.value || this.value.equals(x.value)) 
         && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont || this.kont.equals(x.kont))
+        && (this.kont === x.kont)
         && (this.store === x.store || this.store.equals(x.store))
     }
   ReturnState.prototype.hashCode =
@@ -1380,7 +1381,7 @@ function jsCesk(cc)
     {
       return (x instanceof BreakState)
         && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont || this.kont.equals(x.kont))
+        && (this.kont === x.kont)
         && (this.store === x.store || this.store.equals(x.store))
     }
   BreakState.prototype.hashCode =
@@ -1450,7 +1451,7 @@ function jsCesk(cc)
       return (x instanceof ResultState)
         && (this.value === x.value || this.value.equals(x.value)) 
         && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont || this.kont.equals(x.kont))
+        && (this.kont === x.kont)
         && (this.store === x.store || this.store.equals(x.store))
     }
   ResultState.prototype.hashCode =
