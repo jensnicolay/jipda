@@ -9,8 +9,6 @@ function jsCesk(cc)
   var a = cc.a;
   // lattice
   const l = cc.l || new JipdaLattice();
-  // atomic evaluation
-  const aeFlag = cc.ae === undefined ? true : cc.ae;
   // gc
   const gcFlag = cc.gc === undefined ? true : cc.gc;
   //
@@ -3563,116 +3561,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     return store;
   }
   
-  function isAtomic(node)
-  {
-    if (!aeFlag)
-    {
-      return false;
-    }
-    switch (node.type)
-    {
-      case "Literal":
-      case "ThisExpression":  
-      case "Identifier": return true;  
-      //case "FunctionDeclaration": return true; WRONG: modifies the store
-      case "BinaryExpression": return isAtomic(node.left) && isAtomic(node.right);
-      case "MemberExpression": return isAtomic(node.object) && isAtomic(node.property);
-      default: return false;
-    }
-    return false;
-  }
- 
-  function AtomicEvaluator(effects)
-  {
-    assert(Array.isArray(effects));
-    this.effects = effects;
-  }
-  
-  AtomicEvaluator.prototype.evalNode =
-    function (node, benv, store, ctx)
-    {
-      switch (node.type)
-      {
-        case "ExpressionStatement": return this.evalNode(node.expression, benv, store, ctx);
-        case "Literal": return l.abst1(node.value);
-        case "Identifier": return this.evalIdentifier(node, benv, store, ctx);
-        case "ThisExpression": return this.evalThisExpression(node, benv, store, ctx);
-        case "FunctionDeclaration": return L_UNDEFINED;
-        case "BinaryExpression": return this.evalBinaryExpression(node, benv, store, ctx);
-        case "MemberExpression": return this.evalMemberExpression(node, benv, store, ctx);
-        default: throw new Error("cannot atomically evaluate " + node + " (" + node.type + ")");
-      }
-    }
-  
-//  AtomicEvaluator.prototype.evalStatementList =
-//    function (node, benv)
-//    {
-//      var nodes = node.body;
-//      if (nodes.length === 0)
-//      {
-//        return L_UNDEFINED;
-//      }
-//      var i = 0;
-//      while (true)
-//      {
-//        var value = this.evalNode(nodes[i], benv); 
-//        if (i + 1 === nodes.length)
-//        {
-//          return value; 
-//        }
-//        i++;
-//      }
-//    }
-  
-   AtomicEvaluator.prototype.evalIdentifier =
-     function (node, benv, store, ctx)
-    {
-      var effects = this.effects;
-      var value = doScopeLookup(node, benv, store, effects);
-      return value;
-    }
-   
-   AtomicEvaluator.prototype.evalThisExpression =
-     function (node, benv, store, ctx)
-    {
-       return l.abstRef(ctx.thisa);
-    }
-
-   AtomicEvaluator.prototype.evalBinaryExpression =
-     function (node, benv, store, ctx)
-     {
-       var leftValue = this.evalNode(node.left, benv, store, ctx);
-       var rightValue = this.evalNode(node.right, benv, store, ctx);
-       var operator = node.operator;
-       return applyBinaryOperator(operator, leftValue, rightValue);
-     }
-   
-   AtomicEvaluator.prototype.evalMemberExpression =
-     function (node, benv, store, ctx)
-     {
-       var effects = this.effects;
-       var objectValue = this.evalNode(node.object, benv, store, ctx);
-       var objectRefStore = ToObject(node, objectValue, store, ctx);
-       var objectRef = objectRefStore[0];
-       store = objectRefStore[1];
-       var nameValue;
-       if (node.computed)
-       {
-         var propertyValue = this.evalNode(node.property, benv, store, ctx);
-         if (propertyValue === BOT)
-         {
-           return BOT;
-         }
-         nameValue = propertyValue.ToString();
-       }
-       else
-       {
-         nameValue = l.abst1(node.property.name);
-       }
-       var value = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
-       return value;
-     }
-   
   function evalEmptyStatement(node, benv, store, lkont, kont)
   {
     return [{state:new KontState(L_UNDEFINED, store, lkont, kont)}];
@@ -3769,14 +3657,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     if (init === null)
     {
       return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];      
-    }
-    if (isAtomic(init))
-    {
-      var ae = new AtomicEvaluator(effects);
-      var value = ae.evalNode(init, benv, store, kont);
-      var id = node.id;
-      store = doScopeSet(id, value, benv, store, effects);      
-      return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];
     }
     var frame = new VariableDeclaratorKont(node, benv);
     return [{state:new EvalState(init, benv, store, [frame].concat(lkont), kont)}];
@@ -3906,75 +3786,8 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     if (Ast.isMemberExpression(calleeNode))
     { 
       var object = calleeNode.object;
-      
-      if (isAtomic(object))
-      {
-        var ae = new AtomicEvaluator(effects);
-        var objectValue = ae.evalNode(object, benv, store, kont);
-        var property = node.callee.property;
-        if (node.computed)
-        {
-          throw new Error("TODO");
-        }
-        var nameValue = l.abst1(property.name);
-        var objectRefStore = ToObject(node.callee, objectValue, store);
-        var objectRef = objectRefStore[0];
-        store = objectRefStore[1]; // TODO ae, should not change
-        
-        var thisAddresses = objectRef.addresses();
-        var operands = node.arguments;
-        return thisAddresses.flatMap(
-          function (thisa)
-          {
-            effects = effects.slice(0);
-            var operatorValue = doProtoLookup(nameValue, ArraySet.from1(thisa), store, effects); 
-            var i = 0;
-            var operandsValues = [];
-            while (i < operands.length && isAtomic(operands[i]))
-            {
-              operandsValues[i] = ae.evalNode(operands[i], benv, store, kont);
-              i++;
-            }
-            if (i === operands.length)
-            {
-              if (Ast.isNewExpression(node))
-              {
-                return applyCons(node, operatorValue, operandsValues, benv, store, lkont, kont, effects);
-              }
-              return applyProc(node, operatorValue, operandsValues, thisa, benv, store, lkont, kont, effects);
-            }
-            var frame = new OperandsKont(node, 1, benv, operatorValue, [], thisa);
-            return [{state:new EvalState(operands[0], benv, store, [frame].concat(lkont), kont), effects:effects}];
-          });      
-      }
-      
       var frame = new CallMemberKont(node, benv);
       return [{state:new EvalState(object, benv, store, [frame].concat(lkont), kont), effects:effects}];
-    }
-    
-    if (isAtomic(calleeNode))
-    {
-      var ae = new AtomicEvaluator(effects);
-      var operatorValue = ae.evalNode(calleeNode, benv, store, kont);
-      var operands = node.arguments;
-      
-      var i = 0;
-      var operandsValues = [];
-      while (i < operands.length && isAtomic(operands[i]))
-      {
-        operandsValues[i] = ae.evalNode(operands[i], benv, store, kont);
-        i++;
-      }
-      if (i === operands.length)
-      {
-        if (Ast.isNewExpression(node))
-        {
-          return applyCons(node, operatorValue, operandsValues, benv, store, lkont, kont, effects);
-        }
-        return applyProc(node, operatorValue, operandsValues, globala, benv, store, lkont, kont, effects);
-      }
-      var frame = new OperandsKont(node, i + 1, benv, operatorValue, operandsValues, globala);
-      return [{state:new EvalState(operands[i], benv, store, [frame].concat(lkont), kont)}];
     }
     
     var frame = new OperatorKont(node, benv);
@@ -4032,13 +3845,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       return [{state:new ReturnState(L_UNDEFINED, store, lkont, kont), effects:effects}];
     }
     
-    if (isAtomic(argumentNode))
-    {
-      var ae = new AtomicEvaluator(effects);
-      var value = ae.evalNode(argumentNode, benv, store, kont);
-      return [{state:new ReturnState(value, store, lkont, kont), effects:effects}];
-    }
-    
     var frame = new ReturnKont(node);
     return [{state:new EvalState(argumentNode, benv, store, [frame].concat(lkont), kont)}];
   }
@@ -4058,13 +3864,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   function evalThrowStatement(node, benv, store, lkont, kont, effects)
   {
     var argumentNode = node.argument;
-    
-    if (isAtomic(argumentNode))
-    {
-      var ae = new AtomicEvaluator(effects);
-      var value = ae.evalNode(argumentNode, benv, store, kont);
-      return [{state:new ThrowState(value, store, lkont, kont), effects:effects}];
-    }
     
     var frame = new ThrowKont(node);
     return [{state:new EvalState(argumentNode, benv, store, [frame].concat(lkont), kont)}];
@@ -4153,12 +3952,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   function evalNode(node, benv, store, lkont, kont, effects)
   {
     assert(Array.isArray(effects));
-    if (isAtomic(node))
-    {
-      var ae = new AtomicEvaluator(effects);
-      var value = ae.evalNode(node, benv, store, kont);
-      return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-    }
     return evalNonAtomic(node, benv, store, lkont, kont, effects);
   }
   
@@ -4421,16 +4214,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       }
     }
   module.preludeExplore = preludeExplore;
-
-  module.isAtomic = isAtomic;
-  module.evalAtomic =
-    function (atom, benv, store, kont)
-    {
-      var ae = new AtomicEvaluator([]);
-      var value = ae.evalNode(atom, benv, store, kont);
-      return value;
-    }
-
   preludeExplore(Ast.createAst(ast0src));
   return module;
 }
