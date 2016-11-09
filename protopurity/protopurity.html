@@ -87,7 +87,8 @@
 	{
 	  $("#eval").attr("disabled", true);
 	  editor.setOption("readOnly", true);
-    $("#config").attr("disabled", true);
+		$("#snippet").attr("disabled", true);
+		$("#config").attr("disabled", true);
     $("#errors").attr("readOnly", true);
 		$("#sg").empty();
 	  var src = editor.getValue();
@@ -185,6 +186,18 @@
 	         var valueSelected = this.value;
 	         alert(valueSelected);
 	            }) */
+
+				 $("#snippet").change(
+				 		function ()
+						{
+							const srcParam = this.value;
+							$.ajax({
+								url : srcParam,
+								dataType: "text",
+								success : function (data) {
+									editor.setValue(data);
+								}})
+						});
 	       
 	       if (getUrlParameter("eval"))
 	       {               
@@ -198,10 +211,21 @@
 <body>
 	<div id="left">
 		<div id="editor"></div>
-    <a href="protopurity.html?src=test/resources/1.js">1</a>
-    <a href="protopurity.html?src=test/resources/2.js">2</a>
-    <a href="protopurity.html?src=test/resources/3.js&eval=true">3</a>
-    <a href="protopurity.html?src=test/resources/4.js&meta=isPure(astNodes[11])&eval=true">4</a>
+		<select id="snippet" title="snippet">
+			<option value="">(cached)</option>
+			<option value="../test/resources/fib.js">fib</option>
+			<option value="../test/resources/rotate.js">rotate</option>
+			<option value="../test/resources/books.js">books</option>
+			<option value="../test/resources/gcIpdExample.js">gcipd</option>
+			<option value="../test/resources/tajs2009.js">tajs</option>
+			<option value="../test/resources/loopy1.js">loopy</option>
+			<option value="../test/resources/jolden/tree-add.js">bisort</option>
+			<option value="../test/resources/nssetup.js">nssetup</option>
+			<option value="../test/resources/1.js">f-g-h</option>
+			<option value="../test/resources/3.js">foobar</option>
+			<option value="../test/resources/7.js">toplevelvar</option>
+			<option value="../test/resources/coen1.js">coen1</option>
+		</select>
     <span>
       <select id="config" title="value lattice">
         <option value="(lat=new JipdaLattice(),ag=createTagAg())">abst</option>
