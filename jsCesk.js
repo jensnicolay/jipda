@@ -4267,7 +4267,7 @@ function computeResultValue(endStates)
       }
       else
       {
-        msgs.push("ERROR: no successors for " + s + " (" + (s.node) + ")");
+        msgs.push("WARNING: no successors for " + s + " (" + (s.node) + ")");
       }
     });
   return {value:result, msgs:msgs};
