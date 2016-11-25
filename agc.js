@@ -1,7 +1,6 @@
 "use strict";
-"use strong";
 
-const Agc = {};
+var Agc = {};
 
 Agc.collect =
   function (store, rootSet)

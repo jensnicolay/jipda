@@ -1,3 +1,5 @@
+"use strict";
+
 var Ast = {}
   
   function nodeToString(node)

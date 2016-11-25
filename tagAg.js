@@ -22,17 +22,23 @@ var tagAg = {};
     {
       return "proto-" + node.tag;
     }
-
+  
   tagAg.array =
-    function (node, time)
-    {
-      if (node.type === "NewExpression")
+      function (node, time)
       {
-        return "arr";
+        if (node.type === "NewExpression")
+        {
+          return "arr";
+        }
+        return "arr-" + node.tag;
       }
-      return "arr-" + node.tag;
-    }
-
+  
+  tagAg.error =
+      function (node, time)
+      {
+        return "err-" + node.tag;
+      }
+  
   tagAg.string =
     function (node, time)
     {

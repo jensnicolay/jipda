@@ -1,3 +1,5 @@
+"use strict";
+
 function createConcAg()
 {
   var concreteAg = {};
@@ -30,13 +32,19 @@ function createConcAg()
     {
     return __conca__++;
     }
-
+  
   concreteAg.array =
-    function (node, benva, store, kont)
-    {
-    return __conca__++;
-    }
-
+      function (node, benva, store, kont)
+      {
+        return __conca__++;
+      }
+  
+  concreteAg.error =
+      function (node, benva, store, kont)
+      {
+        return __conca__++;
+      }
+  
   concreteAg.string =
     function (node, benva, store, kont)
     {

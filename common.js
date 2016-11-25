@@ -19,7 +19,7 @@ var Visitor = {};
 Visitor.accept = function (visitor) {return function (x) {return x.accept ? x.accept(visitor) : String(x)}};
   
 //Boolean.prototype.equals =
-//  function (x)
+//  function (x)g
 //  {
 //    return this.valueOf() === x;
 //  }

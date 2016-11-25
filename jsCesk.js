@@ -3,6 +3,14 @@
 var EMPTY_LKONT = [];
 var EMPTY_ADDRESS_SET = ArraySet.empty();
 
+const Semantics = {};
+
+Semantics.evalStep =
+    function (exp, env, store, lkont, kont, kstore, lattice, alloc, kalloc)
+    {
+      
+    }
+
 function jsCesk(cc)
 {
   // address generator
@@ -67,36 +75,9 @@ function jsCesk(cc)
   
   var sstorei = 0;
 
-//function stackFrames(lkont, kont)
-//{
-//  var todo = [kont];
-//  var result = ArraySet.from(lkont);
-//  var visited = ArraySet.empty();
-//  while (todo.length > 0)
-//  {
-//    var kont = todo.pop();
-//    if (kont === EMPTY_KONT || visited.contains(kont))
-//    {
-//      continue;
-//    }
-//    visited = visited.add(kont);
-//    var stacks = sstore.get(kont);
-//    stacks.forEach(
-//      function (stack)
-//      {
-//        var lkont = stack[0];
-//        result = result.addAll(lkont);
-//        var kont = stack[1];          
-//        todo = todo.push(kont);
-//      });
-//  }
-//  return result;
-//}
-
   const contexts = []; // do not pre-alloc
   const stacks = []; // do not pre-alloc
   const states = []; // do not pre-alloc
-  
   
   function Stack(lkont, kont)
   {
@@ -396,7 +377,7 @@ function jsCesk(cc)
 //  errorP.toString = function () { return "~Error.prototype"; }; // debug
   var errora = allocNative();
   var errorP = registerProperty(errorP, "constructor", l.abstRef(errora));
-  var error = createPrimitive(errorConstructor, errorConstructor);
+  var error = createPrimitive(errorFunction, errorConstructor);
   error = error.add(P_PROTOTYPE, errorProtoRef);
   global = global.add(l.abst1("Error"), l.abstRef(errora));
   store = storeAlloc(store, errora, error);
@@ -656,10 +637,19 @@ function jsCesk(cc)
     return [{state:new KontState(value, store, lkont, kont), effects:effects}];
   }
   
+  function errorFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    var err = createError(operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING);
+    var errAddress = a.error(application, benv, store, kont);
+    store = storeAlloc(store, errAddress, err);
+    var errRef = l.abstRef(errAddress);
+    return [{state:new KontState(errRef, store, lkont, kont), effects:effects}];
+  }
+  
   function errorConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
   {
     var err = createError(operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING);
-    var errAddress = application.tag;
+    var errAddress = a.error(application, benv, store, kont);
     store = storeAlloc(store, errAddress, err);
     var errRef = l.abstRef(errAddress);
     return [{state:new KontState(errRef, store, lkont, kont), effects:effects}];
@@ -1030,7 +1020,7 @@ function jsCesk(cc)
     function (x)
     {
       return (x instanceof EvalState)
-        && this.node === x.node 
+        && this.node === x.node
         && (this.benv === x.benv || this.benv.equals(x.benv))
         && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
         && (this.kont === x.kont || this.kont.equals(x.kont))
@@ -1079,7 +1069,6 @@ function jsCesk(cc)
     this.store = store;
     this.lkont = lkont;
     this.kont = kont;
-    assert(kont);
     this._successors = null;
     this._sstorei = -1;
     this._id = -1;
@@ -4041,7 +4030,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var haltFrame = new HaltKont([globala]);
       var globalEnv = Benv.empty();
       var globalContext = createContext(null, node, [], globala, store, EMPTY_ADDRESS_SET, null);
-      return new EvalState(node, override.benv || globalEnv, override.store || store, [haltFrame], globalContext);    
+      return new EvalState(node, override.benv || globalEnv, override.store || store, [haltFrame], globalContext);
     }
   
   module.explore =
@@ -4261,7 +4250,11 @@ function computeResultValue(endStates)
       {
         result = result.join(s.value)
       }
-      else if (s.msg)
+      else if (s.constructor.name  === "ThrowState") // TODO coupling to impl
+      {
+        msgs.push("Unhandled exception " + s.value);
+      }
+      else if (s.constructor.name  === "ErrorState") // TODO coupling to impl
       {
         msgs.push("line " + s.node.loc.start.line + ": " + s.msg);
       }
