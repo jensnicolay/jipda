@@ -8,14 +8,6 @@ const test262Dir = "../../test262/";
 const harnessDir = test262Dir + "harness/";
 const testDir = test262Dir + "test/";
 
-const harness = {
-  assert: fs.readFileSync(harnessDir + "assert.js").toString(),
-  sta: fs.readFileSync(harnessDir + "sta.js").toString(),
-  propertyHelper:fs.readFileSync(harnessDir + "propertyHelper.js").toString(),
-  strict: "use \"strict\";\n",
-  cache: {}
-}
-
 //eval(String(fs.readFileSync("../lib/esprima.js")));
 eval(String(fs.readFileSync("../common.js")).substring(14));
 eval(String(fs.readFileSync("../countingStore.js")).substring(14));
@@ -28,8 +20,19 @@ eval(String(fs.readFileSync("../concreteAg.js")).substring(14));
 eval(String(fs.readFileSync("../benv.js")).substring(14));
 eval(String(fs.readFileSync("../object.js")).substring(14));
 
+const harness = {
+  assert: fs.readFileSync(harnessDir + "assert.js").toString(),
+  sta: fs.readFileSync(harnessDir + "sta.js").toString(),
+  propertyHelper:fs.readFileSync(harnessDir + "propertyHelper.js").toString(),
+  strict: "use \"strict\";\n",
+  cache: {}
+}
+
 const performance = {now: function () {return Date.now()}};
 const print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }
+
+const PASS = "PASS";
+const FAIL = "FAIL";
 
 // String -> [String]
 function fileList(dir)
@@ -109,11 +112,11 @@ function handleFile(fileName, i)
         let srcStrict = harness.strict + src;
         let actualStrict = run(srcStrict);
       }
-      status = "PASS";
+      status = PASS;
     }
     catch (e)
     {
-      status = "FAIL";
+      status = FAIL;
       msg = String(e);
     }
     return {fileName, status, msg};
@@ -147,8 +150,61 @@ function handleFile(fileName, i)
   return testResult;
 }
 
-const files = fileList(testDir);
-//const files = [testDir + "metatest.js"];
+function computeGlobalResult(startTime, duration, results)
+{
+  const name = "test262-" + new Date(startTime); // TODO: once this works properly in node, add some date formatting
+  const numberOfTests = results.length;
+  
+  const statusCounts = {PASS:0,FAIL:0};
+  results.forEach(
+      function (result)
+      {
+        statusCounts[result.status]++;
+      });
+  return{startTime, duration, results, name, numberOfTests, statusCounts};
+}
+
+function createHtmlResult(globalResult)
+{
+  function createTag(name, content)
+  {
+    return "<" + name + ">\n" + content + "\n</" + name + ">\n";
+  }
+  
+  const numberOfTestsP = createTag("p", "Number of tests:" + globalResult.numberOfTests);
+  const durationP = createTag("p", "Duration:" + globalResult.duration)
+  const statusP = createTag("p", "Success: " + globalResult.statusCounts[PASS]) + createTag("p", "Fail: " + globalResult.statusCounts[FAIL]);
+  const global = numberOfTestsP + durationP + statusP;
+
+  const testRows = globalResult.results.map(
+      function (result)
+      {
+        return createTag("tr",
+            [createTag("td", result.fileName),
+              createTag("td", result.status),
+              createTag("td", result.msg)].join("\n"))
+      });
+  const tests= createTag("table", testRows.join("\n"));
+  
+  return createTag("html", createTag("body", global + tests));
+}
+
+//const files = fileList(testDir); // REAL
+const files = fileList(testDir).slice(0, 50); // DEBUG
+//const files = [testDir + "metatest.js"]; // DEBUG
 const testFiles = files.filter(isTestFile);
-let testResults = testFiles.map(handleFile);
-console.log(testResults);
+
+const startTime = performance.now();
+const testResults = testFiles.map(handleFile);
+const testDuration = performance.now() - startTime;
+
+const globalResult = computeGlobalResult(startTime, testDuration, testResults);
+print("testName", globalResult.testName);
+print("duration", globalResult.duration);
+print("number of tests", globalResult.numberOfTests);
+
+
+const htmlResult = createHtmlResult(globalResult);
+const htmlFileName =  globalResult.name + ".html";
+fs.writeFileSync(htmlFileName, htmlResult);
+print(htmlFileName, "written");
