@@ -45,53 +45,89 @@ function fileList(dir)
   }, []);
 }
 
-function isTestFile(fileName)
+function handleFiles(files)
 {
-  return fileName.endsWith(".js");
-}
-
-function handleFile(fileName, i)
-{
-
-  function extractMetaData(content)
-  {
-    let configStarti =  content.indexOf("/*---") + 6;
-    let configEndi =  content.indexOf("---*/");
-    let configStr = content.substring(configStarti, configEndi);
-    let config = yaml.safeLoad(configStr, {json:true}); // json:true to avoid duplicate key errors
-    return config;
-    // let metaData = {};
-    // let src = content;
-    // for (let param in config)
-    // {
-    //   switch (param)
-    //   {
-    //     case "includes":
-    //        config.includes.forEach((flag) => {metaData[flag] = true});
-    //        break;
-    //     case "flags":
-    //       config.flags.forEach((flag) => {metaData[flag] = true});
-    //       break;
-    //     case "esid":
-    //     case "es5id":
-    //     case "es6id":
-    //     case "description":
-    //     case "info":
-    //       break;
-    //     default:
-    //       throw new Error("cannot handle config parameter '" + param + "' in " + fileName);
-    //   }
-    // }
-    // return {src, metaData};
-  }
+  const results = [];
+  files.forEach(
+      function (file, i)
+      {
+        const result = handleFile(file, i);
+        if (result)
+        {
+          results.push(result);
+        }
+      });
+  return results;
   
-  function performTest(src, metaData)
+  function handleFile(fileName, i)
   {
-    let status = "?";
-    let msg = "";
-    src = harness.assert + harness.sta + src;
-    if (metaData.includes)
+    print(i, fileName);
+    const src = fs.readFileSync(fileName).toString();
+    const metaData = extractMetaData(src);
+    if (!metaData)
     {
+      return false;
+    }
+    const testResult = performTest(src, metaData);
+    return testResult;
+    
+    function extractMetaData(contents)
+    {
+      const config = extractConfig(contents);
+      if (!config)
+      {
+        return false;
+      }
+      const metaData = {includes:[],flags:{}};
+      for (let param in config)
+      {
+        switch (param)
+        {
+          case "includes":
+            metaData.includes = config.includes;
+            break;
+          case "flags":
+            config.flags.forEach((flag) => {metaData.flags[flag] = true});
+            break;
+          case "negative":
+            metaData.negative = config.negative;
+          case "esid":
+          case "es5id":
+          case "es6id":
+          case "description":
+          case "info":
+          case "features":
+          case "author":
+            break;
+          default:
+            throw new Error("cannot handle config parameter '" + param + "' in " + fileName);
+        }
+      }
+      return metaData;
+      
+      function extractConfig(content)
+      {
+        const configStarti = content.indexOf("/*---");
+        if (configStarti === -1)
+        {
+          return false;
+        }
+        const configEndi = content.indexOf("---*/");
+        const configStr = content.substring(configStarti + 6, configEndi);
+        const config = yaml.safeLoad(configStr, {json: true}); // json:true to avoid duplicate key errors
+        return config;
+      }
+    }
+    
+    function performTest(src, metaData)
+    {
+      let ranNonStrict = false;
+      let ranStrict = false;
+      if (metaData.negative)
+      {
+        return {fileName, status:FAIL, msg:"skipped: 'negative' flag", ranStrict, ranNonStrict};
+      }
+      src = harness.assert + harness.sta + src;
       metaData.includes.forEach(
           function (include)
           {
@@ -103,51 +139,55 @@ function handleFile(fileName, i)
             }
             src += includeSrc;
           });
-    }
-    try
-    {
-      const actual = run(src);
-      if (!metaData.flags.includes('noStrict'))
+      if (!metaData.flags.onlyStrict)
       {
-        let srcStrict = harness.strict + src;
-        let actualStrict = run(srcStrict);
+        try
+        {
+          ranNonStrict = true;
+          const actual = run(src);
+        }
+        catch (e)
+        {
+          return {fileName, status:FAIL, msg:String(e), ranStrict, ranNonStrict};
+        }
       }
-      status = PASS;
+      if (!metaData.flags.noStrict)
+      {
+        try
+        {
+          ranStrict = true;
+          let srcStrict = harness.strict + src;
+          let actualStrict = run(srcStrict);
+        }
+        catch (e)
+        {
+          return {fileName, status:FAIL, msg:String(e), ranStrict, ranNonStrict};
+        }
+      }
+      return {fileName, status:PASS, msg:"", ranStrict, ranNonStrict};
     }
-    catch (e)
+    
+    function run(src)
     {
-      status = FAIL;
-      msg = String(e);
+      let ast = Ast.createAst(src);
+      let cesk = jsCesk({a:createConcAg(), l: new ConcLattice(), errors:true});
+      let system = cesk.explore(ast);
+      //var result = computeResultValue(system.result);
+      assertEquals(1, system.result.count());
+      const resultState = system.result.values()[0];
+      if (resultState.constructor.name === "ThrowState")
+      {
+        throw new Error("Unexpected exception");
+      }
+      if (resultState.value === BOT)
+      {
+        throw new Error("BOT value");
+      }
+      let actual = resultState.value.value;
+      assertTrue(actual === undefined);
+      return actual;
     }
-    return {fileName, status, msg};
   }
-  
-  function run(src)
-  {
-    let ast = Ast.createAst(src);
-    let cesk = jsCesk({a:createConcAg(), l: new ConcLattice(), errors:true});
-    let system = cesk.explore(ast);
-    //var result = computeResultValue(system.result);
-    assertEquals(1, system.result.count());
-    const resultState = system.result.values()[0];
-    if (resultState.constructor.name === "ThrowState")
-    {
-      throw new Error("Unexpected exception");
-    }
-    if (resultState.value === BOT)
-    {
-      throw new Error("BOT value");
-    }
-    let actual = resultState.value.value;
-    assertTrue(actual === undefined);
-    return actual;
-  }
-  
-  print(i, fileName);
-  const src = fs.readFileSync(fileName).toString();
-  const metaData = extractMetaData(src);
-  const testResult = performTest(src, metaData);
-  return testResult;
 }
 
 function computeGlobalResult(startTime, duration, results)
@@ -189,17 +229,17 @@ function createHtmlResult(globalResult)
   return createTag("html", createTag("body", global + tests));
 }
 
-//const files = fileList(testDir); // REAL
-const files = fileList(testDir).slice(0, 50); // DEBUG
+const files = fileList(testDir); // REAL
+//const files = fileList(testDir).slice(0, 50); // DEBUG
 //const files = [testDir + "metatest.js"]; // DEBUG
-const testFiles = files.filter(isTestFile);
+//const testFiles = files.filter(isTestFile);
 
 const startTime = performance.now();
-const testResults = testFiles.map(handleFile);
+const testResults = handleFiles(files);
 const testDuration = performance.now() - startTime;
 
 const globalResult = computeGlobalResult(startTime, testDuration, testResults);
-print("testName", globalResult.testName);
+print("testName", globalResult.name);
 print("duration", globalResult.duration);
 print("number of tests", globalResult.numberOfTests);
 
