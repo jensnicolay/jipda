@@ -10,6 +10,17 @@ Semantics.evalStep =
     {
       
     }
+    
+function SourceCodeInitializer(src)
+{
+  this.src = src;
+}
+
+SourceCodeInitializer.prototype.run =
+    function (machine)
+    {
+      machine.preludeExplore(Ast.createAst(this.src));
+    }
 
 function jsCesk(cc)
 {
@@ -24,7 +35,7 @@ function jsCesk(cc)
   //
   const lenient = cc.lenient === undefined ? false : cc.lenient;
   
-  const ast0src = cc.ast0src || "";
+  const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
 
   assert(a);
   assert(l);
@@ -1969,50 +1980,6 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     default: throw new Error("cannot handle binary operator " + operator);
   }
 } 
-  
-//  function UpdateIdentifierKont(node, benv)
-//  {
-//    this.node = node;
-//    this.benv = benv;
-//  }
-//  UpdateIdentifierKont.prototype.equals =
-//    function (x)
-//    {
-//      return x instanceof UpdateIdentifierKont
-//        && this.node === x.node 
-//        && Eq.equals(this.benv, x.benv);
-//    }
-//  UpdateIdentifierKont.prototype.hashCode =
-//    function ()
-//    {
-//      var prime = 31;
-//      var result = 1;
-//      result = prime * result + this.node.hashCode();
-//      result = prime * result + this.benv.hashCode();
-//      return result;
-//    }
-//  UpdateIdentifierKont.prototype.toString =
-//    function ()
-//    {
-//      return "upid-" + this.node.tag;
-//    }
-//  UpdateIdentifierKont.prototype.nice =
-//    function ()
-//    {
-//      return "upid-" + this.node.tag;
-//    }
-//  UpdateIdentifierKont.prototype.addresses =
-//    function ()
-//    {
-//      return [this.benv];
-//    }
-//  UpdateIdentifierKont.prototype.apply =
-//    function (value, store, kont)
-//    {
-//      var node = this.node;
-//      var benv = this.benv;
-//      var id = node.argument;
-//    }
   
   function AssignIdentifierKont(node, benv)
   {
@@ -4119,92 +4086,94 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         }
       }
     }
-
+  
   function preludeExplore(ast)
-    {
-      var startTime = performance.now();
-      var oldA = a;
-      a = {};
-      a.object =
+  {
+    var startTime = performance.now();
+    var oldA = a;
+    a = {};
+    a.object =
         function (node, benva, store, kont)
         {
-        return allocNative();
+          return allocNative();
         }
-
-      a.closure =
+    
+    a.closure =
         function (node, benva, store, kont)
         {
-        return allocNative();
+          return allocNative();
         }
-
-      a.closureProtoObject =
+    
+    a.closureProtoObject =
         function (node, benva, store, kont)
         {
-        return allocNative();
+          return allocNative();
         }
-
-      a.array =
+    
+    a.array =
         function (node, benva, store, kont)
         {
-        return allocNative();
+          return allocNative();
         }
-
-      a.string =
+    
+    a.string =
         function (node, benva, store, kont)
         {
-        return allocNative();
+          return allocNative();
         }
-
-      a.benv =
+    
+    a.benv =
         function (node, benva, store, kont)
         {
-        return allocNative();
+          return allocNative();
         }
-
-      a.constructor =
+    
+    a.constructor =
         function (node, benva, store, kont)
         {
-        return allocNative();
+          return allocNative();
         }
-
-      a.vr =
+    
+    a.vr =
         function (name, ctx)
         {
-        return allocNative();
+          return allocNative();
         }
-
-      var initial = module.inject(ast);
-      var s = initial;
-      var id = 0;
-      while (true)
+    
+    var initial = module.inject(ast);
+    var s = initial;
+    var id = 0;
+    while (true)
+    {
+      var next = s.next();
+      id++;
+      if (id % 10000 === 0)
       {
-        var next = s.next();
-        id++;
-        if (id % 10000 === 0)
-        {
-          print(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
-        }
-        var l = next.length;
-        if (l === 1)
-        {
-          s = next[0].state;
-        }
-        else if (l === 0)
-        {
-          //print("loaded prelude", Formatter.displayTime(performance.now()-startTime), "states", id);
-          a = oldA;
-          store = s.store;
-          return;
-        }
-        else
-        {
-          a = oldA;
-          throw new Error("more than one next state");
-        }
+        print(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
+      }
+      var l = next.length;
+      if (l === 1)
+      {
+        s = next[0].state;
+      }
+      else if (l === 0)
+      {
+        //print("loaded prelude", Formatter.displayTime(performance.now()-startTime), "states", id);
+        a = oldA;
+        store = s.store;
+        return;
+      }
+      else
+      {
+        a = oldA;
+        throw new Error("more than one next state");
       }
     }
+  }
   module.preludeExplore = preludeExplore;
-  preludeExplore(Ast.createAst(ast0src));
+  
+  initializers.forEach(function (initializer) {initializer.run(this)}, module);
+  
   return module;
 }
 

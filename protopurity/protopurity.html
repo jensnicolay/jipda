@@ -101,7 +101,7 @@
     var errors = $("#errors").is(":checked"); 
     var gc = true;
     var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
-    cesk = jsCesk({a:ag, l:lat, gc: gc, errors:errors, ast0src});
+    cesk = jsCesk({a:ag, l:lat, gc: gc, errors:errors, initializers:[new SourceCodeInitializer(ast0src)]});
 	  
 	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 	  
