@@ -29,6 +29,7 @@ Array.prototype.toString =
   load("abstLattice1-2.js");
   load("concLattice.js");
   load("ast.js");
+  load("jsGlobals.js");
   load("jsCesk.js");
   load("tagAg.js");
   load("concreteAg.js");

@@ -74,8 +74,6 @@ function jsCesk(cc)
   intrinsics.ObjectPrototype = objectProtoRef;
   const functionPa = allocNative();
   const functionProtoRef = l.abstRef(functionPa);
-  const stringPa = allocNative();
-  const stringProtoRef = l.abstRef(stringPa);
   const arrayPa = allocNative();
   const arrayProtoRef = l.abstRef(arrayPa);
   const errorPa = allocNative();
@@ -356,24 +354,7 @@ function jsCesk(cc)
 
   store = storeAlloc(store, functionPa, functionP);
   // END FUNCTION 
-          
-  // BEGIN STRING
-  var stringP = createObject(objectProtoRef);
-//  stringP.toString = function () { return "~String.prototype"; }; // debug
-  var stringa = allocNative();
-  var stringP = registerProperty(stringP, "constructor", l.abstRef(stringa));
-  var string = createPrimitive(stringFunction, null);
-  string = string.add(P_PROTOTYPE, stringProtoRef);
-  global = global.add(l.abst1("String"), l.abstRef(stringa));
-  store = storeAlloc(store, stringa, string);
-
-  stringP = registerPrimitiveFunction(stringP, stringPa, "charAt", stringCharAt);
-  stringP = registerPrimitiveFunction(stringP, stringPa, "charCodeAt", stringCharCodeAt);
-  stringP = registerPrimitiveFunction(stringP, stringPa, "startsWith", stringStartsWith);
-    
-  store = storeAlloc(store, stringPa, stringP);
-  // END STRING 
-          
+             
   // BEGIN ARRAY
   var arrayP = createObject(objectProtoRef);
   arrayP.toString = function () { return "~Array.prototype"; }; // debug
@@ -464,15 +445,6 @@ function jsCesk(cc)
       });
     return [{state:new KontState(result, store, lkont, kont), effects:effects}];
   }
-  
-  function stringFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    if (operandValues.length === 0)
-    {
-      return [{state:new KontState(L_EMPTY_STRING, store, lkont, kont), effects:effects}];  
-    }
-    return [{state:new KontState(operandValues[0].ToString(), store, lkont, kont), effects:effects}];
-  }    
   
   function $join(application, operandValues, thisa, benv, store, lkont, kont, effects)
   {
@@ -612,30 +584,6 @@ function jsCesk(cc)
     effects.push(writeObjectEffect(thisa, P_LENGTH))
     store = storeUpdate(store, thisa, arr);
     return [{state:new KontState(len1, store, lkont, kont), effects:effects}];
-  }
-  
-  function stringCharAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var str = storeLookup(store, thisa);
-    var lprim = str.PrimitiveValue;
-    var value = lprim.charAt(operandValues[0]);
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  function stringCharCodeAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var str = storeLookup(store, thisa);
-    var lprim = str.PrimitiveValue;
-    var value = lprim.charCodeAt(operandValues[0]);
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  function stringStartsWith(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var str = storeLookup(store, thisa);
-    var lprim = str.PrimitiveValue;
-    var value = lprim.startsWith(operandValues[0]);
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
   }
   
   function errorFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)

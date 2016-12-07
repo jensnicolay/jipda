@@ -7,7 +7,8 @@ var suiteConcreteTests =
   function run(src, expected)
   {
     var ast = Ast.createAst(src);
-    var cesk = jsCesk({a:createConcAg(), l: new ConcLattice(), errors:true});
+    var cesk = jsCesk({a:createConcAg(), l: new ConcLattice(), errors:true,
+    initializers:[new GlobalsInitializer()]});
     var system = cesk.explore(ast);
     var result = computeResultValue(system.result);
     result.msgs.join("\n");
