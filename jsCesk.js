@@ -74,10 +74,6 @@ function jsCesk(cc)
   intrinsics.ObjectPrototype = objectProtoRef;
   const functionPa = allocNative();
   const functionProtoRef = l.abstRef(functionPa);
-  const arrayPa = allocNative();
-  const arrayProtoRef = l.abstRef(arrayPa);
-  const errorPa = allocNative();
-  const errorProtoRef = l.abstRef(errorPa);
   
   var sstorei = 0;
 
@@ -250,8 +246,9 @@ function jsCesk(cc)
 
   function createArray()
   {
-    var benv = Obj.createArray(arrayProtoRef);
-    return benv;
+    var obj = new Obj(ArraySet.from1(Ecma.Class.ARRAY));
+    obj.Prototype = intrinsics.ArrayPrototype;
+    return obj;
   }
   
   function createError(message)
@@ -339,6 +336,46 @@ function jsCesk(cc)
 
   store = storeAlloc(store, objecta, object);
   store = storeAlloc(store, objectPa, objectP);
+  
+  
+  function objectConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
+  {
+    var obj = createObject(protoRef);
+    var objectAddress = a.object(application, benv, store, kont);
+    store = storeAlloc(store, objectAddress, obj);
+    var objRef = l.abstRef(objectAddress);
+    return [{state:new KontState(objRef, store, lkont, kont), effects:effects}];
+  }
+  
+  function objectCreate(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    if (operandValues.length !== 1)
+    {
+      return [];
+    }
+    var obj = createObject(operandValues[0]);
+    var objectAddress = a.object(application, benv, store, kont);
+    store = storeAlloc(store, objectAddress, obj);
+    var objRef = l.abstRef(objectAddress);
+    return [{state:new KontState(objRef, store, lkont, kont), effects:effects}];
+  }
+  
+  function objectGetPrototypeOf(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    if (operandValues.length !== 1)
+    {
+      return [];
+    }
+    var objectAddresses = operandValues[0].addresses();
+    var result = BOT;
+    objectAddresses.forEach(
+        function (objectAddress)
+        {
+          var obj = storeLookup(store, objectAddress);
+          result = result.join(obj.Prototype);
+        });
+    return [{state:new KontState(result, store, lkont, kont), effects:effects}];
+  }
   // END OBJECT
 
       
@@ -354,97 +391,6 @@ function jsCesk(cc)
 
   store = storeAlloc(store, functionPa, functionP);
   // END FUNCTION 
-             
-  // BEGIN ARRAY
-  var arrayP = createObject(objectProtoRef);
-  arrayP.toString = function () { return "~Array.prototype"; }; // debug
-  var arraya = allocNative();
-  var arrayP = registerProperty(arrayP, "constructor", l.abstRef(arraya));
-  var array = createPrimitive(arrayFunction, arrayConstructor);
-  array = array.add(P_PROTOTYPE, arrayProtoRef);
-  global = global.add(l.abst1("Array"), l.abstRef(arraya));
-  store = storeAlloc(store, arraya, array);
-  
-  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "toString", arrayToString);
-  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "concat", arrayConcat);
-  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "push", arrayPush);
-//  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "map", arrayMap);
-//  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "reduce", arrayReduce);
-  store = storeAlloc(store, arrayPa, arrayP);
-  // END ARRAY
-  
-  // BEGIN ERROR
-  var errorP = createObject(objectProtoRef);
-//  errorP.toString = function () { return "~Error.prototype"; }; // debug
-  var errora = allocNative();
-  var errorP = registerProperty(errorP, "constructor", l.abstRef(errora));
-  var error = createPrimitive(errorFunction, errorConstructor);
-  error = error.add(P_PROTOTYPE, errorProtoRef);
-  global = global.add(l.abst1("Error"), l.abstRef(errora));
-  store = storeAlloc(store, errora, error);
-  store = storeAlloc(store, errorPa, errorP);
-  // END ERROR
-  
-  // BEGIN MATH
-  var math = createObject(objectProtoRef);
-  var matha = allocNative();
-  math = registerPrimitiveFunction(math, matha, "abs", mathAbs);
-  math = registerPrimitiveFunction(math, matha, "round", mathRound);
-  math = registerPrimitiveFunction(math, matha, "floor", mathFloor);
-  math = registerPrimitiveFunction(math, matha, "sin", mathSin);
-  math = registerPrimitiveFunction(math, matha, "cos", mathCos);
-  math = registerPrimitiveFunction(math, matha, "sqrt", mathSqrt);
-  math = registerPrimitiveFunction(math, matha, "random", mathRandom);
-//  math = registerPrimitiveFunction(math, matha, "max", mathMax);
-//  math = registerProperty(math, "PI", l.abst1(Math.PI));
-  store = storeAlloc(store, matha, math);
-  global = global.add(l.abst1("Math"), l.abstRef(matha));
-  // END MATH
-  
-  global = registerPrimitiveFunction(global, globala, "parseInt", globalParseInt);
-  
-  store = storeAlloc(store, globala, global);  
-  // END GLOBAL
-  
-  // BEGIN PRIMITIVES
-  function objectConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
-  {
-    var obj = createObject(protoRef);
-    var objectAddress = a.object(application, benv, store, kont);
-    store = storeAlloc(store, objectAddress, obj);
-    var objRef = l.abstRef(objectAddress);
-    return [{state:new KontState(objRef, store, lkont, kont), effects:effects}];
-  }    
-  
-  function objectCreate(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    if (operandValues.length !== 1)
-    {
-      return [];  
-    }
-    var obj = createObject(operandValues[0]);
-    var objectAddress = a.object(application, benv, store, kont);
-    store = storeAlloc(store, objectAddress, obj);
-    var objRef = l.abstRef(objectAddress);
-    return [{state:new KontState(objRef, store, lkont, kont), effects:effects}];
-  }
-  
-  function objectGetPrototypeOf(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    if (operandValues.length !== 1)
-    {
-      return [];  
-    }
-    var objectAddresses = operandValues[0].addresses();
-    var result = BOT;
-    objectAddresses.forEach(
-      function (objectAddress)
-      {
-        var obj = storeLookup(store, objectAddress);
-        result = result.join(obj.Prototype);
-      });
-    return [{state:new KontState(result, store, lkont, kont), effects:effects}];
-  }
   
   function $join(application, operandValues, thisa, benv, store, lkont, kont, effects)
   {
@@ -462,206 +408,12 @@ function jsCesk(cc)
   {
     var value = operandValues[0].parseInt(); // TODO: 2nd (base) arg
     return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }   
-  
-  function arrayConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
-  {
-    var arr = createArray();
-    var length;
-    if (operandValues.length === 0)
-    {
-      length = L_0;
-    }
-    else if (operandValues.length === 1)
-    {
-      length = operandValues[0];
-    }
-    else
-    {
-      throw new Error("TODO: " + operandValues.length);
-    }
-    arr = arr.add(P_LENGTH, length);
-    
-    var arrAddress = a.array(application, benv, store, kont);
-    store = storeAlloc(store, arrAddress, arr);
-    var arrRef = l.abstRef(arrAddress);
-    return [{state:new KontState(arrRef, store, lkont, kont), effects:effects}];
   }
   
-  function arrayFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var arr = createArray();
-    for (var i = 0; i < operandValues.length; i++)
-    {
-      arr = arr.add(l.abst1(String(i)), operandValues[i]);
-    }
-    arr = arr.add(P_LENGTH, l.abst1(operandValues.length));
-    
-    var arrAddress = a.array(application, benv, store, kont);
-    store = storeAlloc(store, arrAddress, arr);
-    var arrRef = l.abstRef(arrAddress);
-    return [{state:new KontState(arrRef, store, lkont, kont), effects:effects}];
-  }
+  global = registerPrimitiveFunction(global, globala, "parseInt", globalParseInt);
   
-  function arrayToString(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var arr = storeLookup(store, thisa);
-    var len = arr.lookup(P_LENGTH)[0];
-    effects.push(readObjectEffect(thisa, P_LENGTH));
-    var i = L_0;
-    var r = [];
-    var seen = ArraySet.empty();
-    var thisAs = ArraySet.from1(thisa); 
-    while ((!seen.contains(i)) && l.lt(i, len).isTrue())
-    {
-      seen = seen.add(i);
-      var iname = i.ToString();
-      var v = doProtoLookup(iname, thisAs, store, effects); 
-      if (v !== BOT)
-      {
-        r.push(v);
-      }
-      i = l.add(i, L_1);
-    }
-    return [{state:new KontState(l.abst1(r.join()), store, lkont, kont), effects:effects}];
-  }
-  
-  function arrayConcat(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    if (operandValues.length !== 1)
-    {
-      print("warning: array.concat");
-      return [];
-    }
-    var thisArr = storeLookup(store, thisa);
-    var thisLen = thisArr.lookup(P_LENGTH)[0];
-    effects.push(readObjectEffect(thisa, P_LENGTH));
-    var argAddrs = operandValues[0].addresses();
-    var resultArr = createArray();
-    var i = L_0;
-    var seen = ArraySet.empty();
-    while ((!seen.contains(i)) && l.lt(i, thisLen).isTrue())
-    {
-      seen = seen.add(i);
-      var iname = i.ToString();
-      var v = doProtoLookup(iname, ArraySet.from1(thisa), store, effects);
-      resultArr = resultArr.add(iname, v);
-      i = l.add(i, L_1);
-    }
-    argAddrs.forEach(
-      function (argAddr)
-      {
-        var argArr = storeLookup(store, argAddr);
-        var argLen = argArr.lookup(P_LENGTH)[0];
-        effects.push(readObjectEffect(argAddr, P_LENGTH));
-        var i = L_0;
-        var seen = ArraySet.empty();
-        while ((!seen.contains(i)) && l.lt(i, argLen).isTrue())
-        {
-          seen = seen.add(i);
-          var iname = i.ToString();
-          var v = doProtoLookup(iname, ArraySet.from1(argAddr), store, effects);
-          resultArr = resultArr.weakAdd(l.add(thisLen, i).ToString(), argArr.lookup(iname)[0]);
-          i = l.add(i, L_1);
-        }
-        resultArr = resultArr.weakAdd(P_LENGTH, l.add(thisLen, i));
-      });
-    var arrAddress = a.array(application, benv, store, lkont, kont);
-    store = storeAlloc(store, arrAddress, resultArr);
-    return [{state:new KontState(l.abstRef(arrAddress), store, lkont, kont), effects:effects}];
-  }
-  
-  function arrayPush(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var arr = storeLookup(store, thisa);
-    var len = arr.lookup(P_LENGTH)[0];
-    effects.push(readObjectEffect(thisa, P_LENGTH));
-    var lenStr = len.ToString();
-    arr = arr.add(lenStr, operandValues[0]) 
-    effects.push(writeObjectEffect(thisa, lenStr));
-    var len1 = l.add(len, L_1);
-    arr = arr.add(P_LENGTH, len1);
-    effects.push(writeObjectEffect(thisa, P_LENGTH))
-    store = storeUpdate(store, thisa, arr);
-    return [{state:new KontState(len1, store, lkont, kont), effects:effects}];
-  }
-  
-  function errorFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var err = createError(operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING);
-    var errAddress = a.error(application, benv, store, kont);
-    store = storeAlloc(store, errAddress, err);
-    var errRef = l.abstRef(errAddress);
-    return [{state:new KontState(errRef, store, lkont, kont), effects:effects}];
-  }
-  
-  function errorConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
-  {
-    var err = createError(operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING);
-    var errAddress = a.error(application, benv, store, kont);
-    store = storeAlloc(store, errAddress, err);
-    var errRef = l.abstRef(errAddress);
-    return [{state:new KontState(errRef, store, lkont, kont), effects:effects}];
-  }
-  
-  function mathSqrt(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var value = l.sqrt(operandValues[0]);
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  function mathAbs(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var value = l.abs(operandValues[0]);
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  function mathRound(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var value = l.round(operandValues[0]);
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  function mathFloor(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var value = l.floor(operandValues[0]);
-    return [{state: new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  function mathCos(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var value = l.cos(operandValues[0]);
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  function mathSin(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var value = l.sin(operandValues[0]);
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  var random = (function() {
-    var seed = 0x2F6E2B1;
-    return function() {
-      // Robert Jenkins’ 32 bit integer hash function
-      seed = ((seed + 0x7ED55D16) + (seed << 12))  & 0xFFFFFFFF;
-      seed = ((seed ^ 0xC761C23C) ^ (seed >>> 19)) & 0xFFFFFFFF;
-      seed = ((seed + 0x165667B1) + (seed << 5))   & 0xFFFFFFFF;
-      seed = ((seed + 0xD3A2646C) ^ (seed << 9))   & 0xFFFFFFFF;
-      seed = ((seed + 0xFD7046C5) + (seed << 3))   & 0xFFFFFFFF;
-      seed = ((seed ^ 0xB55A4F09) ^ (seed >>> 16)) & 0xFFFFFFFF;
-      return (seed & 0xFFFFFFF) / 0x10000000;
-    };
-  }());
-  
-  function mathRandom(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var value = l.abst1(random());
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  // END PRIMITIVES
-  
+  store = storeAlloc(store, globala, global);
+  // END GLOBAL
   
   function ObjPrimitiveCall(applyFunction, applyConstructor)
   {
@@ -944,7 +696,7 @@ function jsCesk(cc)
     this.store = store;
     this.lkont = lkont;
     this.kont = kont;
-    assert(kont);
+    assertDefinedNotNull(kont);
     this._successors = null;
     this._sstorei = -1;
     this._id = -1;
@@ -4104,9 +3856,11 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   }
   module.preludeExplore = preludeExplore;
   
-  const initializerInterface = {globala, l, preludeExplore,
+  const initializerInterface = {globala, l, a, preludeExplore,
     EvalState, KontState,
-    allocNative, createObject, createPrimitive, registerProperty, storeAlloc};
+    allocNative, createObject, createArray, createPrimitive, registerProperty,
+    storeAlloc, storeLookup, storeUpdate, doProtoLookup,
+    readObjectEffect, writeObjectEffect};
   initializers.forEach(function (initializer) {store = initializer.run(initializerInterface, store, intrinsics)});
   
   return module;
@@ -4215,5 +3969,3 @@ Effect.prototype.isAllocEffect =
   {
     return this.operation === Effect.Operations.ALLOC;
   }
-
-var storeI = new Indexer();

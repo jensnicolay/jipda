@@ -280,14 +280,6 @@ Obj.prototype.diff = //DEBUG
     {
       return JSON.stringify(this, replacer);
     }  
-  
-  Obj.createArray =
-    function (ARRAYPA)
-    {
-      var benv = new Obj(ArraySet.from1(Ecma.Class.ARRAY));
-      benv.Prototype = ARRAYPA;
-      return benv;
-    }
 
   Obj.createError =
     function (ERRORPA)
