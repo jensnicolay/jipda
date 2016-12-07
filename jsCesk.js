@@ -17,9 +17,9 @@ function SourceCodeInitializer(src)
 }
 
 SourceCodeInitializer.prototype.run =
-    function (machine)
+    function (machine, store)
     {
-      machine.preludeExplore(Ast.createAst(this.src));
+      return machine.preludeExplore(Ast.createAst(this.src), store);
     }
 
 function jsCesk(cc)
@@ -50,39 +50,36 @@ function jsCesk(cc)
   //print("alloc", a, "lat", l, "gc", gcFlag);
   
   // install constants
-  var L_UNDEFINED = l.abst1(undefined);
-  var L_NULL = l.abst1(null);
-  var L_0 = l.abst1(0);
-  var L_1 = l.abst1(1);
-  var L_FALSE = l.abst1(false);
-  var L_MININFINITY = l.abst1(-Infinity);
-  var L_EMPTY_STRING = l.abst1("");
-//  var P_0 = l.abst1(0);
-//  var P_1 = l.abst1(1);
-//  var P_TRUE = l.abst1(true);
-//  var P_FALSE = l.abst1(false);
-//  var P_THIS = l.abst1("this");
-  var P_PROTOTYPE = l.abst1("prototype");
-  var P_CONSTRUCTOR = l.abst1("constructor");
-  var P_LENGTH = l.abst1("length");
-  var P_MESSAGE = l.abst1("message");
+  const L_UNDEFINED = l.abst1(undefined);
+  const L_NULL = l.abst1(null);
+  const L_0 = l.abst1(0);
+  const L_1 = l.abst1(1);
+  const L_FALSE = l.abst1(false);
+  const L_MININFINITY = l.abst1(-Infinity);
+  const L_EMPTY_STRING = l.abst1("");
+  const P_PROTOTYPE = l.abst1("prototype");
+  const P_CONSTRUCTOR = l.abst1("constructor");
+  const P_LENGTH = l.abst1("length");
+  const P_MESSAGE = l.abst1("message");
   
 //  var P_RETVAL = l.abst1("!retVal!");
 
   // install global pointers and refs
-  var globala = allocNative();
-  var globalRef = l.abstRef(globala); // global this
+  const intrinsics = new Map();
+  const globala = allocNative();
+  const globalRef = l.abstRef(globala); // global this
   //var globalenva = "globalenv@0";
-  var objectPa = allocNative();
-  var objectProtoRef = l.abstRef(objectPa);
-  var functionPa = allocNative();
-  var functionProtoRef = l.abstRef(functionPa);
-  var stringPa = allocNative();
-  var stringProtoRef = l.abstRef(stringPa);
-  var arrayPa = allocNative();
-  var arrayProtoRef = l.abstRef(arrayPa);
-  var errorPa = allocNative();
-  var errorProtoRef = l.abstRef(errorPa);
+  const objectPa = allocNative();
+  const objectProtoRef = l.abstRef(objectPa);
+  intrinsics.ObjectPrototype = objectProtoRef;
+  const functionPa = allocNative();
+  const functionProtoRef = l.abstRef(functionPa);
+  const stringPa = allocNative();
+  const stringProtoRef = l.abstRef(stringPa);
+  const arrayPa = allocNative();
+  const arrayProtoRef = l.abstRef(arrayPa);
+  const errorPa = allocNative();
+  const errorProtoRef = l.abstRef(errorPa);
   
   var sstorei = 0;
 
@@ -117,8 +114,7 @@ function jsCesk(cc)
     st._id = stacks.push(st) - 1;
     return st;
   }
-
-
+  
   function Context(ex, callable, args, thisa, store, as)
   {
     return {ex, callable, args, thisa, store, as, _hashCode:undefined, _stacks:null, _id: -1};
@@ -249,8 +245,9 @@ function jsCesk(cc)
   function createObject(Prototype)
   {
     assertDefinedNotNull(Prototype, "[[Prototype]]");
-    var benv = Obj.createObject(Prototype);
-    return benv;
+    var obj = new Obj(ArraySet.from1(Ecma.Class.OBJECT));
+    obj.Prototype = Prototype;
+    return obj;
   }
 
   function createArray()
@@ -313,9 +310,21 @@ function jsCesk(cc)
   }
   
   // create global object and initial store
+  var store = Store.empty();
   var global = createObject(objectProtoRef);
   var globalEnv = Benv.empty(ArraySet.empty());
-  var store = Store.empty();
+
+// BEGIN GLOBAL
+  // ECMA 15.1.1 value properties of the global object (no "null", ...)
+  global = registerProperty(global, "undefined", L_UNDEFINED);
+  global = registerProperty(global, "NaN", l.abst1(NaN));
+  global = registerProperty(global, "Infinity", l.abst1(Infinity));
+  
+  // specific interpreter functions
+//  global = registerPrimitiveFunction(global, globala, "$meta", $meta);
+  global = registerPrimitiveFunction(global, globala, "$join", $join);
+  global = registerPrimitiveFunction(global, globala, "print", _print);
+  // end specific interpreter functions
   
   // BEGIN OBJECT
   var objectP = createObject(L_NULL);
@@ -411,26 +420,7 @@ function jsCesk(cc)
   global = global.add(l.abst1("Math"), l.abstRef(matha));
   // END MATH
   
-  // BEGIN PERFORMANCE
-  var perf = createObject(objectProtoRef);
-  var perfa = allocNative();
-  perf = registerPrimitiveFunction(perf, perfa, "now", performanceNow);
-  store = storeAlloc(store, perfa, perf);
-  global = global.add(l.abst1("performance"), l.abstRef(perfa));  
-  // END PERFORMANCE
-  
-  // BEGIN GLOBAL
-  // ECMA 15.1.1 value properties of the global object (no "null", ...)
-  global = registerProperty(global, "undefined", L_UNDEFINED);
-  global = registerProperty(global, "NaN", l.abst1(NaN));
-  global = registerProperty(global, "Infinity", l.abst1(Infinity));
   global = registerPrimitiveFunction(global, globala, "parseInt", globalParseInt);
-
-  // specific interpreter functions
-//  global = registerPrimitiveFunction(global, globala, "$meta", $meta);
-  global = registerPrimitiveFunction(global, globala, "$join", $join);
-  global = registerPrimitiveFunction(global, globala, "print", _print);
-  // end specific interpreter functions
   
   store = storeAlloc(store, globala, global);  
   // END GLOBAL
@@ -719,12 +709,6 @@ function jsCesk(cc)
   function mathRandom(application, operandValues, thisa, benv, store, lkont, kont, effects)
   {
     var value = l.abst1(random());
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  function performanceNow(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var value = l.abst1(performance.now());
     return [{state:new KontState(value, store, lkont, kont), effects:effects}];
   }
   
@@ -4087,7 +4071,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       }
     }
   
-  function preludeExplore(ast)
+  function preludeExplore(ast, store)
   {
     var startTime = performance.now();
     var oldA = a;
@@ -4161,7 +4145,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
         //print("loaded prelude", Formatter.displayTime(performance.now()-startTime), "states", id);
         a = oldA;
         store = s.store;
-        return;
+        return store;
       }
       else
       {
@@ -4172,7 +4156,10 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   }
   module.preludeExplore = preludeExplore;
   
-  initializers.forEach(function (initializer) {initializer.run(this)}, module);
+  const initializerInterface = {globala, l, preludeExplore,
+    EvalState, KontState,
+    allocNative, createObject, createPrimitive, registerProperty, storeAlloc};
+  initializers.forEach(function (initializer) {store = initializer.run(initializerInterface, store, intrinsics)});
   
   return module;
 }
