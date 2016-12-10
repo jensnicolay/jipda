@@ -43,10 +43,22 @@ ConcValue.prototype.subsumes =
   }
 
 ConcValue.prototype.projectString =
-  function (x)
-  {
-    return (typeof this.value === "string") ? this : BOT;
-  }
+    function (x)
+    {
+      return (typeof this.value === "string") ? this : BOT;
+    }
+
+ConcValue.prototype.projectNumber =
+    function (x)
+    {
+      return (typeof this.value === "number") ? this : BOT;
+    }
+
+ConcValue.prototype.projectBoolean =
+    function (x)
+    {
+      return (typeof this.value === "boolean") ? this : BOT;
+    }
 
 ConcValue.prototype.ToString =
   function (x)
@@ -224,6 +236,27 @@ ConcAddr.prototype.projectRef =
   {
     return this;
   }
+
+ConcAddr.prototype.projectString =
+    function ()
+    {
+      return BOT;
+    }
+
+ConcAddr.prototype.projectNumber =
+    function ()
+    {
+      return BOT;
+    }
+
+ConcAddr.prototype.projectBoolean =
+    function ()
+    {
+      return BOT;
+    }
+
+
+
 
 function ConcLattice()
 {

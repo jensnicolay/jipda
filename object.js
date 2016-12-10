@@ -6,6 +6,7 @@ function Obj(Class)
     this.frame = Obj.EMPTY_FRAME;
     this.Call = Obj.EMPTY_CALLS;
     this.PrimitiveValue = BOT;
+    this.StringData = BOT;
    }
   
   Obj.EMPTY_FRAME = HashMap.empty();
@@ -81,6 +82,7 @@ function Obj(Class)
       result.Call = this.Call;
       result.Prototype = this.Prototype;
       result.PrimitiveValue = this.PrimitiveValue;
+      result.StringData = this.StringData;
       return result;
     }
     
@@ -94,6 +96,7 @@ function Obj(Class)
       result.Call = this.Call;
       result.Prototype = this.Prototype;
       result.PrimitiveValue = this.PrimitiveValue;
+      result.StringData = this.StringData;
       return result;
     }
     
@@ -136,6 +139,7 @@ function Obj(Class)
       result.Call = this.Call.join(other.Call);
       result.Prototype = this.Prototype.join(other.Prototype);
       result.PrimitiveValue = this.PrimitiveValue.join(other.PrimitiveValue);
+      result.StringData = this.StringData.join(other.StringData);
 //      var frame = this.frame;
 //      other.frame.iterateEntries(function (entry) {frame = weakUpdateFrame(frame, entry[0], entry[1])});
 //      result.frame = frame;
@@ -158,6 +162,7 @@ Obj.prototype.equals =
         && this.Prototype.equals(x.Prototype)
         && this.Call.equals(x.Call)
         && this.PrimitiveValue.equals(x.PrimitiveValue)
+        && this.StringData.equals(x.StringData)
         && this.frame.equals(x.frame);
   }
 
@@ -170,6 +175,7 @@ Obj.prototype.hashCode =
     result = prime * result + this.Prototype.hashCode();
     result = prime * result + this.Call.hashCode();
     result = prime * result + this.PrimitiveValue.hashCode();
+    result = prime * result + this.StringData.hashCode();
     result = prime * result + this.frame.hashCode();
     return result;
   }
@@ -184,7 +190,8 @@ Obj.prototype.subsumes =
     if (!this.Class.subsumes(x.Class) 
         || !this.Prototype.subsumes(x.Prototype)
         || !this.Call.subsumes(x.Call)
-        || !this.PrimitiveValue.subsumes(x.PrimitiveValue))
+        || !this.PrimitiveValue.subsumes(x.PrimitiveValue)
+        || !this.StringData.subsumes(x.StringData))
     {
       return false;
     }
@@ -222,6 +229,10 @@ Obj.prototype.diff = //DEBUG
     if (!this.PrimitiveValue.equals(x.PrimitiveValue))
     {
       diff.push("[[prim]]\t" + this.PrimitiveValue + " -- " + x.PrimitiveValue);
+    }
+    if (!this.StringData.equals(x.StringData))
+    {
+      diff.push("[[StringData]]\t" + this.StringData + " -- " + x.StringData);
     }
     if (!this.frame.equals(x.frame))
     {
@@ -279,14 +290,6 @@ Obj.prototype.diff = //DEBUG
     function (replacer)
     {
       return JSON.stringify(this, replacer);
-    }  
-
-  Obj.createError =
-    function (ERRORPA)
-    {
-      var benv = new Obj(ArraySet.from1(Ecma.Class.ERROR));
-      benv.Prototype = ERRORPA;
-      return benv;
     }
 
   Obj.createFunction =

@@ -8,7 +8,7 @@ var suiteConcreteTests =
   {
     var ast = Ast.createAst(src);
     var cesk = jsCesk({a:createConcAg(), l: new ConcLattice(), errors:true,
-    initializers:[new GlobalsInitializer()]});
+      initializers:[new GlobalsInitializer(), new SourceCodeInitializer(ast0src)]});
     var system = cesk.explore(ast);
     var result = computeResultValue(system.result);
     result.msgs.join("\n");
@@ -757,7 +757,42 @@ var suiteConcreteTests =
       {
         var src = read("test/resources/coen1.js");
         run(src, 20);
-      }    
+      }
+      
+    module.test106 =
+        function ()
+        {
+          run("var o={}; Object.defineProperty(o, 'x', {value:42}); o.x", "42");
+        }
+          
+    module.test107 =
+        function ()
+        {
+          run("TypeError.prototype instanceof Error", true);
+          run("TypeError.prototype === Error", false);
+          run("TypeError.prototype === Error.prototype", false);
+        }
+    module.test108 =
+        function ()
+        {
+          run("new TypeError('123').toString()", "TypeError: 123");
+        }
+        
+    module.test109 =
+        function ()
+        {
+          run("'123'.toString()", "123");
+        }
+        
+    module.test110 =
+        function ()
+        {
+          run("typeof 'abc'", "string");
+          run("typeof 123", "number");
+          run("typeof {}", "object");
+          run("typeof true", "boolean");
+          run("typeof false", "boolean");
+        }
         
   return module;
   

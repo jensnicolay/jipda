@@ -59,6 +59,7 @@ GlobalsInitializer.prototype.run =
       const createObject = machine.createObject;
       const createArray = machine.createArray;
       const createPrimitive = machine.createPrimitive;
+      const createError = machine.createError;
       const readObjectEffect = machine.readObjectEffect;
       const writeObjectEffect = machine.writeObjectEffect;
       const KontState = machine.KontState;
@@ -278,7 +279,6 @@ GlobalsInitializer.prototype.run =
       intrinsics.ErrorPrototype = errorProtoRef;
   
       var errorP = createObject(intrinsics.ObjectPrototype);
-//  errorP.toString = function () { return "~Error.prototype"; }; // debug
       var errora = allocNative();
       var errorP = registerProperty(errorP, "constructor", l.abstRef(errora));
       var error = createPrimitive(errorFunction, errorConstructor);
@@ -380,8 +380,42 @@ GlobalsInitializer.prototype.run =
       // END MATH
   
   
+      // BEGIN META
+      var meta = createObject(l.abst1(null));
+      var metaa = allocNative();
+      meta = registerPrimitiveFunction(meta, "HasStringDataInternalSlot", metaHasStringDataInternalSlot);
+      meta = registerPrimitiveFunction(meta, "GetStringDataInternalSlot", metaGetStringDataInternalSlot);
+      store = storeAlloc(store, metaa, meta);
+      global = global.add(l.abst1("$META$"), l.abstRef(metaa));
   
   
+      function metaHasStringDataInternalSlot(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      {
+        let value = BOT;
+        const addresses = operandValues[0].addresses();
+        addresses.forEach(
+            function (address)
+            {
+              const obj = store.lookupAval(address);
+              value = value.join(l.abst1(obj.StringData !== BOT));
+            });
+        return  [{state:new KontState(value, store, lkont, kont), effects:effects}];
+      }
+  
+      function metaGetStringDataInternalSlot(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      {
+        let value = BOT;
+        const addresses = operandValues[0].addresses();
+        addresses.forEach(
+            function (address)
+            {
+              const obj = store.lookupAval(address);
+              value = value.join(obj.StringData);
+            });
+        return  [{state:new KontState(value, store, lkont, kont), effects:effects}];
+      }
+      
+      
   
       // BEGIN PERFORMANCE
       let perf = createObject(intrinsics.ObjectPrototype);

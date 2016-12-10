@@ -253,18 +253,20 @@ function jsCesk(cc)
   
   function createError(message)
   {
-    var benv = Obj.createError(errorProtoRef);
-    benv = benv.add(P_MESSAGE, message);
-    return benv;
+    let obj = new Obj(ArraySet.from1(Ecma.Class.ERROR));
+    obj.Prototype = intrinsics.ErrorPrototype;
+    obj = obj.add(P_MESSAGE, message);
+    return obj;
   }
 
-  function createString(lprim)
+  // 9.4.3.3
+  function StringCreate(lprim)
   {
-    var benv = new Obj(ArraySet.from1(Ecma.Class.STRING));
-    benv.Prototype = stringProtoRef;
-    benv.PrimitiveValue = lprim;
-    benv = benv.add(P_LENGTH, lprim.stringLength());
-    return benv;
+    let obj = new Obj(ArraySet.from1(Ecma.Class.STRING));
+    obj.Prototype = intrinsics.StringPrototype;
+    obj.StringData = lprim;
+    obj = obj.add(P_LENGTH, lprim.stringLength());
+    return obj;
   }
 
   function createClosure(node, scope)
@@ -1174,10 +1176,11 @@ function jsCesk(cc)
       return stackAddresses([], kont).join(this.value.addresses());
     }
   
-  function ErrorState(node, msg)
+  function ErrorState(node, msg, kont)
   {
     this.node = node;
     this.msg = msg;
+    this.kont = kont;
   }
   ErrorState.prototype.toString =
     function ()
@@ -1194,7 +1197,8 @@ function jsCesk(cc)
     {
       return (x instanceof ErrorState)
         && this.node === x.node 
-        && this.msg === x.msg 
+        && this.msg === x.msg
+        && this.kont == kont
     }
   ErrorState.prototype.hashCode =
     function ()
@@ -1203,6 +1207,7 @@ function jsCesk(cc)
       var result = 1;
       result = prime * result + this.node.hashCode();
       result = prime * result + this.msg.hashCode();
+      result = prime * result + this.kont.hashCode();
       return result;
     }
   ErrorState.prototype.next =
@@ -1508,30 +1513,51 @@ function jsCesk(cc)
   UnaryKont.prototype.apply =
     function (value, store, lkont, kont)
     {
-      var node = this.node;
-      var leftValue = this.leftValue;
-      var operator = node.operator;
-      var value;
+      const node = this.node;
+      const leftValue = this.leftValue;
+      const operator = node.operator;
+      let resultValue;
       switch (node.operator)
       {
         case "!":
         {
-          value = l.not(value);
+          resultValue = l.not(value);
           break;
         }
         case "-":
         {
-          value = l.neg(value);
+          resultValue = l.neg(value);
           break;
         }
         case "~":
         {
-          value = l.binnot(value);
+          resultValue = l.binnot(value);
+          break;
+        }
+        case "typeof":
+        {
+          resultValue = BOT;
+          if (value.projectString() !== BOT)
+          {
+            resultValue = resultValue.join(l.abst1("string"));
+          }
+          if (value.projectNumber() !== BOT)
+          {
+            resultValue = resultValue.join(l.abst1("number"));
+          }
+          if (value.projectBoolean() !== BOT)
+          {
+            resultValue = resultValue.join(l.abst1("boolean"));
+          }
+          if (value.isRef())
+          {
+            resultValue = resultValue.join(l.abst1("object"));
+          }
           break;
         }
         default: throw new Error("cannot handle unary operator " + node.operator);
       }
-      return [{state:new KontState(value, store, lkont, kont)}];
+      return [{state:new KontState(resultValue, store, lkont, kont)}];
     }
   
   function RightKont(node, leftValue)
@@ -2738,7 +2764,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     var stringProj = value.projectString();
     if (stringProj !== BOT)
     {
-      var stringObject = createString(stringProj);
+      var stringObject = StringCreate(stringProj);
       var addr = a.string(node);
       store = storeAlloc(store, addr, stringObject);
       objectRef = objectRef.join(l.abstRef(addr));
@@ -3443,7 +3469,8 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     {
       if (operatorAs.count() === 0)
       {
-        return [{state:new ErrorState(application.callee, application.callee + " is not a function"),effects:effects}];
+        let throwValue = createError(l.abst1(application.callee + " is not a function"));
+        return new ThrowKont(application.callee).apply(throwValue, store, lkont, kont);
       }
     }
     return operatorAs.flatMap(
@@ -3858,8 +3885,9 @@ function applyBinaryOperator(operator, leftValue, rightValue)
   
   const initializerInterface = {globala, l, a, preludeExplore,
     EvalState, KontState,
-    allocNative, createObject, createArray, createPrimitive, registerProperty,
-    storeAlloc, storeLookup, storeUpdate, doProtoLookup,
+    createObject, createArray, createPrimitive, createError,
+    registerProperty,
+    allocNative, storeAlloc, storeLookup, storeUpdate, doProtoLookup,
     readObjectEffect, writeObjectEffect};
   initializers.forEach(function (initializer) {store = initializer.run(initializerInterface, store, intrinsics)});
   
