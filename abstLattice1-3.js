@@ -494,7 +494,7 @@ JipdaLattice.prototype.abst1 =
       }
       if (value === true || value === false)
       {
-        return JipdaValue._BOOL;
+        return new Some(value);
       }
       if (value === undefined)
       {
@@ -608,6 +608,11 @@ JipdaLattice.prototype.rem =
 JipdaLattice.prototype.eqq =
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim === y.prim);
+      }
+      
       return this.BOOL;
     }
 
