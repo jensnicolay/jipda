@@ -389,6 +389,25 @@ GlobalsInitializer.prototype.run =
       global = global.add(l.abst1("$META$"), l.abstRef(metaa));
   
   
+      // // 21.1.3
+      // function metaThisStringValue(value)
+      // {
+      //   if (typeof value === "string")
+      //   {
+      //     return value;
+      //   }
+      //
+      //   if (typeof value === "object")
+      //   {
+      //     if ($META$.HasStringDataInternalSlot(value))
+      //     {
+      //       return $META$.GetStringDataInternalSlot(value);
+      //     }
+      //   }
+      //
+      //   throw new TypeError("cannot convert to string: " + value);
+      // }
+  
       function metaHasStringDataInternalSlot(application, operandValues, thisa, benv, store, lkont, kont, effects)
       {
         let value = BOT;

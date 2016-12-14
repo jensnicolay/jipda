@@ -12,7 +12,7 @@
 	<script type="text/javascript" src="../ast.js"></script>
 	<script type="text/javascript" src="../agc.js"></script>
 	<script type="text/javascript" src="../lattice.js"></script>
-	<script type="text/javascript" src="../abstLattice1-2.js"></script>
+	<script type="text/javascript" src="../abstLattice1-3.js"></script>
 	<script type="text/javascript" src="../concLattice.js"></script>
 	<script type="text/javascript" src="../countingStore.js"></script>
 	<script type="text/javascript" src="../graph.js"></script>
@@ -64,6 +64,7 @@
       {
         var s = todo.pop();
         states[s._id] = s;
+        s._successors = s._successors || [];
         s._successors.forEach(
          function (t)
           {

@@ -3,6 +3,7 @@
 var EMPTY_LKONT = [];
 var EMPTY_ADDRESS_SET = ArraySet.empty();
 
+
 const Semantics = {};
 
 Semantics.evalStep =
@@ -111,65 +112,97 @@ function jsCesk(cc)
   
   function Context(ex, callable, args, thisa, store, as)
   {
-    return {ex, callable, args, thisa, store, as, _hashCode:undefined, _stacks:null, _id: -1};
+    this.ex = ex;
+    this.callable = callable;
+    this.args = args;
+    this.thisa = thisa;
+    this.store = store;
+    this.as = as;
+    this._hashCode = undefined;
+    this._stacks = null;
+    this._id = -1;
   }
-
-  function contextGet(ctx)
-  {
-    for (let i = 0; i < contexts.length; i++)
-    {
-      if (Context_equals(contexts[i], ctx))
-      {
-        assertDefinedNotNull(contexts[i]._id);
-        return contexts[i];
-      }
-    }
-    ctx._id = contexts.push(ctx) - 1;
-    return ctx;
-  }
-
-  function Context_equals(ctx1, ctx2)
-    {
-      if (ctx1 === ctx2)
-      {
-        return true;
-      }
-      // if (!(x instanceof Context))
-      // {
-      //   return false;
-      // }
-      return ctx1.ex === ctx2.ex
-        && ctx1.thisa.equals(ctx2.thisa)
-        && ctx1.callable.equals(ctx2.callable)
-        && ctx1.args.equals(ctx2.args)
-        && ctx1.store.equals(ctx2.store)
-        && ctx1.as.equals(ctx2.as)
-    }
   
-  function Context_hashCode(ctx)
-    {
-      if (ctx._hashCode !== undefined)
+  Context.equals = // this is not on proto because instances should be compared using === (after interning); this is to force this behavior
+      function (ctx1, ctx2)
       {
-        return ctx._hashCode;
+        if (ctx1 === ctx2)
+        {
+          return true;
+        }
+        return ctx1.ex === ctx2.ex
+            && ctx1.thisa.equals(ctx2.thisa)
+            && ctx1.callable.equals(ctx2.callable)
+            && ctx1.args.equals(ctx2.args)
+            && ctx1.store.equals(ctx2.store)
+            && ctx1.as.equals(ctx2.as)
       }
-      var prime = 31;
-      var result = 1;
-      result = prime * result + (ctx.ex && ctx.ex.hashCode());
-      result = prime * result + ctx.callable.hashCode();
-      result = prime * result + ctx.args.hashCode();
-      result = prime * result + ctx.thisa.hashCode();
-      result = prime * result + ctx.store.hashCode();
-      result = prime * result + ctx.as.hashCode();
-      ctx._hashCode = result;
-      return result;
-    }
   
-  function Context_toString(ctx)
-    {
-      return "@" + ctx._id;
-    }
+  Context.prototype.intern =
+      function ()
+      {
+        for (let i = 0; i < contexts.length; i++)
+        {
+          if (Context.equals(contexts[i], this))
+          {
+            assertDefinedNotNull(contexts[i]._id);
+            return contexts[i];
+          }
+        }
+        this._id = contexts.push(this) - 1;
+        return this;
+      }
+      
+      // function Context_hashCode(ctx)
+//     {
+//       if (ctx._hashCode !== undefined)
+//       {
+//         return ctx._hashCode;
+//       }
+//       var prime = 31;
+//       var result = 1;
+//       result = prime * result + (ctx.ex && ctx.ex.hashCode());
+//       result = prime * result + ctx.callable.hashCode();
+//       result = prime * result + ctx.args.hashCode();
+//       result = prime * result + ctx.thisa.hashCode();
+//       result = prime * result + ctx.store.hashCode();
+//       result = prime * result + ctx.as.hashCode();
+//       ctx._hashCode = result;
+//       return result;
+//     }
   
-  function stackAddresses(lkont, kont)
+// function Context_toString(ctx)
+//   {
+//     return "@" + ctx._id;
+//   }
+  
+  Context.prototype.getReachableContexts =
+      function ()
+      {
+        const reachable = new Set();
+        const todo = [this];
+        while (todo.length > 0)
+        {
+          const ctx = todo.pop();
+          ctx._stacks.forEach((stack) => {if (!reachable.has(stack.kont)) {reachable.add(stack.kont); todo.push(stack.kont)}});
+        }
+        return reachable;
+      }
+  
+  Context.prototype.topmostApplicationReachable = // is context.ex reachable?
+      function ()
+      {
+        return ([...this.getReachableContexts()].map((ctx) => ctx.ex).includes(this.ex));
+      }
+  
+  Context.prototype.toString =
+      function ()
+      {
+        return "[ctx#" + this._id + " app: " + (this.ex ? this.ex.tag : this.ex) + "]";
+      }
+  
+  
+  function stackAddresses(lkont, kont) // TODO put onto Context proto with sig `lkont`
   {
     var addresses = kont.as.add(kont.thisa);
     for (var i = 0; i < lkont.length; i++)
@@ -499,8 +532,8 @@ function jsCesk(cc)
   
   function createContext(application, callable, operandValues, thisa, store, stackAs, previousStack)
   {
-    var ctx0 = Context(application, callable, operandValues, thisa, store, stackAs);
-    var ctx = contextGet(ctx0);
+    var ctx0 = new Context(application, callable, operandValues, thisa, store, stackAs);
+    var ctx = ctx0.intern();
     if (ctx === ctx0)
     {
       ctx._stacks = new Set();
@@ -542,7 +575,7 @@ function jsCesk(cc)
       var nodeAddr = names.map(function (name)
           {
             var node = funScopeDecls[name];
-            var addr = a.vr(node.id || node);
+            var addr = a.vr(node.id || node, kont);
             extendedBenv = extendedBenv.add(name, addr);
             return [node, addr];
           });
@@ -807,9 +840,14 @@ function jsCesk(cc)
       {
         return [];
       }      
-      var lkont = this.lkont;
-      var kont = this.kont;
-      var store = this.store;
+      const lkont = this.lkont;
+      const kont = this.kont;
+      const store = this.store;
+  
+      // if (kont.topmostApplicationReachable())
+      // {
+      //   value = value.abst();
+      // }
       
       if (lkont.length === 0) 
       {
@@ -1772,6 +1810,10 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       {
         return [];
       }
+      // if (kont.topmostApplicationReachable())
+      // {
+      //   newValue = newValue.abst();
+      // }
       store = doScopeSet(node.left, newValue, benv, store, effects);
       return [{state:new KontState(newValue, store, lkont, kont), effects:effects}];
     }
@@ -3123,6 +3165,10 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       {
         return [];
       }
+      // if (kont.topmostApplicationReachable())
+      // {
+      //   newValue = newValue.abst();
+      // }
       store = doProtoSet(nameValue, newValue, objectRef, store, effects);
       return [{state:new KontState(newValue, store, lkont, kont), effects:effects}];
     }
@@ -3721,6 +3767,11 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       var todo = [initial];
       while (todo.length > 0)
       {
+        // if (states.length > 500)
+        // {
+        //   print("STATE SIZE LIMIT", states.length);
+        //   break;
+        // }
         var s = todo.pop();
         if (s._sstorei === sstorei)
         {

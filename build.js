@@ -26,7 +26,7 @@ Array.prototype.toString =
   load("countingStore.js");
   load("agc.js");
   load("lattice.js");
-  load("abstLattice1-2.js");
+  load("abstLattice1-3.js");
   load("concLattice.js");
   load("ast.js");
   load("jsGlobals.js");

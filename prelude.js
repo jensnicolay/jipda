@@ -87,6 +87,7 @@ Error.prototype.toString =
   global.TypeError = TypeError;
 
   // 21.1.3
+  
   function thisStringValue(value)
   {
     if (typeof value === "string")
