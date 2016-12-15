@@ -793,6 +793,13 @@ var suiteConcreteTests =
           run("typeof true", "boolean");
           run("typeof false", "boolean");
         }
+  
+    module.test111 =
+        function ()
+        {
+          run("var o = {x:123};o.hasOwnProperty('x')", true);
+          run("var o = {x:123};o.hasOwnProperty('y')", false);
+        }
         
   return module;
   

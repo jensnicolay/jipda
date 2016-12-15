@@ -625,6 +625,11 @@ JipdaLattice.prototype.eq =
 JipdaLattice.prototype.neq =
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim !== y.prim);
+      }
+      
       return this.BOOL;
     }
 

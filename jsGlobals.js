@@ -54,12 +54,13 @@ GlobalsInitializer.prototype.run =
       const storeLookup = machine.storeLookup;
       const storeUpdate = machine.storeUpdate;
       const doProtoLookup = machine.doProtoLookup;
+      const doProtoSet = machine.doProtoSet;
       const allocNative = machine.allocNative;
       const registerProperty = machine.registerProperty;
-      const createObject = machine.createObject;
+      const ObjectCreate = machine.ObjectCreate;
       const createArray = machine.createArray;
       const createPrimitive = machine.createPrimitive;
-      const createError = machine.createError;
+      //const createError = machine.createError;
       const readObjectEffect = machine.readObjectEffect;
       const writeObjectEffect = machine.writeObjectEffect;
       const KontState = machine.KontState;
@@ -74,7 +75,7 @@ GlobalsInitializer.prototype.run =
       const stringPa = allocNative();
       const stringProtoRef = l.abstRef(stringPa);
       intrinsics.StringPrototype = stringProtoRef;
-      var stringP = createObject(intrinsics.ObjectPrototype);
+      var stringP = ObjectCreate(intrinsics.ObjectPrototype);
       //  stringP.toString = function () { return "~String.prototype"; }; // debug
       var stringa = allocNative();
       var stringP = registerProperty(stringP, "constructor", l.abstRef(stringa));
@@ -132,7 +133,7 @@ GlobalsInitializer.prototype.run =
       const arrayProtoRef = l.abstRef(arrayPa);
       intrinsics.ArrayPrototype = arrayProtoRef;
   
-      var arrayP = createObject(intrinsics.ObjectPrototype);
+      var arrayP = ObjectCreate(intrinsics.ObjectPrototype);
       var arraya = allocNative();
       var arrayP = registerProperty(arrayP, "constructor", l.abstRef(arraya));
       var array = createPrimitive(arrayFunction, arrayConstructor);
@@ -271,43 +272,9 @@ GlobalsInitializer.prototype.run =
       // END ARRAY
   
 
-
-
-      // BEGIN ERROR
-      const errorPa = allocNative();
-      const errorProtoRef = l.abstRef(errorPa);
-      intrinsics.ErrorPrototype = errorProtoRef;
-  
-      var errorP = createObject(intrinsics.ObjectPrototype);
-      var errora = allocNative();
-      var errorP = registerProperty(errorP, "constructor", l.abstRef(errora));
-      var error = createPrimitive(errorFunction, errorConstructor);
-      error = error.add(P_PROTOTYPE, errorProtoRef);
-      global = global.add(l.abst1("Error"), l.abstRef(errora));
-      store = storeAlloc(store, errora, error);
-      store = storeAlloc(store, errorPa, errorP);
-  
-      function errorFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
-      {
-        var err = createError(operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING);
-        var errAddress = a.error(application, benv, store, kont);
-        store = storeAlloc(store, errAddress, err);
-        var errRef = l.abstRef(errAddress);
-        return [{state:new KontState(errRef, store, lkont, kont), effects:effects}];
-      }
-  
-      function errorConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
-      {
-        var err = createError(operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING);
-        var errAddress = a.error(application, benv, store, kont);
-        store = storeAlloc(store, errAddress, err);
-        var errRef = l.abstRef(errAddress);
-        return [{state:new KontState(errRef, store, lkont, kont), effects:effects}];
-      }
-      // END ERROR
-  
+      
       // BEGIN MATH
-      var math = createObject(intrinsics.ObjectPrototype);
+      var math = ObjectCreate(intrinsics.ObjectPrototype);
       var matha = allocNative();
       math = registerPrimitiveFunction(math, "abs", mathAbs);
       math = registerPrimitiveFunction(math, "round", mathRound);
@@ -381,10 +348,11 @@ GlobalsInitializer.prototype.run =
   
   
       // BEGIN META
-      var meta = createObject(l.abst1(null));
+      var meta = ObjectCreate(l.abst1(null));
       var metaa = allocNative();
-      meta = registerPrimitiveFunction(meta, "HasStringDataInternalSlot", metaHasStringDataInternalSlot);
-      meta = registerPrimitiveFunction(meta, "GetStringDataInternalSlot", metaGetStringDataInternalSlot);
+      // meta = registerPrimitiveFunction(meta, "HasStringDataInternalSlot", metaHasStringDataInternalSlot);
+      // meta = registerPrimitiveFunction(meta, "GetStringDataInternalSlot", metaGetStringDataInternalSlot);
+      // meta = registerPrimitiveFunction(meta, "SetStringDataInternalSlot", metaSetStringDataInternalSlot);
       store = storeAlloc(store, metaa, meta);
       global = global.add(l.abst1("$META$"), l.abstRef(metaa));
   
@@ -408,36 +376,36 @@ GlobalsInitializer.prototype.run =
       //   throw new TypeError("cannot convert to string: " + value);
       // }
   
-      function metaHasStringDataInternalSlot(application, operandValues, thisa, benv, store, lkont, kont, effects)
-      {
-        let value = BOT;
-        const addresses = operandValues[0].addresses();
-        addresses.forEach(
-            function (address)
-            {
-              const obj = store.lookupAval(address);
-              value = value.join(l.abst1(obj.StringData !== BOT));
-            });
-        return  [{state:new KontState(value, store, lkont, kont), effects:effects}];
-      }
-  
-      function metaGetStringDataInternalSlot(application, operandValues, thisa, benv, store, lkont, kont, effects)
-      {
-        let value = BOT;
-        const addresses = operandValues[0].addresses();
-        addresses.forEach(
-            function (address)
-            {
-              const obj = store.lookupAval(address);
-              value = value.join(obj.StringData);
-            });
-        return  [{state:new KontState(value, store, lkont, kont), effects:effects}];
-      }
-      
-      
+      // function metaHasStringDataInternalSlot(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      // {
+      //   let value = BOT;
+      //   const addresses = operandValues[0].addresses();
+      //   addresses.forEach(
+      //       function (address)
+      //       {
+      //         const obj = store.lookupAval(address);
+      //         value = value.join(l.abst1(obj.StringData !== BOT));
+      //       });
+      //   return  [{state:new KontState(value, store, lkont, kont), effects:effects}];
+      // }
+      //
+      // function metaGetStringDataInternalSlot(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      // {
+      //   let value = BOT;
+      //   const addresses = operandValues[0].addresses();
+      //   addresses.forEach(
+      //       function (address)
+      //       {
+      //         const obj = storeLookup(address);
+      //         value = value.join(obj.StringData);
+      //       });
+      //   return  [{state:new KontState(value, store, lkont, kont), effects:effects}];
+      // }
+      //
+      //
   
       // BEGIN PERFORMANCE
-      let perf = createObject(intrinsics.ObjectPrototype);
+      let perf = ObjectCreate(intrinsics.ObjectPrototype);
       const perfa = allocNative();
       perf = registerPrimitiveFunction(perf, "now", performanceNow, null);
       store = storeAlloc(store, perfa, perf);

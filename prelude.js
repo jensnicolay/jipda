@@ -75,14 +75,23 @@ Error.prototype.toString =
 
 (function (global)
 {
-  // TODO ES262 ref
-  var TypeErrorPrototype = new Error();
+  // 19.5.6.2
+  var TypeErrorPrototype = Object.create(Error.prototype);
+  // 19.5.6.3.2
+  TypeErrorPrototype.message = "";
+  // 19.5.6.3.3
+  TypeErrorPrototype.name = "TypeError";
   
+  // 19.5.6.1.1
   function TypeError(message)
   {
-    this.message = message;
+    this.message = message; // TODO String(message);
+    this["[[ErrorData]]"] = undefined;
   }
+  // 19.5.6.2.1
   TypeError.prototype = TypeErrorPrototype;
+  // 19.5.6.2
+  TypeError.name = "TypeError";
   
   global.TypeError = TypeError;
 
@@ -97,9 +106,9 @@ Error.prototype.toString =
     
     if (typeof value === "object")
     {
-      if ($META$.HasStringDataInternalSlot(value))
+      if (value.hasOwnProperty("[[StringData]]"))
       {
-        return $META$.GetStringDataInternalSlot(value);
+        return value["[[StringData]]"];
       }
     }
     
