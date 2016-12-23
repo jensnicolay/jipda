@@ -2228,6 +2228,14 @@ function jsCesk(cc)
         case "typeof":
         {
           resultValue = BOT;
+          if (value.projectUndefined() !== BOT)
+          {
+            resultValue = resultValue.join(l.abst1("undefined"));
+          }
+          if (value.projectNull() !== BOT)
+          {
+            resultValue = resultValue.join(l.abst1("object"));
+          }
           if (value.projectString() !== BOT)
           {
             resultValue = resultValue.join(l.abst1("string"));

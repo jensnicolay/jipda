@@ -834,6 +834,8 @@ var suiteConcreteTests =
           run("typeof {}", "object");
           run("typeof true", "boolean");
           run("typeof false", "boolean");
+          run("typeof undefined", "undefined");
+          run("typeof null", "object");
         }
   
     module.test111 =
