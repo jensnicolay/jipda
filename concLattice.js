@@ -1,5 +1,7 @@
 "use strict";
 
+// TODO: non-domain retval functions on lattice, all else on values
+
 function ConcValue(value)
 {
   this.value = value;
@@ -42,22 +44,40 @@ ConcValue.prototype.subsumes =
     return this.equals(x);
   }
 
+ConcValue.prototype.projectUndefined =
+    function ()
+    {
+      return (this.value === undefined) ? this : BOT;
+    }
+
+ConcValue.prototype.projectNull =
+    function ()
+    {
+      return (this.value === null) ? this : BOT;
+    }
+
 ConcValue.prototype.projectString =
-    function (x)
+    function ()
     {
       return (typeof this.value === "string") ? this : BOT;
     }
 
 ConcValue.prototype.projectNumber =
-    function (x)
+    function ()
     {
       return (typeof this.value === "number") ? this : BOT;
     }
 
 ConcValue.prototype.projectBoolean =
-    function (x)
+    function ()
     {
       return (typeof this.value === "boolean") ? this : BOT;
+    }
+    
+ConcValue.prototype.projectObject =
+    function ()
+    {
+      return BOT;
     }
 
 ConcValue.prototype.ToString =
@@ -144,11 +164,21 @@ ConcValue.prototype.isNonRef =
     return true;
   }
 
-ConcValue.prototype.projectRef =
-  function ()
-  {
-    return BOT;
-  }
+ConcValue.prototype.hasSameNumberValue =
+    function (x)
+    {
+      return new ConcValue(this.projectNumber() !== BOT
+          && x instanceof ConcValue
+          && this.value === x.value);
+    }
+
+ConcValue.prototype.hasSameStringValue =
+    function (x)
+    {
+      return new Concvalue(this.projectString() !== BOT
+          && x instanceof ConcValue
+          && this.value === x.value)
+    }
 
 function ConcAddr(addr)
 {
@@ -231,12 +261,6 @@ ConcAddr.prototype.isNonRef =
     return false;
   }
 
-ConcAddr.prototype.projectRef =
-  function ()
-  {
-    return this;
-  }
-
 ConcAddr.prototype.projectString =
     function ()
     {
@@ -255,7 +279,35 @@ ConcAddr.prototype.projectBoolean =
       return BOT;
     }
 
+ConcAddr.prototype.projectObject =
+    function ()
+    {
+      return this;
+    }
 
+ConcAddr.prototype.projectUndefined =
+    function ()
+    {
+      return BOT;
+    }
+
+ConcAddr.prototype.projectNull =
+    function ()
+    {
+      return BOT;
+    }
+
+ConcAddr.prototype.hasSameNumberValue =
+    function (x)
+    {
+      return new ConcValue(false);
+    }
+
+ConcAddr.prototype.hasSameStringValue =
+    function (x)
+    {
+      return new ConcValue(false);
+    }
 
 
 function ConcLattice()
@@ -342,7 +394,7 @@ ConcLattice.prototype.eqq =
     {
       if (y instanceof ConcAddr)
       {
-        return new ConcValue(x.addr.equals(y.addr));        
+        return new ConcValue(x.addr.equals(y.addr));
       }
       return new ConcValue(false);
     }
@@ -350,7 +402,7 @@ ConcLattice.prototype.eqq =
     {
       return new ConcValue(false);
     }
-    return new ConcValue(x.value == y.value);
+    return new ConcValue(x.value === y.value);
   }
 
 ConcLattice.prototype.eq =
@@ -455,11 +507,17 @@ ConcLattice.prototype.binnot =
     return new ConcValue(~x.value);
   }
 
+ConcLattice.prototype.pos =
+    function (x)
+    {
+      return new ConcValue(+x.value);
+    }
+
 ConcLattice.prototype.neg =
-  function (x)
-  {
-    return new ConcValue(-x.value);
-  }
+    function (x)
+    {
+      return new ConcValue(-x.value);
+    }
 
 ConcLattice.prototype.sqrt =
   function (x)

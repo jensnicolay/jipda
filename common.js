@@ -192,7 +192,7 @@ Array.prototype.subsumes =
     return true;
   };
     
-var Arrays = {};
+const Arrays = {};
 
 Arrays.indexOf =
   function (x, arr)
@@ -385,6 +385,57 @@ Arrays.get =
     }
     return undefined;      
   }
+
+const Sets = {};
+Sets.add =
+    function (x, y)
+    {
+      const added = new Set(x);
+      added.add(y);
+      return added;
+    }
+
+Sets.subsumes = function(x, y) {
+  for (const elem of y) {
+    if (!x.has(elem)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+Sets.union = function(x, y) {
+  const union = new Set(x);
+  for (const elem of y) {
+    union.add(elem);
+  }
+  return union;
+}
+
+Sets.intersection = function(x, y) {
+  const intersection = new Set();
+  for (const elem of y) {
+    if (x.has(elem)) {
+      intersection.add(elem);
+    }
+  }
+  return intersection;
+}
+
+Sets.difference = function(x, y) {
+  const difference = new Set(x);
+  for (const elem of y) {
+    difference.delete(elem);
+  }
+  return difference;
+}
+
+const MutableSets = {};
+MutableSets.union = function(x, y) {
+  for (const elem of y) {
+    x.add(elem);
+  }
+}
 
 String.prototype.startsWith =
   function (s)

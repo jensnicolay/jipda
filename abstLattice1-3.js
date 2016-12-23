@@ -144,6 +144,18 @@ Some.prototype.join =
       return x1.join(x2);
     }
 
+Some.prototype.meet =
+    function (x)
+    {
+      if (x === BOT || this.equals(x))
+      {
+        return BOT;
+      }
+      var x1 = this.abst();
+      var x2 = x.abst();
+      return x1.meet(x2);
+    }
+
 Some.prototype.addresses =
     function ()
     {
@@ -195,6 +207,12 @@ Some.prototype.projectBoolean =
       {
         return this;
       }
+      return BOT;
+    }
+
+Some.prototype.projectObject =
+    function ()
+    {
       return BOT;
     }
 
@@ -334,6 +352,17 @@ JipdaValue.prototype.join =
       return new JipdaValue(this.type | x2.type, this.as.join(x2.as));
     }
 
+JipdaValue.prototype.meet =
+    function (x)
+    {
+      if (x === BOT)
+      {
+        return BOT;
+      }
+      var x2 = x.abst();
+      return new JipdaValue(this.type ^ x2.type, this.as.meet(x2.as));
+    }
+
 JipdaValue.prototype.addresses =
     function ()
     {
@@ -388,7 +417,7 @@ JipdaValue.prototype.isRef =
       return this.as.count() > 0;
     }
 
-JipdaValue.prototype.projectRef =
+JipdaValue.prototype.projectObject =
     function ()
     {
       if (this.isRef())
@@ -675,7 +704,13 @@ JipdaLattice.prototype.not =
       return this.BOOL;
     }
 
-JipdaLattice.prototype.neg =
+JipdaLattice.prototype.pos = // unary +
+    function (x)
+    {
+      return this.NUMBER;
+    }
+
+JipdaLattice.prototype.neg = // unary -
     function (x)
     {
       return this.NUMBER;

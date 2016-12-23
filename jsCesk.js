@@ -37,24 +37,27 @@ function jsCesk(cc)
   const lenient = cc.lenient === undefined ? false : cc.lenient;
   
   const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
-
+  
   assert(a);
   assert(l);
   
-  var __ALLOC__NATIVE__COUNTER = 1; 
+  var __ALLOC__NATIVE__COUNTER = 1;
+  
   function allocNative()
   {
     var a = __ALLOC__NATIVE__COUNTER++;
     return a;
   }
-
+  
   //print("alloc", a, "lat", l, "gc", gcFlag);
   
-  // install constants
+  // user lattice constants
   const L_UNDEFINED = l.abst1(undefined);
   const L_NULL = l.abst1(null);
-  const L_0 = l.abst1(0);
+  const L_0 = l.abst1(+0);
+  const L_MIN0 = l.abst1(-0);
   const L_1 = l.abst1(1);
+  const L_NAN = l.abst1(NaN);
   const L_TRUE = l.abst1(true);
   const L_FALSE = l.abst1(false);
   const L_MININFINITY = l.abst1(-Infinity);
@@ -64,8 +67,181 @@ function jsCesk(cc)
   const P_LENGTH = l.abst1("length");
   const P_MESSAGE = l.abst1("message");
   
-//  var P_RETVAL = l.abst1("!retVal!");
-
+  // internal lattice constants
+  const BOOLEAN = {string:"_"};
+  BOOLEAN.isTrue = function ()
+  {
+    return false
+  };
+  BOOLEAN.isFalse = function ()
+  {
+    return false
+  };
+  BOOLEAN.joinBoolean = function (x)
+  {
+    return x
+  };
+  BOOLEAN.joinTrue = function ()
+  {
+    return TRUE
+  };
+  BOOLEAN.joinFalse = function ()
+  {
+    return FALSE
+  };
+  BOOLEAN.joinMaybe = function ()
+  {
+    return MAYBE
+  };
+  BOOLEAN.not = function ()
+  {
+    return BOOLEAN
+  };
+  BOOLEAN.toUserLattice = function () {return BOT};
+  BOOLEAN.toString = function () {return this.string};
+  const TRUE = {string:"TRUE"};
+  TRUE.isTrue = function ()
+  {
+    return true
+  };
+  TRUE.isFalse = function ()
+  {
+    return false
+  };
+  TRUE.joinBoolean = function (x)
+  {
+    if (x === BOOLEAN || x === TRUE)
+    {
+      return TRUE
+    };
+    return MAYBE
+  };
+  TRUE.joinTrue = function ()
+  {
+    return TRUE
+  };
+  TRUE.joinFalse = function ()
+  {
+    return MAYBE
+  };
+  TRUE.joinMaybe = function ()
+  {
+    return MAYBE
+  };
+  TRUE.not = function ()
+  {
+    return FALSE
+  };
+  TRUE.toUserLattice = function () {return L_TRUE};
+  TRUE.toString = function () {return this.string};
+  const FALSE = {string:"FALSE"};
+  FALSE.isTrue = function ()
+  {
+    return false
+  };
+  FALSE.isFalse = function ()
+  {
+    return true
+  };
+  FALSE.joinBoolean = function (x)
+  {
+    if (x === BOOLEAN || x === FALSE)
+    {
+      return FALSE
+    }
+    ;
+    return MAYBE
+  };
+  FALSE.joinTrue = function ()
+  {
+    return MAYBE
+  };
+  FALSE.joinFalse = function ()
+  {
+    return FALSE
+  };
+  FALSE.joinMaybe = function ()
+  {
+    return MAYBE
+  };
+  FALSE.not = function ()
+  {
+    return TRUE
+  };
+  FALSE.toUserLattice = function () {return L_FALSE};
+  FALSE.toString = function () {return this.string};
+  const MAYBE = {string:"MAYBE"};
+  MAYBE.isTrue = function ()
+  {
+    return true
+  };
+  MAYBE.isFalse = function ()
+  {
+    return true
+  };
+  MAYBE.joinBoolean = function (x)
+  {
+    return MAYBE
+  };
+  MAYBE.joinTrue = function ()
+  {
+    return MAYBE
+  };
+  MAYBE.joinFalse = function ()
+  {
+    return MAYBE
+  };
+  MAYBE.joinMaybe = function ()
+  {
+    return MAYBE
+  };
+  MAYBE.not = function ()
+  {
+    return MAYBE
+  };
+  MAYBE.toUserLattice = function () {return TRUE.toUserLattice().join(FALSE.toUserLattice())};
+  MAYBE.toString = function () {return this.string};
+  const SET = new Set_(new Set());
+  
+  function Set_(x)
+  {
+    this.set = x
+  };
+  Set_.prototype.subsumes = function (x)
+  {
+    return Sets.subsumes(this.set, x.set)
+  };
+  Set_.prototype.subsumesValue = function (x)
+  {
+    return this.set.has(x)
+  };
+  Set_.prototype.joinValue = function (x)
+  {
+    return new Set_(Sets.add(this.set, x))
+  };
+  Set_.prototype.joinSet = function (x)
+  {
+    return new Set_(Sets.union(this.set, x.set))
+  };
+  Set_.prototype.eq =
+      function (x)
+      {
+        if (this.subsumes(x))
+        {
+          if (x.subsumes(this))
+          {
+            return this.set.size === 1 ? TRUE : MAYBE;
+          }
+          return MAYBE;
+        }
+        if (x.subsumes(this))
+        {
+          return MAYBE;
+        }
+        return FALSE;
+      }
+  
+  
   // install global pointers and refs
   const intrinsics = new Map();
   const globala = allocNative();
@@ -78,16 +254,16 @@ function jsCesk(cc)
   const functionProtoRef = l.abstRef(functionPa);
   
   var sstorei = 0;
-
+  
   const contexts = []; // do not pre-alloc
   const stacks = []; // do not pre-alloc
   const states = []; // do not pre-alloc
   
   function Stack(lkont, kont)
   {
-    return {lkont, kont, _id:-1}
+    return {lkont, kont, _id: -1}
   }
-
+  
   function Stack_equals(st1, st2)
   {
     if (st1 === st2)
@@ -95,9 +271,9 @@ function jsCesk(cc)
       return true;
     }
     return st1.lkont.equals(st2.lkont)
-      && st1.kont === st2.kont;
+        && st1.kont === st2.kont;
   }
-
+  
   function Stackget(st)
   {
     for (let i = 0; i < stacks.length; i++)
@@ -153,8 +329,8 @@ function jsCesk(cc)
         this._id = contexts.push(this) - 1;
         return this;
       }
-      
-      // function Context_hashCode(ctx)
+  
+  // function Context_hashCode(ctx)
 //     {
 //       if (ctx._hashCode !== undefined)
 //       {
@@ -171,7 +347,7 @@ function jsCesk(cc)
 //       ctx._hashCode = result;
 //       return result;
 //     }
-  
+
 // function Context_toString(ctx)
 //   {
 //     return "@" + ctx._id;
@@ -185,7 +361,14 @@ function jsCesk(cc)
         while (todo.length > 0)
         {
           const ctx = todo.pop();
-          ctx._stacks.forEach((stack) => {if (!reachable.has(stack.kont)) {reachable.add(stack.kont); todo.push(stack.kont)}});
+          ctx._stacks.forEach((stack) =>
+          {
+            if (!reachable.has(stack.kont))
+            {
+              reachable.add(stack.kont);
+              todo.push(stack.kont)
+            }
+          });
         }
         return reachable;
       }
@@ -213,7 +396,7 @@ function jsCesk(cc)
     }
     return addresses;
   }
-  
+
 //  function storeWeakAlloc(store, addr, value)
 //  {
 //    assert(addr>>>0===addr);
@@ -237,8 +420,8 @@ function jsCesk(cc)
     //assert(addr>>>0===addr);
     return store.lookupAval(addr);
   }
-  
-  
+
+
 //  function allocObjectEffect(a)
 //  {
 //    return new Effect(Effect.Operations.ALLOC, Effect.Targets.OBJECT, a);
@@ -265,16 +448,79 @@ function jsCesk(cc)
   }
   
   // 6
-  // function Type(x): implemented on lattice values
+  function Type(x)
+  {
+    let result = SET;
+    if (x.projectUndefined() !== BOT)
+    {
+      result = result.joinValue(Types.Undefined);
+    }
+    if (x.projectNull() !== BOT)
+    {
+      result = result.joinValue(Types.Null);
+    }
+    if (x.projectBoolean() !== BOT)
+    {
+      result = result.joinValue(Types.Boolean);
+    }
+    if (x.projectString() !== BOT)
+    {
+      result = result.joinValue(Types.String);
+    }
+    // if (x.projectSymbol() !== BOT)
+    // {
+    //   result = result.joinValue(Types.Symbol);
+    // } TODO
+    if (x.projectNumber() !== BOT)
+    {
+      result = result.joinValue(Types.Number);
+    }
+    if (x.projectObject() !== BOT)
+    {
+      result = result.joinValue(Types.Object);
+    }
+    return result;
+  }
+  
+  // 6.1
+  const Types = {};
+  // 6.1.1
+  Types.Undefined = new String("undefined");
+  // 6.1.2
+  Types.Null = new String("null");
+  // 6.1.3
+  Types.Boolean = new String("boolean");
+  // 6.1.4
+  Types.String = new String("string");
+  // 6.1.5
+  Types.Symbol = new String("symbol");
+  // 6.1.6
+  Types.Number = new String("number");
+  // 6.1.7
+  Types.Object = new String("object");
+  
+  
+  // helper
+  function projectNonNumber(value)
+  {
+    let result = BOT;
+    result = result.join(value.projectUndefined());
+    result = result.join(value.projectNull());
+    result = result.join(value.projectBoolean());
+    result = result.join(value.projectString());
+    //result = result.join(value.projectSymbol()) TODO;
+    result = result.join(value.projectObject());
+    return result;
+  }
   
   
   // 7.2.3
   function IsCallable(argument)
   {
-    let result = BOT;
+    let result = BOOLEAN;
     if (argument.isNonRef())
     {
-      result = result.join(L_FALSE);
+      result = result.joinFalse();
     }
     if (argument.isRef())
     {
@@ -282,14 +528,14 @@ function jsCesk(cc)
       addresses.forEach(
           function (address)
           {
-            const obj = storeLookup(store, address);
+            const obj = storeLookup(store0, address);
             if (obj.Call)
             {
-              result = result.join(L_TRUE);
+              result = result.joinTrue();
             }
             else
             {
-              result = result.join(L_FALSE);
+              result = result.joinFalse();
             }
           });
     }
@@ -299,7 +545,184 @@ function jsCesk(cc)
   // 7.2.7
   function IsPropertyKey(argument)
   {
-    return (argument.projectString() !== BOT); //TODO || argument.projectSymbol() !== BOT);
+    return (argument.projectString() !== BOT) ? TRUE : FALSE; //TODO || argument.projectSymbol() !== BOT);
+  }
+  
+  // 7.2.9
+  function SameValue(x, y)
+  {
+    let result = BOOLEAN;
+    const typex = Type(x);
+    const typey = Type(y);
+    const dt = (typex.eq(typey)).not();
+    if (dt.isTrue())
+    {
+      result = result.joinFalse();
+    }
+    if (dt.isFalse())
+    {
+      if (x.subsumes(L_NAN))
+      {
+        if (y.subsumes(L_NAN))
+        {
+          result = result.joinTrue();
+        }
+        else
+        {
+          result = result.joinFalse();
+        }
+      }
+      else if (y.subsumes(L_NAN))
+      {
+        result = result.joinFalse();
+      }
+      
+      if (x.subsumes(L_0))
+      {
+        if (y.subsumes(L_MIN0))
+        {
+          result = result.joinFalse();
+        }
+      }
+      if (x.subsumes(L_MIN0))
+      {
+        if (y.subsumes(L_0))
+        {
+          result = result.joinFalse();
+        }
+      }
+      
+      if (typex.subsumesValue(Types.Number))
+      {
+        const snv = x.hasSameNumberValue(y);
+        if (snv.isTrue())
+        {
+          result = result.joinTrue();
+        }
+        if (snv.isFalse())
+        {
+          result = result.joinFalse();
+        }
+      }
+      
+      const pnnx = projectNonNumber(x);
+      if (pnnx !== BOT)
+      {
+        const svnn = SameValueNonNumber(x, y);
+        result = result.joinBoolean(svnn);
+      }
+    }
+    return result;
+  }
+  
+  // 7.2.11
+  function SameValueNonNumber(x, y)
+  {
+    // TODO step 1 assert?
+    // TODO step 2 assert?
+    let result = BOOLEAN;
+    if (x.subsumes(L_UNDEFINED))
+    {
+      if (y.subsumes(L_UNDEFINED))
+      {
+        result = result.joinTrue();
+      }
+      else
+      {
+        result = result.joinFalse();
+      }
+    }
+    else if (y.subsumes(L_UNDEFINED))
+    {
+      result = result.joinFalse();
+    }
+    if (x.subsumes(L_NULL))
+    {
+      if (y.subsumes(L_NULL))
+      {
+        result = result.joinTrue();
+      }
+      else
+      {
+        result = result.joinFalse();
+      }
+    }
+    else if (y.subsumes(L_NULL))
+    {
+      result = result.joinFalse();
+    }
+  
+    if (x.projectString() !== BOT)
+    {
+      const ss = x.hasSameStringValue(y);
+      if (ss.isTrue())
+      {
+        result = result.joinTrue();
+      }
+      if (ss.isFalse())
+      {
+        result = result.joinFalse();
+      }
+    }
+  
+    if (x.subsumes(L_TRUE))
+    {
+      if (y.subsumes(L_TRUE))
+      {
+        result = result.joinTrue();
+      }
+      else
+      {
+        result = result.joinFalse();
+      }
+    }
+    else if (y.subsumes(L_TRUE))
+    {
+      result = result.joinFalse();
+    }
+  
+    if (x.subsumes(L_FALSE))
+    {
+      if (y.subsumes(L_FALSE))
+      {
+        result = result.joinTrue();
+      }
+      else
+      {
+        result = result.joinFalse();
+      }
+    }
+    else if (y.subsumes(L_FALSE))
+    {
+      result = result.joinFalse();
+    }
+    
+    // TODO symbols
+    const refx = x.projectObject();
+    if (refx !== BOT)
+    {
+      const refy = y.projectObject();
+      if (refx.subsumes(refy))
+      {
+        if (refy.subsumes(refx))
+        {
+          result = result.joinTrue();
+        }
+        else
+        {
+          result = result.joinMaybe();
+        }
+      }
+      else if (refy.subsumes(refx))
+      {
+        result = result.joinMaybe();
+      }
+      else
+      {
+        result = result.joinFalse();
+      }
+    }
+    return result;
   }
   
   // 7.3.1
@@ -307,15 +730,15 @@ function jsCesk(cc)
   {
     assert(O.isRef());
     assert(IsPropertyKey(P));
-    return doProtoLookup(P, O.addresses(), store, []);
+    return doProtoLookup(P, O.addresses(), store0, []);
   }
   
   function createEnvironment(parents)
   {
     var benv = Benv.empty(parents);
-    return benv;    
+    return benv;
   }
-
+  
   function createArray()
   {
     var obj = new Obj(ArraySet.from1(Ecma.Class.ARRAY));
@@ -323,6 +746,75 @@ function jsCesk(cc)
     return obj;
   }
   
+  // 7.3.19
+  function OrdinaryHasInstance(C, O, store)
+  {
+    let result = BOOLEAN;
+    const ic = IsCallable(C);
+    if (ic.isFalse())
+    {
+      result = result.joinFalse();
+    }
+    if (ic.isTrue())
+    {
+      //const hb = hasProtoLookup(l.abst1("[[BoundTargetFunction]]"), C.addresses(), store, []); // TODO
+      const to = O.isNonRef();
+      if (to)
+      {
+        result = result.joinFalse();
+      }
+      else
+      {
+        const P = Get(C, P_PROTOTYPE);
+        const tp = P.isNonRef();
+        if (tp)
+        {
+          throw new TypeError("TODO");
+        }
+        else
+        {
+          let loop = true;
+          while (loop)
+          {
+            loop = false;
+            O = OrdinaryGetPrototypeOf(O, store);
+            const isn = l.eqq(O, L_NULL);
+            if (isn.isTrue())
+            {
+              result = result.joinFalse();
+            }
+            if (isn.isFalse())
+            {
+              const sv = SameValue(P, O);
+              if (sv.isTrue())
+              {
+                result = result.joinTrue();
+              }
+              if (sv.isFalse())
+              {
+                loop = true;
+              }
+            }
+          }
+        }
+      }
+    }
+    return result;
+  }
+  
+  // 9.1.1.1
+  function OrdinaryGetPrototypeOf(O, store)
+  {
+    let result = BOT;
+    const as = O.addresses();
+    as.forEach(
+        function (address)
+        {
+          const obj = storeLookup(store, address);
+          result = result.join(obj.Prototype);
+        });
+    return result;
+  }
   
   // 9.1.12
   function ObjectCreate(proto, internalSlotsList)
@@ -360,7 +852,7 @@ function jsCesk(cc)
     }
     return proto;
   }
-
+  
   // 9.4.3.3
   function StringCreate(lprim)
   {
@@ -370,24 +862,51 @@ function jsCesk(cc)
     obj = obj.add(P_LENGTH, lprim.stringLength());
     return obj;
   }
-
+  
   function createClosure(node, scope)
   {
     var benv = Obj.createFunction(new ObjClosureCall(node, scope), functionProtoRef);
     return benv;
   }
-
+  
   function createPrimitive(applyFunction, applyConstructor)
   {
     var benv = Obj.createFunction(new ObjPrimitiveCall(applyFunction, applyConstructor), functionProtoRef);
     return benv;
   }
   
+  // 12.10.4
+  function InstanceofOperator(O, C, store)
+  {
+    if (C.isNonRef())
+    {
+      throw new TypeError("not an object"); // TODO abstract semantics: join exception return with what follows
+    }
+    else
+    {
+      let instOfHandler = undefined; // TODO step 2
+      if (instOfHandler !== undefined)
+      {
+        throw new Error("TODO");
+      }
+      const ic = IsCallable(C);
+      if (ic.isFalse())
+      {
+        throw new Error("TODO");
+      }
+      if (ic.isTrue())
+      {
+        return OrdinaryHasInstance(C, O, store);
+      }
+    }
+    throw new Error("?");
+  }
+  
   function registerPrimitiveFunction(object, objectAddress, propertyName, applyFunction, applyConstructor)
   {
     var primFunObject = createPrimitive(applyFunction, applyConstructor);
     var primFunObjectAddress = allocNative(); 
-    store = storeAlloc(store, primFunObjectAddress, primFunObject);
+    store0 = storeAlloc(store0, primFunObjectAddress, primFunObject);
     return registerProperty(object, propertyName, l.abstRef(primFunObjectAddress));
   }
   
@@ -409,7 +928,7 @@ function jsCesk(cc)
   }
   
   // create global object and initial store
-  var store = Store.empty();
+  var store0 = Store.empty();
   var global = ObjectCreate(objectProtoRef);
   var globalEnv = Benv.empty(ArraySet.empty());
 
@@ -437,10 +956,10 @@ function jsCesk(cc)
   
   object = registerPrimitiveFunction(object, objecta, "create", objectCreate);
   object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
-  store = storeAlloc(store, objecta, object);
+  store0 = storeAlloc(store0, objecta, object);
   
   objectP = registerPrimitiveFunction(objectP, null /*UNUSED*/, "hasOwnProperty", objectHasOwnProperty);
-  store = storeAlloc(store, objectPa, objectP);
+  store0 = storeAlloc(store0, objectPa, objectP);
   
   
   function objectConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
@@ -503,9 +1022,9 @@ function jsCesk(cc)
   var fun = createPrimitive(function () {}); // TODO
   fun = fun.add(P_PROTOTYPE, functionProtoRef);
   global = global.add(l.abst1("Function"), l.abstRef(functiona));
-  store = storeAlloc(store, functiona, fun);
+  store0 = storeAlloc(store0, functiona, fun);
 
-  store = storeAlloc(store, functionPa, functionP);
+  store0 = storeAlloc(store0, functionPa, functionP);
   // END FUNCTION
   
   
@@ -520,8 +1039,8 @@ function jsCesk(cc)
   var error = createPrimitive(errorFunction, errorConstructor);
   error = error.add(P_PROTOTYPE, errorProtoRef);
   global = global.add(l.abst1("Error"), l.abstRef(errora));
-  store = storeAlloc(store, errora, error);
-  store = storeAlloc(store, errorPa, errorP);
+  store0 = storeAlloc(store0, errora, error);
+  store0 = storeAlloc(store0, errorPa, errorP);
   
   function errorFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
   {
@@ -576,7 +1095,7 @@ function jsCesk(cc)
   
   global = registerPrimitiveFunction(global, globala, "parseInt", globalParseInt);
   
-  store = storeAlloc(store, globala, global);
+  store0 = storeAlloc(store0, globala, global);
   // END GLOBAL
   
   function ObjPrimitiveCall(applyFunction, applyConstructor)
@@ -1074,7 +1593,7 @@ function jsCesk(cc)
         var returnValue = BOT;
         if (value.isRef())
         {
-          returnValue = returnValue.join(value.projectRef()); 
+          returnValue = returnValue.join(value.projectObject());
         }
         if (value.isNonRef())
         {
@@ -1691,6 +2210,11 @@ function jsCesk(cc)
           resultValue = l.not(value);
           break;
         }
+        case "+":
+        {
+          resultValue = l.pos(value);
+          break;
+        }
         case "-":
         {
           resultValue = l.neg(value);
@@ -1769,12 +2293,12 @@ function jsCesk(cc)
       var node = this.node;
       var leftValue = this.leftValue;
       var operator = node.operator;
-      var value = applyBinaryOperator(operator, leftValue, rightValue);
+      var value = applyBinaryOperator(operator, leftValue, rightValue, store);
 //      value = sanitize(value); //TODO?
       return [{state:new KontState(value, store, lkont, kont)}];
     }
   
-function applyBinaryOperator(operator, leftValue, rightValue)
+function applyBinaryOperator(operator, leftValue, rightValue, store)
 {
   switch (operator)
   {
@@ -1853,6 +2377,10 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     case ">>>":
     {
       return l.shrr(leftValue, rightValue);
+    }
+    case "instanceof":
+    {
+      return InstanceofOperator(leftValue, rightValue, store).toUserLattice();
     }
     default: throw new Error("cannot handle binary operator " + operator);
   }
@@ -2930,7 +3458,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     var objectRef = BOT;
     if (value.isRef())
     {
-      objectRef = objectRef.join(value.projectRef());
+      objectRef = objectRef.join(value.projectObject());
     }
     var stringProj = value.projectString();
     if (stringProj !== BOT)
@@ -3909,8 +4437,8 @@ function applyBinaryOperator(operator, leftValue, rightValue)
       override = override || {};
       var haltFrame = new HaltKont([globala]);
       var globalEnv = Benv.empty();
-      var globalContext = createContext(null, node, [], globala, store, EMPTY_ADDRESS_SET, null);
-      return new EvalState(node, override.benv || globalEnv, override.store || store, [haltFrame], globalContext);
+      var globalContext = createContext(null, node, [], globala, store0, EMPTY_ADDRESS_SET, null);
+      return new EvalState(node, override.benv || globalEnv, override.store || store0, [haltFrame], globalContext);
     }
   
   module.explore =
@@ -4102,7 +4630,7 @@ function applyBinaryOperator(operator, leftValue, rightValue)
     registerProperty,
     allocNative, storeAlloc, storeLookup, storeUpdate, doProtoLookup, doProtoSet,
     readObjectEffect, writeObjectEffect};
-  initializers.forEach(function (initializer) {store = initializer.run(initializerInterface, store, intrinsics)});
+  initializers.forEach(function (initializer) {store0 = initializer.run(initializerInterface, store0, intrinsics)});
   
   return module;
 }

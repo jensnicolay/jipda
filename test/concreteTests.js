@@ -440,77 +440,119 @@ var suiteConcreteTests =
       var src = read("test/resources/nssetup.js");
       run(src, true);
     }
+    
+    module.test81a =
+        function ()
+        {
+          run("undefined === undefined", true);
+          run("undefined === null", false);
+          run("undefined === true", false);
+          run("undefined === false", false);
+          run("undefined === 'abc'", false);
+          run("undefined === +0", false);
+          run("undefined === -0", false);
+          run("undefined === NaN", false);
+          run("undefined === +Infinity", false);
+          run("undefined === -Infinity", false);
+          
+          run("null === undefined", false);
+          run("null === null", true);
+          run("null === true", false);
+          run("null === false", false);
+          run("null === 'abc'", false);
+          run("null === +0", false);
+          run("null === -0", false);
+          run("null === NaN", false);
+          run("null === +Infinity", false);
+          run("null === -Infinity", false);
+          
+          run("true === undefined", false);
+          run("true === null", false);
+          run("true === true", true);
+          run("true === false", false);
+          run("true === 'abc'", false);
+          run("true === +0", false);
+          run("true === -0", false);
+          run("true === NaN", false);
+          run("true === +Infinity", false);
+          run("true === -Infinity", false);
+          
+          run("false === undefined", false);
+          run("false === null", false);
+          run("false === true", false);
+          run("false === false", true);
+          run("false === 'abc'", false);
+          run("false === +0", false);
+          run("false === -0", false);
+          run("false === NaN", false);
+          run("false === +Infinity", false);
+          run("false === -Infinity", false);
+          
+          run("'abc' === undefined", false);
+          run("'abc' === null", false);
+          run("'abc' === true", false);
+          run("'abc' === false", false);
+          run("'abc' === 'abc'", true);
+          run("'abc' === +0", false);
+          run("'abc' === -0", false);
+          run("'abc' === NaN", false);
+          run("'abc' === +Infinity", false);
+          run("'abc' === -Infinity", false);
+          
+          run("+0 === undefined", false);
+          run("+0 === null", false);
+          run("+0 === true", false);
+          run("+0 === false", false);
+          run("+0 === 'abc'", false);
+          run("+0 === +0", true);
+          run("+0 === -0", true);
+          run("+0 === NaN", false);
+          run("+0 === +Infinity", false);
+          run("+0 === -Infinity", false);
+          
+          run("-0 === undefined", false);
+          run("-0 === null", false);
+          run("-0 === true", false);
+          run("-0 === false", false);
+          run("-0 === 'abc'", false);
+          run("-0 === +0", true);
+          run("-0 === -0", true);
+          run("-0 === NaN", false);
+          run("-0 === +Infinity", false);
+          run("-0 === -Infinity", false);
+          
+          run("NaN === undefined", false);
+          run("NaN === null", false);
+          run("NaN === true", false);
+          run("NaN === false", false);
+          run("NaN === 'abc'", false);
+          run("NaN === +0", false);
+          run("NaN === -0", false);
+          run("NaN === NaN", false);
+          run("NaN === +Infinity", false);
+          run("NaN === -Infinity", false);
+          
+          run("+Infinity === undefined", false);
+          run("+Infinity === null", false);
+          run("+Infinity === true", false);
+          run("+Infinity === false", false);
+          run("+Infinity === 'abc'", false);
+          run("+Infinity === +0", false);
+          run("+Infinity === -0", false);
+          run("+Infinity === +Infinity", true);
+          run("+Infinity === -Infinity", false);
+          
+          run("-Infinity === undefined", false);
+          run("-Infinity === null", false);
+          run("-Infinity === true", false);
+          run("-Infinity === false", false);
+          run("-Infinity === 'abc'", false);
+          run("-Infinity === +0", false);
+          run("-Infinity === -0", false);
+          run("-Infinity === +Infinity", false);
+          run("-Infinity === -Infinity", true);
+        }
 
-//  module.test81a =
-//    function ()
-//    {
-//      var arrayStr = "var x = {x:1, valueOf: function () { return 3 }, toString: function () { return '3'}}; var y = {y:1, valueOf: function () { return 4 }}; var z = {y:1, toString: function () { return '5' }}; " + 
-//        "[undefined==undefined,null==null,NaN==3,4==NaN,NaN==NaN,3==3,+0==-0,-0==+0,3==4,3==3.0,3==3.01," +
-//        "'abc'=='abc',''=='','abc'=='ab',true==true,false==false,true==false,false==true," +
-//        "x==x,x==y,null==undefined,undefined==null,3=='3','3'==3,3=='4','4'==3," +
-//        "true==0,true==1,false==0,false==1,0==true,0==false,1==true,1==false," + 
-//        "x==3,x==4,y==3,y==4,z==4,z==5,3==x,4==x,3==y,4==y,4==z,5==z,x==null,y==undefined,z==NaN,null==z,undefined==y,NaN==x," +
-//        "x==x,x==y]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
-//  module.test81b =
-//    function ()
-//    {
-//      var arrayStr = "var x = {x:1, valueOf: function () { return 3 }, toString: function () { return '3'}}; var y = {y:1, valueOf: function () { return 4 }}; var z = {y:1, toString: function () { return '5' }}; " + 
-//        "[undefined!=undefined,null!=null,NaN!=3,4!=NaN,NaN!=NaN,3!=3,+0!=-0,-0!=+0,3!=4,3!=3.0,3!=3.01," +
-//        "'abc'!='abc',''!='','abc'!='ab',true!=true,false!=false,true!=false,false!=true," +
-//        "x!=x,x!=y,null!=undefined,undefined!=null,3!='3','3'!=3,3!='4','4'!=3," +
-//        "true!=0,true!=1,false!=0,false!=1,0!=true,0!=false,1!=true,1!=false," + 
-//        "x!=3,x!=4,y!=3,y!=4,z!=4,z!=5,3!=x,4!=x,3!=y,4!=y,4!=z,5!=z,x!=null,y!=undefined,z!=NaN,null!=z,undefined!=y,NaN!=x," +
-//        "x!=x,x!=y]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
-//  module.test81c =
-//    function ()
-//    {
-//      var arrayStr = "var x = {x:1, valueOf: function () { return 3 }, toString: function () { return '3'}}; var y = {y:1, valueOf: function () { return 4 }}; var z = {y:1, toString: function () { return '5' }}; " + 
-//        "[undefined===undefined,null===null,NaN===3,4===NaN,NaN===NaN,3===3,+0===-0,-0===+0,3===4,3===3.0,3===3.01," +
-//        "'abc'==='abc',''==='','abc'==='ab',true===true,false===false,true===false,false===true," +
-//        "x===x,x===y,null===undefined,undefined===null,3==='3','3'===3,3==='4','4'===3," +
-//        "true===0,true===1,false===0,false===1,0===true,0===false,1===true,1===false," + 
-//        "x===3,x===4,y===3,y===4,z===4,z===5,3===x,4===x,3===y,4===y,4===z,5===z,x===null,y===undefined,z===NaN,null===z,undefined===y,NaN===x," +
-//        "x===x,x===y]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
-//  module.test81d =
-//    function ()
-//    {
-//      var arrayStr = "var x = {x:1, valueOf: function () { return 3 }, toString: function () { return '3'}}; var y = {y:1, valueOf: function () { return 4 }}; var z = {y:1, toString: function () { return '5' }}; " + 
-//      "[undefined!==undefined,null!==null,NaN!==3,4!==NaN,NaN!==NaN,3!==3,+0!==-0,-0!==+0,3!==4,3!==3.0,3!==3.01," +
-//      "'abc'!=='abc',''!=='','abc'!=='ab',true!==true,false!==false,true!==false,false!==true," +
-//      "x!==x,x!==y,null!==undefined,undefined!==null,3!=='3','3'!==3,3!=='4','4'!==3," +
-//      "true!==0,true!==1,false!==0,false!==1,0!==true,0!==false,1!==true,1!==false," + 
-//      "x!==3,x!==4,y!==3,y!==4,z!==4,z!==5,3!==x,4!==x,3!==y,4!==y,4!==z,5!==z,x!==null,y!==undefined,z!==NaN,null!==z,undefined!==y,NaN!==x," +
-//      "x!==x,x!==y]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
-//  module.test81e =
-//    function ()
-//    {
-//      var arrayStr = "var x = {x:1, valueOf: function () { return 3 }, toString: function () { return '3'}}; var y = {y:1, valueOf: function () { return 4 }}; var z = {y:1, toString: function () { return '5' }}; " + 
-//      "[undefined+undefined,null+null,NaN+3,4+NaN,NaN+NaN,3+3,+0+-0,-0+(+0),3+4,3+3.0,3+3.01," +
-//      "'abc'+'abc',''+'','abc'+'ab',true+true,false+false,true+false,false+true," +
-//      "null+undefined,undefined+null,3+'3','3'+3,3+'4','4'+3," +
-//      "true+0,true+1,false+0,false+1,0+true,0+false,1+true,1+false," + 
-//      "x+3,x+4,y+3,y+4,z+4,z+5,3+x,4+x,3+y,4+y,4+z,5+z,x+null,y+undefined,z+NaN,null+z,undefined+y,NaN+x," +
-//      "x+x,x+y,x+z,y+x,z+x,y+z,z+y]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
   module.test82a =
     function ()
     {
@@ -670,11 +712,11 @@ var suiteConcreteTests =
 //    }
 //  
   
-//    module.testChurchNums =
-//      function ()
-//      {
-//        run(read("test/resources/churchNums.js"), true);    
-//      }
+   module.testChurchNums =
+     function ()
+     {
+       run(read("test/resources/churchNums.js"), true);
+     }
     
     module.testGcIpd =
       function ()
@@ -799,6 +841,12 @@ var suiteConcreteTests =
         {
           run("var o = {x:123};o.hasOwnProperty('x')", true);
           run("var o = {x:123};o.hasOwnProperty('y')", false);
+        }
+        
+    module.test112 =
+        function ()
+        {
+          run("var o = {}; o instanceof Object", true);
         }
         
   return module;
