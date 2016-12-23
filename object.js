@@ -1,5 +1,17 @@
 "use strict";
 
+function Property(Value, Get, Set, Writable, Enumerable, Configurable)
+{
+  this.Value = Value;
+  this.Get = Get;
+  this.Set = Set;
+  this.Writable = Writable;
+  this.Enumerable = Enumerable;
+  this.Configurable = Configurable;
+  this.present = true;
+}
+
+
 function Obj(Class)
   {
     this.Class = Class;
@@ -52,24 +64,24 @@ function Obj(Class)
     return newFrame.put(name, value);
   }
     
-  function weakUpdateFrame(frame, name, value)
-  {
-    var newFrame = Obj.EMPTY_FRAME;
-    frame.iterateEntries(
-      function (entry)
-      {
-        var entryName = entry[0]; 
-        if (name.subsumes(entryName))
-        {
-          value = value.join(entry[1]);
-        }
-        else
-        {
-          newFrame = newFrame.put(entryName, entry[1]);
-        }
-      });
-    return newFrame.put(name, value);
-  }
+  // function weakUpdateFrame(frame, name, value)
+  // {
+  //   var newFrame = Obj.EMPTY_FRAME;
+  //   frame.iterateEntries(
+  //     function (entry)
+  //     {
+  //       var entryName = entry[0];
+  //       if (name.subsumes(entryName))
+  //       {
+  //         value = value.join(entry[1]);
+  //       }
+  //       else
+  //       {
+  //         newFrame = newFrame.put(entryName, entry[1]);
+  //       }
+  //     });
+  //   return newFrame.put(name, value);
+  // }
     
   Obj.prototype.add =
     function (name, value)
@@ -82,19 +94,6 @@ function Obj(Class)
       result.Prototype = this.Prototype;
       result.PrimitiveValue = this.PrimitiveValue;
       result.ErrorData = this.ErrorData;
-      return result;
-    }
-    
-  Obj.prototype.weakAdd =
-    function (name, value)
-    {
-      assert(name);
-      assert(value);
-      var result = new Obj(this.Class);
-      result.frame = weakUpdateFrame(this.frame, name, value);
-      result.Call = this.Call;
-      result.Prototype = this.Prototype;
-      result.PrimitiveValue = this.PrimitiveValue;
       return result;
     }
     

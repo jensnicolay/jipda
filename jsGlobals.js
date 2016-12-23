@@ -245,10 +245,10 @@ GlobalsInitializer.prototype.run =
                 seen = seen.add(i);
                 var iname = i.ToString();
                 var v = doProtoLookup(iname, ArraySet.from1(argAddr), store, effects);
-                resultArr = resultArr.weakAdd(l.add(thisLen, i).ToString(), argArr.lookup(iname)[0]);
+                resultArr = resultArr.add(l.add(thisLen, i).ToString(), argArr.lookup(iname)[0]);
                 i = l.add(i, L_1);
               }
-              resultArr = resultArr.weakAdd(P_LENGTH, l.add(thisLen, i));
+              resultArr = resultArr.add(P_LENGTH, l.add(thisLen, i));
             });
         var arrAddress = a.array(application, benv, store, lkont, kont);
         store = storeAlloc(store, arrAddress, resultArr);
