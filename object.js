@@ -1,16 +1,5 @@
 "use strict";
 
-function Property(Value, Get, Set, Writable, Enumerable, Configurable)
-{
-  this.Value = Value;
-  this.Get = Get;
-  this.Set = Set;
-  this.Writable = Writable;
-  this.Enumerable = Enumerable;
-  this.Configurable = Configurable;
-  this.present = true;
-}
-
 
 function Obj(Class)
   {
@@ -64,30 +53,11 @@ function Obj(Class)
     return newFrame.put(name, value);
   }
     
-  // function weakUpdateFrame(frame, name, value)
-  // {
-  //   var newFrame = Obj.EMPTY_FRAME;
-  //   frame.iterateEntries(
-  //     function (entry)
-  //     {
-  //       var entryName = entry[0];
-  //       if (name.subsumes(entryName))
-  //       {
-  //         value = value.join(entry[1]);
-  //       }
-  //       else
-  //       {
-  //         newFrame = newFrame.put(entryName, entry[1]);
-  //       }
-  //     });
-  //   return newFrame.put(name, value);
-  // }
-    
   Obj.prototype.add =
     function (name, value)
     {
       assert(name);
-      assert(value);
+      assertTrue(value.constructor.name === "Property");
       var result = new Obj(this.Class);
       result.frame = strongUpdateFrame(this.frame, name, value);
       result.Call = this.Call;
@@ -101,22 +71,16 @@ function Obj(Class)
     function (name)
     {
       var result = BOT;
-      var found = false;
       this.frame.iterateEntries(
         function (entry)
         {
           var entryName = entry[0]; 
-          if (entryName.subsumes(name))
+          if (entryName.subsumes(name) || name.subsumes(entryName))
           {
             result = result.join(entry[1]);
-            found = true;
-          }          
-          else if (name.subsumes(entryName))
-          {
-            result = result.join(entry[1]);
-          }          
-        })
-      return [result, found];
+          }
+        });
+      return result;
     }
 
   Obj.prototype.conc =
@@ -193,10 +157,8 @@ Obj.prototype.subsumes =
       {
         var name = entry[0];
         var xValue = entry[1];
-        var thisValueFound = this.lookup(name);
-        var thisValue = thisValueFound[0];
-        var found = thisValueFound[1];
-        if (!thisValue.subsumes(xValue) || !found.subsumes(name))
+        var thisValue= this.lookup(name);
+        if (!thisValue.subsumes(xValue))
         {
           return false;
         }

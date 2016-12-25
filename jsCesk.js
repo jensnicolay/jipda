@@ -513,7 +513,58 @@ function jsCesk(cc)
     return result;
   }
   
+  // 6.1.7.1
+  function Property(Value, Get, Set, Writable, Enumerable, Configurable)
+  {
+    this.Value = Value;
+    this.Get = Get;
+    this.Set = Set;
+    this.Writable = Writable;
+    this.Enumerable = Enumerable;
+    this.Configurable = Configurable;
+    this.definitelyPresent = true;
+  }
   
+  Property.prototype.addresses =
+      function ()
+      {
+        return this.Value.addresses().join(this.Get.addresses()).join(this.Set.addresses());
+      }
+  
+  Property.prototype.toString =
+      function ()
+      {
+        return "{[[Value]]:" + this.Value + " [[Get]]:" + this.Get + " [[Set]]:" + this.Set
+            + " [[Writable]]:" + this.Writable + " [[Enumerable]]:" + this.Enumerable + " [[Configurable]]:" + this.Configurable
+            + " definitelyPresent:" + this.definitelyPresent + "}";
+      }
+  
+  Property.prototype.equals =
+      function (x)
+      {
+        return (x instanceof Property)
+            && (this.Value === x.Value || this.Value.equals(x.Value))
+            && (this.Get === x.Get || this.Get.equals(x.Get))
+            && (this.Set === x.Set || this.Set.equals(x.Set))
+            && (this.Writable === x.Writable || this.Writable.equals(x.Writable))
+            && (this.Enumerable === x.Enumerable || this.Enumerable.equals(x.Enumerable))
+            && (this.Configurable === x.Configurable || this.Configurable.equals(x.Configurable))
+            && (this.definitelyPresent === x.definitelyPresent)
+      }
+  Property.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.Value.hashCode();
+        result = prime * result + this.Get.hashCode();
+        result = prime * result + this.Set.hashCode();
+        result = prime * result + this.Writable.hashCode();
+        result = prime * result + this.Enumerable.hashCode();
+        result = prime * result + this.Configurable.hashCode();
+        result = prime * result + this.definitelyPresent.hashCode();
+        return result;
+      }
   // 7.2.3
   function IsCallable(argument)
   {
@@ -858,8 +909,8 @@ function jsCesk(cc)
   {
     let obj = new Obj(ArraySet.from1(Ecma.Class.STRING));
     obj.Prototype = intrinsics.StringPrototype;
-    obj = obj.add(l.abst1("[[StringData]]"), lprim);
-    obj = obj.add(P_LENGTH, lprim.stringLength());
+    obj = obj.add(l.abst1("[[StringData]]"), new Property(lprim, BOT, BOT, BOT, BOT, BOT));
+    obj = obj.add(P_LENGTH, new Property(lprim.stringLength(), BOT, BOT, BOT, BOT, BOT));
     return obj;
   }
   
@@ -912,7 +963,7 @@ function jsCesk(cc)
   
   function registerProperty(object, propertyName, value)
   {
-    object = object.add(l.abst1(propertyName), value);
+    object = object.add(l.abst1(propertyName), new Property(value, BOT, BOT, BOT, BOT, BOT));
     return object;      
   }
   
@@ -951,8 +1002,8 @@ function jsCesk(cc)
   objectP = registerProperty(objectP, "constructor", l.abstRef(objecta));
   
   var object = createPrimitive(null, objectConstructor);
-  object = object.add(P_PROTOTYPE, objectProtoRef);//was objectProtoRef
-  global = global.add(l.abst1("Object"), l.abstRef(objecta));
+  object = object.add(P_PROTOTYPE, new Property(objectProtoRef, BOT, BOT, BOT, BOT, BOT));//was objectProtoRef
+  global = global.add(l.abst1("Object"), new Property(l.abstRef(objecta), BOT, BOT, BOT, BOT, BOT));
   
   object = registerPrimitiveFunction(object, objecta, "create", objectCreate);
   object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
@@ -1020,8 +1071,8 @@ function jsCesk(cc)
   var functiona = allocNative();
   var functionP = registerProperty(functionP, "constructor", l.abstRef(functiona));
   var fun = createPrimitive(function () {}); // TODO
-  fun = fun.add(P_PROTOTYPE, functionProtoRef);
-  global = global.add(l.abst1("Function"), l.abstRef(functiona));
+  fun = fun.add(P_PROTOTYPE, new Property(functionProtoRef, BOT, BOT, BOT, BOT, BOT));
+  global = global.add(l.abst1("Function"), new Property(l.abstRef(functiona), BOT, BOT, BOT, BOT, BOT));
   store0 = storeAlloc(store0, functiona, fun);
 
   store0 = storeAlloc(store0, functionPa, functionP);
@@ -1037,8 +1088,8 @@ function jsCesk(cc)
   var errora = allocNative();
   var errorP = registerProperty(errorP, "constructor", l.abstRef(errora));
   var error = createPrimitive(errorFunction, errorConstructor);
-  error = error.add(P_PROTOTYPE, errorProtoRef);
-  global = global.add(l.abst1("Error"), l.abstRef(errora));
+  error = error.add(P_PROTOTYPE, new Property(errorProtoRef, BOT, BOT, BOT, BOT, BOT));
+  global = global.add(l.abst1("Error"), new Property(l.abstRef(errora), BOT, BOT, BOT, BOT, BOT));
   store0 = storeAlloc(store0, errora, error);
   store0 = storeAlloc(store0, errorPa, errorP);
   
@@ -1057,8 +1108,8 @@ function jsCesk(cc)
     //const O = OrdinaryCreateFromConstructor();
     let obj = new Obj(ArraySet.from1(Ecma.Class.ERROR));
     obj.Prototype = intrinsics.ErrorPrototype;
-    obj = obj.add(l.abst1("[[ErrorData]]"), L_UNDEFINED);
-    obj = obj.add(P_MESSAGE, message);
+    obj = obj.add(l.abst1("[[ErrorData]]"), new Property(L_UNDEFINED, BOT, BOT, BOT, BOT, BOT));
+    obj = obj.add(P_MESSAGE, new Property(message, BOT, BOT, BOT, BOT, BOT));
     return obj;
   }
   
@@ -3244,7 +3295,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
         for (var j = 0; j < i; j++)
         {
           var propertyName = l.abst1(properties[j].key.name);
-          obj = obj.add(propertyName, initValues[j]);
+          obj = obj.add(propertyName, new Property(initValues[j], BOT, BOT, BOT, BOT, BOT));
         }
         store = storeAlloc(store, objectAddress, obj);
 //        effects.push(allocObjectEffect(objectAddress));
@@ -3315,9 +3366,9 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
         for (var j = 0; j < i; j++)
         {
           var indexName = l.abst1(String(j));
-          arr = arr.add(indexName, initValues[j]);
+          arr = arr.add(indexName, new Property(initValues[j], BOT, BOT, BOT, BOT, BOT));
         }
-        arr = arr.add(P_LENGTH, l.abst1(i));
+        arr = arr.add(P_LENGTH, new Property(l.abst1(i), BOT, BOT, BOT, BOT, BOT));
         store = storeAlloc(store, arrAddress, arr);
         return [{state:new KontState(l.abstRef(arrAddress), store, lkont, kont)}];        
       }
@@ -3830,10 +3881,6 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       {
         return [];
       }
-      // if (kont.topmostApplicationReachable())
-      // {
-      //   newValue = newValue.abst();
-      // }
       store = doProtoSet(nameValue, newValue, objectRef, store, effects);
       return [{state:new KontState(newValue, store, lkont, kont), effects:effects}];
     }
@@ -3847,13 +3894,13 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     {
       var obj = storeLookup(store, globala);
       var aname = l.abst1(name);
-      var resultFound = obj.lookup(aname);
-      var value = resultFound[0];
-      if (value !== BOT)
+      var prop = obj.lookup(aname);
+      if (prop !== BOT)
       {
         effects.push(new readObjectEffect(globala, aname));
-      }      
-      return value;
+        return prop.Value;
+        // TODO: if not present, then Error
+      }
     }
     effects.push(new readVarEffect(a, nameNode));
     return storeLookup(store, a);
@@ -3865,24 +3912,24 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     as = as.values();
     while (as.length !== 0)
     {
-      var a = as[0];
-      as = as.slice(1);
-      var benv = storeLookup(store, a);
+      var a = as.pop();
+      var obj = storeLookup(store, a);
       effects.push(readObjectEffect(a, name));
-      var valueFound = benv.lookup(name);
-      var value = valueFound[0];
-      var found = valueFound[1];
-      if (value !== BOT)
+      var prop = obj.lookup(name);
+      let found = false;
+      if (prop !== BOT)
       {
+        var value = prop.Value;
+        found = prop.definitelyPresent;
         result = result.join(value);
       }
       if (!found)
       {
-        if (benv.Prototype.subsumes(L_NULL))
+        if (obj.Prototype.subsumes(L_NULL))
         {
-           result = result.join(L_UNDEFINED);
+          result = result.join(L_UNDEFINED);
         }
-        var cprotoAddresses = benv.Prototype.addresses();
+        var cprotoAddresses = obj.Prototype.addresses();
         as = as.concat(cprotoAddresses.values());
       }
     }
@@ -3896,18 +3943,20 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     as = as.values();
     while (as.length !== 0)
     {
-      var a = as[0];
-      as = as.slice(1);
-      var benv = storeLookup(store, a);
+      var a = as.pop();
+      var obj = storeLookup(store, a);
       effects.push(readObjectEffect(a, name));
-      var valueFound = benv.lookup(name);
-      var value = valueFound[0];
-      var found = valueFound[1];
-      if (value !== BOT)
+      var prop = obj.lookup(name);
+      if (prop !== BOT)
       {
         result = result.join(L_TRUE);
+        var present = prop.definitelyPresent;
+        if (!present)
+        {
+          result = result.join(L_FALSE);
+        }
       }
-      if (!found)
+      else
       {
         result = result.join(L_FALSE);
       }
@@ -3924,7 +3973,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     {
       var obj = storeLookup(store, globala);
       var aname = l.abst1(name);
-      obj = obj.add(aname, value);
+      obj = obj.add(aname, new Property(value, BOT, BOT, BOT, BOT, BOT));
       effects.push(writeObjectEffect(globala, aname));
       store = storeUpdate(store, globala, obj);      
     }
@@ -3938,30 +3987,29 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
   
   function doProtoSet(name, value, objectRef, store, effects)
   {
-    var benvs = objectRef.addresses().values();
-    while (benvs.length !== 0)
+    var as = objectRef.addresses().values();
+    while (as.length !== 0)
     {
-      var a = benvs[0];
-      benvs = benvs.slice(1);
-      var benv = storeLookup(store, a);
-      benv = benv.add(name, value);
+      var a = as.pop();
+      var obj = storeLookup(store, a);
+      obj = obj.add(name, new Property(value, BOT, BOT, BOT, BOT, BOT));
       effects.push(writeObjectEffect(a, name));
-      if (benv.isArray())
+      if (obj.isArray())
       {
         // ES5.1 15.4.5.1 
         var n = name.ToNumber();
         var i = name.ToUint32();
         if (n.equals(i))
         {
-          var len = benv.lookup(P_LENGTH)[0];
+          var len = obj.lookup(P_LENGTH).Value;
           if (l.gte(i, len).isTrue())
           {
-            benv = benv.add(P_LENGTH, l.add(i, L_1));
+            obj = obj.add(P_LENGTH, new Property(l.add(i, L_1), BOT, BOT, BOT, BOT, BOT));
             effects.push(writeObjectEffect(a, P_LENGTH));
           }
         }
       }
-      store = storeUpdate(store, a, benv);
+      store = storeUpdate(store, a, obj);
     }
     return store;
   }
@@ -4007,12 +4055,12 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
             var allocateResult = allocateClosure(node, benv, store, lkont, kont);
             var closureRef = allocateResult.ref;
             store = allocateResult.store;
-            obj = obj.add(aname, closureRef);  
+            obj = obj.add(aname, new Property(closureRef, BOT, BOT, BOT, BOT, BOT));
             effects.push(writeObjectEffect(globala, aname));
           }
           else if (Ast.isVariableDeclarator(node))
           {          
-            obj = obj.add(aname, L_UNDEFINED);
+            obj = obj.add(aname, new Property(L_UNDEFINED, BOT, BOT, BOT, BOT, BOT));
             effects.push(writeObjectEffect(globala, aname));
           }
           else
@@ -4163,10 +4211,10 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     var prototype = ObjectCreate(objectProtoRef);
     var prototypea = a.closureProtoObject(node, benv, store, lkont, kont);
     var closureRef = l.abstRef(closurea);
-    prototype = prototype.add(P_CONSTRUCTOR, closureRef);
+    prototype = prototype.add(P_CONSTRUCTOR, new Property(closureRef, BOT, BOT, BOT, BOT, BOT));
     store = storeAlloc(store, prototypea, prototype);
   
-    closure = closure.add(P_PROTOTYPE, l.abstRef(prototypea));
+    closure = closure.add(P_PROTOTYPE, new Property(l.abstRef(prototypea), BOT, BOT, BOT, BOT, BOT));
     store = storeAlloc(store, closurea, closure);
     return {store: store, ref: closureRef}
   }
@@ -4233,7 +4281,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       function (operatora)
       {
         var benv = storeLookup(store, operatora);
-        var protoRef = benv.lookup(P_PROTOTYPE)[0];
+        var protoRef = benv.lookup(P_PROTOTYPE).Value;
         var callables = benv.Call.values();
         return callables.flatMap(
           function (callable)
@@ -4338,7 +4386,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     if (elements.length === 0)
     { 
       var arr = createArray();
-      arr = arr.add(P_LENGTH, L_0);
+      arr = arr.add(P_LENGTH, new Property(L_0, BOT, BOT, BOT, BOT, BOT));
       var arrAddress = a.array(node, benv, store, lkont, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
@@ -4637,7 +4685,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     ObjectCreate, createArray, createPrimitive,
     registerProperty,
     allocNative, storeAlloc, storeLookup, storeUpdate, doProtoLookup, doProtoSet,
-    readObjectEffect, writeObjectEffect};
+    readObjectEffect, writeObjectEffect, Property};
   initializers.forEach(function (initializer) {store0 = initializer.run(initializerInterface, store0, intrinsics)});
   
   return module;

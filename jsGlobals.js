@@ -65,6 +65,8 @@ GlobalsInitializer.prototype.run =
       const writeObjectEffect = machine.writeObjectEffect;
       const KontState = machine.KontState;
       
+      const Property = machine.Property;
+      
       let global = store.lookupAval(machine.globala);
   
       
@@ -80,8 +82,8 @@ GlobalsInitializer.prototype.run =
       var stringa = allocNative();
       var stringP = registerProperty(stringP, "constructor", l.abstRef(stringa));
       var string = createPrimitive(stringFunction, null);
-      string = string.add(P_PROTOTYPE, intrinsics.StringPrototype);
-      global = global.add(l.abst1("String"), l.abstRef(stringa));
+      string = string.add(P_PROTOTYPE, new Property(intrinsics.StringPrototype, BOT, BOT, BOT, BOT, BOT));
+      global = global.add(l.abst1("String"), new Property(l.abstRef(stringa), BOT, BOT, BOT, BOT, BOT));
       store = storeAlloc(store, stringa, string);
   
       stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
@@ -137,8 +139,8 @@ GlobalsInitializer.prototype.run =
       var arraya = allocNative();
       var arrayP = registerProperty(arrayP, "constructor", l.abstRef(arraya));
       var array = createPrimitive(arrayFunction, arrayConstructor);
-      array = array.add(P_PROTOTYPE, arrayProtoRef);
-      global = global.add(l.abst1("Array"), l.abstRef(arraya));
+      array = array.add(P_PROTOTYPE, new Property(arrayProtoRef, BOT, BOT, BOT, BOT, BOT));
+      global = global.add(l.abst1("Array"), new Property(l.abstRef(arraya), BOT, BOT, BOT, BOT, BOT));
       store = storeAlloc(store, arraya, array);
   
       arrayP = registerPrimitiveFunction(arrayP, "toString", arrayToString);
@@ -164,7 +166,7 @@ GlobalsInitializer.prototype.run =
         {
           throw new Error("TODO: " + operandValues.length);
         }
-        arr = arr.add(P_LENGTH, length);
+        arr = arr.add(P_LENGTH, new Property(length, BOT, BOT, BOT, BOT, BOT));
     
         var arrAddress = a.array(application, benv, store, kont);
         store = storeAlloc(store, arrAddress, arr);
@@ -177,9 +179,9 @@ GlobalsInitializer.prototype.run =
         var arr = createArray();
         for (var i = 0; i < operandValues.length; i++)
         {
-          arr = arr.add(l.abst1(String(i)), operandValues[i]);
+          arr = arr.add(l.abst1(String(i)), new Property(operandValues[i], BOT, BOT, BOT, BOT, BOT));
         }
-        arr = arr.add(P_LENGTH, l.abst1(operandValues.length));
+        arr = arr.add(P_LENGTH, new Property(l.abst1(operandValues.length), BOT, BOT, BOT, BOT, BOT));
     
         var arrAddress = a.array(application, benv, store, kont);
         store = storeAlloc(store, arrAddress, arr);
@@ -190,7 +192,7 @@ GlobalsInitializer.prototype.run =
       function arrayToString(application, operandValues, thisa, benv, store, lkont, kont, effects)
       {
         var arr = storeLookup(store, thisa);
-        var len = arr.lookup(P_LENGTH)[0];
+        var len = arr.lookup(P_LENGTH).Value;
         effects.push(readObjectEffect(thisa, P_LENGTH));
         var i = L_0;
         var r = [];
@@ -218,7 +220,7 @@ GlobalsInitializer.prototype.run =
           return [];
         }
         var thisArr = storeLookup(store, thisa);
-        var thisLen = thisArr.lookup(P_LENGTH)[0];
+        var thisLen = thisArr.lookup(P_LENGTH).Value;
         effects.push(readObjectEffect(thisa, P_LENGTH));
         var argAddrs = operandValues[0].addresses();
         var resultArr = createArray();
@@ -229,14 +231,14 @@ GlobalsInitializer.prototype.run =
           seen = seen.add(i);
           var iname = i.ToString();
           var v = doProtoLookup(iname, ArraySet.from1(thisa), store, effects);
-          resultArr = resultArr.add(iname, v);
+          resultArr = resultArr.add(iname, new Property(v, BOT, BOT, BOT, BOT, BOT));
           i = l.add(i, L_1);
         }
         argAddrs.forEach(
             function (argAddr)
             {
               var argArr = storeLookup(store, argAddr);
-              var argLen = argArr.lookup(P_LENGTH)[0];
+              var argLen = argArr.lookup(P_LENGTH).Value;
               effects.push(readObjectEffect(argAddr, P_LENGTH));
               var i = L_0;
               var seen = ArraySet.empty();
@@ -245,10 +247,10 @@ GlobalsInitializer.prototype.run =
                 seen = seen.add(i);
                 var iname = i.ToString();
                 var v = doProtoLookup(iname, ArraySet.from1(argAddr), store, effects);
-                resultArr = resultArr.add(l.add(thisLen, i).ToString(), argArr.lookup(iname)[0]);
+                resultArr = resultArr.add(l.add(thisLen, i).ToString(), new Property(argArr.lookup(iname).Value, BOT, BOT, BOT, BOT, BOT, BOT));
                 i = l.add(i, L_1);
               }
-              resultArr = resultArr.add(P_LENGTH, l.add(thisLen, i));
+              resultArr = resultArr.add(P_LENGTH, new Property(l.add(thisLen, i), BOT, BOT, BOT, BOT, BOT));
             });
         var arrAddress = a.array(application, benv, store, lkont, kont);
         store = storeAlloc(store, arrAddress, resultArr);
@@ -258,13 +260,13 @@ GlobalsInitializer.prototype.run =
       function arrayPush(application, operandValues, thisa, benv, store, lkont, kont, effects)
       {
         var arr = storeLookup(store, thisa);
-        var len = arr.lookup(P_LENGTH)[0];
+        var len = arr.lookup(P_LENGTH).Value;
         effects.push(readObjectEffect(thisa, P_LENGTH));
         var lenStr = len.ToString();
-        arr = arr.add(lenStr, operandValues[0])
+        arr = arr.add(lenStr, new Property(operandValues[0], BOT, BOT, BOT, BOT, BOT))
         effects.push(writeObjectEffect(thisa, lenStr));
         var len1 = l.add(len, L_1);
-        arr = arr.add(P_LENGTH, len1);
+        arr = arr.add(P_LENGTH, new Property(len1, BOT, BOT, BOT, BOT, BOT));
         effects.push(writeObjectEffect(thisa, P_LENGTH))
         store = storeUpdate(store, thisa, arr);
         return [{state:new KontState(len1, store, lkont, kont), effects:effects}];
@@ -286,7 +288,7 @@ GlobalsInitializer.prototype.run =
 //  math = registerPrimitiveFunction(math, matha, "max", mathMax);
 //  math = registerProperty(math, "PI", l.abst1(Math.PI));
       store = storeAlloc(store, matha, math);
-      global = global.add(l.abst1("Math"), l.abstRef(matha));
+      global = global.add(l.abst1("Math"), new Property(l.abstRef(matha), BOT, BOT, BOT, BOT, BOT));
   
   
       function mathSqrt(application, operandValues, thisa, benv, store, lkont, kont, effects)
@@ -354,7 +356,7 @@ GlobalsInitializer.prototype.run =
       // meta = registerPrimitiveFunction(meta, "GetStringDataInternalSlot", metaGetStringDataInternalSlot);
       // meta = registerPrimitiveFunction(meta, "SetStringDataInternalSlot", metaSetStringDataInternalSlot);
       store = storeAlloc(store, metaa, meta);
-      global = global.add(l.abst1("$META$"), l.abstRef(metaa));
+      global = global.add(l.abst1("$META$"), new Property(l.abstRef(metaa), BOT, BOT, BOT, BOT, BOT));
   
   
       // // 21.1.3
