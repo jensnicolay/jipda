@@ -349,15 +349,15 @@ GlobalsInitializer.prototype.run =
       // END MATH
   
   
-      // BEGIN META
-      var meta = ObjectCreate(l.abst1(null));
-      var metaa = allocNative();
+      // BEGIN BASE
+      var base = ObjectCreate(l.abst1(null));
+      var basea = allocNative();
       // meta = registerPrimitiveFunction(meta, "HasStringDataInternalSlot", metaHasStringDataInternalSlot);
       // meta = registerPrimitiveFunction(meta, "GetStringDataInternalSlot", metaGetStringDataInternalSlot);
       // meta = registerPrimitiveFunction(meta, "SetStringDataInternalSlot", metaSetStringDataInternalSlot);
-      meta = registerPrimitiveFunction(meta, "AddIntrinsic", metaAddIntrinsic);
-      store = storeAlloc(store, metaa, meta);
-      global = global.add(l.abst1("$META$"), new Property(l.abstRef(metaa), BOT, BOT, BOT, BOT, BOT));
+      base = registerPrimitiveFunction(base, "addIntrinsic", baseAddIntrinsic);
+      store = storeAlloc(store, basea, base);
+      global = global.add(l.abst1("$BASE$"), new Property(l.abstRef(basea), BOT, BOT, BOT, BOT, BOT));
   
   
       // // 21.1.3
@@ -407,7 +407,7 @@ GlobalsInitializer.prototype.run =
       //
       //
   
-      function metaAddIntrinsic(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      function baseAddIntrinsic(application, operandValues, thisa, benv, store, lkont, kont, effects)
       {
         const [Name, Value] = operandValues;
         intrinsics.add(Name.conc1(), Value);

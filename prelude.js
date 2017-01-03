@@ -76,7 +76,7 @@ Error.prototype.toString =
 {
   // 19.5.6.2
   var TypeErrorPrototype = Object.create(Error.prototype);
-  $META$.AddIntrinsic("%TypeError%", TypeErrorPrototype)
+  $BASE$.addIntrinsic("%TypeError%", TypeErrorPrototype)
   
   // 19.5.6.3.2
   TypeErrorPrototype.message = "";
@@ -121,5 +121,10 @@ Error.prototype.toString =
       function ()
       {
         return thisStringValue(this);
+      }
+      
+  global["$META$"] =
+      {
+        
       }
 })(this);
