@@ -1037,7 +1037,7 @@ function jsCesk(cc)
   
   object = registerPrimitiveFunction(object, objecta, "create", objectCreate);
   object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
-  object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
+  //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
   store0 = storeAlloc(store0, objecta, object);
   
   objectP = registerPrimitiveFunction(objectP, null /*UNUSED*/, "hasOwnProperty", objectHasOwnProperty);
@@ -2852,9 +2852,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     function (throwValue, store, lkont, kont)
     {
       var node = this.node;
-      var catchHandlers = node.handlers.filter(function (handler) {return handler.type === "CatchClause"});
-      assert(catchHandlers.length === 1);
-      var handler = catchHandlers[0]; 
+      var handler = node.handler;
       var body = handler.body;
       var nodes = body.body;
       if (nodes.length === 0)

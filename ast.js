@@ -100,7 +100,7 @@ var Ast = {}
       case "BlockStatement": 
         return "{" + node.body.map(nodeToString).join(" ") + "}";
       case "TryStatement":
-        return "try " + nodeToString(node.block) + " " + node.handlers.map(nodeToString).join(" ");
+        return "try " + nodeToString(node.block) + " " + node.handler ? nodeToString(node.handler) : "" + node.finalizer ? nodeToString(node.finalizer) : "";
       case "CatchClause":
         return "catch (" + nodeToString(node.param) + ") " + nodeToString(node.body);
       case "ThrowStatement":
@@ -351,7 +351,16 @@ Ast.isFunctionDeclaration =
       case "BlockStatement": 
         return node.body;
       case "TryStatement": 
-        return [node.block].concat(node.handlers);
+        const result = [node.block];
+        if (node.handler)
+        {
+          result.push(node.handler);
+        }
+        if (node.finalizer)
+        {
+          result.push(node.finalizer);
+        }
+        return result;
       case "CatchClause":
         return [node.param, node.body];
       case "ThrowStatement":
@@ -457,7 +466,7 @@ Ast.augmentAst =
       }
       nodify(node);
       var cs = Ast.children(node);
-      cs.forEach(function (child) { doVisit(child, node);});
+      cs.forEach(function (child) {doVisit(child, node)});
     }   
     doVisit(node);
   }
