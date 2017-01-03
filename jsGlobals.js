@@ -76,13 +76,13 @@ GlobalsInitializer.prototype.run =
       // BEGIN STRING
       const stringPa = allocNative();
       const stringProtoRef = l.abstRef(stringPa);
-      intrinsics.StringPrototype = stringProtoRef;
-      var stringP = ObjectCreate(intrinsics.ObjectPrototype);
+      intrinsics.add("%StringPrototype%", stringProtoRef);
+      var stringP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
       //  stringP.toString = function () { return "~String.prototype"; }; // debug
       var stringa = allocNative();
       var stringP = registerProperty(stringP, "constructor", l.abstRef(stringa));
       var string = createPrimitive(stringFunction, null);
-      string = string.add(P_PROTOTYPE, new Property(intrinsics.StringPrototype, BOT, BOT, BOT, BOT, BOT));
+      string = string.add(P_PROTOTYPE, new Property(intrinsics.get("%StringPrototype%"), BOT, BOT, BOT, BOT, BOT));
       global = global.add(l.abst1("String"), new Property(l.abstRef(stringa), BOT, BOT, BOT, BOT, BOT));
       store = storeAlloc(store, stringa, string);
   
@@ -133,9 +133,9 @@ GlobalsInitializer.prototype.run =
       // BEGIN ARRAY
       const arrayPa = allocNative();
       const arrayProtoRef = l.abstRef(arrayPa);
-      intrinsics.ArrayPrototype = arrayProtoRef;
+      intrinsics.add("%ArrayPrototype%", arrayProtoRef);
   
-      var arrayP = ObjectCreate(intrinsics.ObjectPrototype);
+      var arrayP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
       var arraya = allocNative();
       var arrayP = registerProperty(arrayP, "constructor", l.abstRef(arraya));
       var array = createPrimitive(arrayFunction, arrayConstructor);
@@ -276,7 +276,7 @@ GlobalsInitializer.prototype.run =
 
       
       // BEGIN MATH
-      var math = ObjectCreate(intrinsics.ObjectPrototype);
+      var math = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
       var matha = allocNative();
       math = registerPrimitiveFunction(math, "abs", mathAbs);
       math = registerPrimitiveFunction(math, "round", mathRound);
@@ -355,6 +355,7 @@ GlobalsInitializer.prototype.run =
       // meta = registerPrimitiveFunction(meta, "HasStringDataInternalSlot", metaHasStringDataInternalSlot);
       // meta = registerPrimitiveFunction(meta, "GetStringDataInternalSlot", metaGetStringDataInternalSlot);
       // meta = registerPrimitiveFunction(meta, "SetStringDataInternalSlot", metaSetStringDataInternalSlot);
+      meta = registerPrimitiveFunction(meta, "AddIntrinsic", metaAddIntrinsic);
       store = storeAlloc(store, metaa, meta);
       global = global.add(l.abst1("$META$"), new Property(l.abstRef(metaa), BOT, BOT, BOT, BOT, BOT));
   
@@ -406,8 +407,15 @@ GlobalsInitializer.prototype.run =
       //
       //
   
+      function metaAddIntrinsic(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      {
+        const [Name, Value] = operandValues;
+        intrinsics.add(Name.conc1(), Value);
+        return  [{state:new KontState(l.abst1(undefined), store, lkont, kont), effects:effects}];
+      }
+  
       // BEGIN PERFORMANCE
-      let perf = ObjectCreate(intrinsics.ObjectPrototype);
+      let perf = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
       const perfa = allocNative();
       perf = registerPrimitiveFunction(perf, "now", performanceNow, null);
       store = storeAlloc(store, perfa, perf);

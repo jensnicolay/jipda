@@ -19,6 +19,12 @@ ConcValue.prototype.hashCode =
   {
     return HashCode.hashCode(this.value);
   }
+  
+ConcValue.prototype.conc1 =
+    function ()
+    {
+      return this.value;
+    }
 
 ConcValue.prototype.addresses =
   function ()

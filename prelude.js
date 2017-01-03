@@ -6,7 +6,6 @@ Array.prototype.map =
       {
         result.push(f(this[i]))
       }
-      ;
       return result;
     }
 
@@ -77,6 +76,8 @@ Error.prototype.toString =
 {
   // 19.5.6.2
   var TypeErrorPrototype = Object.create(Error.prototype);
+  $META$.AddIntrinsic("%TypeError%", TypeErrorPrototype)
+  
   // 19.5.6.3.2
   TypeErrorPrototype.message = "";
   // 19.5.6.3.3

@@ -240,16 +240,46 @@ function jsCesk(cc)
         }
         return FALSE;
       }
+      
+  function Intrinsics()
+  {
+    this.map = new Map();
+  }
   
+  Intrinsics.prototype.get =
+      function (name)
+      {
+        if (!this.map.has(name))
+        {
+          throw new Error("unknown intrinsic: " + name);
+        }
+        return this.map.get(name);
+      }
+  
+  Intrinsics.prototype.add =
+      function (name, value)
+      {
+        if (this.map.has(name))
+        {
+          throw new Error("duplicate intrinsic: " + name);
+        }
+        this.map.set(name, value);
+      }
+  
+  Intrinsics.prototype.has =
+      function (name)
+      {
+        return this.map.has(name);
+      }
   
   // install global pointers and refs
-  const intrinsics = new Map();
+  const intrinsics = new Intrinsics();
   const globala = allocNative();
   const globalRef = l.abstRef(globala); // global this
   //var globalenva = "globalenv@0";
   const objectPa = allocNative();
   const objectProtoRef = l.abstRef(objectPa);
-  intrinsics.ObjectPrototype = objectProtoRef;
+  intrinsics.add("%ObjectPrototype%", objectProtoRef);
   const functionPa = allocNative();
   const functionProtoRef = l.abstRef(functionPa);
   
@@ -793,7 +823,7 @@ function jsCesk(cc)
   function createArray()
   {
     var obj = new Obj(ArraySet.from1(Ecma.Class.ARRAY));
-    obj.Prototype = intrinsics.ArrayPrototype;
+    obj.Prototype = intrinsics.get("%ArrayPrototype%");
     return obj;
   }
   
@@ -908,7 +938,7 @@ function jsCesk(cc)
   function StringCreate(lprim)
   {
     let obj = new Obj(ArraySet.from1(Ecma.Class.STRING));
-    obj.Prototype = intrinsics.StringPrototype;
+    obj.Prototype = intrinsics.get("%StringPrototype%");
     obj = obj.add(l.abst1("[[StringData]]"), new Property(lprim, BOT, BOT, BOT, BOT, BOT));
     obj = obj.add(P_LENGTH, new Property(lprim.stringLength(), BOT, BOT, BOT, BOT, BOT));
     return obj;
@@ -1007,6 +1037,7 @@ function jsCesk(cc)
   
   object = registerPrimitiveFunction(object, objecta, "create", objectCreate);
   object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
+  object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
   store0 = storeAlloc(store0, objecta, object);
   
   objectP = registerPrimitiveFunction(objectP, null /*UNUSED*/, "hasOwnProperty", objectHasOwnProperty);
@@ -1053,6 +1084,26 @@ function jsCesk(cc)
     return [{state:new KontState(result, store, lkont, kont), effects:effects}];
   }
   
+  // 19.1.2.4
+  function objectDefineProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  {
+    const [O, P, Attributes] = operandValues;
+    // const result = [];
+    // if (O.isNonRef())
+    // {
+    //   return [{state:new ThrowState(), effects:effects}];
+    // }
+    // var objectAddresses = operandValues[0].addresses();
+    // var result = BOT;
+    // objectAddresses.forEach(
+    //     function (objectAddress)
+    //     {
+    //       var obj = storeLookup(store, objectAddress);
+    //       result = result.join(obj.Prototype);
+    //     });
+    // return [{state:new KontState(result, store, lkont, kont), effects:effects}];
+  }
+  
   function objectHasOwnProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
   {
     if (operandValues.length !== 1)
@@ -1082,9 +1133,9 @@ function jsCesk(cc)
   // BEGIN ERROR
   const errorPa = allocNative();
   const errorProtoRef = l.abstRef(errorPa);
-  intrinsics.ErrorPrototype = errorProtoRef;
+  intrinsics.add("%ErrorPrototype%", errorProtoRef);
   
-  var errorP = ObjectCreate(intrinsics.ObjectPrototype);
+  var errorP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
   var errora = allocNative();
   var errorP = registerProperty(errorP, "constructor", l.abstRef(errora));
   var error = createPrimitive(errorFunction, errorConstructor);
@@ -1107,7 +1158,7 @@ function jsCesk(cc)
   {
     //const O = OrdinaryCreateFromConstructor();
     let obj = new Obj(ArraySet.from1(Ecma.Class.ERROR));
-    obj.Prototype = intrinsics.ErrorPrototype;
+    obj.Prototype = intrinsics.get("%ErrorPrototype%");
     obj = obj.add(l.abst1("[[ErrorData]]"), new Property(L_UNDEFINED, BOT, BOT, BOT, BOT, BOT));
     obj = obj.add(P_MESSAGE, new Property(message, BOT, BOT, BOT, BOT, BOT));
     return obj;
@@ -3584,10 +3635,10 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       store = objectRefStore[1];
       var thisAddresses = objectRef.addresses();
       var operands = node.arguments;
-      return xxx(node, thisAddresses, nameValue, operands, benv, store, lkont, kont);
+      return invoke(node, thisAddresses, nameValue, operands, benv, store, lkont, kont);
     }
   
-  function xxx(application, thisAddresses, nameValue, operands, benv, store, lkont, kont)
+  function invoke(application, thisAddresses, nameValue, operands, benv, store, lkont, kont)
   {
     return thisAddresses.flatMap(
         function (thisa)
