@@ -259,7 +259,37 @@ Ast.isFunctionDeclaration =
   {
     return n.type === "SwitchStatement";
   }
-  
+
+  Ast.visit =
+      function (ast, visitor, parent, prop, index)
+      {
+        const type = ast.type;
+        if (!type)
+        {
+          return;
+        }
+        const visitChildren = (visitor[type] || visitor.Node)(ast, parent, prop, index);
+        if (visitChildren)
+        {
+          for (const prop in ast)
+          {
+            const child = ast[prop];
+            if (Array.isArray(child))
+            {
+              for (let i = 0; i < child.length; i++)
+              {
+                const childd = child[i];
+                Ast.visit(childd, visitor, ast, prop, i);
+              }
+            }
+            else
+            {
+              Ast.visit(child, visitor, ast, prop, false);
+            }
+          }
+        }
+      }
+
   Ast.children =
   function (node)
   {

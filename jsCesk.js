@@ -20,6 +20,18 @@ function SourceCodeInitializer(src)
 SourceCodeInitializer.prototype.run =
     function (machine, store)
     {
+      // function rewriteInternals(ast)
+      // {
+      //   const v = {
+      //     MemberExpression:
+      //         function (node, parent, prop)
+      //         {
+      //           if ()
+      //         }
+      //   }
+      // }
+      //
+      //
       return machine.preludeExplore(Ast.createAst(this.src), store);
     }
 
@@ -610,7 +622,7 @@ function jsCesk(cc)
           function (address)
           {
             const obj = storeLookup(store0, address);
-            if (obj.Call)
+            if (obj.lookupInternal("[[Call]]") !== undefined)
             {
               result = result.joinTrue();
             }
@@ -822,8 +834,10 @@ function jsCesk(cc)
   
   function createArray()
   {
-    var obj = new Obj(ArraySet.from1(Ecma.Class.ARRAY));
-    obj.Prototype = intrinsics.get("%ArrayPrototype%");
+    var obj = new Obj();
+    obj = obj.setInternal("[[Prototype]]", intrinsics.get("%ArrayPrototype%"));
+    // TODO temp
+    obj = obj.setInternal("isArray", L_TRUE);
     return obj;
   }
   
@@ -888,14 +902,18 @@ function jsCesk(cc)
   {
     let result = BOT;
     const as = O.addresses();
-    as.forEach(
-        function (address)
-        {
-          const obj = storeLookup(store, address);
-          result = result.join(obj.Prototype);
-        });
+    result = lookupInternal(O, "[[Prototype]]", store);
+    // as.forEach(
+    //     function (address)
+    //     {
+    //       const obj = storeLookup(store, address);
+    //       result = result.join(obj.Prototype);
+    //     });
     return result;
   }
+  
+  //let newObject = new Obj();
+  //newObject = newObject.setInternal("[[Call]]", BOT);
   
   // 9.1.12
   function ObjectCreate(proto, internalSlotsList)
@@ -904,11 +922,13 @@ function jsCesk(cc)
     {
       internalSlotsList = [];
     }
-    const obj = new Obj(ArraySet.from1(Ecma.Class.OBJECT));
-    internalSlotsList.forEach((slot) => obj[slot] = L_UNDEFINED);
+    //let obj = newObject; // cannot use template because of old-style internals
+    let obj = new Obj();
+    obj = obj.setInternal("[[Call]]", BOT);
+    internalSlotsList.forEach((slot) => obj = obj.setInternal(slot, BOT));
     // TODO step 3
-    obj.Prototype = proto;
-    obj.Extensible = L_TRUE;
+    obj = obj.setInternal("[[Prototype]]", proto);
+    //obj.Extensible = L_TRUE;
     return obj;
   }
   
@@ -937,9 +957,9 @@ function jsCesk(cc)
   // 9.4.3.3
   function StringCreate(lprim)
   {
-    let obj = new Obj(ArraySet.from1(Ecma.Class.STRING));
-    obj.Prototype = intrinsics.get("%StringPrototype%");
-    obj = obj.add(l.abst1("[[StringData]]"), new Property(lprim, BOT, BOT, BOT, BOT, BOT));
+    let obj = new Obj();
+    obj = obj.setInternal("[[Prototype]]", intrinsics.get("%StringPrototype%"));
+    obj = obj.setInternal("[[StringData]]", lprim);
     obj = obj.add(P_LENGTH, new Property(lprim.stringLength(), BOT, BOT, BOT, BOT, BOT));
     return obj;
   }
@@ -1073,14 +1093,16 @@ function jsCesk(cc)
     {
       return [];
     }
-    var objectAddresses = operandValues[0].addresses();
-    var result = BOT;
-    objectAddresses.forEach(
-        function (objectAddress)
-        {
-          var obj = storeLookup(store, objectAddress);
-          result = result.join(obj.Prototype);
-        });
+    // var objectAddresses = operandValues[0].addresses();
+    // var result = BOT;
+    // objectAddresses.forEach(
+    //     function (objectAddress)
+    //     {
+    //       var obj = storeLookup(store, objectAddress);
+    //       result = result.join(obj.Prototype);
+    //     });
+    const [O] = operandValues;
+    const result = lookupInternal(O, "[[Prototype]]", store);
     return [{state:new KontState(result, store, lkont, kont), effects:effects}];
   }
   
@@ -1157,9 +1179,9 @@ function jsCesk(cc)
   function createError(message)
   {
     //const O = OrdinaryCreateFromConstructor();
-    let obj = new Obj(ArraySet.from1(Ecma.Class.ERROR));
-    obj.Prototype = intrinsics.get("%ErrorPrototype%");
-    obj = obj.add(l.abst1("[[ErrorData]]"), new Property(L_UNDEFINED, BOT, BOT, BOT, BOT, BOT));
+    let obj = new Obj();
+    obj = obj.setInternal("[[Prototype]]", intrinsics.get("%ErrorPrototype%"));
+    obj = obj.setInternal("[[ErrorData]]", L_UNDEFINED);
     obj = obj.add(P_MESSAGE, new Property(message, BOT, BOT, BOT, BOT, BOT));
     return obj;
   }
@@ -3521,6 +3543,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     {
       return this.benv.addresses().join(this.objectRef.addresses());
     }
+    
   MemberPropertyKont.prototype.apply =
     function (propertyValue, store, lkont, kont)
     {
@@ -3948,8 +3971,9 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       {
         effects.push(new readObjectEffect(globala, aname));
         return prop.Value;
-        // TODO: if not present, then Error
       }
+      // TODO: if not present, then Error
+      throw new Error("not found in scope: " + nameNode);
     }
     effects.push(new readVarEffect(a, nameNode));
     return storeLookup(store, a);
@@ -3974,11 +3998,12 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       }
       if (!found)
       {
-        if (obj.Prototype.subsumes(L_NULL))
+        const proto = obj.lookupInternal("[[Prototype]]");
+        if (proto.subsumes(L_NULL))
         {
           result = result.join(L_UNDEFINED);
         }
-        var cprotoAddresses = obj.Prototype.addresses();
+        const cprotoAddresses = proto.addresses();
         as = as.concat(cprotoAddresses.values());
       }
     }
@@ -4012,9 +4037,51 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     }
     return result;
   }
-  
-  
-  function doScopeSet(nameNode, value, benv, store, effects)
+
+function lookupInternal(O, name, store)
+{
+  assertDefinedNotNull(store);
+  let result = BOT;
+  const as = O.addresses().values();
+  while (as.length > 0)
+  {
+    const a = as.pop();
+    const obj = storeLookup(store, a);
+    const value = obj.lookupInternal(name);
+    result = result.join(value);
+  }
+  return result;
+}
+
+function assignInternal(O, name, value, store)
+{
+  const as = O.addresses();
+  while (as.length > 0)
+  {
+    const a = as.pop();
+    const obj = storeLookup(store, a);
+    obj.internals.set(name, value);
+    store = storeUpdate(store, a, obj);
+  }
+  return store;
+}
+
+function hasInternal(O, name, store)
+{
+  assert(typeof name === "string");
+  assertDefinedNotNull(store);
+  let result = BOT;
+  const as = O.addresses().values();
+  while (as.length > 0)
+  {
+    const a = as.pop();
+    const obj = storeLookup(store, a);
+    result = result.join(l.abst1(obj.lookupInternal(name) !== undefined));
+  }
+  return result;
+}
+
+function doScopeSet(nameNode, value, benv, store, effects)
   {
     var name = nameNode.name;
     var a = benv.lookup(name);
@@ -4043,7 +4110,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       var obj = storeLookup(store, a);
       obj = obj.add(name, new Property(value, BOT, BOT, BOT, BOT, BOT));
       effects.push(writeObjectEffect(a, name));
-      if (obj.isArray())
+      if (obj.lookupInternal("isArray")) // TODO temp
       {
         // ES5.1 15.4.5.1 
         var n = name.ToNumber();
@@ -4312,7 +4379,9 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       function (operatora)
       {
         var benv = storeLookup(store, operatora);
-        var callables = benv.Call.values();
+        const Call = benv.lookupInternal("[[Call]]");
+        if (!Call.values) {print(Call, benv.nice());}
+        var callables = Call.values();
         return callables.flatMap(
           function (callable)
           {
@@ -4331,7 +4400,9 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       {
         var benv = storeLookup(store, operatora);
         var protoRef = benv.lookup(P_PROTOTYPE).Value;
-        var callables = benv.Call.values();
+        const Call = benv.lookupInternal("[[Call]]");
+        if (!Call.values) {print(Call, benv.nice());}
+        var callables = Call.values();
         return callables.flatMap(
           function (callable)
           {
@@ -4734,7 +4805,9 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     ObjectCreate, createArray, createPrimitive,
     registerProperty,
     allocNative, storeAlloc, storeLookup, storeUpdate, doProtoLookup, doProtoSet,
-    readObjectEffect, writeObjectEffect, Property};
+    readObjectEffect, writeObjectEffect, Property,
+    hasInternal, lookupInternal, assignInternal
+  };
   initializers.forEach(function (initializer) {store0 = initializer.run(initializerInterface, store0, intrinsics)});
   
   return module;

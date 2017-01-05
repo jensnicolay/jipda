@@ -430,6 +430,34 @@ Sets.difference = function(x, y) {
   return difference;
 }
 
+const Maps = {};
+Maps.join =
+    function (x, y, join, bot)
+    {
+      const result = new Map();
+      for (const [key, xvalue] of x)
+      {
+        const yvalue = y.get(key) || bot;
+        const value = join(xvalue, yvalue);
+        result.set(key, value);
+      }
+      return result;
+    }
+Maps.subsumes =
+    function (x, y, subsumes, bot)
+    {
+      for (const [key, yvalue] of y)
+      {
+        const xvalue = x.get(key) || bot;
+        if (!subsumes(xvalue,yvalue))
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+
+
 const MutableSets = {};
 MutableSets.union = function(x, y) {
   for (const elem of y) {

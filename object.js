@@ -1,31 +1,23 @@
 "use strict";
-
-
-function Obj(Class)
+ 
+function Obj()
   {
-    this.Class = Class;
     this.frame = Obj.EMPTY_FRAME;
-    this.Call = Obj.EMPTY_CALLS;
-    this.PrimitiveValue = BOT;
+    this.internals = new Map(); // TODO remove this, expect proper init (param)?
    }
   
   Obj.EMPTY_FRAME = HashMap.empty();
-//  Obj.EMPTY_CLASS = HashSet.empty();
-  Obj.EMPTY_CALLS = ArraySet.empty();
-  
-  Obj.prototype.isObj = true;
   
   Obj.prototype.toString =
     function ()
     {
-  //    return "<" + this.Class + ": " + this.frame.map(function (entry) {return entry[0] + "->" + entry[1]}).join("|") + ">";
-      return "<" + this.Class + " " + this.names() + ">";
+      return "<" + this.names() + ">";
     };
     
   Obj.prototype.nice =
     function ()
     {
-      return "[[Class]] " + this.Class + "\n" + this.frame.nice();
+      return this.frame.nice();
     }
       
   Obj.prototype.accept =
@@ -52,20 +44,43 @@ function Obj(Class)
       });
     return newFrame.put(name, value);
   }
-    
-  Obj.prototype.add =
+
+
+
+
+Obj.prototype.setInternal =
+    function (name, value)
+    {
+      const result = new Obj();
+      result.frame = this.frame;
+  
+      const newMap = new Map(this.internals);
+      newMap.set(name, value);
+      result.internals = newMap;
+
+      return result;
+    }
+
+
+Obj.prototype.add =
     function (name, value)
     {
       assert(name);
       assertTrue(value.constructor.name === "Property");
-      var result = new Obj(this.Class);
+      var result = new Obj();
       result.frame = strongUpdateFrame(this.frame, name, value);
-      result.Call = this.Call;
-      result.Prototype = this.Prototype;
-      result.PrimitiveValue = this.PrimitiveValue;
-      result.ErrorData = this.ErrorData;
+      
+      result.internals = this.internals;
+      
       return result;
     }
+
+Obj.prototype.lookupInternal =
+    function (name)
+    {
+      return this.internals.get(name);
+    }
+    
     
   Obj.prototype.lookup =
     function (name)
@@ -74,7 +89,7 @@ function Obj(Class)
       this.frame.iterateEntries(
         function (entry)
         {
-          var entryName = entry[0]; 
+          var entryName = entry[0];
           if (entryName.subsumes(name) || name.subsumes(entryName))
           {
             result = result.join(entry[1]);
@@ -96,14 +111,11 @@ function Obj(Class)
       {
         return this;
       }    
-      var result = new Obj(this.Class.join(other.Class));
-      result.Call = this.Call.join(other.Call);
-      result.Prototype = this.Prototype.join(other.Prototype);
-      result.PrimitiveValue = this.PrimitiveValue.join(other.PrimitiveValue);
-//      var frame = this.frame;
-//      other.frame.iterateEntries(function (entry) {frame = weakUpdateFrame(frame, entry[0], entry[1])});
-//      result.frame = frame;
+      var result = new Obj();
       result.frame = this.frame.join(other.frame, BOT);
+      
+      result.internals = Maps.join(this.internals, other.internals, function (x,y) {return x.join(y)}, BOT);
+      
       return result;
     }
   
@@ -118,11 +130,9 @@ Obj.prototype.equals =
     {
       return false;
     }
-    return this.Class.equals(x.Class) 
-        && this.Prototype.equals(x.Prototype)
-        && this.Call.equals(x.Call)
-        && this.PrimitiveValue.equals(x.PrimitiveValue)
-        && this.frame.equals(x.frame);
+    return this.frame.equals(x.frame)
+        && Maps.subsumes(this.internals, x.internals, function (x,y) {return x.subsumes(y)}, BOT)
+        && Maps.subsumes(x.internals, this.internals, function (x,y) {return x.subsumes(y)}, BOT)
   }
 
 Obj.prototype.hashCode =
@@ -130,61 +140,14 @@ Obj.prototype.hashCode =
   {
     var prime = 11;
     var result = 1;
-    result = prime * result + this.Class.hashCode();
-    result = prime * result + this.Prototype.hashCode();
-    result = prime * result + this.Call.hashCode();
-    result = prime * result + this.PrimitiveValue.hashCode();
     result = prime * result + this.frame.hashCode();
     return result;
-  }
-
-Obj.prototype.subsumes =
-  function (x)
-  { 
-    if (this === x)
-    {
-      return true;
-    }
-    if (!this.Class.subsumes(x.Class) 
-        || !this.Prototype.subsumes(x.Prototype)
-        || !this.Call.subsumes(x.Call)
-        || !this.PrimitiveValue.subsumes(x.PrimitiveValue))
-    {
-      return false;
-    }
-    return x.frame.iterateEntries(
-      function (entry)
-      {
-        var name = entry[0];
-        var xValue = entry[1];
-        var thisValue= this.lookup(name);
-        if (!thisValue.subsumes(xValue))
-        {
-          return false;
-        }
-      }, this)
   }
 
 Obj.prototype.diff = //DEBUG
   function (x)
   {
     var diff = [];
-    if (!this.Class.equals(x.Class))
-    {
-      diff.push("[[Class]]\t" + this.Class + " -- " + x.Class);
-    }
-    if (!this.Prototype.equals(x.Prototype))
-    {
-      diff.push("[[Prototype]]\t" + this.Prototype + " -- " + x.Prototype);
-    }
-    if (!this.Call.equals(x.Call))
-    {
-      diff.push("[[Call]]\t" + this.Call + " -- " + x.Call);
-    }
-    if (!this.PrimitiveValue.equals(x.PrimitiveValue))
-    {
-      diff.push("[[prim]]\t" + this.PrimitiveValue + " -- " + x.PrimitiveValue);
-    }
     if (!this.frame.equals(x.frame))
     {
       diff.push("[[frame]]\t" + this.frame.diff(x.frame));
@@ -207,34 +170,20 @@ Obj.prototype.diff = //DEBUG
   Obj.prototype.addresses = 
     function ()
     {
-      var addresses = this.Prototype.addresses();
-      this.Call.forEach(function (callable) {addresses = addresses.join(callable.addresses())});
+      let addresses = ArraySet.empty();
       this.frame.values().forEach(function (value) {addresses = addresses.join(value.addresses())});
+      this.internals.forEach((value, key) => {
+        if (value instanceof Set_) // TODO hack for [[Call]]
+        {
+          value.forEach((val) => addresses = addresses.join(val.addresses()));
+        }
+        else
+        {
+          if (!value.addresses) {print(value, value instanceof Set_); readline()};
+          addresses = addresses.join(value.addresses());
+        }
+        });
       return addresses;
-    }
-  
-  Obj.prototype.isObject =
-    function ()
-    {
-      return this.Class.contains(Ecma.Class.OBJECT);
-    }
-  
-  Obj.prototype.isArray =
-    function ()
-    {
-      return this.Class.contains(Ecma.Class.ARRAY);
-    }
-  
-  Obj.prototype.isString =
-    function ()
-    {
-      return this.Class.contains(Ecma.Class.STRING);
-    }
-  
-  Obj.prototype.isFunction =
-    function ()
-    {
-      return this.Class.contains(Ecma.Class.FUNCTION);
     }
   
   Obj.prototype.toJSON =
@@ -246,8 +195,8 @@ Obj.prototype.diff = //DEBUG
   Obj.createFunction =
     function (Call, FUNCTIONPA)
     {
-      var benv = new Obj(ArraySet.from1(Ecma.Class.FUNCTION));
-      benv.Prototype = FUNCTIONPA;
-      benv.Call = ArraySet.from1(Call);
+      var benv = new Obj();
+      benv = benv.setInternal("[[Prototype]]", FUNCTIONPA);
+      benv = benv.setInternal("[[Call]]", ArraySet.from1(Call));
       return benv;
     }

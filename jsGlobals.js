@@ -67,6 +67,10 @@ GlobalsInitializer.prototype.run =
       
       const Property = machine.Property;
       
+      const hasInternal = machine.hasInternal;
+      const lookupInternal = machine.lookupInternal;
+      const assignInternal = machine.assignInternal;
+      
       let global = store.lookupAval(machine.globala);
   
       
@@ -104,7 +108,7 @@ GlobalsInitializer.prototype.run =
       function stringCharAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
       {
         var str = storeLookup(store, thisa);
-        var lprim = str.PrimitiveValue;
+        var lprim = str.lookupInternal("[[StringData]]");
         var value = lprim.charAt(operandValues[0]);
         return [{state:new KontState(value, store, lkont, kont), effects:effects}];
       }
@@ -112,7 +116,7 @@ GlobalsInitializer.prototype.run =
       function stringCharCodeAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
       {
         var str = storeLookup(store, thisa);
-        var lprim = str.PrimitiveValue;
+        var lprim = str.lookupInternal("[[StringData]]");
         var value = lprim.charCodeAt(operandValues[0]);
         return [{state:new KontState(value, store, lkont, kont), effects:effects}];
       }
@@ -120,7 +124,7 @@ GlobalsInitializer.prototype.run =
       function stringStartsWith(application, operandValues, thisa, benv, store, lkont, kont, effects)
       {
         var str = storeLookup(store, thisa);
-        var lprim = str.PrimitiveValue;
+        var lprim = str.lookupInternal("[[StringData]]");
         var value = lprim.startsWith(operandValues[0]);
         return [{state:new KontState(value, store, lkont, kont), effects:effects}];
       }
@@ -356,6 +360,9 @@ GlobalsInitializer.prototype.run =
       // meta = registerPrimitiveFunction(meta, "GetStringDataInternalSlot", metaGetStringDataInternalSlot);
       // meta = registerPrimitiveFunction(meta, "SetStringDataInternalSlot", metaSetStringDataInternalSlot);
       base = registerPrimitiveFunction(base, "addIntrinsic", baseAddIntrinsic);
+      base = registerPrimitiveFunction(base, "hasInternal", baseHasInternal);
+      base = registerPrimitiveFunction(base, "lookupInternal", baseLookupInternal);
+      base = registerPrimitiveFunction(base, "assignInternal", baseAssignInternal);
       store = storeAlloc(store, basea, base);
       global = global.add(l.abst1("$BASE$"), new Property(l.abstRef(basea), BOT, BOT, BOT, BOT, BOT));
   
@@ -411,6 +418,26 @@ GlobalsInitializer.prototype.run =
       {
         const [Name, Value] = operandValues;
         intrinsics.add(Name.conc1(), Value);
+        return  [{state:new KontState(l.abst1(undefined), store, lkont, kont), effects:effects}];
+      }
+      function baseHasInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      {
+        const [O, Name] = operandValues;
+        const result = hasInternal(O, Name.conc1(), store);
+        return  [{state:new KontState(result, store, lkont, kont), effects:effects}];
+      }
+  
+      function baseLookupInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      {
+        const [O, Name] = operandValues;
+        const result = lookupInternal(O, Name.conc1(), store);
+        return  [{state:new KontState(result, store, lkont, kont), effects:effects}];
+      }
+  
+      function baseAssignInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      {
+        const [O, Name, Value] = operandValues;
+        store = assignInternal(O, Name.conc1(), Value);
         return  [{state:new KontState(l.abst1(undefined), store, lkont, kont), effects:effects}];
       }
   
