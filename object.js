@@ -51,6 +51,9 @@ function Obj()
 Obj.prototype.setInternal =
     function (name, value)
     {
+      
+      //assert(value.subsumes);
+      
       const result = new Obj();
       result.frame = this.frame;
   
@@ -67,6 +70,7 @@ Obj.prototype.add =
     {
       assert(name);
       assertTrue(value.constructor.name === "Property");
+      assertDefinedNotNull(value.Value.subsumes);
       var result = new Obj();
       result.frame = strongUpdateFrame(this.frame, name, value);
       
@@ -103,6 +107,16 @@ Obj.prototype.lookupInternal =
     {
       return [this];
     }
+    
+  Obj.internalsJoin =
+      function (x, y)
+      {
+        if (x instanceof Set)
+        {
+          return Sets.union(x, y);
+        }
+        return x.join(y);
+      }
   
   Obj.prototype.join =
     function (other)
@@ -114,7 +128,7 @@ Obj.prototype.lookupInternal =
       var result = new Obj();
       result.frame = this.frame.join(other.frame, BOT);
       
-      result.internals = Maps.join(this.internals, other.internals, function (x,y) {return x.join(y)}, BOT);
+      result.internals = Maps.join(this.internals, other.internals, Obj.internalsJoin, BOT);
       
       return result;
     }
@@ -131,7 +145,14 @@ Obj.prototype.equals =
       return false;
     }
     return this.frame.equals(x.frame)
-        && Maps.subsumes(this.internals, x.internals, function (x,y) {return x.subsumes(y)}, BOT)
+        && Maps.subsumes(this.internals, x.internals, function (x,y) {
+          
+          if (!x.subsumes) {print(x)};
+          
+          return x.subsumes(y)
+        
+        
+        }, BOT)
         && Maps.subsumes(x.internals, this.internals, function (x,y) {return x.subsumes(y)}, BOT)
   }
 
@@ -176,6 +197,10 @@ Obj.prototype.diff = //DEBUG
         if (value instanceof Set_) // TODO hack for [[Call]]
         {
           value.forEach((val) => addresses = addresses.join(val.addresses()));
+        }
+        else if (value instanceof Set) // TODO hack for internal methods
+        {
+          // nothing (needs expansion if Sets can contain storables
         }
         else
         {

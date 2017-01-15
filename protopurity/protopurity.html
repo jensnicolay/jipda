@@ -42,7 +42,7 @@
 	var editor, meta;
 	var ast, astNodes;
 	var system, cesk, states, transitions, graph, initial, result, contexts;
-	var ag, lat;
+	var ag, lat, kalloc;
 		
 	/* SHORTCUTS */
 	function purity()
@@ -103,7 +103,7 @@
     var errors = $("#errors").is(":checked"); 
     var gc = true;
     var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
-    cesk = jsCesk({a:ag, l:lat, gc: gc, errors:errors,
+    cesk = jsCesk({a:ag, kalloc, l:lat, gc: gc, errors:errors,
 			initializers:[
 			    new GlobalsInitializer(),
 					new SourceCodeInitializer(ast0src)
@@ -234,8 +234,8 @@
 		</select>
     <span>
       <select id="config" title="value lattice">
-        <option value="(lat=new JipdaLattice(),ag=createTagAg())">abst</option>
-        <option value="(lat=new ConcLattice(),ag=createConcAg())">conc</option>
+        <option value="(lat=new JipdaLattice(),ag=createTagAg(),kalloc=aacKalloc)">abst</option>
+        <option value="(lat=new ConcLattice(),ag=createConcAg(),kalloc=concKalloc)">conc</option>
       </select>
     </span>
     <input id="errors" type="checkbox" checked="true">errors</input>

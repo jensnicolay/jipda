@@ -387,6 +387,14 @@ Arrays.get =
   }
 
 const Sets = {};
+Sets.from1 =
+    function (x)
+    {
+      const set = new Set();
+      set.add(x);
+      return set;
+    }
+
 Sets.add =
     function (x, y)
     {

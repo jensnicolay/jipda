@@ -70,6 +70,7 @@ GlobalsInitializer.prototype.run =
       const hasInternal = machine.hasInternal;
       const lookupInternal = machine.lookupInternal;
       const assignInternal = machine.assignInternal;
+      const callInternal = machine.callInternal;
       
       let global = store.lookupAval(machine.globala);
   
@@ -363,6 +364,9 @@ GlobalsInitializer.prototype.run =
       base = registerPrimitiveFunction(base, "hasInternal", baseHasInternal);
       base = registerPrimitiveFunction(base, "lookupInternal", baseLookupInternal);
       base = registerPrimitiveFunction(base, "assignInternal", baseAssignInternal);
+      base = registerPrimitiveFunction(base, "callInternal", baseCallInternal);
+      
+      base = registerPrimitiveFunction(base, "addMeta", baseAddMeta);
       store = storeAlloc(store, basea, base);
       global = global.add(l.abst1("$BASE$"), new Property(l.abstRef(basea), BOT, BOT, BOT, BOT, BOT));
   
@@ -434,10 +438,27 @@ GlobalsInitializer.prototype.run =
         return  [{state:new KontState(result, store, lkont, kont), effects:effects}];
       }
   
+      function baseCallInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      {
+        const [O, Name, ...args] = operandValues;
+        let value;
+        ({value, store} = callInternal(O, Name.conc1(), args, store, lkont, kont));
+        return  [{state:new KontState(value, store, lkont, kont), effects:effects}];
+      }
+  
       function baseAssignInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
       {
         const [O, Name, Value] = operandValues;
         store = assignInternal(O, Name.conc1(), Value);
+        return  [{state:new KontState(l.abst1(undefined), store, lkont, kont), effects:effects}];
+      }
+  
+      function baseAddMeta(application, operandValues, thisa, benv, store, lkont, kont, effects)
+      {
+        const [Name, Value] = operandValues;
+        let global = storeLookup(store, globala);
+        global = global.setInternal(Name.conc1(), Value);
+        store = storeUpdate(store, globala, global);
         return  [{state:new KontState(l.abst1(undefined), store, lkont, kont), effects:effects}];
       }
   

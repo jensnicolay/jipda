@@ -1,77 +1,3 @@
-Array.prototype.map =
-    function (f)
-    {
-      var result = [];
-      for (var i = 0; i < this.length; i++)
-      {
-        result.push(f(this[i]))
-      }
-      return result;
-    }
-
-Array.prototype.filter =
-    function (f)
-    {
-      var result = [];
-      for (var i = 0; i < this.length; i++)
-      {
-        var x = this[i];
-        if (f(x))
-        {
-          (result.push(x))
-        }
-      }
-      return result;
-    }
-
-Array.prototype.indexOf =
-    function (x)
-    {
-      for (var i = 0; i < this.length; i++)
-      {
-        if (this[i]===x)
-        {
-          return i
-        }
-      }
-      return -1;
-    }
-
-// 19.5.3.4
-Error.prototype.toString =
-    function ()
-    {
-      var name = this.name;
-      if (name === undefined)
-      {
-        name = "Error";
-      }
-      else
-      {
-        name = name.toString();
-      }
-      var message = this.message;
-      if (message === undefined)
-      {
-        message = "";
-      }
-      else
-      {
-        message = message.toString();
-      }
-      if (name === "")
-      {
-        return message;
-      }
-      if (message === "")
-      {
-        return name;
-      }
-      return name + ": " + message;
-    }
-    
-; // important semicolon (for parsing purposes)
-
 (function (global)
 {
   function assert(c)
@@ -324,6 +250,33 @@ Error.prototype.toString =
     return $BASE$.positiveNumberToString(m);
   }
   
+  // 7.1.13
+  $BASE$.addMeta("ToObject", ToObject);
+  function ToObject(argument)
+  {
+    if (argument === undefined)
+    {
+      throw new TypeError("cannot convert undefined to object");
+    }
+    if (argument === null)
+    {
+      throw new TypeError("cannot convert null to object");
+    }
+    if (typeof argument === "number")
+    {
+      throw new TypeError("NYI: number");
+    }
+    if (typeof argument === "string")
+    {
+      throw new TypeError("NYI: string");
+    }
+    if (typeof argument === "symbol")
+    {
+      throw new TypeError("NYI: symbol");
+    }
+    return argument;
+  }
+  
   // 7.1.14
   function ToPropertyKey(argument)
   {
@@ -368,7 +321,7 @@ Error.prototype.toString =
   {
     assert(typeof O === "object");
     assert(IsPropertyKey(P));
-    return O["[[Get]]"](P, O);
+    return ($BASE$.lookupInternal(O, "[[Get]]"))(P, O);
   }
   
   // 7.3.7
@@ -376,7 +329,7 @@ Error.prototype.toString =
   {
     assert(typeof O === "object");
     assert(IsPropertyKey(P));
-    var success = O["[[DefineOwnProperty]]"](P, desc);
+    var success = ($BASE$.lookupInternal(O, "[[DefineOwnProperty]]"))(P, desc);
     if (success === false)
     {
       throw new TypeError("defining property failed");
@@ -389,10 +342,59 @@ Error.prototype.toString =
   {
     assert(typeof O === "object");
     assert(IsPropertyKey(P));
-    return O["[[HasProperty]]"](P);
+    return ($BASE$.lookupInternal(O, "[[HasProperty]]"))(P);
   }
   
-  // 9.1.7
+  // 9.1.1.1
+  $BASE$.addMeta("OrdinaryGetPrototypeOf", OrdinaryGetPrototypeOf);
+  function OrdinaryGetPrototypeOf(O)
+  {
+    return $BASE$.lookupInternal(O, "[[Prototype]]");
+  }
+  
+  // 9.1.5.1
+  $BASE$.addMeta("OrdinaryGetOwnProperty", OrdinaryGetOwnProperty);
+  function OrdinaryGetOwnProperty(O, P)
+  {
+    assert(IsPropertyKey(P));
+    var X = $BASE$.getOwnProperty(O, P);
+    if (!X)
+    {
+      return undefined;
+    }
+    var D = $BASE$.createPropertyDescriptor();
+    if ($BASE$.isDataProperty(X))
+    {
+      $BASE$.setDescriptorValue(D, $BASE$.getDescriptorValue(X));
+      $BASE$.setDescriptorWritable(D, $BASE$.getDescriptorWritable(X));
+    }
+    else
+    {
+      $BASE$.setDescriptorGet(D, $BASE$.getDescriptorGet(X));
+      $BASE$.setDescriptorSet(D, $BASE$.getDescriptorSet(X));
+    }
+    $BASE$.setDescriptorEnumerable(D, $BASE$.getDescriptorEnumerable(X));
+    $BASE$.setDescriptorConfigurable(D, $BASE$.getDescriptorConfigurable(X));
+    return D;
+  }
+  
+  // 9.1.7.1
+  $BASE$.addMeta("OrdinaryHasProperty", OrdinaryHasProperty);
+  function OrdinaryHasProperty(O, P)
+  {
+    assert(IsPropertyKey(P));
+    var hasOwn = ($BASE$.lookupInternal(O, "[[GetOwnProperty]]"))(P);
+    if (hasOwn !== undefined)
+    {
+      return true;
+    }
+    var parent = ($BASE$.lookupInternal(O, "[[GetPrototypeOf]]"))(P);
+    if (parent !== null)
+    {
+      return ($BASE$.lookupInternal(parent, "[[HasProperty]]"))(P);
+    }
+    return false;
+  }
   
   
   // 19.1.2.4
@@ -407,6 +409,47 @@ Error.prototype.toString =
         var desc = ToPropertyDescriptor(Attributes);
         DefinePropertyOrThrow(O, key, desc);
         return O;
+      }
+      
+  // 19.1.2.10
+  Object.getPrototypeOf =
+      function (O)
+      {
+        var obj = ToObject(O);
+        return $BASE$.callInternal(obj, "[[GetPrototypeOf]]");
+      }
+
+  // 19.5.3.4
+  Error.prototype.toString =
+      function ()
+      {
+        var name = this.name;
+        if (name === undefined)
+        {
+          name = "Error";
+        }
+        else
+        {
+          name = name.toString();
+        }
+        var message = this.message;
+        if (message === undefined)
+        {
+          message = "";
+        }
+        else
+        {
+          message = message.toString();
+        }
+        if (name === "")
+        {
+          return message;
+        }
+        if (message === "")
+        {
+          return name;
+        }
+        return name + ": " + message;
       }
   
   // 19.5.6.2
@@ -457,9 +500,47 @@ Error.prototype.toString =
       {
         return thisStringValue(this);
       }
-      
-  global["$META$"] =
+  
+  // 22.1.3.7
+  Array.prototype.filter =
+      function (f)
       {
-        
+        var result = [];
+        for (var i = 0; i < this.length; i++)
+        {
+          var x = this[i];
+          if (f(x))
+          {
+            (result.push(x))
+          }
+        }
+        return result;
       }
+      
+  // 22.1.3.12
+  Array.prototype.indexOf =
+      function (x)
+      {
+        for (var i = 0; i < this.length; i++)
+        {
+          if (this[i]===x)
+          {
+            return i
+          }
+        }
+        return -1;
+      }
+      
+  // 22.1.3.16
+  Array.prototype.map =
+      function (f)
+      {
+        var result = [];
+        for (var i = 0; i < this.length; i++)
+        {
+          result.push(f(this[i]))
+        }
+        return result;
+      }
+      
 })(this);

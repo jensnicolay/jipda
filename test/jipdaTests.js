@@ -17,7 +17,7 @@ var suiteJipdaTests =
   function createCesk(cc)
   {
     cc = cc || {};
-    return jsCesk({a:cc.a || createTagAg(), l:new JipdaLattice(), errors:true});
+    return jsCesk({a:cc.a || createTagAg(),  kalloc:aacKalloc, l:new JipdaLattice(), errors:true});
   }
   
   module.testSanity =

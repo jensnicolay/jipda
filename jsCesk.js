@@ -37,8 +37,20 @@ SourceCodeInitializer.prototype.run =
 
 function jsCesk(cc)
 {
-  // address generator
+  // address allocator
+  if (!cc.a)
+  {
+    throw new Error("no a specified"); // TODO names
+  }
   var a = cc.a;
+  
+  // stack allocator
+  if (!cc.kalloc)
+  {
+    throw new Error("no kalloc specified");
+  }
+  const kalloc = cc.kalloc;
+  
   // lattice
   const l = cc.l || new JipdaLattice();
   // gc
@@ -329,40 +341,36 @@ function jsCesk(cc)
     return st;
   }
   
-  function Context(ex, callable, args, thisa, store, as)
+  function JipdaContext(ex, thisa, userContext, as)
   {
+    assertDefinedNotNull(thisa);
     this.ex = ex;
-    this.callable = callable;
-    this.args = args;
     this.thisa = thisa;
-    this.store = store;
+    this.userContext = userContext;
     this.as = as;
-    this._hashCode = undefined;
     this._stacks = null;
     this._id = -1;
   }
   
-  Context.equals = // this is not on proto because instances should be compared using === (after interning); this is to force this behavior
-      function (ctx1, ctx2)
+  JipdaContext.prototype.equals = // reminder: instances should be compared using === (after interning)
+      function (ctx)
       {
-        if (ctx1 === ctx2)
+        if (this === ctx)
         {
           return true;
         }
-        return ctx1.ex === ctx2.ex
-            && ctx1.thisa.equals(ctx2.thisa)
-            && ctx1.callable.equals(ctx2.callable)
-            && ctx1.args.equals(ctx2.args)
-            && ctx1.store.equals(ctx2.store)
-            && ctx1.as.equals(ctx2.as)
+        return this.ex === ctx.ex
+                && this.thisa.equals(ctx.thisa)
+                && this.userContext.equals(ctx.userContext)
+                && this.as.equals(ctx.as)
       }
   
-  Context.prototype.intern =
+  JipdaContext.prototype.intern =
       function ()
       {
         for (let i = 0; i < contexts.length; i++)
         {
-          if (Context.equals(contexts[i], this))
+          if (this.equals(contexts[i]))
           {
             assertDefinedNotNull(contexts[i]._id);
             return contexts[i];
@@ -371,31 +379,14 @@ function jsCesk(cc)
         this._id = contexts.push(this) - 1;
         return this;
       }
+      
+  JipdaContext.prototype.addresses =
+      function ()
+      {
+        return this.as.add(this.thisa);
+      }
   
-  // function Context_hashCode(ctx)
-//     {
-//       if (ctx._hashCode !== undefined)
-//       {
-//         return ctx._hashCode;
-//       }
-//       var prime = 31;
-//       var result = 1;
-//       result = prime * result + (ctx.ex && ctx.ex.hashCode());
-//       result = prime * result + ctx.callable.hashCode();
-//       result = prime * result + ctx.args.hashCode();
-//       result = prime * result + ctx.thisa.hashCode();
-//       result = prime * result + ctx.store.hashCode();
-//       result = prime * result + ctx.as.hashCode();
-//       ctx._hashCode = result;
-//       return result;
-//     }
-
-// function Context_toString(ctx)
-//   {
-//     return "@" + ctx._id;
-//   }
-  
-  Context.prototype.getReachableContexts =
+  JipdaContext.prototype.getReachableContexts =
       function ()
       {
         const reachable = new Set();
@@ -415,13 +406,13 @@ function jsCesk(cc)
         return reachable;
       }
   
-  Context.prototype.topmostApplicationReachable = // is context.ex reachable?
-      function ()
-      {
-        return ([...this.getReachableContexts()].map((ctx) => ctx.ex).includes(this.ex));
-      }
+  // JipdaContext.prototype.topmostApplicationReachable = // is context.ex reachable?
+  //     function ()
+  //     {
+  //       return ([...this.getReachableContexts()].map((ctx) => ctx.ex).includes(this.ex));
+  //     }
   
-  Context.prototype.toString =
+  JipdaContext.prototype.toString =
       function ()
       {
         return "[ctx#" + this._id + " app: " + (this.ex ? this.ex.tag : this.ex) + "]";
@@ -430,7 +421,7 @@ function jsCesk(cc)
   
   function stackAddresses(lkont, kont) // TODO put onto Context proto with sig `lkont`
   {
-    var addresses = kont.as.add(kont.thisa);
+    var addresses = kont.addresses();
     for (var i = 0; i < lkont.length; i++)
     {
       var frame = lkont[i];
@@ -487,6 +478,105 @@ function jsCesk(cc)
   function writeVarEffect(a, vr)
   {
     return new Effect(Effect.Operations.WRITE, a, vr);
+  }
+  
+  const initialMeta = {};
+  
+  function getMeta(name)
+  {
+    const global = storeLookup(store, globala);
+    const metaOperator = global.lookupInternal(name);
+  }
+  
+  let kcount = 0;
+  
+  function invokeMeta(name, operands, store, lkont, kont, as)
+  {
+    //console.debug("invokeMeta", name);
+    const kont2 = createContext(null/*application*/, globala, name+kcount++/*userCtx*/, stackAddresses(lkont, kont).join(as), null);
+    const global = storeLookup(store, globala);
+    const metaOperator = global.lookupInternal(name);
+    if (!metaOperator)
+    {
+      const metaOperator2 = initialMeta[name];
+      if (!metaOperator2)
+      {
+        throw new Error("no such meta operator: " + name);
+      }
+      return runMeta(metaOperator2.apply(null, operands.concat([store, kont2])));
+    }
+    const result = runMeta(applyProc(null, metaOperator, operands, globala, null, store, [], kont2, []));
+    return result;
+  
+  
+    function runMeta(initialTansitions)
+    {
+      const initialStates = initialTansitions.map((transition) => transition.state);
+      const resultStates = run(initialStates);
+      let value = BOT;
+      let store = BOT;
+      for (const resultState of resultStates)
+      {
+        if (resultState instanceof KontState)
+        {
+          value = value.join(resultState.value);
+          store = store.join(resultState.store);
+        }
+        else
+        {
+          throw new Error("(TODO) meta call generated non-kont state: " + resultState);
+        }
+      }
+      return {value, store};
+    }
+  }
+  
+  
+  function run(states)
+  {
+    let result = ArraySet.empty();
+    const todo = states;
+    while (todo.length > 0)
+    {
+      const s = todo.pop();
+      if (s._sstorei === sstorei)
+      {
+        continue;
+      }
+      s._sstorei = sstorei;
+      let next = s._successors;
+      if (next && s instanceof EvalState)
+      {
+        for (let i = 0; i < next.length; i++)
+        {
+          const t2 = next[i];
+          const s2 = t2.state;
+          todo.push(s2);
+        }
+        continue;
+      }
+      next = s.next();
+      s._successors = next;
+      if (next.length === 0)
+      {
+        result = result.add(s);
+        continue;
+      }
+      for (var i = 0; i < next.length; i++)
+      {
+        var t2 = next[i];
+        var s2 = t2.state;
+        var ss2 = stateGet(s2);
+        if (ss2 !== s2)
+        {
+          t2.state = ss2;
+          todo.push(ss2);
+          continue;
+        }
+        todo.push(ss2);
+      }
+    }
+    return result.values();
   }
   
   // 6
@@ -607,6 +697,82 @@ function jsCesk(cc)
         result = prime * result + this.definitelyPresent.hashCode();
         return result;
       }
+  
+  // 6.2.2
+  function Completion(Type, Value, Target)
+  {
+    this.Type = Type;
+    this.Value = Value;
+    this.Target = Target;
+  }
+  
+  Completion.normal = new String("normal");
+  Completion.break = new String("break");
+  Completion.continue = new String("continue");
+  Completion.return = new String("return");
+  Completion.throw = new String("throw");
+  Completion.empty = new String("empty");
+  
+  // 6.2.2.1
+  function NormalCompletion(argument)
+  {
+    return Completion(Completion.normal, value, Completion.empty);
+  }
+  
+  // 7.1.13
+  function ToObject(argument, store, lkont, kont, as)
+  {
+    const result = invokeMeta("ToObject", [argument], store, lkont, kont, as);
+    return result;
+  }
+  initialMeta.ToObject =
+      function (argument, store, kont)
+      {
+        return [{state:new KontState(argument, store, [], kont), effects:[]}];
+      }
+//     if (value === BOT)
+//     {
+//
+//       if (lenient)
+//       {
+//         var obj = ObjectCreate(objectProtoRef);
+//         var objectAddress = a.object(node);
+//         store = storeAlloc(store, objectAddress, obj);
+// //      effects.push(allocObjectEffect(objectAddress));
+//         var objectRef = l.abstRef(objectAddress);
+//
+//         return [objectRef, store];
+//       }
+//
+//       return [value, store];
+//     }
+//
+//     // fast path
+// //    if (!value.isNonRef) {print(value, Object.keys(value))}
+//     if (!value.isNonRef())
+//     {
+//       return [value, store];
+//     }
+//     // end fast path
+//
+//     var objectRef = BOT;
+//     if (value.isRef())
+//     {
+//       objectRef = objectRef.join(value.projectObject());
+//     }
+//     var stringProj = value.projectString();
+//     if (stringProj !== BOT)
+//     {
+//       var stringObject = StringCreate(stringProj);
+//       var addr = a.string(node);
+//       store = storeAlloc(store, addr, stringObject);
+//       objectRef = objectRef.join(l.abstRef(addr));
+//     }
+//     return [objectRef, store];
+//  }
+      
+      
+      
   // 7.2.3
   function IsCallable(argument)
   {
@@ -898,22 +1064,38 @@ function jsCesk(cc)
   }
   
   // 9.1.1.1
-  function OrdinaryGetPrototypeOf(O, store)
+  // function OrdinaryGetPrototypeOf(O, store)
+  // {
+  //   let result = BOT;
+  //   const as = O.addresses();
+  //   result = lookupInternal(O, "[[Prototype]]", store);
+  //   // as.forEach(
+  //   //     function (address)
+  //   //     {
+  //   //       const obj = storeLookup(store, address);
+  //   //       result = result.join(obj.Prototype);
+  //   //     });
+  //   return result;
+  // }
+  
+  
+  // 9.1.1.1
+  function OrdinaryGetPrototypeOf(O, store, lkont, kont, as)
   {
-    let result = BOT;
-    const as = O.addresses();
-    result = lookupInternal(O, "[[Prototype]]", store);
-    // as.forEach(
-    //     function (address)
-    //     {
-    //       const obj = storeLookup(store, address);
-    //       result = result.join(obj.Prototype);
-    //     });
-    return result;
+    return invokeMeta("OrdinaryGetPrototypeOf", [O], store, lkont, kont, as)
+  }
+
+  // 9.1.5.1
+  function OrdinaryGetOwnProperty(O, P, store, lkont, kont, as)
+  {
+    return invokeMeta("OrdinaryGetOwnProperty", [O, P], store, lkont, kont, as);
   }
   
-  //let newObject = new Obj();
-  //newObject = newObject.setInternal("[[Call]]", BOT);
+  // 9.1.7.1
+  function OrdinaryHasProperty(O, P, store, lkont, kont, as)
+  {
+    return invokeMeta("OrdinaryHasProperty", [O, P], store, lkont, kont, as);
+  }
   
   // 9.1.12
   function ObjectCreate(proto, internalSlotsList)
@@ -926,9 +1108,28 @@ function jsCesk(cc)
     let obj = new Obj();
     obj = obj.setInternal("[[Call]]", BOT);
     internalSlotsList.forEach((slot) => obj = obj.setInternal(slot, BOT));
-    // TODO step 3
+    // step 3
+    // 9.1.1
+    obj = obj.setInternal("[[GetPrototypeOf]]", Sets.from1(function (O, args, store, lkont, kont)
+    {
+      return OrdinaryGetPrototypeOf(O, store, lkont, kont, ArraySet.empty());
+    }));
+    // 9.1.5
+    obj = obj.setInternal("[[GetOwnProperty]]", Sets.from1(function (O, args, store, lkont, kont)
+    {
+      const [P] = args;
+      return OrdinaryGetOwnProperty(O, P, store, lkont, kont, ArraySet.empty());
+    }));
+    // 9.1.7
+    obj = obj.setInternal("[[HasProperty]]", Sets.from1(function (O, args, store, lkont, kont)
+    {
+      const [P] = args;
+      return OrdinaryHasProperty(O, P, store, lkont, kont, ArraySet.empty());
+    }));
+    // TODO: more step 3
+    // step 4
     obj = obj.setInternal("[[Prototype]]", proto);
-    //obj.Extensible = L_TRUE;
+    obj = obj.setInternal("[[Extensible]]", L_TRUE);
     return obj;
   }
   
@@ -1006,10 +1207,19 @@ function jsCesk(cc)
   function registerPrimitiveFunction(object, objectAddress, propertyName, applyFunction, applyConstructor)
   {
     var primFunObject = createPrimitive(applyFunction, applyConstructor);
-    var primFunObjectAddress = allocNative(); 
+    var primFunObjectAddress = allocNative();
     store0 = storeAlloc(store0, primFunObjectAddress, primFunObject);
     return registerProperty(object, propertyName, l.abstRef(primFunObjectAddress));
   }
+  
+  // function registerInternalMethod(name, applyFunction)
+  // {
+  //   var primFunObject = createPrimitive(applyFunction);
+  //   var primFunObjectAddress = allocNative();
+  //   globalEnv = globalEnv.add(name, primFunObjectAddress);
+  //   store0 = storeAlloc(store0, primFunObjectAddress, primFunObject);
+  //   //return l.abstRef(primFunObjectAddress));
+  // }
   
   function registerProperty(object, propertyName, value)
   {
@@ -1030,8 +1240,30 @@ function jsCesk(cc)
   
   // create global object and initial store
   var store0 = Store.empty();
+  var globalEnv = Benv.empty();
+  
+  
+  // registerInternalMethod("Object.[[GetPrototypeOf]]", objectGetPrototypeOf);
+  // function objectGetPrototypeOf(application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
+  // {
+  //   return OrdinaryGetPrototypeOf(l.abst1(thisa), store, lkont, kont);
+  // }
+  //
+  // registerInternalMethod("Object.[[GetOwnProperty]]", objectGetOwnProperty);
+  // function objectGetOwnProperty(application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
+  // {
+  //   const [O, P] = operandValues;
+  //   return OrdinaryGetOwnProperty(O, P, store, lkont, kont);
+  // }
+  //
+  // registerInternalMethod("Object.[[HasProperty]]", objectHasProperty);
+  // function objectHasProperty(application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
+  // {
+  //   const [O, P] = operandValues;
+  //   return OrdinaryHasProperty(O, P, store, lkont, kont);
+  // }
+  
   var global = ObjectCreate(objectProtoRef);
-  var globalEnv = Benv.empty(ArraySet.empty());
 
 // BEGIN GLOBAL
   // ECMA 15.1.1 value properties of the global object (no "null", ...)
@@ -1045,6 +1277,7 @@ function jsCesk(cc)
   global = registerPrimitiveFunction(global, globala, "print", _print);
   // end specific interpreter functions
   
+  
   // BEGIN OBJECT
   var objectP = ObjectCreate(L_NULL);
 //  objectP.toString = function () { return "~Object.prototype"; }; // debug
@@ -1056,7 +1289,7 @@ function jsCesk(cc)
   global = global.add(l.abst1("Object"), new Property(l.abstRef(objecta), BOT, BOT, BOT, BOT, BOT));
   
   object = registerPrimitiveFunction(object, objecta, "create", objectCreate);
-  object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
+  //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
   //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
   store0 = storeAlloc(store0, objecta, object);
   
@@ -1087,44 +1320,25 @@ function jsCesk(cc)
     return [{state:new KontState(objRef, store, lkont, kont), effects:effects}];
   }
   
-  function objectGetPrototypeOf(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    if (operandValues.length !== 1)
-    {
-      return [];
-    }
-    // var objectAddresses = operandValues[0].addresses();
-    // var result = BOT;
-    // objectAddresses.forEach(
-    //     function (objectAddress)
-    //     {
-    //       var obj = storeLookup(store, objectAddress);
-    //       result = result.join(obj.Prototype);
-    //     });
-    const [O] = operandValues;
-    const result = lookupInternal(O, "[[Prototype]]", store);
-    return [{state:new KontState(result, store, lkont, kont), effects:effects}];
-  }
-  
-  // 19.1.2.4
-  function objectDefineProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    const [O, P, Attributes] = operandValues;
-    // const result = [];
-    // if (O.isNonRef())
-    // {
-    //   return [{state:new ThrowState(), effects:effects}];
-    // }
-    // var objectAddresses = operandValues[0].addresses();
-    // var result = BOT;
-    // objectAddresses.forEach(
-    //     function (objectAddress)
-    //     {
-    //       var obj = storeLookup(store, objectAddress);
-    //       result = result.join(obj.Prototype);
-    //     });
-    // return [{state:new KontState(result, store, lkont, kont), effects:effects}];
-  }
+  // // 19.1.2.4
+  // function objectDefineProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
+  // {
+  //   const [O, P, Attributes] = operandValues;
+  //   // const result = [];
+  //   // if (O.isNonRef())
+  //   // {
+  //   //   return [{state:new ThrowState(), effects:effects}];
+  //   // }
+  //   // var objectAddresses = operandValues[0].addresses();
+  //   // var result = BOT;
+  //   // objectAddresses.forEach(
+  //   //     function (objectAddress)
+  //   //     {
+  //   //       var obj = storeLookup(store, objectAddress);
+  //   //       result = result.join(obj.Prototype);
+  //   //     });
+  //   // return [{state:new KontState(result, store, lkont, kont), effects:effects}];
+  // }
   
   function objectHasOwnProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
   {
@@ -1302,20 +1516,19 @@ function jsCesk(cc)
       return result;      
     }
   
-  function createContext(application, callable, operandValues, thisa, store, stackAs, previousStack)
+  function createContext(application, thisa, userContext, stackAs, previousStack)
   {
-    var ctx0 = new Context(application, callable, operandValues, thisa, store, stackAs);
+    var ctx0 = new JipdaContext(application, thisa, userContext,stackAs);
     var ctx = ctx0.intern();
     if (ctx === ctx0)
     {
       ctx._stacks = new Set();
-      if (previousStack) // TODO no underlying stacks should signal root context, iso ctx.ex === null
+      if (previousStack)
       {
         ctx._stacks.add(previousStack);
       }
-      // sstorei++; don't increase age for fresh stack: no need to revisit states
     }
-    else if (previousStack) // TODO no underlying stacks should signal root context, iso ctx.ex === null
+    else if (previousStack)
     {
       if (ctx._stacks.has(previousStack))
       {
@@ -1382,23 +1595,26 @@ function jsCesk(cc)
   
 
   ObjClosureCall.prototype.applyFunction =
-    function (application, operandValues, thisa, benv, store, lkont, kont, effects)
-    {    
-    var stackAs = stackAddresses(lkont, kont);
-    var previousStack = Stackget(Stack(lkont, kont));
-    var ctx = createContext(application, this, operandValues, thisa, store, stackAs, previousStack);
-    return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects)
+    function (application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
+    {
+      const userContext = kalloc(this, operandValues, store);
+      var previousStack = Stackget(Stack(lkont, kont));
+      var stackAs = stackAddresses(lkont, kont).join(this.addresses());
+      var ctx = createContext(application, thisa, userContext, stackAs, previousStack);
+      return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects)
   }
   
   ObjClosureCall.prototype.applyConstructor =
-    function (application, operandValues, protoRef, benv, store, lkont, kont, effects)
+    function (application, operandValues, protoRef, TODO_REMOVE, store, lkont, kont, effects)
     {    
-      var stackAs = stackAddresses(lkont, kont);
       var previousStack = Stackget(Stack(lkont, kont));
       var funNode = this.node;
-      var thisa = a.constructor(funNode, application);
       // call store should not contain freshly allocated `this`
-      var ctx = createContext(application, this, operandValues, thisa, store, stackAs, previousStack);
+      const userContext = kalloc(this, operandValues, store);
+      var thisa = a.constructor(funNode, application);
+      //print("allocated for this", thisa);
+      var stackAs = stackAddresses(lkont, kont).join(this.addresses());
+      var ctx = createContext(application, thisa, userContext, stackAs, previousStack);
       var obj = ObjectCreate(protoRef);
       store = store.allocAval(thisa, obj);
       return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects);
@@ -1475,15 +1691,6 @@ function jsCesk(cc)
         statesReg[5] = stateReg;
       }
     }
-    else if (s instanceof ResultState)
-    {
-      stateReg = statesReg[6];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[6] = stateReg;
-      }
-    }
     for (let i = 0; i < stateReg.length; i++)
     {
       if (stateReg[i].equals(s))
@@ -1545,7 +1752,8 @@ function jsCesk(cc)
       var store;
       if (gcFlag)
       {
-        store = Agc.collect(this.store, this.addresses());
+        const as = this.addresses();
+        store = Agc.collect(this.store, as);
       }
       else
       {
@@ -1567,6 +1775,7 @@ function jsCesk(cc)
   
   function KontState(value, store, lkont, kont)
   {
+    assertDefinedNotNull(value);
     this.value = value;
     this.store = store;
     this.lkont = lkont;
@@ -1623,12 +1832,12 @@ function jsCesk(cc)
       
       if (lkont.length === 0) 
       {
-        if (kont.ex === null)
+        if (kont._stacks.size === 0)
         {
           return [];
         }
                 
-        if (Ast.isNewExpression(kont.ex))
+        if (kont.ex && Ast.isNewExpression(kont.ex))
         {
           value = l.abstRef(kont.thisa);
         }
@@ -1701,7 +1910,7 @@ function jsCesk(cc)
     function ()
     {
       var kont = this.kont;
-      if (kont.ex === null)
+      if (kont._stacks.size === 0)
       {
         throw new Error("return outside function");
       }
@@ -1712,7 +1921,7 @@ function jsCesk(cc)
         return [];
       }      
 
-      if (Ast.isNewExpression(kont.ex))
+      if (kont.ex && Ast.isNewExpression(kont.ex))
       {
         var returnValue = BOT;
         if (value.isRef())
@@ -1726,7 +1935,6 @@ function jsCesk(cc)
         value = returnValue;
       }
 
-      var lkont = this.lkont;
       var store = this.store;
 
       var result = [];
@@ -1837,7 +2045,7 @@ function jsCesk(cc)
           continue todo;
         }
       }
-      if (kont.ex === null || G.contains(kont))
+      if (kont._stacks.size === 0 || G.contains(kont))
       {
         // TODO  if kont === EMPTY_KONT then unhandled exception
         continue;
@@ -1931,61 +2139,6 @@ function jsCesk(cc)
       return stackAddresses(lkont, kont);
     }
   
-  function ResultState(value, store, lkont, kont)
-  {
-    this.value = value;
-    this.store = store;
-    this.lkont = lkont;
-    this.kont = kont;
-    this._successors = null;
-    this._sstorei = -1;
-    this._id = -1;
-  }
-  ResultState.prototype.equals =
-    function (x)
-    {
-      return (x instanceof ResultState)
-        && (this.value === x.value || this.value.equals(x.value)) 
-        && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont)
-        && (this.store === x.store || this.store.equals(x.store))
-    }
-  ResultState.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.value.hashCode();
-      result = prime * result + this.lkont.hashCode();
-      result = prime * result + this.kont.hashCode();
-      return result;
-    }
-  ResultState.prototype.toString =
-    function ()
-    {
-      return "#result";
-    }
-  ResultState.prototype.nice =
-    function ()
-    {
-      return "#result";
-    }
-  ResultState.prototype.next =
-    function ()
-    {
-      return [];
-    }
-  ResultState.prototype.gc =
-    function ()
-    {
-      return this;
-    } 
-  ResultState.prototype.addresses =
-    function ()
-    {
-      return stackAddresses([], kont).join(this.value.addresses());
-    }
-  
   function ErrorState(node, msg, kont)
   {
     this.node = node;
@@ -2036,34 +2189,34 @@ function jsCesk(cc)
       return EMPTY_ADDRESS_SET;
     }
   
-  function HaltKont()
-  {
-  }
-  HaltKont.prototype.toString =
-    function ()
-    {
-      return "halt";
-    }
-  HaltKont.prototype.apply =
-    function (value, store, lkont, kont)
-    {
-      return [{state:new ResultState(value, store, lkont, kont)}];
-    }
-  HaltKont.prototype.hashCode =
-    function ()
-    {
-      return 0;
-    }
-  HaltKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof HaltKont;
-    }
-  HaltKont.prototype.addresses =
-    function ()
-    {
-      return EMPTY_ADDRESS_SET;
-    }    
+  // function HaltKont()
+  // {
+  // }
+  // HaltKont.prototype.toString =
+  //   function ()
+  //   {
+  //     return "halt";
+  //   }
+  // HaltKont.prototype.apply =
+  //   function (value, store, lkont, kont)
+  //   {
+  //     return [{state:new ResultState(value, store, lkont, kont)}];
+  //   }
+  // HaltKont.prototype.hashCode =
+  //   function ()
+  //   {
+  //     return 0;
+  //   }
+  // HaltKont.prototype.equals =
+  //   function (x)
+  //   {
+  //     return x instanceof HaltKont;
+  //   }
+  // HaltKont.prototype.addresses =
+  //   function ()
+  //   {
+  //     return EMPTY_ADDRESS_SET;
+  //   }
   
   function VariableDeclarationKont(node, i, benv)
   {
@@ -2656,7 +2809,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
         {
           return applyCons(node, operatorValue, [], benv, store, lkont, kont, []);
         }
-        return applyProc(node, operatorValue, [], globala, benv, store, lkont, kont, []);
+        return applyProc(node, operatorValue, [], globala, null, store, lkont, kont, []);
       }
       var frame = new OperandsKont(node, 1, benv, operatorValue, [], globala);
       return [{state:new EvalState(operands[0], benv, store, [frame].concat(lkont), kont)}];
@@ -2664,6 +2817,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
   
   function OperandsKont(node, i, benv, operatorValue, operandValues, thisa)
   {
+    assertDefinedNotNull(operatorValue);
     this.node = node;
     this.i = i;
     this.benv = benv;
@@ -2708,7 +2862,9 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
   OperandsKont.prototype.addresses =
     function ()
     {
-      var addresses = this.operatorValue.addresses().add(this.thisa).join(this.benv.addresses());
+      const operatorAs = this.operatorValue.addresses();
+      const benvAs = this.benv.addresses();
+      var addresses = operatorAs.add(this.thisa).join(benvAs);
       this.operandValues.forEach(function (value) {addresses = addresses.join(value.addresses())});
       return addresses;
     }
@@ -2729,7 +2885,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
         {
           return applyCons(node, operatorValue, operandValues.addLast(operandValue), benv, store, lkont, kont, []);
         }
-        return applyProc(node, operatorValue, operandValues.addLast(operandValue), thisa, benv, store, lkont, kont, []);
+        return applyProc(node, operatorValue, operandValues.addLast(operandValue), thisa, null, store, lkont, kont, []);
       }
       var frame = new OperandsKont(node, i + 1, benv, operatorValue, operandValues.addLast(operandValue), thisa);
       return [{state:new EvalState(operands[i], benv, store, [frame].concat(lkont), kont)}];
@@ -3490,9 +3646,8 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       var node = this.node;
       var benv = this.benv;
       var property = node.property;
-      var objectRefStore = ToObject(node, objectValue, store);
-      var objectRef = objectRefStore[0];
-      store = objectRefStore[1];
+      let objectRef;
+      ({value:objectRef, store} = ToObject(objectValue, store, lkont, kont, benv.addresses()));
       if (node.computed)
       {
         var frame = new MemberPropertyKont(node, benv, objectRef);
@@ -3558,49 +3713,6 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       return [{state:new KontState(value, store, lkont, kont), effects:effects}];
     }
   
-  function ToObject(node, value, store)
-  {
-    
-    if (value === BOT)
-    {
-
-      if (lenient)
-      {
-        var obj = ObjectCreate(objectProtoRef);
-        var objectAddress = a.object(node);
-        store = storeAlloc(store, objectAddress, obj);
-//      effects.push(allocObjectEffect(objectAddress));
-        var objectRef = l.abstRef(objectAddress);
-
-        return [objectRef, store];
-      }
-
-      return [value, store];
-    }
-    
-    // fast path
-//    if (!value.isNonRef) {print(value, Object.keys(value))}
-    if (!value.isNonRef())
-    {
-      return [value, store];
-    }
-    // end fast path
-    
-    var objectRef = BOT;
-    if (value.isRef())
-    {
-      objectRef = objectRef.join(value.projectObject());
-    }
-    var stringProj = value.projectString();
-    if (stringProj !== BOT)
-    {
-      var stringObject = StringCreate(stringProj);
-      var addr = a.string(node);
-      store = storeAlloc(store, addr, stringObject);
-      objectRef = objectRef.join(l.abstRef(addr));
-    }
-    return [objectRef, store];
-  }
   
   function CallMemberKont(node, benv)
   {
@@ -3644,21 +3756,19 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     {
       var node = this.node;
       var benv = this.benv;
-      
       var property = node.callee.property;
       if (node.computed)
       {
         throw new Error("TODO");
       }
       var nameValue = l.abst1(property.name);
-      var objectRefStore = ToObject(node.callee, objectValue, store);
-      var objectRef = objectRefStore[0];
-      store = objectRefStore[1];
+      var objectRef;
+      ({value:objectRef, store} = ToObject(objectValue, store, lkont, kont, benv.addresses()));
       var thisAddresses = objectRef.addresses();
       var operands = node.arguments;
       return invoke(node, thisAddresses, nameValue, operands, benv, store, lkont, kont);
     }
-  
+    
   function invoke(application, thisAddresses, nameValue, operands, benv, store, lkont, kont)
   {
     return thisAddresses.flatMap(
@@ -3672,7 +3782,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
             {
               return applyCons(application, operatorValue, [], benv, store, lkont, kont, effects);
             }
-            return applyProc(application, operatorValue, [], thisa, benv, store, lkont, kont, effects);
+            return applyProc(application, operatorValue, [], thisa, null, store, lkont, kont, effects);
           }
           var frame = new OperandsKont(application, 1, benv, operatorValue, [], thisa);
           return [{state:new EvalState(operands[0], benv, store, [frame].concat(lkont), kont), effects:effects}];
@@ -4037,30 +4147,51 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     }
     return result;
   }
-
-function lookupInternal(O, name, store)
+  
+  function lookupInternal(O, name, store)
+  {
+    assertDefinedNotNull(store);
+    let result = BOT;
+    const as = O.addresses().values();
+    while (as.length > 0)
+    {
+      const a = as.pop();
+      const obj = storeLookup(store, a);
+      const value = obj.lookupInternal(name);
+      result = result.join(value);
+    }
+    return result;
+  }
+  
+  function callInternal(O, name, args, store, lkont, kont)
+  {
+    assertDefinedNotNull(store);
+    let result = BOT;
+    const as = O.addresses().values();
+    let resultValue = BOT;
+    while (as.length > 0)
+    {
+      const a = as.pop();
+      const obj = storeLookup(store, a);
+      const fs = obj.lookupInternal(name);
+      for (const f of fs)
+      {
+        let value;
+        ({value, store} = f(O, args, store, lkont, kont));
+        resultValue = resultValue.join(value);
+      }
+    }
+    return {value:resultValue, store:store};
+  }
+  
+  function assignInternal(O, name, value, store)
 {
-  assertDefinedNotNull(store);
-  let result = BOT;
   const as = O.addresses().values();
   while (as.length > 0)
   {
     const a = as.pop();
     const obj = storeLookup(store, a);
-    const value = obj.lookupInternal(name);
-    result = result.join(value);
-  }
-  return result;
-}
-
-function assignInternal(O, name, value, store)
-{
-  const as = O.addresses();
-  while (as.length > 0)
-  {
-    const a = as.pop();
-    const obj = storeLookup(store, a);
-    obj.internals.set(name, value);
+    obj = obj.setInternal(name, value);
     store = storeUpdate(store, a, obj);
   }
   return store;
@@ -4378,15 +4509,15 @@ function doScopeSet(nameNode, value, benv, store, effects)
     return operatorAs.flatMap(
       function (operatora)
       {
-        var benv = storeLookup(store, operatora);
-        const Call = benv.lookupInternal("[[Call]]");
-        if (!Call.values) {print(Call, benv.nice());}
+        var operatorObj = storeLookup(store, operatora);
+        const Call = operatorObj.lookupInternal("[[Call]]");
+        if (!Call.values) {print(Call, operatorObj.nice());}
         var callables = Call.values();
         return callables.flatMap(
           function (callable)
           {
             //if (!callable.applyFunction) {print(application, callable, Object.keys(callable))};
-            return callable.applyFunction(application, operandValues, thisa, benv, store, lkont, kont, effects.slice(0));
+            return callable.applyFunction(application, operandValues, thisa, operatorObj, store, lkont, kont, effects.slice(0));
           })
       })
   }
@@ -4526,6 +4657,7 @@ function doScopeSet(nameNode, value, benv, store, effects)
   function evalNode(node, benv, store, lkont, kont, effects)
   {
     assert(Array.isArray(effects));
+    //print(node.toString());
     return evalNonAtomic(node, benv, store, lkont, kont, effects);
   }
   
@@ -4611,10 +4743,9 @@ function doScopeSet(nameNode, value, benv, store, effects)
     function (node, override)
     {
       override = override || {};
-      var haltFrame = new HaltKont([globala]);
-      var globalEnv = Benv.empty();
-      var globalContext = createContext(null, node, [], globala, store0, EMPTY_ADDRESS_SET, null);
-      return new EvalState(node, override.benv || globalEnv, override.store || store0, [haltFrame], globalContext);
+      //var haltFrame = new HaltKont([globala]);
+      var globalContext = createContext(null, globala, "globalctx", ArraySet.from1(globala), null);
+      return new EvalState(node, override.benv || globalEnv, override.store || store0, [], globalContext);
     }
   
   module.explore =
@@ -4627,11 +4758,11 @@ function doScopeSet(nameNode, value, benv, store, effects)
       var todo = [initial];
       while (todo.length > 0)
       {
-        // if (states.length > 500)
-        // {
-        //   print("STATE SIZE LIMIT", states.length);
-        //   break;
-        // }
+        if (states.length > 50000)
+        {
+          print("STATE SIZE LIMIT", states.length);
+          break;
+        }
         var s = todo.pop();
         if (s._sstorei === sstorei)
         {
@@ -4806,18 +4937,13 @@ function doScopeSet(nameNode, value, benv, store, effects)
     registerProperty,
     allocNative, storeAlloc, storeLookup, storeUpdate, doProtoLookup, doProtoSet,
     readObjectEffect, writeObjectEffect, Property,
-    hasInternal, lookupInternal, assignInternal
+    hasInternal, lookupInternal, assignInternal, callInternal
   };
   initializers.forEach(function (initializer) {store0 = initializer.run(initializerInterface, store0, intrinsics)});
   
   return module;
 }
 
-
-function isResultState(state)
-{
-  return state.value && state.lkont.length === 0 && state.kont.ex === null; 
-}
 
 function retrieveEndStates(initial) // not used for the moment
 {
@@ -4851,9 +4977,9 @@ function computeResultValue(endStates)
   endStates.forEach(
     function (s)
     {
-      if (isResultState(s))
+      if (s.value && s.lkont.length === 0 && s.kont._stacks.size === 0)
       {
-        result = result.join(s.value)
+        result = result.join(s.value);
       }
       else if (s.constructor.name  === "ThrowState") // TODO coupling to impl
       {

@@ -221,7 +221,7 @@ Store.prototype.lookupAval =
     {
       return value.aval;
     }
-    throw new Error("Store.lookupAval: no abstract value for address " + address + "\n" + this.nice());
+    throw new Error("address not found:" + address);
   };
   
 Store.prototype.allocAval =

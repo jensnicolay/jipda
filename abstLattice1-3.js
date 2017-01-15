@@ -246,6 +246,12 @@ Some.prototype.parseInt =
       return new Some(parseInt(this.prim, 0));
     }
 
+Some.prototype.conc1 =
+    function ()
+    {
+      return this.prim;
+    }
+
 function JipdaValue(type, as)
 {
   this.type = type;
@@ -453,6 +459,28 @@ JipdaValue.prototype.projectBoolean =
     function ()
     {
       var type = this.type & JipdaValue.BOOL;
+      if (type)
+      {
+        return new JipdaValue(type, JipdaValue.EMPTY_SET);
+      }
+      return BOT;
+    }
+
+JipdaValue.prototype.projectUndefined =
+    function ()
+    {
+      var type = this.type & JipdaValue.UND;
+      if (type)
+      {
+        return new JipdaValue(type, JipdaValue.EMPTY_SET);
+      }
+      return BOT;
+    }
+
+JipdaValue.prototype.projectNull =
+    function ()
+    {
+      var type = this.type & JipdaValue.NULL;
       if (type)
       {
         return new JipdaValue(type, JipdaValue.EMPTY_SET);

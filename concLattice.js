@@ -188,6 +188,7 @@ ConcValue.prototype.hasSameStringValue =
 
 function ConcAddr(addr)
 {
+  assertDefinedNotNull(addr);
   this.addr = addr;
 }
 
