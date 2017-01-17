@@ -490,13 +490,11 @@ function jsCesk(cc)
     return new Effect(Effect.Operations.WRITE, a, vr);
   }
   
-  const initialMeta = {};
-  
-  function getMeta(name)
-  {
-    const global = storeLookup(store, globala);
-    const metaOperator = global.lookupInternal(name);
-  }
+  // function getMeta(name)
+  // {
+  //   const global = storeLookup(store, globala);
+  //   const metaOperator = global.lookupInternal(name);
+  // }
   
   let kcount = 0;
   
@@ -506,7 +504,7 @@ function jsCesk(cc)
     const metaOperator = global.lookupInternal(name);
     if (!metaOperator)
     {
-      return undefined;
+      throw new Error("meta operator not found: " + name);
     }
     //console.debug("invokeMeta", name);
     const kont2 = createContext(null, globala, name+kcount++/*userCtx*/, stackAddresses(lkont, kont).join(as), null);
@@ -727,54 +725,14 @@ function jsCesk(cc)
   // 7.1.13
   function ToObject(argument, benv, store, lkont, kont)
   {
-    const result = invokeMeta("ToObject", [argument], store, lkont, kont, benv.addresses());
-    if (result)
+    if (!argument.isNonRef())
     {
-      return result
+      return {value:argument, store};
     }
-    return {value:argument, store};
+    
+    const result = invokeMeta("ToObject", [argument], store, lkont, kont, benv.addresses());
+    return result;
   }
-//     if (value === BOT)
-//     {
-//
-//       if (lenient)
-//       {
-//         var obj = ObjectCreate(objectProtoRef);
-//         var objectAddress = a.object(node);
-//         store = storeAlloc(store, objectAddress, obj);
-// //      effects.push(allocObjectEffect(objectAddress));
-//         var objectRef = l.abstRef(objectAddress);
-//
-//         return [objectRef, store];
-//       }
-//
-//       return [value, store];
-//     }
-//     // fast path
-// //    if (!value.isNonRef) {print(value, Object.keys(value))}
-//     if (!value.isNonRef())
-//     {
-//       return [value, store];
-//     }
-//     // end fast path
-//
-//     var objectRef = BOT;
-//     if (value.isRef())
-//     {
-//       objectRef = objectRef.join(value.projectObject());
-//     }
-//     var stringProj = value.projectString();
-//     if (stringProj !== BOT)
-//     {
-//       var stringObject = StringCreate(stringProj);
-//       var addr = a.string(node);
-//       store = storeAlloc(store, addr, stringObject);
-//       objectRef = objectRef.join(l.abstRef(addr));
-//     }
-//     return [objectRef, store];
-//  }
-      
-      
       
   // 7.2.3
 //  function IsCallable(argument)
@@ -5019,7 +4977,7 @@ function doScopeSet(nameNode, value, benv, store, effects)
       var todo = [initial];
       while (todo.length > 0)
       {
-        if (states.length > 2000)
+        if (states.length > 20000)
         {
           print("STATE SIZE LIMIT", states.length);
           break;

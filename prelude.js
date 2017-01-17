@@ -1,3 +1,5 @@
+
+
 (function (global)
 {
   function assert(c)
@@ -491,22 +493,6 @@
   }
   
   // 9.1.8.1
-  $BASE$.addMeta("OrdinaryHasProperty", OrdinaryHasProperty);
-  function OrdinaryHasProperty(O, P)
-  {
-    assert(IsPropertyKey(P));
-    var hasOwn = ($BASE$.lookupInternal(O, "[[GetOwnProperty]]"))(P);
-    if (hasOwn !== undefined)
-    {
-      return true;
-    }
-    var parent = ($BASE$.lookupInternal(O, "[[GetPrototypeOf]]"))(P);
-    if (parent !== null)
-    {
-      return ($BASE$.lookupInternal(parent, "[[HasProperty]]"))(P);
-    }
-    return false;
-  }
   
   // 12.10.4
   $BASE$.addMeta("InstanceofOperator", InstanceofOperator);
