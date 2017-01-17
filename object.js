@@ -145,15 +145,11 @@ Obj.prototype.equals =
       return false;
     }
     return this.frame.equals(x.frame)
-        && Maps.subsumes(this.internals, x.internals, function (x,y) {
+        && Maps.equals(this.internals, x.internals, function (x,y) {
           
-          if (!x.subsumes) {print(x)};
-          
-          return x.subsumes(y)
+          return x === y || x.equals(y)
         
-        
-        }, BOT)
-        && Maps.subsumes(x.internals, this.internals, function (x,y) {return x.subsumes(y)}, BOT)
+        });
   }
 
 Obj.prototype.hashCode =

@@ -464,6 +464,31 @@ Maps.subsumes =
       }
       return true;
     }
+Maps.equals =
+    function (x, y, equals)
+    {
+      if (x === y)
+      {
+        return true;
+      }
+      if (x.size !== y.size)
+      {
+        return false;
+      }
+      for (const [key, xvalue] of x)
+      {
+        if (!y.has(key))
+        {
+          return false;
+        }
+        const yvalue = y.get(key);
+        if (!equals(xvalue,yvalue))
+        {
+          return false;
+        }
+      }
+      return true;
+    }
 
 
 const MutableSets = {};
