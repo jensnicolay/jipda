@@ -4,6 +4,7 @@ const aacKalloc =
       
       function Context(callable, operandValues, store)
       {
+        assertDefinedNotNull(callable);
         this.callable = callable;
         this.operandValues = operandValues;
         this.store = store;

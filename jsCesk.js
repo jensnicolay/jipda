@@ -3,15 +3,6 @@
 var EMPTY_LKONT = [];
 var EMPTY_ADDRESS_SET = ArraySet.empty();
 
-
-const Semantics = {};
-
-Semantics.evalStep =
-    function (exp, env, store, lkont, kont, kstore, lattice, alloc, kalloc)
-    {
-      
-    }
-    
 function SourceCodeInitializer(src)
 {
   this.src = src;
@@ -34,6 +25,22 @@ SourceCodeInitializer.prototype.run =
       //
       return machine.preludeExplore(Ast.createAst(this.src), store);
     }
+    
+// const rjsHelpers = (function () {
+//
+//   function ToObject(argument, benv, store, lkont, kont)
+//   {
+//     return {value:argument, store};
+//   }
+//
+//   return {ToObject};
+// })();
+
+// function jsCesk2(cc)
+// {
+//   const rjsCesk = jsCesk({a:cc.a, kalloc:cc.kalloc, l:cc.l, gcFlag:cc.gcFlag, errors:cc.errors,
+//   initializers:[])
+// }
 
 function jsCesk(cc)
 {
@@ -61,6 +68,8 @@ function jsCesk(cc)
   const lenient = cc.lenient === undefined ? false : cc.lenient;
   
   const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
+  
+  //const helpers = cc.helpers;
   
   assert(a);
   assert(l);
@@ -306,6 +315,7 @@ function jsCesk(cc)
   intrinsics.add("%ObjectPrototype%", objectProtoRef);
   const functionPa = allocNative();
   const functionProtoRef = l.abstRef(functionPa);
+  intrinsics.add("%FunctionPrototype%", functionProtoRef);
   
   var sstorei = 0;
   
@@ -492,19 +502,14 @@ function jsCesk(cc)
   
   function invokeMeta(name, operands, store, lkont, kont, as)
   {
-    //console.debug("invokeMeta", name);
-    const kont2 = createContext(null/*application*/, globala, name+kcount++/*userCtx*/, stackAddresses(lkont, kont).join(as), null);
     const global = storeLookup(store, globala);
     const metaOperator = global.lookupInternal(name);
     if (!metaOperator)
     {
-      const metaOperator2 = initialMeta[name];
-      if (!metaOperator2)
-      {
-        throw new Error("no such meta operator: " + name);
-      }
-      return runMeta(metaOperator2.apply(null, operands.concat([store, kont2])));
+      return undefined;
     }
+    //console.debug("invokeMeta", name);
+    const kont2 = createContext(null, globala, name+kcount++/*userCtx*/, stackAddresses(lkont, kont).join(as), null);
     const result = runMeta(applyProc(null, metaOperator, operands, globala, null, store, [], kont2, []));
     return result;
   
@@ -720,16 +725,15 @@ function jsCesk(cc)
   }
   
   // 7.1.13
-  function ToObject(argument, store, lkont, kont, as)
+  function ToObject(argument, benv, store, lkont, kont)
   {
-    const result = invokeMeta("ToObject", [argument], store, lkont, kont, as);
-    return result;
+    const result = invokeMeta("ToObject", [argument], store, lkont, kont, benv.addresses());
+    if (result)
+    {
+      return result
+    }
+    return {value:argument, store};
   }
-  initialMeta.ToObject =
-      function (argument, store, kont)
-      {
-        return [{state:new KontState(argument, store, [], kont), effects:[]}];
-      }
 //     if (value === BOT)
 //     {
 //
@@ -746,7 +750,6 @@ function jsCesk(cc)
 //
 //       return [value, store];
 //     }
-//
 //     // fast path
 // //    if (!value.isNonRef) {print(value, Object.keys(value))}
 //     if (!value.isNonRef())
@@ -774,223 +777,19 @@ function jsCesk(cc)
       
       
   // 7.2.3
-  function IsCallable(argument)
-  {
-    let result = BOOLEAN;
-    if (argument.isNonRef())
-    {
-      result = result.joinFalse();
-    }
-    if (argument.isRef())
-    {
-      const addresses = argument.addresses();
-      addresses.forEach(
-          function (address)
-          {
-            const obj = storeLookup(store0, address);
-            if (obj.lookupInternal("[[Call]]") !== undefined)
-            {
-              result = result.joinTrue();
-            }
-            else
-            {
-              result = result.joinFalse();
-            }
-          });
-    }
-    return result;
-  }
+//  function IsCallable(argument)
   
   // 7.2.7
-  function IsPropertyKey(argument)
-  {
-    return (argument.projectString() !== BOT) ? TRUE : FALSE; //TODO || argument.projectSymbol() !== BOT);
-  }
+//  function IsPropertyKey(argument)
   
   // 7.2.9
-  function SameValue(x, y)
-  {
-    let result = BOOLEAN;
-    const typex = Type(x);
-    const typey = Type(y);
-    const dt = (typex.eq(typey)).not();
-    if (dt.isTrue())
-    {
-      result = result.joinFalse();
-    }
-    if (dt.isFalse())
-    {
-      if (x.subsumes(L_NAN))
-      {
-        if (y.subsumes(L_NAN))
-        {
-          result = result.joinTrue();
-        }
-        else
-        {
-          result = result.joinFalse();
-        }
-      }
-      else if (y.subsumes(L_NAN))
-      {
-        result = result.joinFalse();
-      }
-      
-      if (x.subsumes(L_0))
-      {
-        if (y.subsumes(L_MIN0))
-        {
-          result = result.joinFalse();
-        }
-      }
-      if (x.subsumes(L_MIN0))
-      {
-        if (y.subsumes(L_0))
-        {
-          result = result.joinFalse();
-        }
-      }
-      
-      if (typex.subsumesValue(Types.Number))
-      {
-        const snv = x.hasSameNumberValue(y);
-        if (snv.isTrue())
-        {
-          result = result.joinTrue();
-        }
-        if (snv.isFalse())
-        {
-          result = result.joinFalse();
-        }
-      }
-      
-      const pnnx = projectNonNumber(x);
-      if (pnnx !== BOT)
-      {
-        const svnn = SameValueNonNumber(x, y);
-        result = result.joinBoolean(svnn);
-      }
-    }
-    return result;
-  }
+//  function SameValue(x, y)
   
   // 7.2.11
-  function SameValueNonNumber(x, y)
-  {
-    // TODO step 1 assert?
-    // TODO step 2 assert?
-    let result = BOOLEAN;
-    if (x.subsumes(L_UNDEFINED))
-    {
-      if (y.subsumes(L_UNDEFINED))
-      {
-        result = result.joinTrue();
-      }
-      else
-      {
-        result = result.joinFalse();
-      }
-    }
-    else if (y.subsumes(L_UNDEFINED))
-    {
-      result = result.joinFalse();
-    }
-    if (x.subsumes(L_NULL))
-    {
-      if (y.subsumes(L_NULL))
-      {
-        result = result.joinTrue();
-      }
-      else
-      {
-        result = result.joinFalse();
-      }
-    }
-    else if (y.subsumes(L_NULL))
-    {
-      result = result.joinFalse();
-    }
-  
-    if (x.projectString() !== BOT)
-    {
-      const ss = x.hasSameStringValue(y);
-      if (ss.isTrue())
-      {
-        result = result.joinTrue();
-      }
-      if (ss.isFalse())
-      {
-        result = result.joinFalse();
-      }
-    }
-  
-    if (x.subsumes(L_TRUE))
-    {
-      if (y.subsumes(L_TRUE))
-      {
-        result = result.joinTrue();
-      }
-      else
-      {
-        result = result.joinFalse();
-      }
-    }
-    else if (y.subsumes(L_TRUE))
-    {
-      result = result.joinFalse();
-    }
-  
-    if (x.subsumes(L_FALSE))
-    {
-      if (y.subsumes(L_FALSE))
-      {
-        result = result.joinTrue();
-      }
-      else
-      {
-        result = result.joinFalse();
-      }
-    }
-    else if (y.subsumes(L_FALSE))
-    {
-      result = result.joinFalse();
-    }
-    
-    // TODO symbols
-    const refx = x.projectObject();
-    if (refx !== BOT)
-    {
-      const refy = y.projectObject();
-      if (refx.subsumes(refy))
-      {
-        if (refy.subsumes(refx))
-        {
-          result = result.joinTrue();
-        }
-        else
-        {
-          result = result.joinMaybe();
-        }
-      }
-      else if (refy.subsumes(refx))
-      {
-        result = result.joinMaybe();
-      }
-      else
-      {
-        result = result.joinFalse();
-      }
-    }
-    return result;
-  }
+//  function SameValueNonNumber(x, y)
   
   // 7.3.1
-  function Get(O, P)
-  {
-    assert(O.isRef());
-    assert(IsPropertyKey(P));
-    return doProtoLookup(P, O.addresses(), store0, []);
-  }
+//  function Get(O, P)
   
   function createEnvironment(parents)
   {
@@ -1010,57 +809,57 @@ function jsCesk(cc)
   // 7.3.19
   function OrdinaryHasInstance(C, O, store)
   {
-    let result = BOOLEAN;
-    const ic = IsCallable(C);
-    if (ic.isFalse())
-    {
-      result = result.joinFalse();
-    }
-    if (ic.isTrue())
-    {
-      //const hb = hasProtoLookup(l.abst1("[[BoundTargetFunction]]"), C.addresses(), store, []); // TODO
-      const to = O.isNonRef();
-      if (to)
-      {
-        result = result.joinFalse();
-      }
-      else
-      {
-        const P = Get(C, P_PROTOTYPE);
-        const tp = P.isNonRef();
-        if (tp)
-        {
-          throw new TypeError("TODO");
-        }
-        else
-        {
-          let loop = true;
-          while (loop)
-          {
-            loop = false;
-            O = OrdinaryGetPrototypeOf(O, store);
-            const isn = l.eqq(O, L_NULL);
-            if (isn.isTrue())
-            {
-              result = result.joinFalse();
-            }
-            if (isn.isFalse())
-            {
-              const sv = SameValue(P, O);
-              if (sv.isTrue())
-              {
-                result = result.joinTrue();
-              }
-              if (sv.isFalse())
-              {
-                loop = true;
-              }
-            }
-          }
-        }
-      }
-    }
-    return result;
+    // let result = BOOLEAN;
+    // const ic = IsCallable(C);
+    // if (ic.isFalse())
+    // {
+    //   result = result.joinFalse();
+    // }
+    // if (ic.isTrue())
+    // {
+    //   //const hb = hasProtoLookup(l.abst1("[[BoundTargetFunction]]"), C.addresses(), store, []); // TODO
+    //   const to = O.isNonRef();
+    //   if (to)
+    //   {
+    //     result = result.joinFalse();
+    //   }
+    //   else
+    //   {
+    //     const P = Get(C, P_PROTOTYPE);
+    //     const tp = P.isNonRef();
+    //     if (tp)
+    //     {
+    //       throw new TypeError("TODO");
+    //     }
+    //     else
+    //     {
+    //       let loop = true;
+    //       while (loop)
+    //       {
+    //         loop = false;
+    //         O = OrdinaryGetPrototypeOf(O, store);
+    //         const isn = l.eqq(O, L_NULL);
+    //         if (isn.isTrue())
+    //         {
+    //           result = result.joinFalse();
+    //         }
+    //         if (isn.isFalse())
+    //         {
+    //           const sv = SameValue(P, O);
+    //           if (sv.isTrue())
+    //           {
+    //             result = result.joinTrue();
+    //           }
+    //           if (sv.isFalse())
+    //           {
+    //             loop = true;
+    //           }
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
+    // return result;
   }
   
   // 9.1.1.1
@@ -1097,6 +896,14 @@ function jsCesk(cc)
     return invokeMeta("OrdinaryHasProperty", [O, P], store, lkont, kont, as);
   }
   
+  // 9.1.8.1
+  function OrdinaryGet(O, P, Receiver, store, lkont, kont, as)
+  {
+    //return invokeMeta("OrdinaryGet", [O, P, Receiver], store, lkont, kont, as);
+    const value = doProtoLookup(P, O.addresses(), store, []);
+    return {value, store};
+  }
+  
   // 9.1.12
   function ObjectCreate(proto, internalSlotsList)
   {
@@ -1125,6 +932,12 @@ function jsCesk(cc)
     {
       const [P] = args;
       return OrdinaryHasProperty(O, P, store, lkont, kont, ArraySet.empty());
+    }));
+    // 9.1.8
+    obj = obj.setInternal("[[Get]]", Sets.from1(function (O, args, store, lkont, kont)
+    {
+      const [P, Receiver] = args;
+      return OrdinaryGet(O, P, Receiver, store, lkont, kont, ArraySet.empty());
     }));
     // TODO: more step 3
     // step 4
@@ -1165,66 +978,35 @@ function jsCesk(cc)
     return obj;
   }
   
+  // 12.10.4
+  function InstanceofOperator(O, C, benv, store, lkont, kont)
+  {
+    const result = invokeMeta("InstanceofOperator", [O, C], store, lkont, kont, benv.addresses());
+    if (result)
+    {
+      return result
+    }
+    //return {value:argument, store};
+    throw new Error("no base implementation");
+  }
+  
   function createClosure(node, scope)
   {
-    var benv = Obj.createFunction(new ObjClosureCall(node, scope), functionProtoRef);
-    return benv;
+    var obj = createFunction(new ObjClosureCall(node, scope));
+    return obj;
   }
   
   function createPrimitive(applyFunction, applyConstructor)
   {
-    var benv = Obj.createFunction(new ObjPrimitiveCall(applyFunction, applyConstructor), functionProtoRef);
-    return benv;
+    var obj = createFunction(new ObjPrimitiveCall(applyFunction, applyConstructor));
+    return obj;
   }
   
-  // 12.10.4
-  function InstanceofOperator(O, C, store)
+  function createFunction(Call)
   {
-    if (C.isNonRef())
-    {
-      throw new TypeError("not an object"); // TODO abstract semantics: join exception return with what follows
-    }
-    else
-    {
-      let instOfHandler = undefined; // TODO step 2
-      if (instOfHandler !== undefined)
-      {
-        throw new Error("TODO");
-      }
-      const ic = IsCallable(C);
-      if (ic.isFalse())
-      {
-        throw new Error("TODO");
-      }
-      if (ic.isTrue())
-      {
-        return OrdinaryHasInstance(C, O, store);
-      }
-    }
-    throw new Error("?");
-  }
-  
-  function registerPrimitiveFunction(object, objectAddress, propertyName, applyFunction, applyConstructor)
-  {
-    var primFunObject = createPrimitive(applyFunction, applyConstructor);
-    var primFunObjectAddress = allocNative();
-    store0 = storeAlloc(store0, primFunObjectAddress, primFunObject);
-    return registerProperty(object, propertyName, l.abstRef(primFunObjectAddress));
-  }
-  
-  // function registerInternalMethod(name, applyFunction)
-  // {
-  //   var primFunObject = createPrimitive(applyFunction);
-  //   var primFunObjectAddress = allocNative();
-  //   globalEnv = globalEnv.add(name, primFunObjectAddress);
-  //   store0 = storeAlloc(store0, primFunObjectAddress, primFunObject);
-  //   //return l.abstRef(primFunObjectAddress));
-  // }
-  
-  function registerProperty(object, propertyName, value)
-  {
-    object = object.add(l.abst1(propertyName), new Property(value, BOT, BOT, BOT, BOT, BOT));
-    return object;      
+    var obj = ObjectCreate(intrinsics.get("%FunctionPrototype%"));
+    obj = obj.setInternal("[[Call]]", ArraySet.from1(Call));
+    return obj;
   }
   
   function functionScopeDeclarations(node)
@@ -1239,7 +1021,6 @@ function jsCesk(cc)
   }
   
   // create global object and initial store
-  var store0 = Store.empty();
   var globalEnv = Benv.empty();
   
   
@@ -1263,178 +1044,6 @@ function jsCesk(cc)
   //   return OrdinaryHasProperty(O, P, store, lkont, kont);
   // }
   
-  var global = ObjectCreate(objectProtoRef);
-
-// BEGIN GLOBAL
-  // ECMA 15.1.1 value properties of the global object (no "null", ...)
-  global = registerProperty(global, "undefined", L_UNDEFINED);
-  global = registerProperty(global, "NaN", l.abst1(NaN));
-  global = registerProperty(global, "Infinity", l.abst1(Infinity));
-  
-  // specific interpreter functions
-//  global = registerPrimitiveFunction(global, globala, "$meta", $meta);
-  global = registerPrimitiveFunction(global, globala, "$join", $join);
-  global = registerPrimitiveFunction(global, globala, "print", _print);
-  // end specific interpreter functions
-  
-  
-  // BEGIN OBJECT
-  var objectP = ObjectCreate(L_NULL);
-//  objectP.toString = function () { return "~Object.prototype"; }; // debug
-  var objecta = allocNative();
-  objectP = registerProperty(objectP, "constructor", l.abstRef(objecta));
-  
-  var object = createPrimitive(null, objectConstructor);
-  object = object.add(P_PROTOTYPE, new Property(objectProtoRef, BOT, BOT, BOT, BOT, BOT));//was objectProtoRef
-  global = global.add(l.abst1("Object"), new Property(l.abstRef(objecta), BOT, BOT, BOT, BOT, BOT));
-  
-  object = registerPrimitiveFunction(object, objecta, "create", objectCreate);
-  //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
-  //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
-  store0 = storeAlloc(store0, objecta, object);
-  
-  objectP = registerPrimitiveFunction(objectP, null /*UNUSED*/, "hasOwnProperty", objectHasOwnProperty);
-  store0 = storeAlloc(store0, objectPa, objectP);
-  
-  
-  function objectConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
-  {
-    var obj = ObjectCreate(protoRef);
-    var objectAddress = a.object(application, benv, store, kont);
-    store = storeAlloc(store, objectAddress, obj);
-    var objRef = l.abstRef(objectAddress);
-    return [{state:new KontState(objRef, store, lkont, kont), effects:effects}];
-  }
-  
-  // not to be confused with 9.1.12
-  function objectCreate(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    if (operandValues.length !== 1)
-    {
-      return [];
-    }
-    var obj = ObjectCreate(operandValues[0]);
-    var objectAddress = a.object(application, benv, store, kont);
-    store = storeAlloc(store, objectAddress, obj);
-    var objRef = l.abstRef(objectAddress);
-    return [{state:new KontState(objRef, store, lkont, kont), effects:effects}];
-  }
-  
-  // // 19.1.2.4
-  // function objectDefineProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  // {
-  //   const [O, P, Attributes] = operandValues;
-  //   // const result = [];
-  //   // if (O.isNonRef())
-  //   // {
-  //   //   return [{state:new ThrowState(), effects:effects}];
-  //   // }
-  //   // var objectAddresses = operandValues[0].addresses();
-  //   // var result = BOT;
-  //   // objectAddresses.forEach(
-  //   //     function (objectAddress)
-  //   //     {
-  //   //       var obj = storeLookup(store, objectAddress);
-  //   //       result = result.join(obj.Prototype);
-  //   //     });
-  //   // return [{state:new KontState(result, store, lkont, kont), effects:effects}];
-  // }
-  
-  function objectHasOwnProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    if (operandValues.length !== 1)
-    {
-      return [];
-    }
-    const result = hasProtoLookup(operandValues[0], ArraySet.from1(thisa), store, effects);
-    return [{state:new KontState(result, store, lkont, kont), effects:effects}];
-  }
-  // END OBJECT
-
-      
-  // BEGIN FUNCTION
-  var functionP = ObjectCreate(objectProtoRef);
-//  functionP.toString = function () { return "~Function.prototype"; }; // debug
-  var functiona = allocNative();
-  var functionP = registerProperty(functionP, "constructor", l.abstRef(functiona));
-  var fun = createPrimitive(function () {}); // TODO
-  fun = fun.add(P_PROTOTYPE, new Property(functionProtoRef, BOT, BOT, BOT, BOT, BOT));
-  global = global.add(l.abst1("Function"), new Property(l.abstRef(functiona), BOT, BOT, BOT, BOT, BOT));
-  store0 = storeAlloc(store0, functiona, fun);
-
-  store0 = storeAlloc(store0, functionPa, functionP);
-  // END FUNCTION
-  
-  
-  // BEGIN ERROR
-  const errorPa = allocNative();
-  const errorProtoRef = l.abstRef(errorPa);
-  intrinsics.add("%ErrorPrototype%", errorProtoRef);
-  
-  var errorP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
-  var errora = allocNative();
-  var errorP = registerProperty(errorP, "constructor", l.abstRef(errora));
-  var error = createPrimitive(errorFunction, errorConstructor);
-  error = error.add(P_PROTOTYPE, new Property(errorProtoRef, BOT, BOT, BOT, BOT, BOT));
-  global = global.add(l.abst1("Error"), new Property(l.abstRef(errora), BOT, BOT, BOT, BOT, BOT));
-  store0 = storeAlloc(store0, errora, error);
-  store0 = storeAlloc(store0, errorPa, errorP);
-  
-  function errorFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    return errorInitializer(application, operandValues, benv, store, lkont, kont, effects);
-  }
-  
-  function errorConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
-  {
-    return errorInitializer(application, operandValues, benv, store, lkont, kont, effects);
-  }
-  
-  function createError(message)
-  {
-    //const O = OrdinaryCreateFromConstructor();
-    let obj = new Obj();
-    obj = obj.setInternal("[[Prototype]]", intrinsics.get("%ErrorPrototype%"));
-    obj = obj.setInternal("[[ErrorData]]", L_UNDEFINED);
-    obj = obj.add(P_MESSAGE, new Property(message, BOT, BOT, BOT, BOT, BOT));
-    return obj;
-  }
-  
-  function errorInitializer(application, operandValues, benv, store, lkont, kont, effects)
-  {
-    const message = operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING;
-    const obj = createError(message);
-    var errAddress = a.error(application, benv, store, kont);
-    store = storeAlloc(store, errAddress, obj);
-    var errRef = l.abstRef(errAddress);
-    return [{state:new KontState(errRef, store, lkont, kont), effects:effects}];
-  }
-  // END ERROR
-  
-  
-  
-  function $join(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var value = operandValues.reduce(Lattice.join, BOT);
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }   
-  
-  function _print(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    print(operandValues);
-    return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];
-  }   
-  
-  function globalParseInt(application, operandValues, thisa, benv, store, lkont, kont, effects)
-  {
-    var value = operandValues[0].parseInt(); // TODO: 2nd (base) arg
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-  }
-  
-  global = registerPrimitiveFunction(global, globala, "parseInt", globalParseInt);
-  
-  store0 = storeAlloc(store0, globala, global);
-  // END GLOBAL
   
   function ObjPrimitiveCall(applyFunction, applyConstructor)
   {
@@ -1477,6 +1086,7 @@ function jsCesk(cc)
   
   function ObjClosureCall(node, scope)
   {
+    assertDefinedNotNull(node);
     this.node = node;
     this.scope = scope;
   }
@@ -1499,7 +1109,7 @@ function jsCesk(cc)
       {
         return true;
       }
-      if (!(this instanceof ObjClosureCall))
+      if (!(other instanceof ObjClosureCall))
       {
         return false;
       }
@@ -1511,7 +1121,7 @@ function jsCesk(cc)
     {
       var prime = 31;
       var result = 1;
-      result = prime * result + this.node.hashCode();
+      result = prime * result + HashCode.hashCode(this.node);
       result = prime * result + this.scope.hashCode();
       return result;      
     }
@@ -2578,12 +2188,12 @@ function jsCesk(cc)
       var node = this.node;
       var leftValue = this.leftValue;
       var operator = node.operator;
-      var value = applyBinaryOperator(operator, leftValue, rightValue, store);
+      var value = applyBinaryOperator(operator, leftValue, rightValue, globalEnv, store, lkont, kont);
 //      value = sanitize(value); //TODO?
       return [{state:new KontState(value, store, lkont, kont)}];
     }
   
-function applyBinaryOperator(operator, leftValue, rightValue, store)
+function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont, kont)
 {
   switch (operator)
   {
@@ -2665,7 +2275,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
     }
     case "instanceof":
     {
-      return InstanceofOperator(leftValue, rightValue, store).toUserLattice();
+      return InstanceofOperator(leftValue, rightValue, benv, store, lkont, kont).value; // TODO return {value, store} here and everywhere else
     }
     default: throw new Error("cannot handle binary operator " + operator);
   }
@@ -3647,7 +3257,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       var benv = this.benv;
       var property = node.property;
       let objectRef;
-      ({value:objectRef, store} = ToObject(objectValue, store, lkont, kont, benv.addresses()));
+      ({value:objectRef, store} = ToObject(objectValue, benv, store, lkont, kont));
       if (node.computed)
       {
         var frame = new MemberPropertyKont(node, benv, objectRef);
@@ -3763,7 +3373,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       }
       var nameValue = l.abst1(property.name);
       var objectRef;
-      ({value:objectRef, store} = ToObject(objectValue, store, lkont, kont, benv.addresses()));
+      ({value:objectRef, store} = ToObject(objectValue, benv, store, lkont, kont));
       var thisAddresses = objectRef.addresses();
       var operands = node.arguments;
       return invoke(node, thisAddresses, nameValue, operands, benv, store, lkont, kont);
@@ -4174,6 +3784,10 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
       const a = as.pop();
       const obj = storeLookup(store, a);
       const fs = obj.lookupInternal(name);
+      if (!fs)
+      {
+        throw new Error("no internal slot: " + name);
+      }
       for (const f of fs)
       {
         let value;
@@ -4190,7 +3804,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, store)
   while (as.length > 0)
   {
     const a = as.pop();
-    const obj = storeLookup(store, a);
+    let obj = storeLookup(store, a);
     obj = obj.setInternal(name, value);
     store = storeUpdate(store, a, obj);
   }
@@ -4733,7 +4347,654 @@ function doScopeSet(nameNode, value, benv, store, effects)
         throw new Error("cannot handle node " + node.type); 
     }
   }
+  
+  function createError(message)
+  {
+    //const O = OrdinaryCreateFromConstructor();
+    let obj = new Obj();
+    obj = obj.setInternal("[[Prototype]]", intrinsics.get("%ErrorPrototype%"));
+    obj = obj.setInternal("[[ErrorData]]", L_UNDEFINED);
+    obj = obj.add(P_MESSAGE, new Property(message, BOT, BOT, BOT, BOT, BOT));
+    return obj;
+  }
+  
+  function initialize(store)
+  {
+  
+    function registerPrimitiveFunction(object, propertyName, applyFunction, applyConstructor)
+    {
+      var primFunObject = createPrimitive(applyFunction, applyConstructor);
+      var primFunObjectAddress = allocNative();
+      store = storeAlloc(store, primFunObjectAddress, primFunObject);
+      return registerProperty(object, propertyName, l.abstRef(primFunObjectAddress));
+    }
+  
+    // function registerInternalMethod(name, applyFunction)
+    // {
+    //   var primFunObject = createPrimitive(applyFunction);
+    //   var primFunObjectAddress = allocNative();
+    //   globalEnv = globalEnv.add(name, primFunObjectAddress);
+    //   store0 = storeAlloc(store0, primFunObjectAddress, primFunObject);
+    //   //return l.abstRef(primFunObjectAddress));
+    // }
+  
+    function registerProperty(object, propertyName, value)
+    {
+      object = object.add(l.abst1(propertyName), new Property(value, BOT, BOT, BOT, BOT, BOT));
+      return object;
+    }
 
+// BEGIN GLOBAL
+    // ECMA 15.1.1 value properties of the global object (no "null", ...)
+    global = registerProperty(global, "undefined", L_UNDEFINED);
+    global = registerProperty(global, "NaN", l.abst1(NaN));
+    global = registerProperty(global, "Infinity", l.abst1(Infinity));
+    
+    // specific interpreter functions
+//  global = registerPrimitiveFunction(global, globala, "$meta", $meta);
+    global = registerPrimitiveFunction(global, "$join", $join);
+    global = registerPrimitiveFunction(global, "print", _print);
+    // end specific interpreter functions
+    
+    // BEGIN OBJECT
+    var objectP = ObjectCreate(L_NULL);
+//  objectP.toString = function () { return "~Object.prototype"; }; // debug
+    var objecta = allocNative();
+    objectP = registerProperty(objectP, "constructor", l.abstRef(objecta));
+    
+    var object = createPrimitive(null, objectConstructor);
+    object = object.add(P_PROTOTYPE, new Property(objectProtoRef, BOT, BOT, BOT, BOT, BOT));//was objectProtoRef
+    global = global.add(l.abst1("Object"), new Property(l.abstRef(objecta), BOT, BOT, BOT, BOT, BOT));
+    
+    object = registerPrimitiveFunction(object, "create", objectCreate);
+    //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
+    //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
+    store = storeAlloc(store, objecta, object);
+    
+    objectP = registerPrimitiveFunction(objectP, "hasOwnProperty", objectHasOwnProperty);
+    store = storeAlloc(store, objectPa, objectP);
+    
+    
+    function objectConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
+    {
+      var obj = ObjectCreate(protoRef);
+      var objectAddress = a.object(application, benv, store, kont);
+      store = storeAlloc(store, objectAddress, obj);
+      var objRef = l.abstRef(objectAddress);
+      return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
+    }
+    
+    // not to be confused with 9.1.12
+    function objectCreate(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      if (operandValues.length !== 1)
+      {
+        return [];
+      }
+      var obj = ObjectCreate(operandValues[0]);
+      var objectAddress = a.object(application, benv, store, kont);
+      store = storeAlloc(store, objectAddress, obj);
+      var objRef = l.abstRef(objectAddress);
+      return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
+    }
+    
+    // // 19.1.2.4
+    // function objectDefineProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    // {
+    //   const [O, P, Attributes] = operandValues;
+    //   // const result = [];
+    //   // if (O.isNonRef())
+    //   // {
+    //   //   return [{state:new ThrowState(), effects:effects}];
+    //   // }
+    //   // var objectAddresses = operandValues[0].addresses();
+    //   // var result = BOT;
+    //   // objectAddresses.forEach(
+    //   //     function (objectAddress)
+    //   //     {
+    //   //       var obj = storeLookup(store, objectAddress);
+    //   //       result = result.join(obj.Prototype);
+    //   //     });
+    //   // return [{state:new KontState(result, store, lkont, kont), effects:effects}];
+    // }
+    
+    function objectHasOwnProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      if (operandValues.length !== 1)
+      {
+        return [];
+      }
+      const result = hasProtoLookup(operandValues[0], ArraySet.from1(thisa), store, effects);
+      return [{state: new KontState(result, store, lkont, kont), effects: effects}];
+    }
+    
+    // END OBJECT
+    
+    
+    // BEGIN FUNCTION
+    var functionP = ObjectCreate(objectProtoRef);
+//  functionP.toString = function () { return "~Function.prototype"; }; // debug
+    var functiona = allocNative();
+    var functionP = registerProperty(functionP, "constructor", l.abstRef(functiona));
+    var fun = createPrimitive(function ()
+    {
+    }); // TODO
+    fun = fun.add(P_PROTOTYPE, new Property(functionProtoRef, BOT, BOT, BOT, BOT, BOT));
+    global = global.add(l.abst1("Function"), new Property(l.abstRef(functiona), BOT, BOT, BOT, BOT, BOT));
+    store = storeAlloc(store, functiona, fun);
+    
+    store = storeAlloc(store, functionPa, functionP);
+    // END FUNCTION
+    
+    
+    // BEGIN ERROR
+    const errorPa = allocNative();
+    const errorProtoRef = l.abstRef(errorPa);
+    intrinsics.add("%ErrorPrototype%", errorProtoRef);
+    
+    var errorP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
+    var errora = allocNative();
+    var errorP = registerProperty(errorP, "constructor", l.abstRef(errora));
+    var error = createPrimitive(errorFunction, errorConstructor);
+    error = error.add(P_PROTOTYPE, new Property(errorProtoRef, BOT, BOT, BOT, BOT, BOT));
+    global = global.add(l.abst1("Error"), new Property(l.abstRef(errora), BOT, BOT, BOT, BOT, BOT));
+    store = storeAlloc(store, errora, error);
+    store = storeAlloc(store, errorPa, errorP);
+    
+    function errorFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      return errorInitializer(application, operandValues, benv, store, lkont, kont, effects);
+    }
+    
+    function errorConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
+    {
+      return errorInitializer(application, operandValues, benv, store, lkont, kont, effects);
+    }
+    
+    
+    function errorInitializer(application, operandValues, benv, store, lkont, kont, effects)
+    {
+      const message = operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING;
+      const obj = createError(message);
+      var errAddress = a.error(application, benv, store, kont);
+      store = storeAlloc(store, errAddress, obj);
+      var errRef = l.abstRef(errAddress);
+      return [{state: new KontState(errRef, store, lkont, kont), effects: effects}];
+    }
+    
+    // END ERROR
+    
+    
+    // BEGIN STRING
+    const stringPa = allocNative();
+    const stringProtoRef = l.abstRef(stringPa);
+    intrinsics.add("%StringPrototype%", stringProtoRef);
+    var stringP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
+    //  stringP.toString = function () { return "~String.prototype"; }; // debug
+    var stringa = allocNative();
+    var stringP = registerProperty(stringP, "constructor", l.abstRef(stringa));
+    var string = createPrimitive(stringFunction, null);
+    string = string.add(P_PROTOTYPE, new Property(intrinsics.get("%StringPrototype%"), BOT, BOT, BOT, BOT, BOT));
+    global = global.add(l.abst1("String"), new Property(l.abstRef(stringa), BOT, BOT, BOT, BOT, BOT));
+    store = storeAlloc(store, stringa, string);
+    
+    stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
+    stringP = registerPrimitiveFunction(stringP, "charCodeAt", stringCharCodeAt);
+    stringP = registerPrimitiveFunction(stringP, "startsWith", stringStartsWith);
+    
+    store = storeAlloc(store, stringPa, stringP);
+    
+    function stringFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      if (operandValues.length === 0)
+      {
+        return [{state: new KontState(L_EMPTY_STRING, store, lkont, kont), effects: effects}];
+      }
+      return [{state: new KontState(operandValues[0].ToString(), store, lkont, kont), effects: effects}];
+    }
+    
+    function stringCharAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var str = storeLookup(store, thisa);
+      var lprim = str.lookupInternal("[[StringData]]");
+      var value = lprim.charAt(operandValues[0]);
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    function stringCharCodeAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var str = storeLookup(store, thisa);
+      var lprim = str.lookupInternal("[[StringData]]");
+      var value = lprim.charCodeAt(operandValues[0]);
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    function stringStartsWith(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var str = storeLookup(store, thisa);
+      var lprim = str.lookupInternal("[[StringData]]");
+      var value = lprim.startsWith(operandValues[0]);
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    // END STRING
+    
+    
+    // BEGIN ARRAY
+    const arrayPa = allocNative();
+    const arrayProtoRef = l.abstRef(arrayPa);
+    intrinsics.add("%ArrayPrototype%", arrayProtoRef);
+    
+    var arrayP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
+    var arraya = allocNative();
+    var arrayP = registerProperty(arrayP, "constructor", l.abstRef(arraya));
+    var array = createPrimitive(arrayFunction, arrayConstructor);
+    array = array.add(P_PROTOTYPE, new Property(arrayProtoRef, BOT, BOT, BOT, BOT, BOT));
+    global = global.add(l.abst1("Array"), new Property(l.abstRef(arraya), BOT, BOT, BOT, BOT, BOT));
+    store = storeAlloc(store, arraya, array);
+    
+    arrayP = registerPrimitiveFunction(arrayP, "toString", arrayToString);
+    arrayP = registerPrimitiveFunction(arrayP, "concat", arrayConcat);
+    arrayP = registerPrimitiveFunction(arrayP, "push", arrayPush);
+//  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "map", arrayMap);
+//  arrayP = registerPrimitiveFunction(arrayP, arrayPa, "reduce", arrayReduce);
+    store = storeAlloc(store, arrayPa, arrayP);
+    
+    function arrayConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects)
+    {
+      var arr = createArray();
+      var length;
+      if (operandValues.length === 0)
+      {
+        length = L_0;
+      }
+      else if (operandValues.length === 1)
+      {
+        length = operandValues[0];
+      }
+      else
+      {
+        throw new Error("TODO: " + operandValues.length);
+      }
+      arr = arr.add(P_LENGTH, new Property(length, BOT, BOT, BOT, BOT, BOT));
+      
+      var arrAddress = a.array(application, benv, store, kont);
+      store = storeAlloc(store, arrAddress, arr);
+      var arrRef = l.abstRef(arrAddress);
+      return [{state: new KontState(arrRef, store, lkont, kont), effects: effects}];
+    }
+    
+    function arrayFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var arr = createArray();
+      for (var i = 0; i < operandValues.length; i++)
+      {
+        arr = arr.add(l.abst1(String(i)), new Property(operandValues[i], BOT, BOT, BOT, BOT, BOT));
+      }
+      arr = arr.add(P_LENGTH, new Property(l.abst1(operandValues.length), BOT, BOT, BOT, BOT, BOT));
+      
+      var arrAddress = a.array(application, benv, store, kont);
+      store = storeAlloc(store, arrAddress, arr);
+      var arrRef = l.abstRef(arrAddress);
+      return [{state: new KontState(arrRef, store, lkont, kont), effects: effects}];
+    }
+    
+    function arrayToString(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var arr = storeLookup(store, thisa);
+      var len = arr.lookup(P_LENGTH).Value;
+      effects.push(readObjectEffect(thisa, P_LENGTH));
+      var i = L_0;
+      var r = [];
+      var seen = ArraySet.empty();
+      var thisAs = ArraySet.from1(thisa);
+      while ((!seen.contains(i)) && l.lt(i, len).isTrue())
+      {
+        seen = seen.add(i);
+        var iname = i.ToString();
+        var v = doProtoLookup(iname, thisAs, store, effects);
+        if (v !== BOT)
+        {
+          r.push(v);
+        }
+        i = l.add(i, L_1);
+      }
+      return [{state: new KontState(l.abst1(r.join()), store, lkont, kont), effects: effects}];
+    }
+    
+    function arrayConcat(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      if (operandValues.length !== 1)
+      {
+        print("warning: array.concat");
+        return [];
+      }
+      var thisArr = storeLookup(store, thisa);
+      var thisLen = thisArr.lookup(P_LENGTH).Value;
+      effects.push(readObjectEffect(thisa, P_LENGTH));
+      var argAddrs = operandValues[0].addresses();
+      var resultArr = createArray();
+      var i = L_0;
+      var seen = ArraySet.empty();
+      while ((!seen.contains(i)) && l.lt(i, thisLen).isTrue())
+      {
+        seen = seen.add(i);
+        var iname = i.ToString();
+        var v = doProtoLookup(iname, ArraySet.from1(thisa), store, effects);
+        resultArr = resultArr.add(iname, new Property(v, BOT, BOT, BOT, BOT, BOT));
+        i = l.add(i, L_1);
+      }
+      argAddrs.forEach(
+          function (argAddr)
+          {
+            var argArr = storeLookup(store, argAddr);
+            var argLen = argArr.lookup(P_LENGTH).Value;
+            effects.push(readObjectEffect(argAddr, P_LENGTH));
+            var i = L_0;
+            var seen = ArraySet.empty();
+            while ((!seen.contains(i)) && l.lt(i, argLen).isTrue())
+            {
+              seen = seen.add(i);
+              var iname = i.ToString();
+              var v = doProtoLookup(iname, ArraySet.from1(argAddr), store, effects);
+              resultArr = resultArr.add(l.add(thisLen, i).ToString(), new Property(argArr.lookup(iname).Value, BOT, BOT, BOT, BOT, BOT, BOT));
+              i = l.add(i, L_1);
+            }
+            resultArr = resultArr.add(P_LENGTH, new Property(l.add(thisLen, i), BOT, BOT, BOT, BOT, BOT));
+          });
+      var arrAddress = a.array(application, benv, store, lkont, kont);
+      store = storeAlloc(store, arrAddress, resultArr);
+      return [{state: new KontState(l.abstRef(arrAddress), store, lkont, kont), effects: effects}];
+    }
+    
+    function arrayPush(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var arr = storeLookup(store, thisa);
+      var len = arr.lookup(P_LENGTH).Value;
+      effects.push(readObjectEffect(thisa, P_LENGTH));
+      var lenStr = len.ToString();
+      arr = arr.add(lenStr, new Property(operandValues[0], BOT, BOT, BOT, BOT, BOT))
+      effects.push(writeObjectEffect(thisa, lenStr));
+      var len1 = l.add(len, L_1);
+      arr = arr.add(P_LENGTH, new Property(len1, BOT, BOT, BOT, BOT, BOT));
+      effects.push(writeObjectEffect(thisa, P_LENGTH))
+      store = storeUpdate(store, thisa, arr);
+      return [{state: new KontState(len1, store, lkont, kont), effects: effects}];
+    }
+    
+    // END ARRAY
+    
+    
+    // BEGIN MATH
+    var math = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
+    var matha = allocNative();
+    math = registerPrimitiveFunction(math, "abs", mathAbs);
+    math = registerPrimitiveFunction(math, "round", mathRound);
+    math = registerPrimitiveFunction(math, "floor", mathFloor);
+    math = registerPrimitiveFunction(math, "sin", mathSin);
+    math = registerPrimitiveFunction(math, "cos", mathCos);
+    math = registerPrimitiveFunction(math, "sqrt", mathSqrt);
+    math = registerPrimitiveFunction(math, "random", mathRandom);
+//  math = registerPrimitiveFunction(math, matha, "max", mathMax);
+//  math = registerProperty(math, "PI", l.abst1(Math.PI));
+    store = storeAlloc(store, matha, math);
+    global = global.add(l.abst1("Math"), new Property(l.abstRef(matha), BOT, BOT, BOT, BOT, BOT));
+    
+    
+    function mathSqrt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var value = l.sqrt(operandValues[0]);
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    function mathAbs(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var value = l.abs(operandValues[0]);
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    function mathRound(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var value = l.round(operandValues[0]);
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    function mathFloor(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var value = l.floor(operandValues[0]);
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    function mathCos(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var value = l.cos(operandValues[0]);
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    function mathSin(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var value = l.sin(operandValues[0]);
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    var random = (function ()
+    {
+      var seed = 0x2F6E2B1;
+      return function ()
+      {
+        // Robert Jenkins’ 32 bit integer hash function
+        seed = ((seed + 0x7ED55D16) + (seed << 12)) & 0xFFFFFFFF;
+        seed = ((seed ^ 0xC761C23C) ^ (seed >>> 19)) & 0xFFFFFFFF;
+        seed = ((seed + 0x165667B1) + (seed << 5)) & 0xFFFFFFFF;
+        seed = ((seed + 0xD3A2646C) ^ (seed << 9)) & 0xFFFFFFFF;
+        seed = ((seed + 0xFD7046C5) + (seed << 3)) & 0xFFFFFFFF;
+        seed = ((seed ^ 0xB55A4F09) ^ (seed >>> 16)) & 0xFFFFFFFF;
+        return (seed & 0xFFFFFFF) / 0x10000000;
+      };
+    }());
+    
+    function mathRandom(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var value = l.abst1(random());
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    // END MATH
+    
+    
+    // BEGIN BASE
+    var base = ObjectCreate(l.abst1(null));
+    var basea = allocNative();
+    // meta = registerPrimitiveFunction(meta, "HasStringDataInternalSlot", metaHasStringDataInternalSlot);
+    // meta = registerPrimitiveFunction(meta, "GetStringDataInternalSlot", metaGetStringDataInternalSlot);
+    // meta = registerPrimitiveFunction(meta, "SetStringDataInternalSlot", metaSetStringDataInternalSlot);
+    base = registerPrimitiveFunction(base, "addIntrinsic", baseAddIntrinsic);
+    base = registerPrimitiveFunction(base, "hasInternal", baseHasInternal);
+    base = registerPrimitiveFunction(base, "lookupInternal", baseLookupInternal);
+    base = registerPrimitiveFunction(base, "assignInternal", baseAssignInternal);
+    base = registerPrimitiveFunction(base, "callInternal", baseCallInternal);
+    base = registerPrimitiveFunction(base, "sameNumberValue", baseSameNumberValue);
+    base = registerPrimitiveFunction(base, "sameBooleanValue", baseSameBooleanValue);
+    base = registerPrimitiveFunction(base, "sameStringValue", baseSameStringValue);
+    base = registerPrimitiveFunction(base, "sameObjectValue", baseSameObjectValue);
+    base = registerPrimitiveFunction(base, "StringCreate", baseStringCreate);
+    
+    base = registerPrimitiveFunction(base, "addMeta", baseAddMeta);
+    store = storeAlloc(store, basea, base);
+    global = global.add(l.abst1("$BASE$"), new Property(l.abstRef(basea), BOT, BOT, BOT, BOT, BOT));
+  
+  
+    function baseStringCreate(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [value] = operandValues; // TODO pass prototype as second param
+      const obj = StringCreate(value);
+      const obja = a.string(application);
+      store = storeAlloc(store, obja, obj);
+      const ref = l.abstRef(obja);
+      return [{state: new KontState(ref, store, lkont, kont), effects: effects}];
+    }
+  
+    function baseSameNumberValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [x, y] = operandValues;
+      return [{state: new KontState(x.hasSameNumberValue(y), store, lkont, kont), effects: effects}];
+    }
+  
+    function baseSameBooleanValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [x, y] = operandValues;
+      let result = BOT;
+      if (x.subsumes(L_TRUE))
+      {
+        if (y.subsumes(L_TRUE))
+        {
+          result = result.join(L_TRUE);
+        }
+        else
+        {
+          result = result.join(L_FALSE);
+        }
+      }
+      else if (y.subsumes(L_TRUE))
+      {
+        result = result.join(L_FALSE);
+      }
+      return [{state: new KontState(result, store, lkont, kont), effects: effects}];
+    }
+  
+    function baseSameStringValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [x, y] = operandValues;
+      return [{state: new KontState(x.hasSameStringValue(y), store, lkont, kont), effects: effects}];
+    }
+  
+    function baseSameObjectValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [x, y] = operandValues;
+      let result = BOT;
+      const refx = x.projectObject();
+      const refy = y.projectObject();
+      if (refx.subsumes(refy))
+      {
+        if (refy.subsumes(refx))
+        {
+          result = result.join(L_TRUE);
+        }
+        else
+        {
+          result = result.join(L_TRUE).join(L_FALSE);
+        }
+      }
+      else if (refy.subsumes(refx))
+      {
+        result = result.join(L_TRUE).join(L_FALSE);
+      }
+      else
+      {
+        result = result.join(L_FALSE);
+      }
+      return [{state: new KontState(result, store, lkont, kont), effects: effects}];
+    }
+  
+    function baseAddIntrinsic(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [Name, Value] = operandValues;
+      intrinsics.add(Name.conc1(), Value);
+      return [{state: new KontState(l.abst1(undefined), store, lkont, kont), effects: effects}];
+    }
+  
+    function baseHasInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [O, Name] = operandValues;
+      const result = hasInternal(O, Name.conc1(), store);
+      return [{state: new KontState(result, store, lkont, kont), effects: effects}];
+    }
+    
+    function baseLookupInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [O, Name] = operandValues;
+      const result = lookupInternal(O, Name.conc1(), store);
+      return [{state: new KontState(result, store, lkont, kont), effects: effects}];
+    }
+    
+    function baseCallInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [O, Name, ...args] = operandValues;
+      let value;
+      ({value, store} = callInternal(O, Name.conc1(), args, store, lkont, kont));
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    function baseAssignInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [O, Name, Value] = operandValues;
+      store = assignInternal(O, Name.conc1(), Value, store);
+      return [{state: new KontState(l.abst1(undefined), store, lkont, kont), effects: effects}];
+    }
+    
+    function baseAddMeta(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [Name, Value] = operandValues;
+      let global = storeLookup(store, globala);
+      global = global.setInternal(Name.conc1(), Value);
+      store = storeUpdate(store, globala, global);
+      return [{state: new KontState(l.abst1(undefined), store, lkont, kont), effects: effects}];
+    }
+    
+    // BEGIN PERFORMANCE
+    let perf = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
+    const perfa = allocNative();
+    perf = registerPrimitiveFunction(perf, "now", performanceNow, null);
+    store = storeAlloc(store, perfa, perf);
+    global = registerProperty(global, "performance", l.abstRef(perfa));
+    
+    function performanceNow(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var value = l.abst1(performance.now());
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    // END PERFORMANCE
+    
+    
+    function $join(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var value = operandValues.reduce(Lattice.join, BOT);
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    function _print(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      print(operandValues);
+      return [{state: new KontState(L_UNDEFINED, store, lkont, kont), effects: effects}];
+    }
+    
+    function globalParseInt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      var value = operandValues[0].parseInt(); // TODO: 2nd (base) arg
+      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    }
+    
+    global = registerPrimitiveFunction(global, "parseInt", globalParseInt);
+    
+    store = storeAlloc(store, globala, global);
+    // END GLOBAL
+  
+  
+    const initializerInterface = {globala, l, a, preludeExplore,
+       EvalState, KontState,
+       ObjectCreate, createArray, createPrimitive,
+       registerProperty,
+       allocNative, storeAlloc, storeLookup, storeUpdate, doProtoLookup, doProtoSet,
+       readObjectEffect, writeObjectEffect, Property,
+       hasInternal, lookupInternal, assignInternal, callInternal
+     };
+     initializers.forEach(function (initializer) {store = initializer.run(initializerInterface, store, intrinsics)});
+  
+    return store;
+  } // end initializeStore
+  
+  
   var module = {};
   module.l = l;
   //module.store = store;
@@ -4758,7 +5019,7 @@ function doScopeSet(nameNode, value, benv, store, effects)
       var todo = [initial];
       while (todo.length > 0)
       {
-        if (states.length > 50000)
+        if (states.length > 2000)
         {
           print("STATE SIZE LIMIT", states.length);
           break;
@@ -4899,7 +5160,7 @@ function doScopeSet(nameNode, value, benv, store, effects)
           return allocNative();
         }
     
-    var initial = module.inject(ast);
+    var initial = module.inject(ast, {store});
     var s = initial;
     var id = 0;
     while (true)
@@ -4931,16 +5192,8 @@ function doScopeSet(nameNode, value, benv, store, effects)
   }
   module.preludeExplore = preludeExplore;
   
-  const initializerInterface = {globala, l, a, preludeExplore,
-    EvalState, KontState,
-    ObjectCreate, createArray, createPrimitive,
-    registerProperty,
-    allocNative, storeAlloc, storeLookup, storeUpdate, doProtoLookup, doProtoSet,
-    readObjectEffect, writeObjectEffect, Property,
-    hasInternal, lookupInternal, assignInternal, callInternal
-  };
-  initializers.forEach(function (initializer) {store0 = initializer.run(initializerInterface, store0, intrinsics)});
-  
+  var global = ObjectCreate(objectProtoRef);
+  const store0 = initialize(Store.empty());
   return module;
 }
 
@@ -5042,3 +5295,5 @@ Effect.prototype.isAllocEffect =
   {
     return this.operation === Effect.Operations.ALLOC;
   }
+
+  

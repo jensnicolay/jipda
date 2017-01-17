@@ -268,7 +268,7 @@
     }
     if (typeof argument === "string")
     {
-      throw new TypeError("NYI: string");
+      return $BASE$.StringCreate(argument);
     }
     if (typeof argument === "symbol")
     {
@@ -295,7 +295,7 @@
     {
       return false;
     }
-    if ($BASE$.hasInternal("[[Call]]"))
+    if ($BASE$.hasInternal(argument, "[[Call]]"))
     {
       return true;
     }
@@ -316,12 +316,70 @@
     return false;
   }
   
+  // 7.2.9
+  function SameValue(x, y)
+  {
+    if (typeof x !== typeof y)
+    {
+      return false;
+    }
+    if (typeof x === "number")
+    {
+      if (isNaN(x) && isNaN(y))
+      {
+        return true;
+      }
+      if ($BASE$.isPositiveZero(x) && $BASE$.isNegativeZero(y))
+      {
+        return false;
+      }
+      if ($BASE$.isNegativeZero(x) && $BASE$.isPositiveZero(y))
+      {
+        return false;
+      }
+      if ($BASE.sameNumberValue(x, y))
+      {
+        return true;
+      }
+      return false;
+    }
+    return SameValueNonNumber(x, y);
+  }
+  
+  // 7.2.11
+  function SameValueNonNumber(x, y)
+  {
+    assert(typeof x !== "number");
+    assert(typeof x === typeof y);
+    if (x === undefined)
+    {
+      return true;
+    }
+    if (x === null)
+    {
+      return true;
+    }
+    if (typeof x === "string")
+    {
+      return $BASE$.sameStringValue(x, y);
+    }
+    if (typeof x === "boolean")
+    {
+      return $BASE$.sameBooleanValue(x, y);
+    }
+    if (typeof x === "symbol")
+    {
+      throw new Error("NYI");
+    }
+    return $BASE$.sameObjectValue(x, y);
+  }
+  
   // 7.3.1
   function Get(O, P)
   {
     assert(typeof O === "object");
     assert(IsPropertyKey(P));
-    return ($BASE$.lookupInternal(O, "[[Get]]"))(P, O);
+    return $BASE$.callInternal(O, "[[Get]]", P, O);
   }
   
   // 7.3.7
@@ -343,6 +401,42 @@
     assert(typeof O === "object");
     assert(IsPropertyKey(P));
     return ($BASE$.lookupInternal(O, "[[HasProperty]]"))(P);
+  }
+  
+  // 7.3.19
+  function OrdinaryHasInstance(C, O)
+  {
+    if (IsCallable(C) === false)
+    {
+      return false;
+    }
+    if ($BASE$.hasInternal(C, "[[BoundTargetFunction]]"))
+    {
+      var BC = $BASE$.lookupInternal(C, "[[BoundTargetFunction]]");
+      return InstanceofOperator(O, BC);
+    }
+    if (typeof O !== "object")
+    {
+      return false;
+    }
+    var P = Get(C, "prototype");
+    if (typeof P !== "object")
+    {
+      throw new TypeError("non-object prototype");
+    }
+    while (true)
+    {
+      var O = $BASE$.callInternal(O, "[[GetPrototypeOf]]");
+      if (O === null)
+      {
+        return false;
+      }
+      if (SameValue(P, O) === true)
+      {
+        return true;
+      }
+      print("not same value", P, O);
+    }
   }
   
   // 9.1.1.1
@@ -396,6 +490,43 @@
     return false;
   }
   
+  // 9.1.8.1
+  $BASE$.addMeta("OrdinaryHasProperty", OrdinaryHasProperty);
+  function OrdinaryHasProperty(O, P)
+  {
+    assert(IsPropertyKey(P));
+    var hasOwn = ($BASE$.lookupInternal(O, "[[GetOwnProperty]]"))(P);
+    if (hasOwn !== undefined)
+    {
+      return true;
+    }
+    var parent = ($BASE$.lookupInternal(O, "[[GetPrototypeOf]]"))(P);
+    if (parent !== null)
+    {
+      return ($BASE$.lookupInternal(parent, "[[HasProperty]]"))(P);
+    }
+    return false;
+  }
+  
+  // 12.10.4
+  $BASE$.addMeta("InstanceofOperator", InstanceofOperator);
+  function InstanceofOperator(O, C)
+  {
+    if (typeof C !== "object")
+    {
+      throw new TypeError("not an object");
+    }
+    var instOfHandler = undefined; // TODO step 2
+    if (instOfHandler !== undefined)
+    {
+      throw new Error("NYI");
+    }
+    if (IsCallable(C) === false)
+    {
+      throw new TypeError("not a callable");
+    }
+    return OrdinaryHasInstance(C, O);
+  }
   
   // 19.1.2.4
   Object.defineProperty =
@@ -465,7 +596,7 @@
   function TypeError(message)
   {
     this.message = message; // TODO String(message);
-    this["[[ErrorData]]"] = undefined;
+    $BASE$.assignInternal(this, "[[ErrorData]]", undefined);
   }
   // 19.5.6.2.1
   TypeError.prototype = TypeErrorPrototype;
@@ -495,7 +626,7 @@
   }
   
   // 21.1.3.25
-  global.String.prototype.toString =
+  String.prototype.toString =
       function ()
       {
         return thisStringValue(this);

@@ -216,12 +216,3 @@ Obj.prototype.diff = //DEBUG
     {
       return JSON.stringify(this, replacer);
     }
-
-  Obj.createFunction =
-    function (Call, FUNCTIONPA)
-    {
-      var benv = new Obj();
-      benv = benv.setInternal("[[Prototype]]", FUNCTIONPA);
-      benv = benv.setInternal("[[Call]]", ArraySet.from1(Call));
-      return benv;
-    }

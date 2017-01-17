@@ -38,5 +38,6 @@ Array.prototype.toString =
   load("jipda.js");
   load("test.js");
   
+  //load("test/rjsConcreteTests.js");
   load("test/concreteTests.js");
   load("test/jipdaTests.js");
