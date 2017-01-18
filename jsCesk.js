@@ -1,7 +1,7 @@
 "use strict";
 
-var EMPTY_LKONT = [];
-var EMPTY_ADDRESS_SET = ArraySet.empty();
+const EMPTY_LKONT = [];
+const EMPTY_ADDRESS_SET = ArraySet.empty();
 
 function SourceCodeInitializer(src)
 {
@@ -26,22 +26,6 @@ SourceCodeInitializer.prototype.run =
       return machine.preludeExplore(Ast.createAst(this.src), store);
     }
     
-// const rjsHelpers = (function () {
-//
-//   function ToObject(argument, benv, store, lkont, kont)
-//   {
-//     return {value:argument, store};
-//   }
-//
-//   return {ToObject};
-// })();
-
-// function jsCesk2(cc)
-// {
-//   const rjsCesk = jsCesk({a:cc.a, kalloc:cc.kalloc, l:cc.l, gcFlag:cc.gcFlag, errors:cc.errors,
-//   initializers:[])
-// }
-
 function jsCesk(cc)
 {
   // address allocator
@@ -74,14 +58,6 @@ function jsCesk(cc)
   assert(a);
   assert(l);
   
-  var __ALLOC__NATIVE__COUNTER = 1;
-  
-  function allocNative()
-  {
-    var a = __ALLOC__NATIVE__COUNTER++;
-    return a;
-  }
-  
   //print("alloc", a, "lat", l, "gc", gcFlag);
   
   // user lattice constants
@@ -101,178 +77,178 @@ function jsCesk(cc)
   const P_MESSAGE = l.abst1("message");
   
   // internal lattice constants
-  const BOOLEAN = {string:"_"};
-  BOOLEAN.isTrue = function ()
-  {
-    return false
-  };
-  BOOLEAN.isFalse = function ()
-  {
-    return false
-  };
-  BOOLEAN.joinBoolean = function (x)
-  {
-    return x
-  };
-  BOOLEAN.joinTrue = function ()
-  {
-    return TRUE
-  };
-  BOOLEAN.joinFalse = function ()
-  {
-    return FALSE
-  };
-  BOOLEAN.joinMaybe = function ()
-  {
-    return MAYBE
-  };
-  BOOLEAN.not = function ()
-  {
-    return BOOLEAN
-  };
-  BOOLEAN.toUserLattice = function () {return BOT};
-  BOOLEAN.toString = function () {return this.string};
-  const TRUE = {string:"TRUE"};
-  TRUE.isTrue = function ()
-  {
-    return true
-  };
-  TRUE.isFalse = function ()
-  {
-    return false
-  };
-  TRUE.joinBoolean = function (x)
-  {
-    if (x === BOOLEAN || x === TRUE)
-    {
-      return TRUE
-    };
-    return MAYBE
-  };
-  TRUE.joinTrue = function ()
-  {
-    return TRUE
-  };
-  TRUE.joinFalse = function ()
-  {
-    return MAYBE
-  };
-  TRUE.joinMaybe = function ()
-  {
-    return MAYBE
-  };
-  TRUE.not = function ()
-  {
-    return FALSE
-  };
-  TRUE.toUserLattice = function () {return L_TRUE};
-  TRUE.toString = function () {return this.string};
-  const FALSE = {string:"FALSE"};
-  FALSE.isTrue = function ()
-  {
-    return false
-  };
-  FALSE.isFalse = function ()
-  {
-    return true
-  };
-  FALSE.joinBoolean = function (x)
-  {
-    if (x === BOOLEAN || x === FALSE)
-    {
-      return FALSE
-    }
-    ;
-    return MAYBE
-  };
-  FALSE.joinTrue = function ()
-  {
-    return MAYBE
-  };
-  FALSE.joinFalse = function ()
-  {
-    return FALSE
-  };
-  FALSE.joinMaybe = function ()
-  {
-    return MAYBE
-  };
-  FALSE.not = function ()
-  {
-    return TRUE
-  };
-  FALSE.toUserLattice = function () {return L_FALSE};
-  FALSE.toString = function () {return this.string};
-  const MAYBE = {string:"MAYBE"};
-  MAYBE.isTrue = function ()
-  {
-    return true
-  };
-  MAYBE.isFalse = function ()
-  {
-    return true
-  };
-  MAYBE.joinBoolean = function (x)
-  {
-    return MAYBE
-  };
-  MAYBE.joinTrue = function ()
-  {
-    return MAYBE
-  };
-  MAYBE.joinFalse = function ()
-  {
-    return MAYBE
-  };
-  MAYBE.joinMaybe = function ()
-  {
-    return MAYBE
-  };
-  MAYBE.not = function ()
-  {
-    return MAYBE
-  };
-  MAYBE.toUserLattice = function () {return TRUE.toUserLattice().join(FALSE.toUserLattice())};
-  MAYBE.toString = function () {return this.string};
-  const SET = new Set_(new Set());
-  
-  function Set_(x)
-  {
-    this.set = x
-  };
-  Set_.prototype.subsumes = function (x)
-  {
-    return Sets.subsumes(this.set, x.set)
-  };
-  Set_.prototype.subsumesValue = function (x)
-  {
-    return this.set.has(x)
-  };
-  Set_.prototype.joinValue = function (x)
-  {
-    return new Set_(Sets.add(this.set, x))
-  };
-  Set_.prototype.joinSet = function (x)
-  {
-    return new Set_(Sets.union(this.set, x.set))
-  };
-  Set_.prototype.eq =
-      function (x)
-      {
-        if (this.subsumes(x))
-        {
-          if (x.subsumes(this))
-          {
-            return this.set.size === 1 ? TRUE : MAYBE;
-          }
-          return MAYBE;
-        }
-        if (x.subsumes(this))
-        {
-          return MAYBE;
-        }
-        return FALSE;
-      }
+  // const BOOLEAN = {string:"_"};
+  // BOOLEAN.isTrue = function ()
+  // {
+  //   return false
+  // };
+  // BOOLEAN.isFalse = function ()
+  // {
+  //   return false
+  // };
+  // BOOLEAN.joinBoolean = function (x)
+  // {
+  //   return x
+  // };
+  // BOOLEAN.joinTrue = function ()
+  // {
+  //   return TRUE
+  // };
+  // BOOLEAN.joinFalse = function ()
+  // {
+  //   return FALSE
+  // };
+  // BOOLEAN.joinMaybe = function ()
+  // {
+  //   return MAYBE
+  // };
+  // BOOLEAN.not = function ()
+  // {
+  //   return BOOLEAN
+  // };
+  // BOOLEAN.toUserLattice = function () {return BOT};
+  // BOOLEAN.toString = function () {return this.string};
+  // const TRUE = {string:"TRUE"};
+  // TRUE.isTrue = function ()
+  // {
+  //   return true
+  // };
+  // TRUE.isFalse = function ()
+  // {
+  //   return false
+  // };
+  // TRUE.joinBoolean = function (x)
+  // {
+  //   if (x === BOOLEAN || x === TRUE)
+  //   {
+  //     return TRUE
+  //   };
+  //   return MAYBE
+  // };
+  // TRUE.joinTrue = function ()
+  // {
+  //   return TRUE
+  // };
+  // TRUE.joinFalse = function ()
+  // {
+  //   return MAYBE
+  // };
+  // TRUE.joinMaybe = function ()
+  // {
+  //   return MAYBE
+  // };
+  // TRUE.not = function ()
+  // {
+  //   return FALSE
+  // };
+  // TRUE.toUserLattice = function () {return L_TRUE};
+  // TRUE.toString = function () {return this.string};
+  // const FALSE = {string:"FALSE"};
+  // FALSE.isTrue = function ()
+  // {
+  //   return false
+  // };
+  // FALSE.isFalse = function ()
+  // {
+  //   return true
+  // };
+  // FALSE.joinBoolean = function (x)
+  // {
+  //   if (x === BOOLEAN || x === FALSE)
+  //   {
+  //     return FALSE
+  //   }
+  //   ;
+  //   return MAYBE
+  // };
+  // FALSE.joinTrue = function ()
+  // {
+  //   return MAYBE
+  // };
+  // FALSE.joinFalse = function ()
+  // {
+  //   return FALSE
+  // };
+  // FALSE.joinMaybe = function ()
+  // {
+  //   return MAYBE
+  // };
+  // FALSE.not = function ()
+  // {
+  //   return TRUE
+  // };
+  // FALSE.toUserLattice = function () {return L_FALSE};
+  // FALSE.toString = function () {return this.string};
+  // const MAYBE = {string:"MAYBE"};
+  // MAYBE.isTrue = function ()
+  // {
+  //   return true
+  // };
+  // MAYBE.isFalse = function ()
+  // {
+  //   return true
+  // };
+  // MAYBE.joinBoolean = function (x)
+  // {
+  //   return MAYBE
+  // };
+  // MAYBE.joinTrue = function ()
+  // {
+  //   return MAYBE
+  // };
+  // MAYBE.joinFalse = function ()
+  // {
+  //   return MAYBE
+  // };
+  // MAYBE.joinMaybe = function ()
+  // {
+  //   return MAYBE
+  // };
+  // MAYBE.not = function ()
+  // {
+  //   return MAYBE
+  // };
+  // MAYBE.toUserLattice = function () {return TRUE.toUserLattice().join(FALSE.toUserLattice())};
+  // MAYBE.toString = function () {return this.string};
+  // const SET = new Set_(new Set());
+  //
+  // function Set_(x)
+  // {
+  //   this.set = x
+  // };
+  // Set_.prototype.subsumes = function (x)
+  // {
+  //   return Sets.subsumes(this.set, x.set)
+  // };
+  // Set_.prototype.subsumesValue = function (x)
+  // {
+  //   return this.set.has(x)
+  // };
+  // Set_.prototype.joinValue = function (x)
+  // {
+  //   return new Set_(Sets.add(this.set, x))
+  // };
+  // Set_.prototype.joinSet = function (x)
+  // {
+  //   return new Set_(Sets.union(this.set, x.set))
+  // };
+  // Set_.prototype.eq =
+  //     function (x)
+  //     {
+  //       if (this.subsumes(x))
+  //       {
+  //         if (x.subsumes(this))
+  //         {
+  //           return this.set.size === 1 ? TRUE : MAYBE;
+  //         }
+  //         return MAYBE;
+  //       }
+  //       if (x.subsumes(this))
+  //       {
+  //         return MAYBE;
+  //       }
+  //       return FALSE;
+  //     }
       
   function Intrinsics()
   {
@@ -305,6 +281,18 @@ function jsCesk(cc)
         return this.map.has(name);
       }
   
+  const allocNative = (function ()
+      {
+        let __ALLOC__NATIVE__COUNTER = 1;
+        return function ()
+        {
+          var a = __ALLOC__NATIVE__COUNTER++;
+          return a;
+        }
+      }
+  )()
+      
+      
   // install global pointers and refs
   const intrinsics = new Intrinsics();
   const globala = allocNative();
@@ -317,11 +305,22 @@ function jsCesk(cc)
   const functionProtoRef = l.abstRef(functionPa);
   intrinsics.add("%FunctionPrototype%", functionProtoRef);
   
-  var sstorei = 0;
+  let sstorei = 0;
+  let kcount = 0;
   
   const contexts = []; // do not pre-alloc
   const stacks = []; // do not pre-alloc
   const states = []; // do not pre-alloc
+  const kont2states = new Array(2048);
+  
+  
+  // create global object and initial store
+  const globalEnv = Benv.empty();
+  
+  
+  
+  ////////////////////////////////
+  
   
   function Stack(lkont, kont)
   {
@@ -496,7 +495,6 @@ function jsCesk(cc)
   //   const metaOperator = global.lookupInternal(name);
   // }
   
-  let kcount = 0;
   
   function invokeMeta(name, operands, store, lkont, kont, as)
   {
@@ -978,10 +976,6 @@ function jsCesk(cc)
     return funScopeDecls;
   }
   
-  // create global object and initial store
-  var globalEnv = Benv.empty();
-  
-  
   // registerInternalMethod("Object.[[GetPrototypeOf]]", objectGetPrototypeOf);
   // function objectGetPrototypeOf(application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
   // {
@@ -1193,8 +1187,6 @@ function jsCesk(cc)
     {
       return this.scope.addresses();
     }
-
-  const kont2states = new Array(2048);
 
   function stateGet(s)
   {
