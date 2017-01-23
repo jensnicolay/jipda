@@ -1,5 +1,3 @@
-
-
 (function (global)
 {
   function assert(c)
@@ -17,24 +15,24 @@
     {
       throw new TypeError("non-object property descriptor");
     }
-    var desc = Object.create(null);
+    var desc = $BASE$.newPropertyDescriptor();
     var hasEnumerable = HasProperty(Obj, "enumerable");
     if (hasEnumerable)
     {
       var enum_ = ToBoolean(Get(Obj, "enumerable"));
-      desc["[[Enumerable]]"] = enum_;
+      $BASE$.assignInternal(desc, "[[Enumerable]]", enum_);
     }
     var hasConfigurable = HasProperty(Obj, "configurable");
     if (hasConfigurable)
     {
       var conf = ToBoolean(Get(Obj, "configurable"));
-      desc["[[Configurable]]"] = conf;
+      $BASE$.assignInternal(desc, "[[Configurable]]", conf);
     }
     var hasValue = HasProperty(Obj, "value");
     if (hasValue)
     {
       var value = Get(Obj, "value");
-      desc["[[Value]]"] = value;
+      $BASE$.assignInternal(desc, "[[Value]]", value);
     }
     var hasGet = HasProperty(Obj, "get");
     if (hasGet)
@@ -44,7 +42,7 @@
       {
         throw new TypeError("non-callable getter");
       }
-      desc["[[Get]]"] = getter;
+      $BASE$.assignInternal(desc, "[[Get]]", getter);
     }
     var hasSet = HasProperty(Obj, "set");
     if (hasSet)
@@ -54,11 +52,11 @@
       {
         throw new TypeError("non-callable setter");
       }
-      desc["[[Set]]"] = setter;
+      $BASE$.assignInternal(desc, "[[Set]]", setter);
     }
-    if (desc["[[Get]]"] || desc["[[Set]]"])
+    if ($BASE$.hasInternalProperty(desc, "[[Get]]") || $BASE$.hasInternalProperty(desc, "[[Set]]"))
     {
-      if (desc["[[Value]]"] || desc["[[Writable]]"])
+      if ($BASE$.hasInternalProperty(desc, "[[Value]]") || $BASE$.hasInternalProperty(desc, "[[Writable]]"))
       {
         throw new TypeError("[[Value]] or [[Writable]] incompatible with [[Get]] or [[Set]]");
       }
@@ -192,6 +190,39 @@
     //   }
     // }
     throw new TypeError("cannot convert to primitive");
+  }
+  
+  // 7.1.2
+  function ToBoolean(argument)
+  {
+    if (argument === undefined)
+    {
+      return false;
+    }
+    if (argument === null)
+    {
+      return false;
+    }
+    if (typeof argument === "boolean")
+    {
+      return argument;
+    }
+    if (typeof argument === "number")
+    {
+      if (argument === 0 || isNaN(argument))
+      {
+        return false;
+      }
+      return true;
+    }
+    if (typeof argument === "symbol")
+    {
+      return true;
+    }
+    if (typeof argument === "object")
+    {
+      return true;
+    }
   }
   
   // 7.1.12
@@ -389,7 +420,7 @@
   {
     assert(typeof O === "object");
     assert(IsPropertyKey(P));
-    var success = ($BASE$.lookupInternal(O, "[[DefineOwnProperty]]"))(P, desc);
+    var success = $BASE$.callInternal(O, "[[DefineOwnProperty]]", P, desc);
     if (success === false)
     {
       throw new TypeError("defining property failed");
@@ -402,7 +433,7 @@
   {
     assert(typeof O === "object");
     assert(IsPropertyKey(P));
-    return ($BASE$.lookupInternal(O, "[[HasProperty]]"))(P);
+    return $BASE$.callInternal(O, "[[HasProperty]]", P);
   }
   
   // 7.3.19
@@ -479,20 +510,21 @@
   function OrdinaryHasProperty(O, P)
   {
     assert(IsPropertyKey(P));
-    var hasOwn = ($BASE$.lookupInternal(O, "[[GetOwnProperty]]"))(P);
+    var hasOwn = $BASE$.callInternal(O, "[[GetOwnProperty]]", P);
     if (hasOwn !== undefined)
     {
       return true;
     }
-    var parent = ($BASE$.lookupInternal(O, "[[GetPrototypeOf]]"))(P);
+    var parent = $BASE$.callInternal(O, "[[GetPrototypeOf]]", P);
     if (parent !== null)
     {
-      return ($BASE$.lookupInternal(parent, "[[HasProperty]]"))(P);
+      return $BASE$.callInternal(parent, "[[HasProperty]]", P);
     }
     return false;
   }
   
   // 9.1.8.1
+  // implemented in base
   
   // 12.10.4
   $BASE$.addMeta("InstanceofOperator", InstanceofOperator);
@@ -524,6 +556,7 @@
         }
         var key = ToPropertyKey(P);
         var desc = ToPropertyDescriptor(Attributes);
+        print("3");
         DefinePropertyOrThrow(O, key, desc);
         return O;
       }

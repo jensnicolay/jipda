@@ -1,9 +1,80 @@
 "use strict";
- 
+
+function Internals(map)
+{
+  assertDefinedNotNull(map);
+  this.map = map;
+}
+
+Internals.empty =
+    function ()
+    {
+      return new Internals(new Map());
+    }
+
+Internals.internalsJoin =
+    function (x, y)
+    {
+      if (x instanceof Set)
+      {
+        return Sets.union(x, y);
+      }
+      return x.join(y);
+    }
+
+Internals.prototype.set =
+    function (name, value)
+    {
+      const newMap = new Map(this.map);
+      newMap.set(name, value);
+      return new Internals(newMap);
+    }
+
+Internals.prototype.get =
+    function (name)
+    {
+      if (this.map.has(name))
+      {
+        return this.map.get(name);
+      }
+      throw new Error("unknown internal: " + name);
+    }
+
+Internals.prototype.has =
+    function (name)
+    {
+      return this.map.get(name) !== undefined;
+    }
+    
+Internals.prototype.join =
+    function (other)
+    {
+      const joinedMap = Maps.join(this.map, other.map, Internals.internalsJoin, BOT);
+      return new Internals(joinedMap);
+    }
+    
+Internals.prototype.addresses =
+    function ()
+    {
+      let addresses = ArraySet.empty();
+      this.map.forEach((value, key) => {
+        if (value instanceof Set_) // TODO hack for [[Call]]
+        {
+          value.forEach((val) => addresses = addresses.join(val.addresses()));
+        }
+        else
+        {
+          addresses = addresses.join(value.addresses());
+        }});
+      return addresses;
+    }
+    
+    
+
 function Obj()
   {
     this.frame = Obj.EMPTY_FRAME;
-    this.internals = new Map(); // TODO remove this, expect proper init (param)?
+    this.internals = Internals.empty();
    }
   
   Obj.EMPTY_FRAME = HashMap.empty();
@@ -46,36 +117,16 @@ function Obj()
   }
 
 
-
-
 Obj.prototype.setInternal =
     function (name, value)
     {
       
-      //assert(value.subsumes);
-      
       const result = new Obj();
       result.frame = this.frame;
   
-      const newMap = new Map(this.internals);
-      newMap.set(name, value);
-      result.internals = newMap;
+      const newInternals = this.internals.set(name, value);
+      result.internals = newInternals;
 
-      return result;
-    }
-
-
-Obj.prototype.add =
-    function (name, value)
-    {
-      assert(name);
-      assertTrue(value.constructor.name === "Property");
-      assertDefinedNotNull(value.Value.subsumes);
-      var result = new Obj();
-      result.frame = strongUpdateFrame(this.frame, name, value);
-      
-      result.internals = this.internals;
-      
       return result;
     }
 
@@ -84,7 +135,25 @@ Obj.prototype.lookupInternal =
     {
       return this.internals.get(name);
     }
-    
+
+Obj.prototype.hasInternal =
+    function (name)
+    {
+      return this.internals.has(name);
+    }
+
+Obj.prototype.add =
+    function (name, value)
+    {
+      assert(name);
+      assertTrue(value.constructor.name === "Property");
+      assertDefinedNotNull(value.Value.subsumes);
+      const result = new Obj();
+      result.frame = strongUpdateFrame(this.frame, name, value);
+      result.internals = this.internals;
+      return result;
+    }
+
     
   Obj.prototype.lookup =
     function (name)
@@ -93,7 +162,7 @@ Obj.prototype.lookupInternal =
       this.frame.iterateEntries(
         function (entry)
         {
-          var entryName = entry[0];
+          const entryName = entry[0];
           if (entryName.subsumes(name) || name.subsumes(entryName))
           {
             result = result.join(entry[1]);
@@ -108,16 +177,6 @@ Obj.prototype.lookupInternal =
       return [this];
     }
     
-  Obj.internalsJoin =
-      function (x, y)
-      {
-        if (x instanceof Set)
-        {
-          return Sets.union(x, y);
-        }
-        return x.join(y);
-      }
-  
   Obj.prototype.join =
     function (other)
     {
@@ -127,9 +186,7 @@ Obj.prototype.lookupInternal =
       }    
       var result = new Obj();
       result.frame = this.frame.join(other.frame, BOT);
-      
-      result.internals = Maps.join(this.internals, other.internals, Obj.internalsJoin, BOT);
-      
+      result.internals = this.internals.join(other.internals);
       return result;
     }
   
@@ -189,21 +246,7 @@ Obj.prototype.diff = //DEBUG
     {
       let addresses = ArraySet.empty();
       this.frame.values().forEach(function (value) {addresses = addresses.join(value.addresses())});
-      this.internals.forEach((value, key) => {
-        if (value instanceof Set_) // TODO hack for [[Call]]
-        {
-          value.forEach((val) => addresses = addresses.join(val.addresses()));
-        }
-        else if (value instanceof Set) // TODO hack for internal methods
-        {
-          // nothing (needs expansion if Sets can contain storables
-        }
-        else
-        {
-          if (!value.addresses) {print(value, value instanceof Set_); readline()};
-          addresses = addresses.join(value.addresses());
-        }
-        });
+      addresses = addresses.join(this.internals.addresses());
       return addresses;
     }
   
