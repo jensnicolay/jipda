@@ -81,7 +81,7 @@ function runBenchmarks(benchmarks)
       print(benchmark);
       var src = read(bprefix + benchmark);
       var ast = Ast.createAst(src, {loc:true});
-      var cesk = jsCesk({a:createTagAg(), l:new JipdaLattice()});
+      var cesk = jsCesk({a:createTagAg(), l:new TypeLattice()});
       var fs = Ast.nodes(ast).filter(function (node) {return node.type === "FunctionDeclaration" || node.type === "FunctionExpression"});
 
       var sgStart = Date.now();
@@ -179,7 +179,7 @@ function paperTest()
   
   function createTypeCesk(ast)
   {
-    return jsCesk({a:createTagAg(), l:new JipdaLattice()});
+    return jsCesk({a:createTagAg(), l:new TypeLattice()});
   }
   
   function createConcCesk(ast)

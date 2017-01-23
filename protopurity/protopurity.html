@@ -12,17 +12,18 @@
 	<script type="text/javascript" src="../ast.js"></script>
 	<script type="text/javascript" src="../agc.js"></script>
 	<script type="text/javascript" src="../lattice.js"></script>
-	<script type="text/javascript" src="../abstLattice1-3.js"></script>
-	<script type="text/javascript" src="../concLattice.js"></script>
-	<script type="text/javascript" src="../countingStore.js"></script>
-	<script type="text/javascript" src="../graph.js"></script>
-	<script type="text/javascript" src="../jsCesk.js"></script>
-	<script type="text/javascript" src="../jsGlobals.js"></script>
-	<script type="text/javascript" src="../concreteAg.js"></script>
-	<script type="text/javascript" src="../tagAg.js"></script>
-	<script type="text/javascript" src="../benv.js"></script>
-	<script type="text/javascript" src="../object.js"></script>
-	<script type="text/javascript" src="purityAnalysis.js"></script>
+  <script type="text/javascript" src="../conc-lattice.js"></script>
+  <script type="text/javascript" src="../conc-alloc.js"></script>
+  <script type="text/javascript" src="../conc-kalloc.js"></script>
+  <script type="text/javascript" src="../type-lattice.js"></script>
+  <script type="text/javascript" src="../tag-alloc.js"></script>
+  <script type="text/javascript" src="../aac-kalloc.js"></script>
+  <script type="text/javascript" src="../benv.js"></script>
+  <script type="text/javascript" src="../countingStore.js"></script>
+  <script type="text/javascript" src="../object.js"></script>
+  <script type="text/javascript" src="../jsCesk.js"></script>
+  <script type="text/javascript" src="../graph.js"></script>
+  <script type="text/javascript" src="purityAnalysis.js"></script>
 	<script type="text/javascript" src="protopurity.js"></script>
 	<script type="text/javascript" src="../pdg/pdg.js"></script> <!-- TEMPORARY, for hacking purposes -->
 	<script type="text/javascript" src="../lib/web/jquery-2.1.1.min.js"></script>
@@ -38,13 +39,29 @@
 	
 	"use strict";
 	
-  var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }		
+  var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }
 	var editor, meta;
 	var ast, astNodes;
 	var system, cesk, states, transitions, graph, initial, result, contexts;
 	var ag, lat, kalloc;
-		
-	/* SHORTCUTS */
+  
+  function computeInitialCeskState(ast0src, lat)
+  {
+    const ast0 = Ast.createAst(ast0src);
+    const prelCesk = jsCesk({a:concAlloc, kalloc: concKalloc, l:lat, gc: true, errors:true});
+    const prelSystem = prelCesk.explore(ast0);
+    const prelResult = prelSystem.result;
+    if (prelResult.size !== 1)
+    {
+      throw new Error("wrong number of prelude results: " + prelResult.size);
+    }
+    const prelStore = [...prelResult][0].store;
+    const prelRealm = prelSystem.realm;//[...prelResult][0].realm;
+    return {store:prelStore, realm:prelRealm};
+  }
+  
+  
+  /* SHORTCUTS */
 	function purity()
 	{
 	  //console.profile();
@@ -102,26 +119,28 @@
     eval($("#config").val());
     var errors = $("#errors").is(":checked"); 
     var gc = true;
+    
+    
     var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
-    cesk = jsCesk({a:ag, kalloc, l:lat, gc: gc, errors:errors,
-			initializers:[
-			    //new GlobalsInitializer(),
-					new SourceCodeInitializer(ast0src)
-			]});
+    const initialCeskState = computeInitialCeskState(ast0src, lat);
 	  
 	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 	  
-//    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date()); 
+//    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date());
 //    console.profile(profileName);
     var start = Date.now();
-    system = cesk.explore(ast);
+    
+		const cesk = jsCesk({a:ag, kalloc, l:lat, gc, errors});
+		system = cesk.explore(ast, initialCeskState);
+    
+    
     var time = Date.now() - start;
 //    console.profileEnd(profileName);
     initial = system.initial;
     result = system.result;
-    contexts = system.contexts;	  
+    contexts = system.contexts;
     console.log("analysis took " + time + " ms");
-    console.log(system.states.length + " states; " + result.count() + " results; " + contexts.length + " contexts");
+    console.log(system.states.length + " states; " + result.size + " results; " + contexts.length + " contexts");
     var result = computeResultValue(system.result);
     var resultValue = result.value;
     console.log("result value " + resultValue);
@@ -234,8 +253,8 @@
 		</select>
     <span>
       <select id="config" title="value lattice">
-        <option value="(lat=new JipdaLattice(),ag=createTagAg(),kalloc=aacKalloc)">abst</option>
-        <option value="(lat=new ConcLattice(),ag=createConcAg(),kalloc=concKalloc)">conc</option>
+        <option value="(lat=new TypeLattice(),ag=tagAlloc,kalloc=aacKalloc)">abst</option>
+        <option value="(lat=new ConcLattice(),ag=concAlloc,kalloc=concKalloc)">conc</option>
       </select>
     </span>
     <input id="errors" type="checkbox" checked="true">errors</input>

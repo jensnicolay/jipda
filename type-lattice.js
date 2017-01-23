@@ -1,25 +1,25 @@
 "use strict";
 
-JipdaValue.UND = 1 << 0;
-JipdaValue.NULL = 1 << 1;
-JipdaValue.STR = 1 << 2;
-JipdaValue.NUM = 1 << 3;
-JipdaValue.NUMSTR = 1 << 4;
-JipdaValue.BOOL = 1 << 5;
-JipdaValue.EMPTY_SET = ArraySet.empty();
+TypeValue.UND = 1 << 0;
+TypeValue.NULL = 1 << 1;
+TypeValue.STR = 1 << 2;
+TypeValue.NUM = 1 << 3;
+TypeValue.NUMSTR = 1 << 4;
+TypeValue.BOOL = 1 << 5;
+TypeValue.EMPTY_SET = ArraySet.empty();
 
-JipdaValue.TRUTHY = JipdaValue.STR | JipdaValue.NUM | JipdaValue.NUMSTR | JipdaValue.BOOL;
-JipdaValue.FALSY = JipdaValue.UND | JipdaValue.NULL | JipdaValue.STR | JipdaValue.NUM | JipdaValue.BOOL;
+TypeValue.TRUTHY = TypeValue.STR | TypeValue.NUM | TypeValue.NUMSTR | TypeValue.BOOL;
+TypeValue.FALSY = TypeValue.UND | TypeValue.NULL | TypeValue.STR | TypeValue.NUM | TypeValue.BOOL;
 
-JipdaValue.STRINGMASK = JipdaValue.STR | JipdaValue.NUMSTR;
-JipdaValue.STRINGERS = JipdaValue.UND | JipdaValue.NULL | JipdaValue.BOOL | JipdaValue.NUM;
+TypeValue.STRINGMASK = TypeValue.STR | TypeValue.NUMSTR;
+TypeValue.STRINGERS = TypeValue.UND | TypeValue.NULL | TypeValue.BOOL | TypeValue.NUM;
 
-JipdaValue._NUM = new JipdaValue(JipdaValue.NUM, JipdaValue.EMPTY_SET);
-JipdaValue._STR = new JipdaValue(JipdaValue.STR, JipdaValue.EMPTY_SET);
-JipdaValue._BOOL = new JipdaValue(JipdaValue.BOOL, JipdaValue.EMPTY_SET);
-JipdaValue._NUMSTR = new JipdaValue(JipdaValue.NUMSTR, JipdaValue.EMPTY_SET);
-JipdaValue._UND = new JipdaValue(JipdaValue.UND, JipdaValue.EMPTY_SET);
-JipdaValue._NULL = new JipdaValue(JipdaValue.NULL, JipdaValue.EMPTY_SET);
+TypeValue._NUM = new TypeValue(TypeValue.NUM, TypeValue.EMPTY_SET);
+TypeValue._STR = new TypeValue(TypeValue.STR, TypeValue.EMPTY_SET);
+TypeValue._BOOL = new TypeValue(TypeValue.BOOL, TypeValue.EMPTY_SET);
+TypeValue._NUMSTR = new TypeValue(TypeValue.NUMSTR, TypeValue.EMPTY_SET);
+TypeValue._UND = new TypeValue(TypeValue.UND, TypeValue.EMPTY_SET);
+TypeValue._NULL = new TypeValue(TypeValue.NULL, TypeValue.EMPTY_SET);
 
 function Some(prim)
 {
@@ -53,25 +53,25 @@ Some.prototype.abst =
       {
         if (+prim === +prim && prim !== "")
         {
-          return JipdaValue._NUMSTR;
+          return TypeValue._NUMSTR;
         }
-        return JipdaValue._STR;
+        return TypeValue._STR;
       }
       if (typeof prim === "number")
       {
-        return JipdaValue._NUM;
+        return TypeValue._NUM;
       }
       if (prim === true || prim === false)
       {
-        return JipdaValue._BOOL;
+        return TypeValue._BOOL;
       }
       if (prim === undefined)
       {
-        return JipdaValue._UND;
+        return TypeValue._UND;
       }
       if (prim === null)
       {
-        return JipdaValue._NULL;
+        return TypeValue._NULL;
       }
       throw new Error("cannot abstract value " + prim);
     }
@@ -159,7 +159,7 @@ Some.prototype.meet =
 Some.prototype.addresses =
     function ()
     {
-      return JipdaValue.EMPTY_SET;
+      return TypeValue.EMPTY_SET;
     }
 
 Some.prototype.isRef =
@@ -219,19 +219,19 @@ Some.prototype.projectObject =
 Some.prototype.charAt =
     function (x)
     {
-      return new JipdaValue(JipdaValue.STR | JipdaValue.NUMSTR, JipdaValue.EMPTY_SET);
+      return new TypeValue(TypeValue.STR | TypeValue.NUMSTR, TypeValue.EMPTY_SET);
     }
 
 Some.prototype.charCodeAt =
     function (x)
     {
-      return JipdaValue._NUM;
+      return TypeValue._NUM;
     }
 
 Some.prototype.startsWith =
     function (x)
     {
-      return JipdaValue._BOOL;
+      return TypeValue._BOOL;
     }
 
 Some.prototype.stringLength =
@@ -252,20 +252,20 @@ Some.prototype.conc1 =
       return this.prim;
     }
 
-function JipdaValue(type, as)
+function TypeValue(type, as)
 {
   this.type = type;
   this.as = as;
 }
 
-JipdaValue.prototype.equals =
+TypeValue.prototype.equals =
     function (x)
     {
-      return (x instanceof JipdaValue)
+      return (x instanceof TypeValue)
           && this.type === x.type
           && this.as.equals(x.as)
     }
-JipdaValue.prototype.hashCode =
+TypeValue.prototype.hashCode =
     function ()
     {
       var prime = 31;
@@ -275,58 +275,58 @@ JipdaValue.prototype.hashCode =
       return result;
     }
 
-JipdaValue.prototype.isTruthy =
+TypeValue.prototype.isTruthy =
     function ()
     {
-      return (this.type & JipdaValue.TRUTHY) || this.isRef();
+      return (this.type & TypeValue.TRUTHY) || this.isRef();
     }
 
-JipdaValue.prototype.isTrue =
+TypeValue.prototype.isTrue =
     function ()
     {
-      return (this.type & JipdaValue.BOOL);
+      return (this.type & TypeValue.BOOL);
     }
 
-JipdaValue.prototype.isFalsy =
+TypeValue.prototype.isFalsy =
     function ()
     {
-      return (this.type & JipdaValue.FALSY);
+      return (this.type & TypeValue.FALSY);
     }
 
-JipdaValue.prototype.ToString =
+TypeValue.prototype.ToString =
     function ()
     {
-      var type = (this.type & JipdaValue.STRINGMASK);
-      if ((this.type & (JipdaValue.UND | JipdaValue.NULL | JipdaValue.BOOL )) || this.isRef())
+      var type = (this.type & TypeValue.STRINGMASK);
+      if ((this.type & (TypeValue.UND | TypeValue.NULL | TypeValue.BOOL )) || this.isRef())
       {
-        type |= JipdaValue.STR;
+        type |= TypeValue.STR;
       }
-      if (this.type & JipdaValue.NUM)
+      if (this.type & TypeValue.NUM)
       {
-        type |= JipdaValue.NUMSTR;
+        type |= TypeValue.NUMSTR;
       }
-      return new JipdaValue(type, JipdaValue.EMPTY_SET);
+      return new TypeValue(type, TypeValue.EMPTY_SET);
     }
 
-JipdaValue.prototype.ToNumber =
+TypeValue.prototype.ToNumber =
     function ()
     {
-      return JipdaValue._NUM;
+      return TypeValue._NUM;
     }
 
-JipdaValue.prototype.ToUint32 =
+TypeValue.prototype.ToUint32 =
     function ()
     {
-      return JipdaValue._NUM;
+      return TypeValue._NUM;
     }
 
-JipdaValue.prototype.abst =
+TypeValue.prototype.abst =
     function ()
     {
       return this;
     }
 
-JipdaValue.prototype.subsumes =
+TypeValue.prototype.subsumes =
     function (x)
     {
       if (x === BOT)
@@ -335,7 +335,7 @@ JipdaValue.prototype.subsumes =
       }
       var type = this.type;
       var as = this.as;
-      if (x instanceof JipdaValue)
+      if (x instanceof TypeValue)
       {
         return ((~type & x.type) === 0) && as.subsumes(x.as);
       }
@@ -347,7 +347,7 @@ JipdaValue.prototype.subsumes =
       return (type & xx.type);
     }
 
-JipdaValue.prototype.join =
+TypeValue.prototype.join =
     function (x)
     {
       if (x === BOT)
@@ -355,10 +355,10 @@ JipdaValue.prototype.join =
         return this;
       }
       var x2 = x.abst();
-      return new JipdaValue(this.type | x2.type, this.as.join(x2.as));
+      return new TypeValue(this.type | x2.type, this.as.join(x2.as));
     }
 
-JipdaValue.prototype.meet =
+TypeValue.prototype.meet =
     function (x)
     {
       if (x === BOT)
@@ -366,41 +366,41 @@ JipdaValue.prototype.meet =
         return BOT;
       }
       var x2 = x.abst();
-      return new JipdaValue(this.type ^ x2.type, this.as.meet(x2.as));
+      return new TypeValue(this.type ^ x2.type, this.as.meet(x2.as));
     }
 
-JipdaValue.prototype.addresses =
+TypeValue.prototype.addresses =
     function ()
     {
       return this.as;
     }
 
-JipdaValue.prototype.toString =
+TypeValue.prototype.toString =
     function ()
     {
       var result = [];
       var type = this.type;
-      if (type & JipdaValue.STR)
+      if (type & TypeValue.STR)
       {
         result.push("Str");
       }
-      if (type & JipdaValue.NUMSTR)
+      if (type & TypeValue.NUMSTR)
       {
         result.push("NumStr");
       }
-      if (type & JipdaValue.NUM)
+      if (type & TypeValue.NUM)
       {
         result.push("Num");
       }
-      if (type & JipdaValue.BOOL)
+      if (type & TypeValue.BOOL)
       {
         result.push("Bool");
       }
-      if (type & JipdaValue.UND)
+      if (type & TypeValue.UND)
       {
         result.push("Undefined");
       }
-      if (type & JipdaValue.NULL)
+      if (type & TypeValue.NULL)
       {
         result.push("Null");
       }
@@ -411,134 +411,132 @@ JipdaValue.prototype.toString =
       return "{" + result.join(",") + "}";
     }
 
-JipdaValue.prototype.isNonRef =
+TypeValue.prototype.isNonRef =
     function ()
     {
       return this.type;
     }
 
-JipdaValue.prototype.isRef =
+TypeValue.prototype.isRef =
     function ()
     {
       return this.as.count() > 0;
     }
 
-JipdaValue.prototype.projectObject =
+TypeValue.prototype.projectObject =
     function ()
     {
       if (this.isRef())
       {
-        return new JipdaValue(0, this.as);
+        return new TypeValue(0, this.as);
       }
       return BOT;
     }
 
-JipdaValue.prototype.projectString =
+TypeValue.prototype.projectString =
     function ()
     {
-      var type = this.type & JipdaValue.STRINGMASK;
+      var type = this.type & TypeValue.STRINGMASK;
       if (type)
       {
-        return new JipdaValue(type, JipdaValue.EMPTY_SET);
+        return new TypeValue(type, TypeValue.EMPTY_SET);
       }
       return BOT;
     }
 
-JipdaValue.prototype.projectNumber =
+TypeValue.prototype.projectNumber =
     function ()
     {
-      var type = this.type & JipdaValue.NUM;
+      var type = this.type & TypeValue.NUM;
       if (type)
       {
-        return new JipdaValue(type, JipdaValue.EMPTY_SET);
+        return new TypeValue(type, TypeValue.EMPTY_SET);
       }
       return BOT;
     }
 
-JipdaValue.prototype.projectBoolean =
+TypeValue.prototype.projectBoolean =
     function ()
     {
-      var type = this.type & JipdaValue.BOOL;
+      var type = this.type & TypeValue.BOOL;
       if (type)
       {
-        return new JipdaValue(type, JipdaValue.EMPTY_SET);
+        return new TypeValue(type, TypeValue.EMPTY_SET);
       }
       return BOT;
     }
 
-JipdaValue.prototype.projectUndefined =
+TypeValue.prototype.projectUndefined =
     function ()
     {
-      var type = this.type & JipdaValue.UND;
+      var type = this.type & TypeValue.UND;
       if (type)
       {
-        return new JipdaValue(type, JipdaValue.EMPTY_SET);
+        return new TypeValue(type, TypeValue.EMPTY_SET);
       }
       return BOT;
     }
 
-JipdaValue.prototype.projectNull =
+TypeValue.prototype.projectNull =
     function ()
     {
-      var type = this.type & JipdaValue.NULL;
+      var type = this.type & TypeValue.NULL;
       if (type)
       {
-        return new JipdaValue(type, JipdaValue.EMPTY_SET);
+        return new TypeValue(type, TypeValue.EMPTY_SET);
       }
       return BOT;
     }
 
-JipdaValue.prototype.charAt =
+TypeValue.prototype.charAt =
     function (x)
     {
-      return new JipdaValue(JipdaValue.STR | JipdaValue.NUMSTR, JipdaValue.EMPTY_SET);
+      return new TypeValue(TypeValue.STR | TypeValue.NUMSTR, TypeValue.EMPTY_SET);
     }
 
-JipdaValue.prototype.charCodeAt =
+TypeValue.prototype.charCodeAt =
     function (x)
     {
-      return JipdaValue._NUM;
+      return TypeValue._NUM;
     }
 
-JipdaValue.prototype.stringLength =
+TypeValue.prototype.stringLength =
     function (x)
     {
-      return JipdaValue._NUMSTR;
+      return TypeValue._NUMSTR;
     }
 
-JipdaValue.prototype.startsWith =
+TypeValue.prototype.startsWith =
     function (x)
     {
-      return JipdaValue._BOOL;
+      return TypeValue._BOOL;
     }
 
-JipdaValue.prototype.parseInt =
+TypeValue.prototype.parseInt =
     function ()
     {
-      return JipdaValue._NUM;
+      return TypeValue._NUM;
     }
 
 
-
-
-function JipdaLattice()
+function TypeLattice()
 {
 }
 
-JipdaLattice.prototype.abst =
+TypeLattice.prototype.abst =
     function (cvalues)
     {
-      return cvalues.map(JipdaLattice.prototype.abst1, this).reduce(Lattice.join);
+      return cvalues.map(TypeLattice.prototype.abst1, this).reduce(Lattice.join);
     }
 
-JipdaLattice.prototype.abstRef =
+TypeLattice.prototype.abstRef =
     function (addr)
     {
-      return new JipdaValue(0, ArraySet.from1(addr));
+      return new TypeValue(0, ArraySet.from1(addr));
     }
 
 
-JipdaLattice.prototype.abst1 =
+TypeLattice.prototype.abst1 =
     function (value)
     {
       if (typeof value === "string")
@@ -547,7 +545,7 @@ JipdaLattice.prototype.abst1 =
       }
       if (typeof value === "number")
       {
-        return JipdaValue._NUM;
+        return TypeValue._NUM;
       }
       if (value === true || value === false)
       {
@@ -555,20 +553,20 @@ JipdaLattice.prototype.abst1 =
       }
       if (value === undefined)
       {
-        return JipdaValue._UND;
+        return TypeValue._UND;
       }
       if (value === null)
       {
-        return JipdaValue._NULL;
+        return TypeValue._NULL;
       }
       throw new Error("cannot abstract value " + value);
     }
 
-JipdaLattice.prototype.NUMBER = JipdaValue._NUM;
-JipdaLattice.prototype.BOOL = JipdaValue._BOOL;
-JipdaLattice.prototype.UNDEFINED = JipdaValue._UND;
+TypeLattice.prototype.NUMBER = TypeValue._NUM;
+TypeLattice.prototype.BOOL = TypeValue._BOOL;
+TypeLattice.prototype.UNDEFINED = TypeValue._UND;
 
-JipdaLattice.prototype.add =
+TypeLattice.prototype.add =
     function (x, y)
     {
       if (x instanceof Some && y instanceof Some)
@@ -576,7 +574,7 @@ JipdaLattice.prototype.add =
         var result = x.prim + y.prim;
         if (typeof result === "string" && result.length > 32)
         {
-          return JipdaValue._STR;
+          return TypeValue._STR;
         }
         return new Some(result);
       }
@@ -584,85 +582,85 @@ JipdaLattice.prototype.add =
       var y = y.abst();
       
       var type = 0;
-      if ((x.type & JipdaValue.STR) || (y.type & JipdaValue.STR))
+      if ((x.type & TypeValue.STR) || (y.type & TypeValue.STR))
       {
-        type |= JipdaValue.STR;
+        type |= TypeValue.STR;
       }
-      if (x.type & JipdaValue.NUMSTR)
+      if (x.type & TypeValue.NUMSTR)
       {
-        if (y.type & (JipdaValue.NUMSTR | JipdaValue.NUM))
+        if (y.type & (TypeValue.NUMSTR | TypeValue.NUM))
         {
-          type |= JipdaValue.NUMSTR;
+          type |= TypeValue.NUMSTR;
         }
-        if ((y.type ^ JipdaValue.NUMSTR) || y.isRef())
+        if ((y.type ^ TypeValue.NUMSTR) || y.isRef())
         {
-          type |= JipdaValue.STR;
+          type |= TypeValue.STR;
         }
       }
-      else if (y.type & JipdaValue.NUMSTR)
+      else if (y.type & TypeValue.NUMSTR)
       {
-        if (x.type & JipdaValue.NUM)
+        if (x.type & TypeValue.NUM)
         {
-          type |= JipdaValue.NUMSTR;
+          type |= TypeValue.NUMSTR;
         }
-        type |= JipdaValue.STR;
+        type |= TypeValue.STR;
       }
-      if (((x.type & JipdaValue.STRINGERS) || x.isRef()) && ((y.type & JipdaValue.STRINGERS) || y.isRef()))
+      if (((x.type & TypeValue.STRINGERS) || x.isRef()) && ((y.type & TypeValue.STRINGERS) || y.isRef()))
       {
-        type |= JipdaValue.NUM;
+        type |= TypeValue.NUM;
       }
-      return new JipdaValue(type, JipdaValue.EMPTY_SET);
+      return new TypeValue(type, TypeValue.EMPTY_SET);
     }
 
-JipdaLattice.prototype.lt =
+TypeLattice.prototype.lt =
     function (x, y)
     {
       return this.BOOL;
     }
 
-JipdaLattice.prototype.lte =
+TypeLattice.prototype.lte =
     function (x, y)
     {
       return this.BOOL;
     }
 
-JipdaLattice.prototype.gt =
+TypeLattice.prototype.gt =
     function (x, y)
     {
       return this.BOOL;
     }
 
-JipdaLattice.prototype.gte =
+TypeLattice.prototype.gte =
     function (x, y)
     {
       return this.BOOL;
     }
 
-JipdaLattice.prototype.sub =
+TypeLattice.prototype.sub =
     function (x, y)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.mul =
+TypeLattice.prototype.mul =
     function (x, y)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.div =
+TypeLattice.prototype.div =
     function (x, y)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.rem =
+TypeLattice.prototype.rem =
     function (x, y)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.eqq =
+TypeLattice.prototype.eqq =
     function (x, y)
     {
       if (x instanceof Some && y instanceof Some)
@@ -673,13 +671,13 @@ JipdaLattice.prototype.eqq =
       return this.BOOL;
     }
 
-JipdaLattice.prototype.eq =
+TypeLattice.prototype.eq =
     function (x, y)
     {
       return this.BOOL;
     }
 
-JipdaLattice.prototype.neq =
+TypeLattice.prototype.neq =
     function (x, y)
     {
       if (x instanceof Some && y instanceof Some)
@@ -690,109 +688,109 @@ JipdaLattice.prototype.neq =
       return this.BOOL;
     }
 
-JipdaLattice.prototype.binor =
+TypeLattice.prototype.binor =
     function (x, y)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.binxor =
+TypeLattice.prototype.binxor =
     function (x, y)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.binand =
+TypeLattice.prototype.binand =
     function (x, y)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.shl =
+TypeLattice.prototype.shl =
     function (x, y)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.shr =
+TypeLattice.prototype.shr =
     function (x, y)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.shrr =
+TypeLattice.prototype.shrr =
     function (x, y)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.not =
+TypeLattice.prototype.not =
     function (x)
     {
       return this.BOOL;
     }
 
-JipdaLattice.prototype.pos = // unary +
+TypeLattice.prototype.pos = // unary +
     function (x)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.neg = // unary -
+TypeLattice.prototype.neg = // unary -
     function (x)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.binnot =
+TypeLattice.prototype.binnot =
     function (x)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.sqrt =
+TypeLattice.prototype.sqrt =
     function (x)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.sin =
+TypeLattice.prototype.sin =
     function (x)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.cos =
+TypeLattice.prototype.cos =
     function (x)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.abs =
+TypeLattice.prototype.abs =
     function (x)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.round =
+TypeLattice.prototype.round =
     function (x)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.floor =
+TypeLattice.prototype.floor =
     function (x)
     {
       return this.NUMBER;
     }
 
-JipdaLattice.prototype.toString =
+TypeLattice.prototype.toString =
     function ()
     {
       return "JipdaLattice1-2";
     }
 
-JipdaLattice.prototype.sanity =
+TypeLattice.prototype.sanity =
     function ()
     {
       assert(this.NUMBER.isTruthy());

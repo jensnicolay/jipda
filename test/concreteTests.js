@@ -4,18 +4,18 @@ var suiteConcreteTests =
 {
   var module = new TestSuite("suiteConcreteTests");
   
+  const concLattice = new ConcLattice();
+  const initialCeskState = computeInitialCeskState(concLattice);
+  
   function run(src, expected)
   {
     var ast = Ast.createAst(src);
-    var cesk = jsCesk({a:createConcAg(), l: new ConcLattice(), kalloc:concKalloc, errors:true,
-      initializers:[new SourceCodeInitializer(ast0src)]});
-    var system = cesk.explore(ast);
+    var cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: concLattice, errors:true});
+    var system = cesk.explore(ast, initialCeskState);
     var result = computeResultValue(system.result);
     result.msgs.join("\n");
     var actual = result.value;
-//    assertEquals(1, endStates.length);
-    //var actual = endStates[0].value;
-    assertEquals(cesk.l.abst1(expected), actual);
+    assertEquals(concLattice.abst1(expected), actual);
   }
 
   module.test1 =

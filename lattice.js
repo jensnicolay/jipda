@@ -49,19 +49,19 @@ Ecma.isStringArrayIndex =
     return Ecma.isArrayIndex(number);
   }
 
-//8.6.2
-Ecma.Class =
-  {
-    OBJECT: "Object", 
-    FUNCTION: "Function", 
-    ARRAY: "Array", 
-    ARGUMENTS: "Arguments", 
-    STRING: "String", 
-    BOOLEAN: "Boolean", 
-    NUMBER: "Number",
-    MATH: "Math",
-    DATE: "Date",
-    REGEXP: "RegExp",
-    ERROR: "Error",
-    JSON: "JSON"
-  };
+// //8.6.2
+// Ecma.Class =
+//   {
+//     OBJECT: "Object",
+//     FUNCTION: "Function",
+//     ARRAY: "Array",
+//     ARGUMENTS: "Arguments",
+//     STRING: "String",
+//     BOOLEAN: "Boolean",
+//     NUMBER: "Number",
+//     MATH: "Math",
+//     DATE: "Date",
+//     REGEXP: "RegExp",
+//     ERROR: "Error",
+//     JSON: "JSON"
+//   };

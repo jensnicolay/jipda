@@ -16,7 +16,7 @@ eval(String(fs.readFileSync("../lattice.js")).substring(14));
 eval(String(fs.readFileSync("../concLattice.js")).substring(14));
 eval(String(fs.readFileSync("../ast.js")).substring(14));
 eval(String(fs.readFileSync("../jsCesk.js")).substring(14));
-eval(String(fs.readFileSync("../concreteAg.js")).substring(14));
+eval(String(fs.readFileSync("../conc-alloc.js")).substring(14));
 eval(String(fs.readFileSync("../benv.js")).substring(14));
 eval(String(fs.readFileSync("../object.js")).substring(14));
 

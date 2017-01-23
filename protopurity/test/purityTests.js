@@ -6,7 +6,7 @@ var suiteJipdaDepTests =
   
   function createTypeCesk(ast)
   {
-    return jsCesk({a: createTagAg(), l: new JipdaLattice()});
+    return jsCesk({a: createTagAg(), l: new TypeLattice()});
   }
   
   function createConcCesk(ast)

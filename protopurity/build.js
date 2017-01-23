@@ -29,8 +29,8 @@ Array.prototype.toString =
   load("../concLattice.js");
   load("../ast.js");
   load("../jsCesk.js");
-  load("../tagAg.js");
-  load("../concreteAg.js");
+  load("../tag-alloc.js");
+  load("../conc-alloc.js");
   load("../benv.js");
   load("../object.js");
   load("../test.js");

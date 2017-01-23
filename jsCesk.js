@@ -3,29 +3,6 @@
 const EMPTY_LKONT = [];
 const EMPTY_ADDRESS_SET = ArraySet.empty();
 
-function SourceCodeInitializer(src)
-{
-  this.src = src;
-}
-
-SourceCodeInitializer.prototype.run =
-    function (machine, store)
-    {
-      // function rewriteInternals(ast)
-      // {
-      //   const v = {
-      //     MemberExpression:
-      //         function (node, parent, prop)
-      //         {
-      //           if ()
-      //         }
-      //   }
-      // }
-      //
-      //
-      return machine.preludeExplore(Ast.createAst(this.src), store);
-    }
-    
 function jsCesk(cc)
 {
   // address allocator
@@ -42,8 +19,15 @@ function jsCesk(cc)
   }
   const kalloc = cc.kalloc;
   
+  // // native allocator
+  // if (!cc.nalloc)
+  // {
+  //   throw new Error("no nalloc specified");
+  // }
+  // const nalloc = cc.nalloc;
+  
   // lattice
-  const l = cc.l || new JipdaLattice();
+  const l = cc.l || new TypeLattice();
   // gc
   const gcFlag = cc.gc === undefined ? true : cc.gc;
   //
@@ -76,180 +60,6 @@ function jsCesk(cc)
   const P_LENGTH = l.abst1("length");
   const P_MESSAGE = l.abst1("message");
   
-  // internal lattice constants
-  // const BOOLEAN = {string:"_"};
-  // BOOLEAN.isTrue = function ()
-  // {
-  //   return false
-  // };
-  // BOOLEAN.isFalse = function ()
-  // {
-  //   return false
-  // };
-  // BOOLEAN.joinBoolean = function (x)
-  // {
-  //   return x
-  // };
-  // BOOLEAN.joinTrue = function ()
-  // {
-  //   return TRUE
-  // };
-  // BOOLEAN.joinFalse = function ()
-  // {
-  //   return FALSE
-  // };
-  // BOOLEAN.joinMaybe = function ()
-  // {
-  //   return MAYBE
-  // };
-  // BOOLEAN.not = function ()
-  // {
-  //   return BOOLEAN
-  // };
-  // BOOLEAN.toUserLattice = function () {return BOT};
-  // BOOLEAN.toString = function () {return this.string};
-  // const TRUE = {string:"TRUE"};
-  // TRUE.isTrue = function ()
-  // {
-  //   return true
-  // };
-  // TRUE.isFalse = function ()
-  // {
-  //   return false
-  // };
-  // TRUE.joinBoolean = function (x)
-  // {
-  //   if (x === BOOLEAN || x === TRUE)
-  //   {
-  //     return TRUE
-  //   };
-  //   return MAYBE
-  // };
-  // TRUE.joinTrue = function ()
-  // {
-  //   return TRUE
-  // };
-  // TRUE.joinFalse = function ()
-  // {
-  //   return MAYBE
-  // };
-  // TRUE.joinMaybe = function ()
-  // {
-  //   return MAYBE
-  // };
-  // TRUE.not = function ()
-  // {
-  //   return FALSE
-  // };
-  // TRUE.toUserLattice = function () {return L_TRUE};
-  // TRUE.toString = function () {return this.string};
-  // const FALSE = {string:"FALSE"};
-  // FALSE.isTrue = function ()
-  // {
-  //   return false
-  // };
-  // FALSE.isFalse = function ()
-  // {
-  //   return true
-  // };
-  // FALSE.joinBoolean = function (x)
-  // {
-  //   if (x === BOOLEAN || x === FALSE)
-  //   {
-  //     return FALSE
-  //   }
-  //   ;
-  //   return MAYBE
-  // };
-  // FALSE.joinTrue = function ()
-  // {
-  //   return MAYBE
-  // };
-  // FALSE.joinFalse = function ()
-  // {
-  //   return FALSE
-  // };
-  // FALSE.joinMaybe = function ()
-  // {
-  //   return MAYBE
-  // };
-  // FALSE.not = function ()
-  // {
-  //   return TRUE
-  // };
-  // FALSE.toUserLattice = function () {return L_FALSE};
-  // FALSE.toString = function () {return this.string};
-  // const MAYBE = {string:"MAYBE"};
-  // MAYBE.isTrue = function ()
-  // {
-  //   return true
-  // };
-  // MAYBE.isFalse = function ()
-  // {
-  //   return true
-  // };
-  // MAYBE.joinBoolean = function (x)
-  // {
-  //   return MAYBE
-  // };
-  // MAYBE.joinTrue = function ()
-  // {
-  //   return MAYBE
-  // };
-  // MAYBE.joinFalse = function ()
-  // {
-  //   return MAYBE
-  // };
-  // MAYBE.joinMaybe = function ()
-  // {
-  //   return MAYBE
-  // };
-  // MAYBE.not = function ()
-  // {
-  //   return MAYBE
-  // };
-  // MAYBE.toUserLattice = function () {return TRUE.toUserLattice().join(FALSE.toUserLattice())};
-  // MAYBE.toString = function () {return this.string};
-  // const SET = new Set_(new Set());
-  //
-  // function Set_(x)
-  // {
-  //   this.set = x
-  // };
-  // Set_.prototype.subsumes = function (x)
-  // {
-  //   return Sets.subsumes(this.set, x.set)
-  // };
-  // Set_.prototype.subsumesValue = function (x)
-  // {
-  //   return this.set.has(x)
-  // };
-  // Set_.prototype.joinValue = function (x)
-  // {
-  //   return new Set_(Sets.add(this.set, x))
-  // };
-  // Set_.prototype.joinSet = function (x)
-  // {
-  //   return new Set_(Sets.union(this.set, x.set))
-  // };
-  // Set_.prototype.eq =
-  //     function (x)
-  //     {
-  //       if (this.subsumes(x))
-  //       {
-  //         if (x.subsumes(this))
-  //         {
-  //           return this.set.size === 1 ? TRUE : MAYBE;
-  //         }
-  //         return MAYBE;
-  //       }
-  //       if (x.subsumes(this))
-  //       {
-  //         return MAYBE;
-  //       }
-  //       return FALSE;
-  //     }
-      
   function Intrinsics()
   {
     this.map = new Map();
@@ -281,75 +91,6 @@ function jsCesk(cc)
         return this.map.has(name);
       }
   
-  const allocNative = (function ()
-      {
-        let __ALLOC__NATIVE__COUNTER = 1;
-        return function ()
-        {
-          var a = __ALLOC__NATIVE__COUNTER++;
-          return a;
-        }
-      }
-  )()
-      
-      
-  // install global pointers and refs
-  const intrinsics = new Intrinsics();
-  const globala = allocNative();
-  const globalRef = l.abstRef(globala); // global this
-  //var globalenva = "globalenv@0";
-  const objectPa = allocNative();
-  const objectProtoRef = l.abstRef(objectPa);
-  intrinsics.add("%ObjectPrototype%", objectProtoRef);
-  const functionPa = allocNative();
-  const functionProtoRef = l.abstRef(functionPa);
-  intrinsics.add("%FunctionPrototype%", functionProtoRef);
-  
-  let sstorei = 0;
-  let kcount = 0;
-  
-  const contexts = []; // do not pre-alloc
-  const stacks = []; // do not pre-alloc
-  const states = []; // do not pre-alloc
-  const kont2states = new Array(2048);
-  
-  
-  // create global object and initial store
-  const globalEnv = Benv.empty();
-  
-  
-  
-  ////////////////////////////////
-  
-  
-  function Stack(lkont, kont)
-  {
-    return {lkont, kont, _id: -1}
-  }
-  
-  function Stack_equals(st1, st2)
-  {
-    if (st1 === st2)
-    {
-      return true;
-    }
-    return st1.lkont.equals(st2.lkont)
-        && st1.kont === st2.kont;
-  }
-  
-  function Stackget(st)
-  {
-    for (let i = 0; i < stacks.length; i++)
-    {
-      if (Stack_equals(stacks[i], st))
-      {
-        return stacks[i];
-      }
-    }
-    st._id = stacks.push(st) - 1;
-    return st;
-  }
-  
   function JipdaContext(ex, thisa, userContext, as)
   {
     assertDefinedNotNull(thisa);
@@ -369,13 +110,13 @@ function jsCesk(cc)
           return true;
         }
         return this.ex === ctx.ex
-                && this.thisa.equals(ctx.thisa)
-                && this.userContext.equals(ctx.userContext)
-                && this.as.equals(ctx.as)
+            && this.thisa.equals(ctx.thisa)
+            && this.userContext.equals(ctx.userContext)
+            && this.as.equals(ctx.as)
       }
   
   JipdaContext.prototype.intern =
-      function ()
+      function (contexts)
       {
         for (let i = 0; i < contexts.length; i++)
         {
@@ -388,7 +129,7 @@ function jsCesk(cc)
         this._id = contexts.push(this) - 1;
         return this;
       }
-      
+  
   JipdaContext.prototype.addresses =
       function ()
       {
@@ -427,6 +168,202 @@ function jsCesk(cc)
         return "[ctx#" + this._id + " app: " + (this.ex ? this.ex.tag : this.ex) + "]";
       }
   
+  
+  function explore(ast, ceskState)
+  {
+    let sstorei = 0;
+    let kcount = 0;
+  
+    const contexts = []; // do not pre-alloc
+    const stacks = []; // do not pre-alloc
+    
+    let realm; // TODO thread through states
+    
+    function inject(node, ceskState)
+    {
+      if (!ceskState)
+      {
+        ceskState = initialize(Store.empty());
+      }
+      const store = ceskState.store;
+      realm = ceskState.realm; // TODO setting global realm
+  
+      assert(store);
+      assert(realm);
+      
+      const kont = createContext(node, realm.GlobalObject, "globalctx", ArraySet.from1(realm.GlobalObject), null);
+      return new EvalState(node, Benv.empty(), store, [], kont);
+    }
+    
+    function performExplore(initialStates)
+    {
+      const kont2states = new Array(2048);
+      const states = []; // do not pre-alloc
+      var startTime = performance.now();
+      var id = 0;
+      const todo = initialStates.map(stateGet);
+      var result = new Set();
+      while (todo.length > 0)
+      {
+        if (states.length > 20000)
+        {
+          print("STATE SIZE LIMIT", states.length);
+          break;
+        }
+        var s = todo.pop();
+        if (s._sstorei === sstorei)
+        {
+          continue;
+        }
+        s._sstorei = sstorei;
+        var next = s._successors;
+        if (next && s.isEvalState)
+        {
+          for (var i = 0; i < next.length; i++)
+          {
+            var t2 = next[i];
+            var s2 = t2.state;
+            todo.push(s2);
+          }
+          continue;
+        }
+        next = s.next();
+        s._successors = next;
+        if (next.length === 0)
+        {
+          result.add(s);
+          continue;
+        }
+        for (var i = 0; i < next.length; i++)
+        {
+          var t2 = next[i];
+          var s2 = t2.state;
+          var ss2 = stateGet(s2);
+          if (ss2 !== s2)
+          {
+            t2.state = ss2;
+            todo.push(ss2);
+            continue;
+          }
+          todo.push(ss2);
+          if (states.length % 10000 === 0)
+          {
+            print(Formatter.displayTime(performance.now()-startTime), "states", states.length, "todo", todo.length, "ctxs", contexts.length, "sstorei", sstorei);
+          }
+        }
+      }
+      return {initial, result, states, contexts, realm, time:performance.now()-startTime};
+  
+      function stateGet(s)
+      {
+        let statesReg = kont2states[s.kont._id];
+        if (!statesReg)
+        {
+          statesReg = new Array(7);
+          kont2states[s.kont._id] = statesReg;
+        }
+        let stateReg = null;
+        if (s.isEvalState)
+        {
+          stateReg = statesReg[0];
+          if (!stateReg)
+          {
+            stateReg = [];
+            statesReg[0] = stateReg;
+          }
+        }
+        else if (s.isKontState)
+        {
+          stateReg = statesReg[1];
+          if (!stateReg)
+          {
+            stateReg = [];
+            statesReg[1] = stateReg;
+          }
+        }
+        else if (s.isReturnState)
+        {
+          stateReg = statesReg[2];
+          if (!stateReg)
+          {
+            stateReg = [];
+            statesReg[2] = stateReg;
+          }
+        }
+        else if (s.isThrowState)
+        {
+          stateReg = statesReg[3];
+          if (!stateReg)
+          {
+            stateReg = [];
+            statesReg[3] = stateReg;
+          }
+        }
+        else if (s.isBreakState)
+        {
+          stateReg = statesReg[4];
+          if (!stateReg)
+          {
+            stateReg = [];
+            statesReg[4] = stateReg;
+          }
+        }
+        else if (s.isErrorState)
+        {
+          stateReg = statesReg[5];
+          if (!stateReg)
+          {
+            stateReg = [];
+            statesReg[5] = stateReg;
+          }
+        }
+        for (let i = 0; i < stateReg.length; i++)
+        {
+          if (stateReg[i].equals(s))
+          {
+            return stateReg[i];
+          }
+        }
+        s._id = states.push(s) - 1;
+        stateReg.push(s);
+        return s;
+      }
+    }
+  
+  
+  ////////////////////////////////
+    
+    
+    
+  
+  
+  function Stack(lkont, kont)
+  {
+    return {lkont, kont, _id: -1}
+  }
+  
+  function Stack_equals(st1, st2)
+  {
+    if (st1 === st2)
+    {
+      return true;
+    }
+    return st1.lkont.equals(st2.lkont)
+        && st1.kont === st2.kont;
+  }
+  
+  function Stackget(st)
+  {
+    for (let i = 0; i < stacks.length; i++)
+    {
+      if (Stack_equals(stacks[i], st))
+      {
+        return stacks[i];
+      }
+    }
+    st._id = stacks.push(st) - 1;
+    return st;
+  }
   
   function stackAddresses(lkont, kont) // TODO put onto Context proto with sig `lkont`
   {
@@ -498,6 +435,7 @@ function jsCesk(cc)
   
   function invokeMeta(name, operands, store, lkont, kont, as)
   {
+    const globala = realm.GlobalObject;
     const global = storeLookup(store, globala);
     const metaOperator = global.lookupInternal(name);
     if (!metaOperator)
@@ -505,20 +443,20 @@ function jsCesk(cc)
       throw new Error("meta operator not found: " + name);
     }
     //console.debug("invokeMeta", name);
-    const kont2 = createContext(null, globala, name+kcount++/*userCtx*/, stackAddresses(lkont, kont).join(as), null);
+    const kont2 = createContext(null, globala, name + kcount++/*userCtx*/, stackAddresses(lkont, kont).join(as), null);
     const result = runMeta(applyProc(null, metaOperator, operands, globala, null, store, [], kont2, []));
     return result;
-  
-  
+    
     function runMeta(initialTansitions)
     {
       const initialStates = initialTansitions.map((transition) => transition.state);
-      const resultStates = run(initialStates);
+      const system = performExplore(initialStates);
+      const resultStates = system.result;
       let value = BOT;
       let store = BOT;
       for (const resultState of resultStates)
       {
-        if (resultState instanceof KontState)
+        if (resultState.isKontState)
         {
           value = value.join(resultState.value);
           store = store.join(resultState.store);
@@ -533,52 +471,52 @@ function jsCesk(cc)
   }
   
   
-  function run(states)
-  {
-    let result = ArraySet.empty();
-    const todo = states;
-    while (todo.length > 0)
-    {
-      const s = todo.pop();
-      if (s._sstorei === sstorei)
-      {
-        continue;
-      }
-      s._sstorei = sstorei;
-      let next = s._successors;
-      if (next && s instanceof EvalState)
-      {
-        for (let i = 0; i < next.length; i++)
-        {
-          const t2 = next[i];
-          const s2 = t2.state;
-          todo.push(s2);
-        }
-        continue;
-      }
-      next = s.next();
-      s._successors = next;
-      if (next.length === 0)
-      {
-        result = result.add(s);
-        continue;
-      }
-      for (var i = 0; i < next.length; i++)
-      {
-        var t2 = next[i];
-        var s2 = t2.state;
-        var ss2 = stateGet(s2);
-        if (ss2 !== s2)
-        {
-          t2.state = ss2;
-          todo.push(ss2);
-          continue;
-        }
-        todo.push(ss2);
-      }
-    }
-    return result.values();
-  }
+  // function run(states)
+  // {
+  //   let result = ArraySet.empty();
+  //   const todo = states;
+  //   while (todo.length > 0)
+  //   {
+  //     const s = todo.pop();
+  //     if (s._sstorei === sstorei)
+  //     {
+  //       continue;
+  //     }
+  //     s._sstorei = sstorei;
+  //     let next = s._successors;
+  //     if (next && s instanceof EvalState)
+  //     {
+  //       for (let i = 0; i < next.length; i++)
+  //       {
+  //         const t2 = next[i];
+  //         const s2 = t2.state;
+  //         todo.push(s2);
+  //       }
+  //       continue;
+  //     }
+  //     next = s.next();
+  //     s._successors = next;
+  //     if (next.length === 0)
+  //     {
+  //       result = result.add(s);
+  //       continue;
+  //     }
+  //     for (var i = 0; i < next.length; i++)
+  //     {
+  //       var t2 = next[i];
+  //       var s2 = t2.state;
+  //       var ss2 = stateGet(s2);
+  //       if (ss2 !== s2)
+  //       {
+  //         t2.state = ss2;
+  //         todo.push(ss2);
+  //         continue;
+  //       }
+  //       todo.push(ss2);
+  //     }
+  //   }
+  //   return result.values();
+  // }
   
   // 6
   function Type(x)
@@ -725,13 +663,13 @@ function jsCesk(cc)
   {
     if (!argument.isNonRef())
     {
-      return {value:argument, store};
+      return {value: argument, store};
     }
     
     const result = invokeMeta("ToObject", [argument], store, lkont, kont, benv.addresses());
     return result;
   }
-      
+  
   // 7.2.3
 //  function IsCallable(argument)
   
@@ -756,7 +694,7 @@ function jsCesk(cc)
   function createArray()
   {
     var obj = new Obj();
-    obj = obj.setInternal("[[Prototype]]", intrinsics.get("%ArrayPrototype%"));
+    obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ArrayPrototype%"));
     // TODO temp
     obj = obj.setInternal("isArray", L_TRUE);
     return obj;
@@ -818,28 +756,38 @@ function jsCesk(cc)
     // return result;
   }
   
-  // 9.1.1.1
-  // function OrdinaryGetPrototypeOf(O, store)
+  // 8.2
+  function Realm()
+  {
+    this.Intrinsics = undefined;
+    this.GlobalObject = undefined;
+  }
+
+  // // 8.2.1
+  // function CreateRealm()
   // {
-  //   let result = BOT;
-  //   const as = O.addresses();
-  //   result = lookupInternal(O, "[[Prototype]]", store);
-  //   // as.forEach(
-  //   //     function (address)
-  //   //     {
-  //   //       const obj = storeLookup(store, address);
-  //   //       result = result.join(obj.Prototype);
-  //   //     });
-  //   return result;
+  //   let realmRec = new Realm();
+  //   CreateIntrinsics(realmRec);
+  //   realmRec.GlobalObject = L_UNDEFINED;
+  //   return realmRec;
   // }
-  
+  //
+  // // 8.2.2
+  // function CreateIntrinsics(realmRec, store)
+  // {
+  //   const intrinsics = new Intrinsics();
+  //   realmRec.Intrinsics = intrinsics;
+  //   const objProto = ObjectCreate(L_NULL);
+  //   const objProtoa = a.object();
+  //   intrinsics.add("%ObjectPrototype%", )
+  // }
   
   // 9.1.1.1
   function OrdinaryGetPrototypeOf(O, store, lkont, kont, as)
   {
     return invokeMeta("OrdinaryGetPrototypeOf", [O], store, lkont, kont, as)
   }
-
+  
   // 9.1.5.1
   function OrdinaryGetOwnProperty(O, P, store, lkont, kont, as)
   {
@@ -905,7 +853,7 @@ function jsCesk(cc)
   // 9.1.13
   function OrdinaryCreateFromConstructor(constructor, intrinsicDefaultProto, internalSlotsList)
   {
-    assert(intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
+    assert(realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
     const proto = GetPrototypeFromConstructor(constructor, intrinsicDefaultProto);
     return ObjectCreate(proto, internalSlotsList);
   }
@@ -913,13 +861,13 @@ function jsCesk(cc)
   // 9.1.14
   function GetPrototypeFromConstructor(constructor, intrinsicDefaultProto)
   {
-    assert(intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
+    assert(realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
     assert(IsCallable(constructor));
     let proto = Get(constructor, P_PROTOTYPE);
     if (proto.isNonRef())
     {
       // TODO realms
-      proto = proto.join(intrinsics.get(intrinsicDefaultProto));
+      proto = proto.join(realm.Intrinsics.get(intrinsicDefaultProto));
     }
     return proto;
   }
@@ -928,7 +876,7 @@ function jsCesk(cc)
   function StringCreate(lprim)
   {
     let obj = new Obj();
-    obj = obj.setInternal("[[Prototype]]", intrinsics.get("%StringPrototype%"));
+    obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%StringPrototype%"));
     obj = obj.setInternal("[[StringData]]", lprim);
     obj = obj.add(P_LENGTH, new Property(lprim.stringLength(), BOT, BOT, BOT, BOT, BOT));
     return obj;
@@ -960,7 +908,7 @@ function jsCesk(cc)
   
   function createFunction(Call)
   {
-    var obj = ObjectCreate(intrinsics.get("%FunctionPrototype%"));
+    var obj = ObjectCreate(realm.Intrinsics.get("%FunctionPrototype%"));
     obj = obj.setInternal("[[Call]]", ArraySet.from1(Call));
     return obj;
   }
@@ -1003,38 +951,38 @@ function jsCesk(cc)
     this.applyConstructor = applyConstructor;
     this._hashCode = HashCode.bump();
   }
-
+  
   ObjPrimitiveCall.prototype.toString =
-    function ()
-    {
-      return "ObjPrimitiveCall";
-    }
+      function ()
+      {
+        return "ObjPrimitiveCall";
+      }
   
   ObjPrimitiveCall.prototype.equals =
-    function (other)
-    {
-      if (this === other)
+      function (other)
       {
-        return true;
+        if (this === other)
+        {
+          return true;
+        }
+        if (!(this instanceof ObjPrimitiveCall))
+        {
+          return false;
+        }
+        return this._hashCode === other._hashCode;
       }
-      if (!(this instanceof ObjPrimitiveCall))
-      {
-        return false;
-      }
-      return this._hashCode === other._hashCode;
-    }
   
   ObjPrimitiveCall.prototype.hashCode =
-    function ()
-    {
-      return this._hashCode;
-    }
+      function ()
+      {
+        return this._hashCode;
+      }
   
   ObjPrimitiveCall.prototype.addresses =
-    function ()
-    {
-      return EMPTY_ADDRESS_SET;
-    } 
+      function ()
+      {
+        return EMPTY_ADDRESS_SET;
+      }
   
   function ObjClosureCall(node, scope)
   {
@@ -1042,46 +990,46 @@ function jsCesk(cc)
     this.node = node;
     this.scope = scope;
   }
-
+  
   ObjClosureCall.prototype.toString =
-    function ()
-    {
-      return "(" + this.node.tag + " " + this.scope + ")";
-    }
+      function ()
+      {
+        return "(" + this.node.tag + " " + this.scope + ")";
+      }
   ObjClosureCall.prototype.nice =
-    function ()
-    {
-      return "closure-" + this.node.tag;
-    }
-
+      function ()
+      {
+        return "closure-" + this.node.tag;
+      }
+  
   ObjClosureCall.prototype.equals =
-    function (other)
-    {
-      if (this === other)
+      function (other)
       {
-        return true;
+        if (this === other)
+        {
+          return true;
+        }
+        if (!(other instanceof ObjClosureCall))
+        {
+          return false;
+        }
+        return this.node === other.node
+            && this.scope.equals(other.scope);
       }
-      if (!(other instanceof ObjClosureCall))
-      {
-        return false;
-      }
-      return this.node === other.node
-        && this.scope.equals(other.scope);
-    }
   ObjClosureCall.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + HashCode.hashCode(this.node);
-      result = prime * result + this.scope.hashCode();
-      return result;      
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + HashCode.hashCode(this.node);
+        result = prime * result + this.scope.hashCode();
+        return result;
+      }
   
   function createContext(application, thisa, userContext, stackAs, previousStack)
   {
-    var ctx0 = new JipdaContext(application, thisa, userContext,stackAs);
-    var ctx = ctx0.intern();
+    var ctx0 = new JipdaContext(application, thisa, userContext, stackAs);
+    var ctx = ctx0.intern(contexts);
     if (ctx === ctx0)
     {
       ctx._stacks = new Set();
@@ -1101,16 +1049,16 @@ function jsCesk(cc)
         sstorei++;
       }
     }
-    return ctx; 
+    return ctx;
   }
   
   function performApply(operandValues, funNode, scope, store, lkont, kont, ctx, effects)
-  {    
+  {
     var bodyNode = funNode.body;
-    var nodes = bodyNode.body;    
+    var nodes = bodyNode.body;
     if (nodes.length === 0)
     {
-      return [{state:new KontState(L_UNDEFINED, store, [], ctx), effects:effects}];
+      return [{state: new KontState(L_UNDEFINED, store, [], ctx), effects: effects}];
     }
     
     var extendedBenv = scope.extend();
@@ -1120,13 +1068,13 @@ function jsCesk(cc)
     if (names.length > 0)
     {
       var nodeAddr = names.map(function (name)
-          {
-            var node = funScopeDecls[name];
-            var addr = a.vr(node.id || node, kont);
-            extendedBenv = extendedBenv.add(name, addr);
-            return [node, addr];
-          });
-        nodeAddr.forEach(
+      {
+        var node = funScopeDecls[name];
+        var addr = a.vr(node.id || node, kont);
+        extendedBenv = extendedBenv.add(name, addr);
+        return [node, addr];
+      });
+      nodeAddr.forEach(
           function (na)
           {
             var node = na[0];
@@ -1152,186 +1100,115 @@ function jsCesk(cc)
             }
           });
     }
-    return [{state:new EvalState(bodyNode, extendedBenv, store, [], ctx), effects:effects}];
+    return [{state: new EvalState(bodyNode, extendedBenv, store, [], ctx), effects: effects}];
   }
   
-
+  
   ObjClosureCall.prototype.applyFunction =
-    function (application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
-    {
-      const userContext = kalloc(this, operandValues, store);
-      var previousStack = Stackget(Stack(lkont, kont));
-      var stackAs = stackAddresses(lkont, kont).join(this.addresses());
-      var ctx = createContext(application, thisa, userContext, stackAs, previousStack);
-      return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects)
-  }
+      function (application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
+      {
+        const userContext = kalloc(this, operandValues, store);
+        var previousStack = Stackget(Stack(lkont, kont));
+        var stackAs = stackAddresses(lkont, kont).join(this.addresses());
+        var ctx = createContext(application, thisa, userContext, stackAs, previousStack);
+        return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects)
+      }
   
   ObjClosureCall.prototype.applyConstructor =
-    function (application, operandValues, protoRef, TODO_REMOVE, store, lkont, kont, effects)
-    {    
-      var previousStack = Stackget(Stack(lkont, kont));
-      var funNode = this.node;
-      // call store should not contain freshly allocated `this`
-      const userContext = kalloc(this, operandValues, store);
-      var thisa = a.constructor(funNode, application);
-      //print("allocated for this", thisa);
-      var stackAs = stackAddresses(lkont, kont).join(this.addresses());
-      var ctx = createContext(application, thisa, userContext, stackAs, previousStack);
-      var obj = ObjectCreate(protoRef);
-      store = store.allocAval(thisa, obj);
-      return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects);
-    }
-
+      function (application, operandValues, protoRef, TODO_REMOVE, store, lkont, kont, effects)
+      {
+        var previousStack = Stackget(Stack(lkont, kont));
+        var funNode = this.node;
+        // call store should not contain freshly allocated `this`
+        const userContext = kalloc(this, operandValues, store);
+        var thisa = a.constructor(funNode, application);
+        //print("allocated for this", thisa);
+        var stackAs = stackAddresses(lkont, kont).join(this.addresses());
+        var ctx = createContext(application, thisa, userContext, stackAs, previousStack);
+        var obj = ObjectCreate(protoRef);
+        store = store.allocAval(thisa, obj);
+        return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects);
+      }
+  
   ObjClosureCall.prototype.addresses =
-    function ()
-    {
-      return this.scope.addresses();
-    }
-
-  function stateGet(s)
-  {
-    let statesReg = kont2states[s.kont._id];
-    if (!statesReg)
-    {
-      statesReg = new Array(7);
-      kont2states[s.kont._id] = statesReg;
-    }
-    let stateReg = null;
-    if (s instanceof EvalState)
-    {
-      stateReg = statesReg[0];
-      if (!stateReg)
+      function ()
       {
-        stateReg = [];
-        statesReg[0] = stateReg;
+        return this.scope.addresses();
       }
-    }
-    else if (s instanceof KontState)
-    {
-      stateReg = statesReg[1];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[1] = stateReg;
-      }
-    }
-    else if (s instanceof ReturnState)
-    {
-      stateReg = statesReg[2];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[2] = stateReg;
-      }
-    }
-    else if (s instanceof ThrowState)
-    {
-      stateReg = statesReg[3];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[3] = stateReg;
-      }
-    }
-    else if (s instanceof BreakState)
-    {
-      stateReg = statesReg[4];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[4] = stateReg;
-      }
-    }
-    else if (s instanceof ErrorState)
-    {
-      stateReg = statesReg[5];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[5] = stateReg;
-      }
-    }
-    for (let i = 0; i < stateReg.length; i++)
-    {
-      if (stateReg[i].equals(s))
-      {
-        return stateReg[i];
-      }
-    }
-    s._id = states.push(s) - 1;
-    stateReg.push(s);
-    return s;
-  }
+  
   
   function EvalState(node, benv, store, lkont, kont)
   {
+    assertDefinedNotNull(kont);
     this.node = node;
     this.benv = benv;
     this.store = store;
     this.lkont = lkont;
     this.kont = kont;
-    assertDefinedNotNull(kont);
     this._successors = null;
     this._sstorei = -1;
     this._id = -1;
   }
+  
+  EvalState.prototype.isEvalState = true;
+  
   EvalState.prototype.toString =
-    function ()
-    {
-      return "#eval " + this.node.tag;
-    }
+      function ()
+      {
+        return "#eval " + this.node.tag;
+      }
   EvalState.prototype.nice =
-    function ()
-    {
-      return "#eval " + this.node.tag;
-    }
+      function ()
+      {
+        return "#eval " + this.node.tag;
+      }
   EvalState.prototype.equals =
-    function (x)
-    {
-      return (x instanceof EvalState)
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-        && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont || this.kont.equals(x.kont))
-        && (this.store === x.store || this.store.equals(x.store))
-    }
+      function (x)
+      {
+        return (x instanceof EvalState)
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+            && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
+            && (this.kont === x.kont || this.kont.equals(x.kont))
+            && (this.store === x.store || this.store.equals(x.store))
+      }
   EvalState.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      result = prime * result + this.lkont.hashCode();
-      result = prime * result + this.kont.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        result = prime * result + this.lkont.hashCode();
+        result = prime * result + this.kont.hashCode();
+        return result;
+      }
   EvalState.prototype.next =
-    function ()
-    {
-      var store;
-      if (gcFlag)
+      function ()
       {
-        const as = this.addresses();
-        store = Agc.collect(this.store, as);
+        var store;
+        if (gcFlag)
+        {
+          const as = this.addresses();
+          store = Agc.collect(this.store, as);
+        }
+        else
+        {
+          store = this.store;
+        }
+        return evalNode(this.node, this.benv, store, this.lkont, this.kont, []);
       }
-      else
-      {
-        store = this.store;
-      }
-      return evalNode(this.node, this.benv, store, this.lkont, this.kont, []);
-    }
   EvalState.prototype.gc =
-    function ()
-    {
-      return new EvalState(this.node, this.benv, Agc.collect(this.store, this.addresses()), this.lkont, this.kont);
-    }
+      function ()
+      {
+        return new EvalState(this.node, this.benv, Agc.collect(this.store, this.addresses()), this.lkont, this.kont);
+      }
   EvalState.prototype.addresses =
-    function ()
-    {
-      var as = this.benv.addresses().join(stackAddresses(this.lkont, this.kont));
-      return as;
-    }
+      function ()
+      {
+        var as = this.benv.addresses().join(stackAddresses(this.lkont, this.kont));
+        return as;
+      }
   
   function KontState(value, store, lkont, kont)
   {
@@ -1344,88 +1221,91 @@ function jsCesk(cc)
     this._sstorei = -1;
     this._id = -1;
   }
-  KontState.prototype.equals =
-    function (x)
-    {
-      return (x instanceof KontState)
-        && (this.value === x.value || this.value.equals(x.value)) 
-        && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont)
-        && (this.store === x.store || this.store.equals(x.store))
-    }
-  KontState.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.value.hashCode();
-      result = prime * result + this.lkont.hashCode();
-      result = prime * result + this.kont.hashCode();
-      return result;
-    }
-  KontState.prototype.toString =
-    function ()
-    {
-      return "#kont-" + this.lkont[0];
-    }
-  KontState.prototype.nice =
-    function ()
-    {
-      return "#kont-" + this.lkont[0];
-    }
-  KontState.prototype.next =
-    function ()
-    {
-      var value = this.value;
-      if (value === BOT)
-      {
-        return [];
-      }      
-      const lkont = this.lkont;
-      const kont = this.kont;
-      const store = this.store;
   
-      // if (kont.topmostApplicationReachable())
-      // {
-      //   value = value.abst();
-      // }
-      
-      if (lkont.length === 0) 
+  KontState.prototype.isKontState = true;
+  
+  KontState.prototype.equals =
+      function (x)
       {
-        if (kont._stacks.size === 0)
+        return (x instanceof KontState)
+            && (this.value === x.value || this.value.equals(x.value))
+            && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
+            && (this.kont === x.kont)
+            && (this.store === x.store || this.store.equals(x.store))
+      }
+  KontState.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.value.hashCode();
+        result = prime * result + this.lkont.hashCode();
+        result = prime * result + this.kont.hashCode();
+        return result;
+      }
+  KontState.prototype.toString =
+      function ()
+      {
+        return "#kont-" + this.lkont[0];
+      }
+  KontState.prototype.nice =
+      function ()
+      {
+        return "#kont-" + this.lkont[0];
+      }
+  KontState.prototype.next =
+      function ()
+      {
+        var value = this.value;
+        if (value === BOT)
         {
           return [];
         }
-                
-        if (kont.ex && Ast.isNewExpression(kont.ex))
+        const lkont = this.lkont;
+        const kont = this.kont;
+        const store = this.store;
+        
+        // if (kont.topmostApplicationReachable())
+        // {
+        //   value = value.abst();
+        // }
+        
+        if (lkont.length === 0)
         {
-          value = l.abstRef(kont.thisa);
+          if (kont._stacks.size === 0)
+          {
+            return [];
+          }
+          
+          if (kont.ex && Ast.isNewExpression(kont.ex))
+          {
+            value = l.abstRef(kont.thisa);
+          }
+          else
+          {
+            value = L_UNDEFINED;
+          }
+          
+          let result = [];
+          for (let stack of kont._stacks)
+          {
+            result.push({state: new KontState(value, store, stack.lkont, stack.kont), effects: []});
+          }
+          return result;
         }
-        else
-        {
-          value = L_UNDEFINED;
-        }
-
-        let result = [];
-        for (let stack of kont._stacks)
-        {
-          result.push({state:new KontState(value, store, stack.lkont, stack.kont), effects:[]});
-        }
-        return result;
+        
+        return lkont[0].apply(value, store, lkont.slice(1), kont);
       }
-      
-      return lkont[0].apply(value, store, lkont.slice(1), kont);
-    }
   KontState.prototype.gc =
-    function ()
-    {
-      return this;
-    } 
+      function ()
+      {
+        return this;
+      }
   KontState.prototype.addresses =
-    function ()
-    {
-      return stackAddresses(lkont, kont).join(this.value.addresses());
-    }
+      function ()
+      {
+        return stackAddresses(lkont, kont).join(this.value.addresses());
+      }
   
   function ReturnState(value, store, lkont, kont)
   {
@@ -1437,85 +1317,88 @@ function jsCesk(cc)
     this._sstorei = -1;
     this._id = -1;
   }
+  
+  ReturnState.prototype.isReturnState = true;
+  
   ReturnState.prototype.equals =
-    function (x)
-    {
-      return (x instanceof ReturnState)
-        && (this.value === x.value || this.value.equals(x.value)) 
-        && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont)
-        && (this.store === x.store || this.store.equals(x.store))
-    }
+      function (x)
+      {
+        return (x instanceof ReturnState)
+            && (this.value === x.value || this.value.equals(x.value))
+            && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
+            && (this.kont === x.kont)
+            && (this.store === x.store || this.store.equals(x.store))
+      }
   ReturnState.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.value.hashCode();
-      result = prime * result + this.lkont.hashCode();
-      result = prime * result + this.kont.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.value.hashCode();
+        result = prime * result + this.lkont.hashCode();
+        result = prime * result + this.kont.hashCode();
+        return result;
+      }
   ReturnState.prototype.toString =
-    function ()
-    {
-      return "#ret-" + this.lkont[0];
-    }
+      function ()
+      {
+        return "#ret-" + this.lkont[0];
+      }
   ReturnState.prototype.nice =
-    function ()
-    {
-      return "#ret-" + this.lkont[0];
-    }
+      function ()
+      {
+        return "#ret-" + this.lkont[0];
+      }
   ReturnState.prototype.next =
-    function ()
-    {
-      var kont = this.kont;
-      if (kont._stacks.size === 0)
+      function ()
       {
-        throw new Error("return outside function");
-      }
-
-      var value = this.value;
-      if (value === BOT)
-      {
-        return [];
-      }      
-
-      if (kont.ex && Ast.isNewExpression(kont.ex))
-      {
-        var returnValue = BOT;
-        if (value.isRef())
+        var kont = this.kont;
+        if (kont._stacks.size === 0)
         {
-          returnValue = returnValue.join(value.projectObject());
+          throw new Error("return outside function");
         }
-        if (value.isNonRef())
+        
+        var value = this.value;
+        if (value === BOT)
         {
-          returnValue = returnValue.join(l.abstRef(kont.thisa));
+          return [];
         }
-        value = returnValue;
+        
+        if (kont.ex && Ast.isNewExpression(kont.ex))
+        {
+          var returnValue = BOT;
+          if (value.isRef())
+          {
+            returnValue = returnValue.join(value.projectObject());
+          }
+          if (value.isNonRef())
+          {
+            returnValue = returnValue.join(l.abstRef(kont.thisa));
+          }
+          value = returnValue;
+        }
+        
+        var store = this.store;
+        
+        var result = [];
+        for (let stack of kont._stacks)
+        {
+          result.push({state: new KontState(value, store, stack.lkont, stack.kont), effects: []});
+        }
+        
+        return result;
       }
-
-      var store = this.store;
-
-      var result = [];
-      for (let stack of kont._stacks)
-      {
-        result.push({state:new KontState(value, store, stack.lkont, stack.kont), effects: []});
-      }
-
-      return result;
-    }
-      
+  
   ReturnState.prototype.gc =
-    function ()
-    {
-      return this;
-    }  
+      function ()
+      {
+        return this;
+      }
   ReturnState.prototype.addresses =
-    function ()
-    {
-      return stackAddresses([], kont).join(this.value.addresses());
-    }
+      function ()
+      {
+        return stackAddresses([], kont).join(this.value.addresses());
+      }
   
   function ThrowState(value, store, lkont, kont)
   {
@@ -1527,64 +1410,67 @@ function jsCesk(cc)
     this._sstorei = -1;
     this._id = -1;
   }
+  
+  ThrowState.prototype.isThrowState = true;
+  
   ThrowState.prototype.equals =
-    function (x)
-    {
-      return (x instanceof ThrowState)
-        && (this.value === x.value || this.value.equals(x.value)) 
-        && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont)
-        && (this.store === x.store || this.store.equals(x.store))
-    }
-  ThrowState.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.value.hashCode();
-      result = prime * result + this.lkont.hashCode();
-      result = prime * result + this.kont.hashCode();
-      return result;
-    }
-  ThrowState.prototype.toString =
-    function ()
-    {
-      return "#throw-" + this.lkont[0];
-    }
-  ThrowState.prototype.nice =
-    function ()
-    {
-      return "#throw-" + this.lkont[0];
-    }
-  ThrowState.prototype.next =
-    function ()
-    {
-      var value = this.value;
-      if (value === BOT)
+      function (x)
       {
-        return [];
-      }      
-      var lkont = this.lkont;
-      var kont = this.kont;
-      var store = this.store;
-      
-      var stacks = this.stackPop(lkont, kont);
-      let result = [];
-      stacks.forEach(
-        function (stack)
+        return (x instanceof ThrowState)
+            && (this.value === x.value || this.value.equals(x.value))
+            && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
+            && (this.kont === x.kont)
+            && (this.store === x.store || this.store.equals(x.store))
+      }
+  ThrowState.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.value.hashCode();
+        result = prime * result + this.lkont.hashCode();
+        result = prime * result + this.kont.hashCode();
+        return result;
+      }
+  ThrowState.prototype.toString =
+      function ()
+      {
+        return "#throw-" + this.lkont[0];
+      }
+  ThrowState.prototype.nice =
+      function ()
+      {
+        return "#throw-" + this.lkont[0];
+      }
+  ThrowState.prototype.next =
+      function ()
+      {
+        var value = this.value;
+        if (value === BOT)
         {
-          var lkont = stack.lkont;
-          var kont = stack.kont;
-          var frame = lkont[0];
-          var lkont2 = lkont.slice(1);
-          if (!frame.applyThrow)
-          {
-            print("!!", frame);
-          }
-          result = result.concat(frame.applyThrow(value, store, lkont2, kont));
-        });
-      return result;
-    }
+          return [];
+        }
+        var lkont = this.lkont;
+        var kont = this.kont;
+        var store = this.store;
+        
+        var stacks = this.stackPop(lkont, kont);
+        let result = [];
+        stacks.forEach(
+            function (stack)
+            {
+              var lkont = stack.lkont;
+              var kont = stack.kont;
+              var frame = lkont[0];
+              var lkont2 = lkont.slice(1);
+              if (!frame.applyThrow)
+              {
+                print("!!", frame);
+              }
+              result = result.concat(frame.applyThrow(value, store, lkont2, kont));
+            });
+        return result;
+      }
   
   ThrowState.prototype.stackPop = function (lkont, kont)
   {
@@ -1610,26 +1496,26 @@ function jsCesk(cc)
         // TODO  if kont === EMPTY_KONT then unhandled exception
         continue;
       }
-        
+      
       kont._stacks.forEach(
-        function (st)
-        {
-          todo.push(Stack(st.lkont,st.kont));
-        });
+          function (st)
+          {
+            todo.push(Stack(st.lkont, st.kont));
+          });
       G = G.add(kont);
     }
     return result;
   }
   ThrowState.prototype.gc =
-    function ()
-    {
-      return this;
-    }  
+      function ()
+      {
+        return this;
+      }
   ThrowState.prototype.addresses =
-    function ()
-    {
-      return stackAddresses(lkont, kont).join(this.value.addresses());
-    }
+      function ()
+      {
+        return stackAddresses(lkont, kont).join(this.value.addresses());
+      }
   
   function BreakState(store, lkont, kont)
   {
@@ -1640,64 +1526,67 @@ function jsCesk(cc)
     this._sstorei = -1;
     this._id = -1;
   }
+  
+  BreakState.prototype.isBreakState = true;
+  
   BreakState.prototype.equals =
-    function (x)
-    {
-      return (x instanceof BreakState)
-        && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-        && (this.kont === x.kont)
-        && (this.store === x.store || this.store.equals(x.store))
-    }
-  BreakState.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.lkont.hashCode();
-      result = prime * result + this.kont.hashCode();
-      return result;
-    }
-  BreakState.prototype.toString =
-    function ()
-    {
-      return "#break-" + this.lkont[0];
-    }
-  BreakState.prototype.nice =
-    function ()
-    {
-      return "#break-" + this.lkont[0];
-    }
-  BreakState.prototype.next =
-    function ()
-    {
-      var value = this.value;
-      if (value === BOT)
+      function (x)
       {
-        return [];
-      }      
-      var lkont = this.lkont;
-      var kont = this.kont;
-      var store = this.store;
-      
-      for (var i = 0; i < lkont.length; i++)
-      {
-        if (lkont[i].applyBreak)
-        {
-          return lkont[i].applyBreak(store, lkont.slice(i), kont);
-        }
+        return (x instanceof BreakState)
+            && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
+            && (this.kont === x.kont)
+            && (this.store === x.store || this.store.equals(x.store))
       }
-      throw new Error("no break target\nlocal stack: " + lkont);
-    }
+  BreakState.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.lkont.hashCode();
+        result = prime * result + this.kont.hashCode();
+        return result;
+      }
+  BreakState.prototype.toString =
+      function ()
+      {
+        return "#break-" + this.lkont[0];
+      }
+  BreakState.prototype.nice =
+      function ()
+      {
+        return "#break-" + this.lkont[0];
+      }
+  BreakState.prototype.next =
+      function ()
+      {
+        var value = this.value;
+        if (value === BOT)
+        {
+          return [];
+        }
+        var lkont = this.lkont;
+        var kont = this.kont;
+        var store = this.store;
+        
+        for (var i = 0; i < lkont.length; i++)
+        {
+          if (lkont[i].applyBreak)
+          {
+            return lkont[i].applyBreak(store, lkont.slice(i), kont);
+          }
+        }
+        throw new Error("no break target\nlocal stack: " + lkont);
+      }
   BreakState.prototype.gc =
-    function ()
-    {
-      return this;
-    }  
+      function ()
+      {
+        return this;
+      }
   BreakState.prototype.addresses =
-    function ()
-    {
-      return stackAddresses(lkont, kont);
-    }
+      function ()
+      {
+        return stackAddresses(lkont, kont);
+      }
   
   function ErrorState(node, msg, kont)
   {
@@ -1705,49 +1594,52 @@ function jsCesk(cc)
     this.msg = msg;
     this.kont = kont;
   }
+  
+  ErrorState.prototype.isErrorState = true;
+  
   ErrorState.prototype.toString =
-    function ()
-    {
-      return this.msg;
-    }
+      function ()
+      {
+        return this.msg;
+      }
   ErrorState.prototype.nice =
-    function ()
-    {
-      return this.msg;
-    }
+      function ()
+      {
+        return this.msg;
+      }
   ErrorState.prototype.equals =
-    function (x)
-    {
-      return (x instanceof ErrorState)
-        && this.node === x.node 
-        && this.msg === x.msg
-        && this.kont == kont
-    }
+      function (x)
+      {
+        return (x instanceof ErrorState)
+            && this.node === x.node
+            && this.msg === x.msg
+            && this.kont == kont
+      }
   ErrorState.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.msg.hashCode();
-      result = prime * result + this.kont.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.msg.hashCode();
+        result = prime * result + this.kont.hashCode();
+        return result;
+      }
   ErrorState.prototype.next =
-    function ()
-    {
-      return [];
-    }
+      function ()
+      {
+        return [];
+      }
   ErrorState.prototype.gc =
-    function ()
-    {
-      return this;
-    }   
+      function ()
+      {
+        return this;
+      }
   ErrorState.prototype.addresses =
-    function ()
-    {
-      return EMPTY_ADDRESS_SET;
-    }
+      function ()
+      {
+        return EMPTY_ADDRESS_SET;
+      }
   
   // function HaltKont()
   // {
@@ -1784,596 +1676,609 @@ function jsCesk(cc)
     this.i = i;
     this.benv = benv;
   }
+  
   VariableDeclarationKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof VariableDeclarationKont
-        && this.node === x.node
-        && this.i === x.i
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
-  VariableDeclarationKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.i;
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
-  VariableDeclarationKont.prototype.toString =
-    function ()
-    {
-      return "vdecl-" + this.node.tag + "-" + this.i;
-    }
-  VariableDeclarationKont.prototype.nice =
-    function ()
-    {
-      return "vdecl-" + this.node.tag + "-" + this.i;
-    }
-  VariableDeclarationKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
-  VariableDeclarationKont.prototype.apply =
-    function (value, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var i = this.i;
-      
-      var nodes = node.declarations;
-      if (i === nodes.length)
+      function (x)
       {
-        return [{state:new KontState(value, store, lkont, kont)}];
+        return x instanceof VariableDeclarationKont
+            && this.node === x.node
+            && this.i === x.i
+            && (this.benv === x.benv || this.benv.equals(x.benv))
       }
-      var frame = new VariableDeclarationKont(node, i + 1, benv);
-      return [{state:new EvalState(nodes[i], benv, store, [frame].concat(lkont), kont)}];
-    }
+  VariableDeclarationKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.i;
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
+  VariableDeclarationKont.prototype.toString =
+      function ()
+      {
+        return "vdecl-" + this.node.tag + "-" + this.i;
+      }
+  VariableDeclarationKont.prototype.nice =
+      function ()
+      {
+        return "vdecl-" + this.node.tag + "-" + this.i;
+      }
+  VariableDeclarationKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses();
+      }
+  VariableDeclarationKont.prototype.apply =
+      function (value, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var i = this.i;
+        
+        var nodes = node.declarations;
+        if (i === nodes.length)
+        {
+          return [{state: new KontState(value, store, lkont, kont)}];
+        }
+        var frame = new VariableDeclarationKont(node, i + 1, benv);
+        return [{state: new EvalState(nodes[i], benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function VariableDeclaratorKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
+  
   VariableDeclaratorKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof VariableDeclaratorKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof VariableDeclaratorKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   VariableDeclaratorKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   VariableDeclaratorKont.prototype.toString =
-    function ()
-    {
-      return "vrator " + this.node.tag;
-    }
+      function ()
+      {
+        return "vrator " + this.node.tag;
+      }
   VariableDeclaratorKont.prototype.nice =
-    function ()
-    {
-      return "vrator " + this.node.tag;
-    }
+      function ()
+      {
+        return "vrator " + this.node.tag;
+      }
   VariableDeclaratorKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   VariableDeclaratorKont.prototype.apply =
-    function (value, store, lkont, kont)
-    {
-      var effects = [];
-      var id = this.node.id;
-      var benv = this.benv;
-      store = doScopeSet(id, value, benv, store, effects);
-      return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];
-    }
+      function (value, store, lkont, kont)
+      {
+        var effects = [];
+        var id = this.node.id;
+        var benv = this.benv;
+        store = doScopeSet(id, value, benv, store, effects);
+        return [{state: new KontState(L_UNDEFINED, store, lkont, kont), effects: effects}];
+      }
   
   function LeftKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
+  
   LeftKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof LeftKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof LeftKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   LeftKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   LeftKont.prototype.toString =
-    function ()
-    {
-      return "left-" + this.node.tag;
-    }
+      function ()
+      {
+        return "left-" + this.node.tag;
+      }
   LeftKont.prototype.nice =
-    function ()
-    {
-      return "left-" + this.node.tag;
-    }
+      function ()
+      {
+        return "left-" + this.node.tag;
+      }
   LeftKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   LeftKont.prototype.apply =
-    function (leftValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var frame = new RightKont(node, leftValue);
-      return [{state:new EvalState(node.right, benv, store, [frame].concat(lkont), kont)}];
-    }
+      function (leftValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var frame = new RightKont(node, leftValue);
+        return [{state: new EvalState(node.right, benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function LogicalLeftKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
+  
   LogicalLeftKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof LogicalLeftKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
-  LogicalLeftKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
-  LogicalLeftKont.prototype.toString =
-    function ()
-    {
-      return "logleft-" + this.node.tag;
-    }
-  LogicalLeftKont.prototype.nice =
-    function ()
-    {
-      return "logleft-" + this.node.tag;
-    }
-  LogicalLeftKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
-  LogicalLeftKont.prototype.apply =
-    function (leftValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var operator = node.operator;
-      var result = [];
-      switch (operator)
+      function (x)
       {
-        case "&&":
-        {
-          
-          if (leftValue.isTruthy())
-          {
-            result = result.concat([{state:new EvalState(node.right, benv, store, lkont, kont)}]);
-          }
-          if (leftValue.isFalsy())
-          {
-            result = result.concat([{state:new KontState(leftValue, store, lkont, kont)}]);
-          }
-          break;
-        }
-        case "||":
-        {
-          if (leftValue.isTruthy())
-          {
-            result = result.concat([{state:new KontState(leftValue, store, lkont, kont)}]);
-          }
-          if (leftValue.isFalsy())
-          {
-            result = result.concat([{state:new EvalState(node.right, benv, store, lkont, kont)}]);
-          }
-          break;
-        }
-        default: throw new Error("cannot handle logical operator " + operator);
+        return x instanceof LogicalLeftKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
       }
-      return result;
-    }
+  LogicalLeftKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
+  LogicalLeftKont.prototype.toString =
+      function ()
+      {
+        return "logleft-" + this.node.tag;
+      }
+  LogicalLeftKont.prototype.nice =
+      function ()
+      {
+        return "logleft-" + this.node.tag;
+      }
+  LogicalLeftKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses();
+      }
+  LogicalLeftKont.prototype.apply =
+      function (leftValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var operator = node.operator;
+        var result = [];
+        switch (operator)
+        {
+          case "&&":
+          {
+            
+            if (leftValue.isTruthy())
+            {
+              result = result.concat([{state: new EvalState(node.right, benv, store, lkont, kont)}]);
+            }
+            if (leftValue.isFalsy())
+            {
+              result = result.concat([{state: new KontState(leftValue, store, lkont, kont)}]);
+            }
+            break;
+          }
+          case "||":
+          {
+            if (leftValue.isTruthy())
+            {
+              result = result.concat([{state: new KontState(leftValue, store, lkont, kont)}]);
+            }
+            if (leftValue.isFalsy())
+            {
+              result = result.concat([{state: new EvalState(node.right, benv, store, lkont, kont)}]);
+            }
+            break;
+          }
+          default:
+            throw new Error("cannot handle logical operator " + operator);
+        }
+        return result;
+      }
   
   
   function UnaryKont(node)
   {
     this.node = node;
   }
+  
   UnaryKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof UnaryKont
-        && this.node === x.node
-    }
-  UnaryKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      return result;
-    }
-  UnaryKont.prototype.toString =
-    function ()
-    {
-      return "unary-" + this.node.tag;
-    }
-  UnaryKont.prototype.nice =
-    function ()
-    {
-      return "unary-" + this.node.tag;
-    }
-  UnaryKont.prototype.addresses =
-    function ()
-    {
-      return EMPTY_ADDRESS_SET;
-    }
-  UnaryKont.prototype.apply =
-    function (value, store, lkont, kont)
-    {
-      const node = this.node;
-      const leftValue = this.leftValue;
-      const operator = node.operator;
-      let resultValue;
-      switch (node.operator)
+      function (x)
       {
-        case "!":
-        {
-          resultValue = l.not(value);
-          break;
-        }
-        case "+":
-        {
-          resultValue = l.pos(value);
-          break;
-        }
-        case "-":
-        {
-          resultValue = l.neg(value);
-          break;
-        }
-        case "~":
-        {
-          resultValue = l.binnot(value);
-          break;
-        }
-        case "typeof":
-        {
-          resultValue = BOT;
-          if (value.projectUndefined() !== BOT)
-          {
-            resultValue = resultValue.join(l.abst1("undefined"));
-          }
-          if (value.projectNull() !== BOT)
-          {
-            resultValue = resultValue.join(l.abst1("object"));
-          }
-          if (value.projectString() !== BOT)
-          {
-            resultValue = resultValue.join(l.abst1("string"));
-          }
-          if (value.projectNumber() !== BOT)
-          {
-            resultValue = resultValue.join(l.abst1("number"));
-          }
-          if (value.projectBoolean() !== BOT)
-          {
-            resultValue = resultValue.join(l.abst1("boolean"));
-          }
-          if (value.isRef())
-          {
-            resultValue = resultValue.join(l.abst1("object"));
-          }
-          break;
-        }
-        default: throw new Error("cannot handle unary operator " + node.operator);
+        return x instanceof UnaryKont
+            && this.node === x.node
       }
-      return [{state:new KontState(resultValue, store, lkont, kont)}];
-    }
+  UnaryKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        return result;
+      }
+  UnaryKont.prototype.toString =
+      function ()
+      {
+        return "unary-" + this.node.tag;
+      }
+  UnaryKont.prototype.nice =
+      function ()
+      {
+        return "unary-" + this.node.tag;
+      }
+  UnaryKont.prototype.addresses =
+      function ()
+      {
+        return EMPTY_ADDRESS_SET;
+      }
+  UnaryKont.prototype.apply =
+      function (value, store, lkont, kont)
+      {
+        const node = this.node;
+        const leftValue = this.leftValue;
+        const operator = node.operator;
+        let resultValue;
+        switch (node.operator)
+        {
+          case "!":
+          {
+            resultValue = l.not(value);
+            break;
+          }
+          case "+":
+          {
+            resultValue = l.pos(value);
+            break;
+          }
+          case "-":
+          {
+            resultValue = l.neg(value);
+            break;
+          }
+          case "~":
+          {
+            resultValue = l.binnot(value);
+            break;
+          }
+          case "typeof":
+          {
+            resultValue = BOT;
+            if (value.projectUndefined() !== BOT)
+            {
+              resultValue = resultValue.join(l.abst1("undefined"));
+            }
+            if (value.projectNull() !== BOT)
+            {
+              resultValue = resultValue.join(l.abst1("object"));
+            }
+            if (value.projectString() !== BOT)
+            {
+              resultValue = resultValue.join(l.abst1("string"));
+            }
+            if (value.projectNumber() !== BOT)
+            {
+              resultValue = resultValue.join(l.abst1("number"));
+            }
+            if (value.projectBoolean() !== BOT)
+            {
+              resultValue = resultValue.join(l.abst1("boolean"));
+            }
+            if (value.isRef())
+            {
+              resultValue = resultValue.join(l.abst1("object"));
+            }
+            break;
+          }
+          default:
+            throw new Error("cannot handle unary operator " + node.operator);
+        }
+        return [{state: new KontState(resultValue, store, lkont, kont)}];
+      }
   
   function RightKont(node, leftValue)
   {
     this.node = node;
     this.leftValue = leftValue;
   }
-  RightKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof RightKont
-        && this.node === x.node
-        && (this.leftValue === x.leftValue || this.leftValue.equals(x.leftValue))
-    }
-  RightKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.leftValue.hashCode();
-      return result;
-    }
-  RightKont.prototype.toString =
-    function ()
-    {
-      return "right-" + this.node.tag;
-    }
-  RightKont.prototype.nice =
-    function ()
-    {
-      return "right-" + this.node.tag;
-    }
-  RightKont.prototype.addresses =
-    function ()
-    {
-      return this.leftValue.addresses();
-    }
-  RightKont.prototype.apply =
-    function (rightValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var leftValue = this.leftValue;
-      var operator = node.operator;
-      var value = applyBinaryOperator(operator, leftValue, rightValue, globalEnv, store, lkont, kont);
-//      value = sanitize(value); //TODO?
-      return [{state:new KontState(value, store, lkont, kont)}];
-    }
   
-function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont, kont)
-{
-  switch (operator)
+  RightKont.prototype.equals =
+      function (x)
+      {
+        return x instanceof RightKont
+            && this.node === x.node
+            && (this.leftValue === x.leftValue || this.leftValue.equals(x.leftValue))
+      }
+  RightKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.leftValue.hashCode();
+        return result;
+      }
+  RightKont.prototype.toString =
+      function ()
+      {
+        return "right-" + this.node.tag;
+      }
+  RightKont.prototype.nice =
+      function ()
+      {
+        return "right-" + this.node.tag;
+      }
+  RightKont.prototype.addresses =
+      function ()
+      {
+        return this.leftValue.addresses();
+      }
+  RightKont.prototype.apply =
+      function (rightValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var leftValue = this.leftValue;
+        var operator = node.operator;
+        var value = applyBinaryOperator(operator, leftValue, rightValue, Benv.empty() /*TODO*/, store, lkont, kont);
+//      value = sanitize(value); //TODO?
+        return [{state: new KontState(value, store, lkont, kont)}];
+      }
+  
+  function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont, kont)
   {
-    case "+":
+    switch (operator)
     {
-      return l.add(leftValue, rightValue);
+      case "+":
+      {
+        return l.add(leftValue, rightValue);
+      }
+      case "*":
+      {
+        return l.mul(leftValue, rightValue);
+      }
+      case "-":
+      {
+        return l.sub(leftValue, rightValue);
+      }
+      case "/":
+      {
+        return l.div(leftValue, rightValue);
+      }
+      case "%":
+      {
+        return l.rem(leftValue, rightValue);
+      }
+      case "===":
+      {
+        return l.eqq(leftValue, rightValue);
+      }
+      case "!==":
+      {
+        return l.neqq(leftValue, rightValue);
+      }
+      case "==":
+      {
+        return l.eq(leftValue, rightValue);
+      }
+      case "!=":
+      {
+        return l.neq(leftValue, rightValue);
+      }
+      case "<":
+      {
+        return l.lt(leftValue, rightValue);
+      }
+      case "<=":
+      {
+        return l.lte(leftValue, rightValue);
+      }
+      case ">":
+      {
+        return l.gt(leftValue, rightValue);
+      }
+      case ">=":
+      {
+        return l.gte(leftValue, rightValue);
+      }
+      case "&":
+      {
+        return l.binand(leftValue, rightValue);
+      }
+      case "|":
+      {
+        return l.binor(leftValue, rightValue);
+      }
+      case "^":
+      {
+        return l.binxor(leftValue, rightValue);
+      }
+      case "<<":
+      {
+        return l.shl(leftValue, rightValue);
+      }
+      case ">>":
+      {
+        return l.shr(leftValue, rightValue);
+      }
+      case ">>>":
+      {
+        return l.shrr(leftValue, rightValue);
+      }
+      case "instanceof":
+      {
+        return InstanceofOperator(leftValue, rightValue, benv, store, lkont, kont).value; // TODO return {value, store} here and everywhere else
+      }
+      default:
+        throw new Error("cannot handle binary operator " + operator);
     }
-    case "*":
-    {
-      return l.mul(leftValue, rightValue);
-    }
-    case "-":
-    {
-      return l.sub(leftValue, rightValue);
-    }
-    case "/":
-    {
-      return l.div(leftValue, rightValue);
-    }
-    case "%":
-    {
-      return l.rem(leftValue, rightValue);
-    }
-    case "===":
-    {
-      return l.eqq(leftValue, rightValue);
-    }
-    case "!==":
-    {
-      return l.neqq(leftValue, rightValue);
-    }
-    case "==":
-    {
-      return l.eq(leftValue, rightValue);
-    }
-    case "!=":
-    {
-      return l.neq(leftValue, rightValue);
-    }
-    case "<":
-    {
-      return l.lt(leftValue, rightValue);
-    }
-    case "<=":
-    {
-      return l.lte(leftValue, rightValue);
-    }
-    case ">":
-    {
-      return l.gt(leftValue, rightValue);
-    }
-    case ">=":
-    {
-      return l.gte(leftValue, rightValue);
-    }
-    case "&":
-    {
-      return l.binand(leftValue, rightValue);
-    }
-    case "|":
-    {
-      return l.binor(leftValue, rightValue);
-    }
-    case "^":
-    {
-      return l.binxor(leftValue, rightValue);
-    }
-    case "<<":
-    {
-      return l.shl(leftValue, rightValue);
-    }
-    case ">>":
-    {
-      return l.shr(leftValue, rightValue);
-    }
-    case ">>>":
-    {
-      return l.shrr(leftValue, rightValue);
-    }
-    case "instanceof":
-    {
-      return InstanceofOperator(leftValue, rightValue, benv, store, lkont, kont).value; // TODO return {value, store} here and everywhere else
-    }
-    default: throw new Error("cannot handle binary operator " + operator);
   }
-} 
   
   function AssignIdentifierKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
+  
   AssignIdentifierKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof AssignIdentifierKont
-        && this.node === x.node 
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof AssignIdentifierKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   AssignIdentifierKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   AssignIdentifierKont.prototype.toString =
-    function ()
-    {
-      return "asid-" + this.node.tag;
-    }
+      function ()
+      {
+        return "asid-" + this.node.tag;
+      }
   AssignIdentifierKont.prototype.nice =
-    function ()
-    {
-      return "asid-" + this.node.tag;
-    }
+      function ()
+      {
+        return "asid-" + this.node.tag;
+      }
   AssignIdentifierKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   AssignIdentifierKont.prototype.apply =
-    function (value, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var name = node.left.name;
-      var effects = [];
-      var newValue;
-      switch (node.operator)
+      function (value, store, lkont, kont)
       {
-        case "=":
+        var node = this.node;
+        var benv = this.benv;
+        var name = node.left.name;
+        var effects = [];
+        var newValue;
+        switch (node.operator)
         {
-          newValue = value;
-          break;
+          case "=":
+          {
+            newValue = value;
+            break;
+          }
+          case "+=":
+          {
+            var existingValue = doScopeLookup(node.left, benv, store, effects);
+            newValue = l.add(existingValue, value);
+            break;
+          }
+          case "-=":
+          {
+            var existingValue = doScopeLookup(node.left, benv, store, effects);
+            newValue = l.sub(existingValue, value);
+            break;
+          }
+          case "*=":
+          {
+            var existingValue = doScopeLookup(node.left, benv, store, effects);
+            newValue = l.mul(existingValue, value);
+            break;
+          }
+          case "|=":
+          {
+            var existingValue = doScopeLookup(node.left, benv, store, effects);
+            newValue = l.binor(existingValue, value);
+            break;
+          }
+          default:
+            throw new Error("cannot handle assignment operator " + node.operator);
         }
-        case "+=":
+        if (newValue === BOT)
         {
-          var existingValue = doScopeLookup(node.left, benv, store, effects);
-          newValue = l.add(existingValue, value);
-          break;
+          return [];
         }
-        case "-=":
-        {
-          var existingValue = doScopeLookup(node.left, benv, store, effects);
-          newValue = l.sub(existingValue, value);
-          break;
-        }
-        case "*=":
-        {
-          var existingValue = doScopeLookup(node.left, benv, store, effects);
-          newValue = l.mul(existingValue, value);
-          break;
-        }
-        case "|=":
-        {
-          var existingValue = doScopeLookup(node.left, benv, store, effects);
-          newValue = l.binor(existingValue, value);
-          break;
-        }
-        default: throw new Error("cannot handle assignment operator " + node.operator);
+        // if (kont.topmostApplicationReachable())
+        // {
+        //   newValue = newValue.abst();
+        // }
+        store = doScopeSet(node.left, newValue, benv, store, effects);
+        return [{state: new KontState(newValue, store, lkont, kont), effects: effects}];
       }
-      if (newValue === BOT)
-      {
-        return [];
-      }
-      // if (kont.topmostApplicationReachable())
-      // {
-      //   newValue = newValue.abst();
-      // }
-      store = doScopeSet(node.left, newValue, benv, store, effects);
-      return [{state:new KontState(newValue, store, lkont, kont), effects:effects}];
-    }
   
   function OperatorKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  OperatorKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof OperatorKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
-  OperatorKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
-  OperatorKont.prototype.toString =
-    function ()
-    {
-      return "rator-" + this.node.tag;
-    }
-  OperatorKont.prototype.nice =
-    function ()
-    {
-      return "rator-" + this.node.tag;
-    }
-  OperatorKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
-  OperatorKont.prototype.apply =
-    function (operatorValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var operands = node.arguments;
   
-      if (operands.length === 0)
+  OperatorKont.prototype.equals =
+      function (x)
       {
-        if (Ast.isNewExpression(node))
-        {
-          return applyCons(node, operatorValue, [], benv, store, lkont, kont, []);
-        }
-        return applyProc(node, operatorValue, [], globala, null, store, lkont, kont, []);
+        return x instanceof OperatorKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
       }
-      var frame = new OperandsKont(node, 1, benv, operatorValue, [], globala);
-      return [{state:new EvalState(operands[0], benv, store, [frame].concat(lkont), kont)}];
-    }
+  OperatorKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
+  OperatorKont.prototype.toString =
+      function ()
+      {
+        return "rator-" + this.node.tag;
+      }
+  OperatorKont.prototype.nice =
+      function ()
+      {
+        return "rator-" + this.node.tag;
+      }
+  OperatorKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses();
+      }
+  OperatorKont.prototype.apply =
+      function (operatorValue, store, lkont, kont)
+      {
+        const globala = realm.GlobalObject;
+        var node = this.node;
+        var benv = this.benv;
+        var operands = node.arguments;
+        
+        if (operands.length === 0)
+        {
+          if (Ast.isNewExpression(node))
+          {
+            return applyCons(node, operatorValue, [], benv, store, lkont, kont, []);
+          }
+          return applyProc(node, operatorValue, [], globala, null, store, lkont, kont, []);
+        }
+        var frame = new OperandsKont(node, 1, benv, operatorValue, [], realm.GlobalObject);
+        return [{state: new EvalState(operands[0], benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function OperandsKont(node, i, benv, operatorValue, operandValues, thisa)
   {
@@ -2381,75 +2286,79 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
     this.node = node;
     this.i = i;
     this.benv = benv;
-    this.operatorValue = operatorValue; 
-    this.operandValues = operandValues; 
+    this.operatorValue = operatorValue;
+    this.operandValues = operandValues;
     this.thisa = thisa;
   }
-  OperandsKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof OperandsKont
-        && this.node === x.node 
-        && this.i === x.i 
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-        && (this.thisa === x.thisa || this.thisa.equals(x.thisa))
-        && (this.operatorValue === x.operatorValue || this.operatorValue.equals(x.operatorValue)) 
-        && (this.operandValues === x.operandValues || this.operandValues.equals(x.operandValues)) 
-    }
-  OperandsKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.i;
-      result = prime * result + this.benv.hashCode();
-      result = prime * result + this.operatorValue.hashCode();
-      result = prime * result + this.operandValues.hashCode();
-      result = prime * result + this.thisa.hashCode();
-      return result;
-    }
-  OperandsKont.prototype.toString =
-    function ()
-    {
-      return "rand-" + this.node.tag + "-" + this.i;
-    }
-  OperandsKont.prototype.nice =
-    function ()
-    {
-      return "rand-" + this.node.tag + "-" + this.i;
-    }
-  OperandsKont.prototype.addresses =
-    function ()
-    {
-      const operatorAs = this.operatorValue.addresses();
-      const benvAs = this.benv.addresses();
-      var addresses = operatorAs.add(this.thisa).join(benvAs);
-      this.operandValues.forEach(function (value) {addresses = addresses.join(value.addresses())});
-      return addresses;
-    }
-  OperandsKont.prototype.apply =
-    function (operandValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var i = this.i;
-      var operatorValue = this.operatorValue;
-      var operandValues = this.operandValues;
-      var thisa = this.thisa;
-      var operands = node.arguments;
   
-      if (i === operands.length)
+  OperandsKont.prototype.equals =
+      function (x)
       {
-        if (Ast.isNewExpression(node))
-        {
-          return applyCons(node, operatorValue, operandValues.addLast(operandValue), benv, store, lkont, kont, []);
-        }
-        return applyProc(node, operatorValue, operandValues.addLast(operandValue), thisa, null, store, lkont, kont, []);
+        return x instanceof OperandsKont
+            && this.node === x.node
+            && this.i === x.i
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+            && (this.thisa === x.thisa || this.thisa.equals(x.thisa))
+            && (this.operatorValue === x.operatorValue || this.operatorValue.equals(x.operatorValue))
+            && (this.operandValues === x.operandValues || this.operandValues.equals(x.operandValues))
       }
-      var frame = new OperandsKont(node, i + 1, benv, operatorValue, operandValues.addLast(operandValue), thisa);
-      return [{state:new EvalState(operands[i], benv, store, [frame].concat(lkont), kont)}];
-    }
+  OperandsKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.i;
+        result = prime * result + this.benv.hashCode();
+        result = prime * result + this.operatorValue.hashCode();
+        result = prime * result + this.operandValues.hashCode();
+        result = prime * result + this.thisa.hashCode();
+        return result;
+      }
+  OperandsKont.prototype.toString =
+      function ()
+      {
+        return "rand-" + this.node.tag + "-" + this.i;
+      }
+  OperandsKont.prototype.nice =
+      function ()
+      {
+        return "rand-" + this.node.tag + "-" + this.i;
+      }
+  OperandsKont.prototype.addresses =
+      function ()
+      {
+        const operatorAs = this.operatorValue.addresses();
+        const benvAs = this.benv.addresses();
+        var addresses = operatorAs.add(this.thisa).join(benvAs);
+        this.operandValues.forEach(function (value)
+        {
+          addresses = addresses.join(value.addresses())
+        });
+        return addresses;
+      }
+  OperandsKont.prototype.apply =
+      function (operandValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var i = this.i;
+        var operatorValue = this.operatorValue;
+        var operandValues = this.operandValues;
+        var thisa = this.thisa;
+        var operands = node.arguments;
+        
+        if (i === operands.length)
+        {
+          if (Ast.isNewExpression(node))
+          {
+            return applyCons(node, operatorValue, operandValues.addLast(operandValue), benv, store, lkont, kont, []);
+          }
+          return applyProc(node, operatorValue, operandValues.addLast(operandValue), thisa, null, store, lkont, kont, []);
+        }
+        var frame = new OperandsKont(node, i + 1, benv, operatorValue, operandValues.addLast(operandValue), thisa);
+        return [{state: new EvalState(operands[i], benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function BodyKont(node, i, benv)
   {
@@ -2457,303 +2366,309 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
     this.i = i;
     this.benv = benv;
   }
+  
   BodyKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof BodyKont
-        && this.node === x.node
-        && this.i === x.i
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
-  BodyKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.i;
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
-  BodyKont.prototype.toString =
-    function ()
-    {
-      return "body-" + this.node.tag + "-" + this.i;
-    }
-  BodyKont.prototype.nice =
-    function ()
-    {
-      return "body-" + this.node.tag + "-" + this.i;
-    }
-  BodyKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
-  BodyKont.prototype.apply =
-    function (value, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var i = this.i;
-      
-      var nodes = node.body;
-      if (i === nodes.length - 1)
+      function (x)
       {
-        return [{state:new EvalState(nodes[i], benv, store, lkont, kont)}];
+        return x instanceof BodyKont
+            && this.node === x.node
+            && this.i === x.i
+            && (this.benv === x.benv || this.benv.equals(x.benv))
       }
-      var frame = new BodyKont(node, i + 1, benv);
-      return [{state:new EvalState(nodes[i], benv, store, [frame].concat(lkont), kont)}];
-    }
+  BodyKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.i;
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
+  BodyKont.prototype.toString =
+      function ()
+      {
+        return "body-" + this.node.tag + "-" + this.i;
+      }
+  BodyKont.prototype.nice =
+      function ()
+      {
+        return "body-" + this.node.tag + "-" + this.i;
+      }
+  BodyKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses();
+      }
+  BodyKont.prototype.apply =
+      function (value, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var i = this.i;
+        
+        var nodes = node.body;
+        if (i === nodes.length - 1)
+        {
+          return [{state: new EvalState(nodes[i], benv, store, lkont, kont)}];
+        }
+        var frame = new BodyKont(node, i + 1, benv);
+        return [{state: new EvalState(nodes[i], benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function ReturnKont(node)
   {
     this.node = node;
   }
+  
   ReturnKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof ReturnKont
-        && this.node === x.node 
-    }
+      function (x)
+      {
+        return x instanceof ReturnKont
+            && this.node === x.node
+      }
   ReturnKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        return result;
+      }
   ReturnKont.prototype.toString =
-    function ()
-    {
-      return "ret-" + this.node.tag;
-    }
+      function ()
+      {
+        return "ret-" + this.node.tag;
+      }
   ReturnKont.prototype.nice =
-    function ()
-    {
-      return "ret-" + this.node.tag;
-    }
+      function ()
+      {
+        return "ret-" + this.node.tag;
+      }
   ReturnKont.prototype.addresses =
-    function ()
-    {
-      return EMPTY_ADDRESS_SET;
-    }
+      function ()
+      {
+        return EMPTY_ADDRESS_SET;
+      }
   ReturnKont.prototype.apply =
-    function (value, store, lkont, kont)
-    {
-      var node = this.node;
-      return [{state:new ReturnState(value, store, lkont, kont)}];
-    }
+      function (value, store, lkont, kont)
+      {
+        var node = this.node;
+        return [{state: new ReturnState(value, store, lkont, kont)}];
+      }
   
   function TryKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
+  
   TryKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof TryKont
-        && this.node === x.node 
-    }
-  TryKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      return result;
-    }
-  TryKont.prototype.toString =
-    function ()
-    {
-      return "try-" + this.node.tag;
-    }
-  TryKont.prototype.nice =
-    function ()
-    {
-      return "try-" + this.node.tag;
-    }
-  TryKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
-  TryKont.prototype.apply =
-    function (tryValue, store, lkont, kont)
-    {
-      var node = this.node;
-      return [{state:new KontState(tryValue, store, lkont, kont), effects:[]}];
-    }
-  TryKont.prototype.applyThrow =
-    function (throwValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var handler = node.handler;
-      var body = handler.body;
-      var nodes = body.body;
-      if (nodes.length === 0)
+      function (x)
       {
-        return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:[]}];
+        return x instanceof TryKont
+            && this.node === x.node
       }
-      
-      var extendedBenv = this.benv.extend();
-      var param = handler.param;
-      var name = param.name;
-      var addr = a.vr(param);
-      extendedBenv = extendedBenv.add(name, addr);
-      store = storeAlloc(store, addr, throwValue);
-      return evalStatementList(body, extendedBenv, store, lkont, kont, []);
-    }
+  TryKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        return result;
+      }
+  TryKont.prototype.toString =
+      function ()
+      {
+        return "try-" + this.node.tag;
+      }
+  TryKont.prototype.nice =
+      function ()
+      {
+        return "try-" + this.node.tag;
+      }
+  TryKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses();
+      }
+  TryKont.prototype.apply =
+      function (tryValue, store, lkont, kont)
+      {
+        var node = this.node;
+        return [{state: new KontState(tryValue, store, lkont, kont), effects: []}];
+      }
+  TryKont.prototype.applyThrow =
+      function (throwValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var handler = node.handler;
+        var body = handler.body;
+        var nodes = body.body;
+        if (nodes.length === 0)
+        {
+          return [{state: new KontState(L_UNDEFINED, store, lkont, kont), effects: []}];
+        }
+        
+        var extendedBenv = this.benv.extend();
+        var param = handler.param;
+        var name = param.name;
+        var addr = a.vr(param);
+        extendedBenv = extendedBenv.add(name, addr);
+        store = storeAlloc(store, addr, throwValue);
+        return evalStatementList(body, extendedBenv, store, lkont, kont, []);
+      }
   
   function ThrowKont(node)
   {
     this.node = node;
   }
+  
   ThrowKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof ThrowKont
-        && this.node === x.node 
-    }
+      function (x)
+      {
+        return x instanceof ThrowKont
+            && this.node === x.node
+      }
   ThrowKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        return result;
+      }
   ThrowKont.prototype.toString =
-    function ()
-    {
-      return "throw-" + this.node.tag;
-    }
+      function ()
+      {
+        return "throw-" + this.node.tag;
+      }
   ThrowKont.prototype.nice =
-    function ()
-    {
-      return "throw-" + this.node.tag;
-    }
+      function ()
+      {
+        return "throw-" + this.node.tag;
+      }
   ThrowKont.prototype.addresses =
-    function ()
-    {
-      return EMPTY_ADDRESS_SET;
-    }
+      function ()
+      {
+        return EMPTY_ADDRESS_SET;
+      }
   ThrowKont.prototype.apply =
-    function (throwValue, store, lkont, kont)
-    {
-      var node = this.node;
-      return [{state:new ThrowState(throwValue, store, lkont, kont), effects:[]}];
-    }
+      function (throwValue, store, lkont, kont)
+      {
+        var node = this.node;
+        return [{state: new ThrowState(throwValue, store, lkont, kont), effects: []}];
+      }
   
   function IfKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
+  
   IfKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof IfKont
-        && this.node === x.node 
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof IfKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   IfKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   IfKont.prototype.toString =
-    function ()
-    {
-      return "if-" + this.node.tag;
-    }
+      function ()
+      {
+        return "if-" + this.node.tag;
+      }
   IfKont.prototype.nice =
-    function ()
-    {
-      return "if-" + this.node.tag;
-    }
+      function ()
+      {
+        return "if-" + this.node.tag;
+      }
   IfKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   IfKont.prototype.apply =
-    function (conditionValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;    
-      var consequent = node.consequent;
-      var alternate = node.alternate;
-      var result = [];
-      if (conditionValue.isTruthy())
+      function (conditionValue, store, lkont, kont)
       {
-        result = result.concat([{state:new EvalState(consequent, benv, store, lkont, kont)}]);
-      }
-      if (conditionValue.isFalsy())
-      {
-        if (alternate === null)
+        var node = this.node;
+        var benv = this.benv;
+        var consequent = node.consequent;
+        var alternate = node.alternate;
+        var result = [];
+        if (conditionValue.isTruthy())
         {
-          result = result.concat([{state:new KontState(L_UNDEFINED, store, lkont, kont)}]);
+          result = result.concat([{state: new EvalState(consequent, benv, store, lkont, kont)}]);
         }
-        else
+        if (conditionValue.isFalsy())
         {
-          result = result.concat([{state:new EvalState(alternate, benv, store, lkont, kont)}]);
+          if (alternate === null)
+          {
+            result = result.concat([{state: new KontState(L_UNDEFINED, store, lkont, kont)}]);
+          }
+          else
+          {
+            result = result.concat([{state: new EvalState(alternate, benv, store, lkont, kont)}]);
+          }
         }
+        return result;
       }
-      return result;
-    }
   
   function ForInitKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
+  
   ForInitKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof ForInitKont
-        && this.node === x.node 
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof ForInitKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   ForInitKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   ForInitKont.prototype.toString =
-    function ()
-    {
-      return "forinit-" + this.node.tag;
-    }
+      function ()
+      {
+        return "forinit-" + this.node.tag;
+      }
   ForInitKont.prototype.nice =
-    function ()
-    {
-      return "forinit-" + this.node.tag;
-    }
+      function ()
+      {
+        return "forinit-" + this.node.tag;
+      }
   ForInitKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   ForInitKont.prototype.apply =
-    function (value, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;    
-      var test = node.test;
-      var frame = new ForTestKont(node, L_UNDEFINED, benv);
-      return [{state:new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
-    }
+      function (value, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var test = node.test;
+        var frame = new ForTestKont(node, L_UNDEFINED, benv);
+        return [{state: new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function ForTestKont(node, bodyValue, benv)
   {
@@ -2761,108 +2676,110 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
     this.bodyValue = bodyValue;
     this.benv = benv;
   }
+  
   ForTestKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof ForTestKont
-        && this.node === x.node 
-        && this.bodyValue.equals(x.bodyValue) 
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof ForTestKont
+            && this.node === x.node
+            && this.bodyValue.equals(x.bodyValue)
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   ForTestKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.bodyValue.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.bodyValue.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   ForTestKont.prototype.toString =
-    function ()
-    {
-      return "fortest-" + this.node.tag;
-    }
+      function ()
+      {
+        return "fortest-" + this.node.tag;
+      }
   ForTestKont.prototype.nice =
-    function ()
-    {
-      return "fortest-" + this.node.tag;
-    }
+      function ()
+      {
+        return "fortest-" + this.node.tag;
+      }
   ForTestKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   ForTestKont.prototype.apply =
-    function (testValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var result = [];
-      if (testValue.isTruthy())
+      function (testValue, store, lkont, kont)
       {
-        var body = node.body;
-        var frame = new ForBodyKont(node, benv);
-        result = result.concat([{state:new EvalState(body, benv, store, [frame].concat(lkont), kont)}]);
+        var node = this.node;
+        var benv = this.benv;
+        var result = [];
+        if (testValue.isTruthy())
+        {
+          var body = node.body;
+          var frame = new ForBodyKont(node, benv);
+          result = result.concat([{state: new EvalState(body, benv, store, [frame].concat(lkont), kont)}]);
+        }
+        if (testValue.isFalsy())
+        {
+          result = result.concat([{state: new KontState(this.bodyValue, store, lkont, kont)}]);
+        }
+        return result;
       }
-      if (testValue.isFalsy())
-      {
-        result = result.concat([{state:new KontState(this.bodyValue, store, lkont, kont)}]);
-      }
-      return result;
-    }
   
   function ForBodyKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
+  
   ForBodyKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof ForBodyKont
-        && this.node === x.node 
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof ForBodyKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   ForBodyKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   ForBodyKont.prototype.toString =
-    function ()
-    {
-      return "forbody-" + this.node.tag;
-    }
+      function ()
+      {
+        return "forbody-" + this.node.tag;
+      }
   ForBodyKont.prototype.nice =
-    function ()
-    {
-      return "forbody-" + this.node.tag;
-    }
+      function ()
+      {
+        return "forbody-" + this.node.tag;
+      }
   ForBodyKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   ForBodyKont.prototype.apply =
-    function (bodyValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var update = node.update;
-      var frame = new ForUpdateKont(node, bodyValue, benv);
-      return [{state:new EvalState(update, benv, store, [frame].concat(lkont), kont), effects:[]}];
-    }
+      function (bodyValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var update = node.update;
+        var frame = new ForUpdateKont(node, bodyValue, benv);
+        return [{state: new EvalState(update, benv, store, [frame].concat(lkont), kont), effects: []}];
+      }
   ForBodyKont.prototype.applyBreak =
-    function (store, lkont, kont)
-    {
-      return [{state:new KontState(L_UNDEFINED, store, lkont.slice(1), kont), effects:[]}];
-    }
+      function (store, lkont, kont)
+      {
+        return [{state: new KontState(L_UNDEFINED, store, lkont.slice(1), kont), effects: []}];
+      }
   
   function ForUpdateKont(node, bodyValue, benv)
   {
@@ -2871,154 +2788,157 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
     this.bodyValue = bodyValue;
     this.benv = benv;
   }
+  
   ForUpdateKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof ForUpdateKont
-        && this.node === x.node 
-        && this.bodyValue.equals(x.bodyValue)
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof ForUpdateKont
+            && this.node === x.node
+            && this.bodyValue.equals(x.bodyValue)
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   ForUpdateKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.bodyValue.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.bodyValue.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   ForUpdateKont.prototype.toString =
-    function ()
-    {
-      return "forupd-" + this.node.tag;
-    }
+      function ()
+      {
+        return "forupd-" + this.node.tag;
+      }
   ForUpdateKont.prototype.nice =
-    function ()
-    {
-      return "forupd-" + this.node.tag;
-    }
+      function ()
+      {
+        return "forupd-" + this.node.tag;
+      }
   ForUpdateKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   ForUpdateKont.prototype.apply =
-    function (updateValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var test = node.test;
-      var frame = new ForTestKont(node, this.bodyValue, benv);
-      return [{state:new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
-    }
+      function (updateValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var test = node.test;
+        var frame = new ForTestKont(node, this.bodyValue, benv);
+        return [{state: new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function WhileTestKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
+  
   WhileTestKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof WhileTestKont
-        && this.node === x.node 
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof WhileTestKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   WhileTestKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   WhileTestKont.prototype.toString =
-    function ()
-    {
-      return "whiletest-" + this.node.tag;
-    }
+      function ()
+      {
+        return "whiletest-" + this.node.tag;
+      }
   WhileTestKont.prototype.nice =
-    function ()
-    {
-      return "whiletest-" + this.node.tag;
-    }
+      function ()
+      {
+        return "whiletest-" + this.node.tag;
+      }
   WhileTestKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   WhileTestKont.prototype.apply =
-    function (testValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var body = node.body;
-      var result = [];
-      if (testValue.isTruthy())
+      function (testValue, store, lkont, kont)
       {
-        var frame = new WhileBodyKont(node, benv);
-        result = result.concat([{state:new EvalState(body, benv, store, [frame].concat(lkont), kont)}]);
+        var node = this.node;
+        var benv = this.benv;
+        var body = node.body;
+        var result = [];
+        if (testValue.isTruthy())
+        {
+          var frame = new WhileBodyKont(node, benv);
+          result = result.concat([{state: new EvalState(body, benv, store, [frame].concat(lkont), kont)}]);
+        }
+        if (testValue.isFalsy())
+        {
+          result = result.concat([{state: new KontState(L_UNDEFINED, store, lkont, kont)}]);
+        }
+        return result;
       }
-      if (testValue.isFalsy())
-      {
-        result = result.concat([{state:new KontState(L_UNDEFINED, store, lkont, kont)}]);
-      }
-      return result;
-    }
   
   function WhileBodyKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
+  
   WhileBodyKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof WhileBodyKont
-        && this.node === x.node 
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof WhileBodyKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   WhileBodyKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   WhileBodyKont.prototype.toString =
-    function ()
-    {
-      return "whilebody-" + this.node.tag;
-    }
+      function ()
+      {
+        return "whilebody-" + this.node.tag;
+      }
   WhileBodyKont.prototype.nice =
-    function ()
-    {
-      return "whilebody-" + this.node.tag;
-    }
+      function ()
+      {
+        return "whilebody-" + this.node.tag;
+      }
   WhileBodyKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   WhileBodyKont.prototype.apply =
-    function (bodyValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var test = node.test;
-      var frame = new WhileTestKont(node, benv);
-      return [{state:new EvalState(test, benv, store, [frame].concat(lkont), kont),effects:[]}];
-    }
+      function (bodyValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var test = node.test;
+        var frame = new WhileTestKont(node, benv);
+        return [{state: new EvalState(test, benv, store, [frame].concat(lkont), kont), effects: []}];
+      }
   WhileBodyKont.prototype.applyBreak =
-    function (store, lkont, kont)
-    {
-      return [{state:new KontState(L_UNDEFINED, store, lkont.slice(1), kont), effects:[]}];
-    }
+      function (store, lkont, kont)
+      {
+        return [{state: new KontState(L_UNDEFINED, store, lkont.slice(1), kont), effects: []}];
+      }
   
   function ObjectKont(node, i, benv, initValues)
   {
@@ -3029,68 +2949,71 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
   }
   
   ObjectKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof ObjectKont
-        && this.node === x.node
-        && this.i === x.i
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-        && (this.initValues === x.initValues || this.initValues.equals(x.initValues))
-    }
-  ObjectKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.i;
-      result = prime * result + this.benv.hashCode();
-      result = prime * result + this.initValues.hashCode();
-      return result;
-    }
-  ObjectKont.prototype.toString =
-    function ()
-    {
-      return "obj-" + this.node.tag + "-" + this.i;
-    }
-  ObjectKont.prototype.nice =
-    function ()
-    {
-      return "obj-" + this.node.tag + "-" + this.i;
-    }
-  ObjectKont.prototype.addresses =
-    function ()
-    {
-      var addresses = this.benv.addresses();
-      this.initValues.forEach(function (value) {addresses = addresses.join(value.addresses())});
-      return addresses;
-    }
-  ObjectKont.prototype.apply =
-    function (initValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var properties = node.properties;
-      var benv = this.benv;
-      var i = this.i;
-      var initValues = this.initValues.addLast(initValue);
-
-      if (properties.length === i)
+      function (x)
       {
-        var effects = [];
-        var obj = ObjectCreate(objectProtoRef);
-        var objectAddress = a.object(node, benv, store, lkont, kont);
-        for (var j = 0; j < i; j++)
-        {
-          var propertyName = l.abst1(properties[j].key.name);
-          obj = obj.add(propertyName, new Property(initValues[j], BOT, BOT, BOT, BOT, BOT));
-        }
-        store = storeAlloc(store, objectAddress, obj);
-//        effects.push(allocObjectEffect(objectAddress));
-        return [{state:new KontState(l.abstRef(objectAddress), store, lkont, kont), effects:effects}];        
+        return x instanceof ObjectKont
+            && this.node === x.node
+            && this.i === x.i
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+            && (this.initValues === x.initValues || this.initValues.equals(x.initValues))
       }
-      var frame = new ObjectKont(node, i + 1, benv, initValues);
-      return [{state:new EvalState(properties[i].value, benv, store, [frame].concat(lkont), kont)}];
-    }
+  ObjectKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.i;
+        result = prime * result + this.benv.hashCode();
+        result = prime * result + this.initValues.hashCode();
+        return result;
+      }
+  ObjectKont.prototype.toString =
+      function ()
+      {
+        return "obj-" + this.node.tag + "-" + this.i;
+      }
+  ObjectKont.prototype.nice =
+      function ()
+      {
+        return "obj-" + this.node.tag + "-" + this.i;
+      }
+  ObjectKont.prototype.addresses =
+      function ()
+      {
+        var addresses = this.benv.addresses();
+        this.initValues.forEach(function (value)
+        {
+          addresses = addresses.join(value.addresses())
+        });
+        return addresses;
+      }
+  ObjectKont.prototype.apply =
+      function (initValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var properties = node.properties;
+        var benv = this.benv;
+        var i = this.i;
+        var initValues = this.initValues.addLast(initValue);
+        
+        if (properties.length === i)
+        {
+          var effects = [];
+          var obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
+          var objectAddress = a.object(node, benv, store, lkont, kont);
+          for (var j = 0; j < i; j++)
+          {
+            var propertyName = l.abst1(properties[j].key.name);
+            obj = obj.add(propertyName, new Property(initValues[j], BOT, BOT, BOT, BOT, BOT));
+          }
+          store = storeAlloc(store, objectAddress, obj);
+//        effects.push(allocObjectEffect(objectAddress));
+          return [{state: new KontState(l.abstRef(objectAddress), store, lkont, kont), effects: effects}];
+        }
+        var frame = new ObjectKont(node, i + 1, benv, initValues);
+        return [{state: new EvalState(properties[i].value, benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function ArrayKont(node, i, benv, initValues)
   {
@@ -3101,67 +3024,70 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
   }
   
   ArrayKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof ArrayKont
-        && this.node === x.node
-        && this.i === x.i
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-        && (this.initValues === x.initValues || this.initValues.equals(x.initValues))
-    }
-  ArrayKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.i;
-      result = prime * result + this.benv.hashCode();
-      result = prime * result + this.initValues.hashCode();
-      return result;
-    }
-  ArrayKont.prototype.toString =
-    function ()
-    {
-      return "arr-" + this.node.tag + "-" + this.i;
-    }
-  ArrayKont.prototype.nice =
-    function ()
-    {
-      return "arr-" + this.node.tag + "-" + this.i;
-    }
-  ArrayKont.prototype.addresses =
-    function ()
-    {
-      var addresses = this.benv.addresses();
-      this.initValues.forEach(function (value) {addresses = addresses.join(value.addresses())});
-      return addresses;
-    }
-  ArrayKont.prototype.apply =
-    function (initValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var elements = node.elements;
-      var benv = this.benv;
-      var i = this.i;
-      var initValues = this.initValues.addLast(initValue);
-
-      if (elements.length === i)
+      function (x)
       {
-        var arr = createArray();
-        var arrAddress = a.array(node, benv, store, lkont, kont);
-        for (var j = 0; j < i; j++)
-        {
-          var indexName = l.abst1(String(j));
-          arr = arr.add(indexName, new Property(initValues[j], BOT, BOT, BOT, BOT, BOT));
-        }
-        arr = arr.add(P_LENGTH, new Property(l.abst1(i), BOT, BOT, BOT, BOT, BOT));
-        store = storeAlloc(store, arrAddress, arr);
-        return [{state:new KontState(l.abstRef(arrAddress), store, lkont, kont)}];        
+        return x instanceof ArrayKont
+            && this.node === x.node
+            && this.i === x.i
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+            && (this.initValues === x.initValues || this.initValues.equals(x.initValues))
       }
-      var frame = new ArrayKont(node, i + 1, benv, initValues);
-      return [{state:new EvalState(elements[i], benv, store, [frame].concat(lkont), kont)}];
-    }
+  ArrayKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.i;
+        result = prime * result + this.benv.hashCode();
+        result = prime * result + this.initValues.hashCode();
+        return result;
+      }
+  ArrayKont.prototype.toString =
+      function ()
+      {
+        return "arr-" + this.node.tag + "-" + this.i;
+      }
+  ArrayKont.prototype.nice =
+      function ()
+      {
+        return "arr-" + this.node.tag + "-" + this.i;
+      }
+  ArrayKont.prototype.addresses =
+      function ()
+      {
+        var addresses = this.benv.addresses();
+        this.initValues.forEach(function (value)
+        {
+          addresses = addresses.join(value.addresses())
+        });
+        return addresses;
+      }
+  ArrayKont.prototype.apply =
+      function (initValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var elements = node.elements;
+        var benv = this.benv;
+        var i = this.i;
+        var initValues = this.initValues.addLast(initValue);
+        
+        if (elements.length === i)
+        {
+          var arr = createArray();
+          var arrAddress = a.array(node, benv, store, lkont, kont);
+          for (var j = 0; j < i; j++)
+          {
+            var indexName = l.abst1(String(j));
+            arr = arr.add(indexName, new Property(initValues[j], BOT, BOT, BOT, BOT, BOT));
+          }
+          arr = arr.add(P_LENGTH, new Property(l.abst1(i), BOT, BOT, BOT, BOT, BOT));
+          store = storeAlloc(store, arrAddress, arr);
+          return [{state: new KontState(l.abstRef(arrAddress), store, lkont, kont)}];
+        }
+        var frame = new ArrayKont(node, i + 1, benv, initValues);
+        return [{state: new EvalState(elements[i], benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function MemberKont(node, benv)
   {
@@ -3170,53 +3096,53 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
   }
   
   MemberKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof MemberKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
-  MemberKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
-  MemberKont.prototype.toString =
-    function ()
-    {
-      return "mem-" + this.node.tag;
-    }
-  MemberKont.prototype.nice =
-    function ()
-    {
-      return "mem-" + this.node.tag;
-    }
-  MemberKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
-  MemberKont.prototype.apply =
-    function (objectValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var property = node.property;
-      let objectRef;
-      ({value:objectRef, store} = ToObject(objectValue, benv, store, lkont, kont));
-      if (node.computed)
+      function (x)
       {
-        var frame = new MemberPropertyKont(node, benv, objectRef);
-        return [{state:new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
+        return x instanceof MemberKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
       }
-      var effects = [];
-      var value = doProtoLookup(l.abst1(property.name), objectRef.addresses(), store, effects);
-      return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-    }
+  MemberKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
+  MemberKont.prototype.toString =
+      function ()
+      {
+        return "mem-" + this.node.tag;
+      }
+  MemberKont.prototype.nice =
+      function ()
+      {
+        return "mem-" + this.node.tag;
+      }
+  MemberKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses();
+      }
+  MemberKont.prototype.apply =
+      function (objectValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var property = node.property;
+        let objectRef;
+        ({value: objectRef, store} = ToObject(objectValue, benv, store, lkont, kont));
+        if (node.computed)
+        {
+          var frame = new MemberPropertyKont(node, benv, objectRef);
+          return [{state: new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
+        }
+        var effects = [];
+        var value = doProtoLookup(l.abst1(property.name), objectRef.addresses(), store, effects);
+        return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      }
   
   function MemberPropertyKont(node, benv, objectRef)
   {
@@ -3226,52 +3152,52 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
   }
   
   MemberPropertyKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof MemberPropertyKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-        && (this.objectRef === x.objectRef || this.objectRef.equals(x.objectRef))
-    }
-  MemberPropertyKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      result = prime * result + this.objectRef.hashCode();
-      return result;
-    }
-  MemberPropertyKont.prototype.toString =
-    function ()
-    {
-      return "mem-" + this.node.tag;
-    }
-  MemberPropertyKont.prototype.nice =
-    function ()
-    {
-      return "mem-" + this.node.tag;
-    }
-  MemberPropertyKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses().join(this.objectRef.addresses());
-    }
-    
-  MemberPropertyKont.prototype.apply =
-    function (propertyValue, store, lkont, kont)
-    {
-      if (propertyValue === BOT)
+      function (x)
       {
-        return [];
+        return x instanceof MemberPropertyKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+            && (this.objectRef === x.objectRef || this.objectRef.equals(x.objectRef))
       }
-      var objectRef = this.objectRef;
-      var nameValue = propertyValue.ToString();
-      var effects = [];
-      var value = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
-      return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-    }
+  MemberPropertyKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        result = prime * result + this.objectRef.hashCode();
+        return result;
+      }
+  MemberPropertyKont.prototype.toString =
+      function ()
+      {
+        return "mem-" + this.node.tag;
+      }
+  MemberPropertyKont.prototype.nice =
+      function ()
+      {
+        return "mem-" + this.node.tag;
+      }
+  MemberPropertyKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses().join(this.objectRef.addresses());
+      }
+  
+  MemberPropertyKont.prototype.apply =
+      function (propertyValue, store, lkont, kont)
+      {
+        if (propertyValue === BOT)
+        {
+          return [];
+        }
+        var objectRef = this.objectRef;
+        var nameValue = propertyValue.ToString();
+        var effects = [];
+        var value = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
+        return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      }
   
   
   function CallMemberKont(node, benv)
@@ -3281,61 +3207,61 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
   }
   
   CallMemberKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof CallMemberKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
-  CallMemberKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
-  CallMemberKont.prototype.toString =
-    function ()
-    {
-      return "memcall-" + this.node.tag;
-    }
-  CallMemberKont.prototype.nice =
-    function ()
-    {
-      return "memcall-" + this.node.tag;
-    }
-  CallMemberKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
-  CallMemberKont.prototype.apply =
-    function (objectValue, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var property = node.callee.property;
-      if (node.computed)
+      function (x)
       {
-        throw new Error("TODO");
+        return x instanceof CallMemberKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
       }
-      var nameValue = l.abst1(property.name);
-      var objectRef;
-      ({value:objectRef, store} = ToObject(objectValue, benv, store, lkont, kont));
-      var thisAddresses = objectRef.addresses();
-      var operands = node.arguments;
-      return invoke(node, thisAddresses, nameValue, operands, benv, store, lkont, kont);
-    }
-    
+  CallMemberKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
+  CallMemberKont.prototype.toString =
+      function ()
+      {
+        return "memcall-" + this.node.tag;
+      }
+  CallMemberKont.prototype.nice =
+      function ()
+      {
+        return "memcall-" + this.node.tag;
+      }
+  CallMemberKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses();
+      }
+  CallMemberKont.prototype.apply =
+      function (objectValue, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var property = node.callee.property;
+        if (node.computed)
+        {
+          throw new Error("TODO");
+        }
+        var nameValue = l.abst1(property.name);
+        var objectRef;
+        ({value: objectRef, store} = ToObject(objectValue, benv, store, lkont, kont));
+        var thisAddresses = objectRef.addresses();
+        var operands = node.arguments;
+        return invoke(node, thisAddresses, nameValue, operands, benv, store, lkont, kont);
+      }
+  
   function invoke(application, thisAddresses, nameValue, operands, benv, store, lkont, kont)
   {
     return thisAddresses.flatMap(
         function (thisa)
         {
           var effects = [];
-          var operatorValue = doProtoLookup(nameValue, ArraySet.from1(thisa), store, effects); 
+          var operatorValue = doProtoLookup(nameValue, ArraySet.from1(thisa), store, effects);
           if (operands.length === 0)
           {
             if (Ast.isNewExpression(application))
@@ -3345,8 +3271,8 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
             return applyProc(application, operatorValue, [], thisa, null, store, lkont, kont, effects);
           }
           var frame = new OperandsKont(application, 1, benv, operatorValue, [], thisa);
-          return [{state:new EvalState(operands[0], benv, store, [frame].concat(lkont), kont), effects:effects}];
-        });      
+          return [{state: new EvalState(operands[0], benv, store, [frame].concat(lkont), kont), effects: effects}];
+        });
   }
   
   function AssignMemberKont(node, benv)
@@ -3356,53 +3282,53 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
   }
   
   AssignMemberKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof AssignMemberKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
-  AssignMemberKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
-  AssignMemberKont.prototype.toString =
-    function ()
-    {
-      return "memas-" + this.node.tag;
-    }
-  AssignMemberKont.prototype.nice =
-    function ()
-    {
-      return "memas-" + this.node.tag;
-    }
-  AssignMemberKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
-  AssignMemberKont.prototype.apply =
-    function (objectRef, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var left = node.left;
-      var property = left.property;
-      if (left.computed)
+      function (x)
       {
-        var frame = new AssignMemberPropertyKont(node, benv, objectRef);
-        return [{state:new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
+        return x instanceof AssignMemberKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
       }
-      var right = node.right;
-      var nameValue = l.abst1(property.name);
-      var frame = new MemberAssignmentValueKont(node, benv, objectRef, nameValue);
-      return [{state:new EvalState(right, benv, store, [frame].concat(lkont), kont)}];
-    }
+  AssignMemberKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
+  AssignMemberKont.prototype.toString =
+      function ()
+      {
+        return "memas-" + this.node.tag;
+      }
+  AssignMemberKont.prototype.nice =
+      function ()
+      {
+        return "memas-" + this.node.tag;
+      }
+  AssignMemberKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses();
+      }
+  AssignMemberKont.prototype.apply =
+      function (objectRef, store, lkont, kont)
+      {
+        var node = this.node;
+        var benv = this.benv;
+        var left = node.left;
+        var property = left.property;
+        if (left.computed)
+        {
+          var frame = new AssignMemberPropertyKont(node, benv, objectRef);
+          return [{state: new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
+        }
+        var right = node.right;
+        var nameValue = l.abst1(property.name);
+        var frame = new MemberAssignmentValueKont(node, benv, objectRef, nameValue);
+        return [{state: new EvalState(right, benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function UpdateMemberKont(node, benv)
   {
@@ -3411,78 +3337,79 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
   }
   
   UpdateMemberKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof UpdateMemberKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-    }
+      function (x)
+      {
+        return x instanceof UpdateMemberKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
   UpdateMemberKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
   UpdateMemberKont.prototype.toString =
-    function ()
-    {
-      return "upmem-" + this.node.tag;
-    }
+      function ()
+      {
+        return "upmem-" + this.node.tag;
+      }
   UpdateMemberKont.prototype.nice =
-    function ()
-    {
-      return "upmem-" + this.node.tag;
-    }
+      function ()
+      {
+        return "upmem-" + this.node.tag;
+      }
   UpdateMemberKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses();
-    }
+      function ()
+      {
+        return this.benv.addresses();
+      }
   UpdateMemberKont.prototype.apply =
-    function (objectRef, store, lkont, kont)
-    {
-      var node = this.node;
-      var benv = this.benv;
-      var argument = node.argument;
-      var property = argument.property;
-      if (argument.computed)
+      function (objectRef, store, lkont, kont)
       {
-        var frame = new UpdateMemberPropertyKont(node, benv, objectRef); // TODO
-        return [{state:new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
-      }
-      var name = l.abst1(property.name);
-      var effects = [];
-      var value = doProtoLookup(name, objectRef.addresses(), store, effects);
-      if (value === BOT)
-      {
-        return [];
-      }
-      var updatedValue;
-      switch (node.operator)
-      {
-        case "++":
+        var node = this.node;
+        var benv = this.benv;
+        var argument = node.argument;
+        var property = argument.property;
+        if (argument.computed)
         {
-          updatedValue = l.add(value, L_1);
-          break;
+          var frame = new UpdateMemberPropertyKont(node, benv, objectRef); // TODO
+          return [{state: new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
         }
-        case "--":
+        var name = l.abst1(property.name);
+        var effects = [];
+        var value = doProtoLookup(name, objectRef.addresses(), store, effects);
+        if (value === BOT)
         {
-          updatedValue = l.sub(value, L_1);
-          break;
+          return [];
         }
-        default: throw new Error("cannot handle update operator " + node.operator);
+        var updatedValue;
+        switch (node.operator)
+        {
+          case "++":
+          {
+            updatedValue = l.add(value, L_1);
+            break;
+          }
+          case "--":
+          {
+            updatedValue = l.sub(value, L_1);
+            break;
+          }
+          default:
+            throw new Error("cannot handle update operator " + node.operator);
+        }
+        if (updatedValue === BOT)
+        {
+          return [];
+        }
+        store = doProtoSet(name, updatedValue, objectRef, store, effects);
+        var resultingValue = node.prefix ? updatedValue : value;
+        return [{state: new KontState(resultingValue, store, lkont, kont), effects: effects}];
       }
-      if (updatedValue === BOT)
-      {
-        return [];
-      }      
-      store = doProtoSet(name, updatedValue, objectRef, store, effects);
-      var resultingValue = node.prefix ? updatedValue : value;
-      return [{state:new KontState(resultingValue, store, lkont, kont), effects:effects}];
-    }
   
   function AssignMemberPropertyKont(node, benv, objectRef)
   {
@@ -3492,53 +3419,53 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
   }
   
   AssignMemberPropertyKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof AssignMemberPropertyKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-        && (this.objectRef === x.objectRef || this.objectRef.equals(x.objectRef))
-    }
-  AssignMemberPropertyKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      result = prime * result + this.objectRef.hashCode();
-      return result;
-    }
-  AssignMemberPropertyKont.prototype.toString =
-    function ()
-    {
-      return "asmemp-" + this.node.tag;
-    }
-  AssignMemberPropertyKont.prototype.nice =
-    function ()
-    {
-      return "asmemp-" + this.node.tag;
-    }
-  AssignMemberPropertyKont.prototype.addresses =
-    function ()
-    {
-      return this.benv.addresses().join(this.objectRef.addresses());
-    }
-  AssignMemberPropertyKont.prototype.apply =
-    function (propertyValue, store, lkont, kont)
-    {
-      if (propertyValue === BOT)
+      function (x)
       {
-        return [];
+        return x instanceof AssignMemberPropertyKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+            && (this.objectRef === x.objectRef || this.objectRef.equals(x.objectRef))
       }
-      var node = this.node;
-      var benv = this.benv;
-      var right = node.right;
-      var objectRef = this.objectRef;
-      var nameValue = propertyValue.ToString();
-      var frame = new MemberAssignmentValueKont(node, benv, objectRef, nameValue);
-      return [{state:new EvalState(right, benv, store, [frame].concat(lkont), kont)}];
-    }
+  AssignMemberPropertyKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        result = prime * result + this.objectRef.hashCode();
+        return result;
+      }
+  AssignMemberPropertyKont.prototype.toString =
+      function ()
+      {
+        return "asmemp-" + this.node.tag;
+      }
+  AssignMemberPropertyKont.prototype.nice =
+      function ()
+      {
+        return "asmemp-" + this.node.tag;
+      }
+  AssignMemberPropertyKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses().join(this.objectRef.addresses());
+      }
+  AssignMemberPropertyKont.prototype.apply =
+      function (propertyValue, store, lkont, kont)
+      {
+        if (propertyValue === BOT)
+        {
+          return [];
+        }
+        var node = this.node;
+        var benv = this.benv;
+        var right = node.right;
+        var objectRef = this.objectRef;
+        var nameValue = propertyValue.ToString();
+        var frame = new MemberAssignmentValueKont(node, benv, objectRef, nameValue);
+        return [{state: new EvalState(right, benv, store, [frame].concat(lkont), kont)}];
+      }
   
   function MemberAssignmentValueKont(node, benv, objectRef, nameValue)
   {
@@ -3549,87 +3476,89 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
   }
   
   MemberAssignmentValueKont.prototype.equals =
-    function (x)
-    {
-      return x instanceof MemberAssignmentValueKont
-        && this.node === x.node
-        && (this.benv === x.benv || this.benv.equals(x.benv))
-        && (this.objectRef === x.objectRef || this.objectRef.equals(x.objectRef))
-        && (this.nameValue === x.nameValue || this.nameValue.equals(x.nameValue))
-    }
+      function (x)
+      {
+        return x instanceof MemberAssignmentValueKont
+            && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+            && (this.objectRef === x.objectRef || this.objectRef.equals(x.objectRef))
+            && (this.nameValue === x.nameValue || this.nameValue.equals(x.nameValue))
+      }
   MemberAssignmentValueKont.prototype.hashCode =
-    function ()
-    {
-      var prime = 31;
-      var result = 1;
-      result = prime * result + this.node.hashCode();
-      result = prime * result + this.benv.hashCode();
-      result = prime * result + this.objectRef.hashCode();
-      result = prime * result + this.nameValue.hashCode();
-      return result;
-    }
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
+        result = prime * result + this.objectRef.hashCode();
+        result = prime * result + this.nameValue.hashCode();
+        return result;
+      }
   MemberAssignmentValueKont.prototype.toString =
-    function ()
-    {
-      return "memasv-" + this.node.tag;
-    }
+      function ()
+      {
+        return "memasv-" + this.node.tag;
+      }
   MemberAssignmentValueKont.prototype.nice =
-    function ()
-    {
-      return "memasv-" + this.node.tag;
-    }
+      function ()
+      {
+        return "memasv-" + this.node.tag;
+      }
   MemberAssignmentValueKont.prototype.addresses =
-    function ()
-    {
-    // no addresses from nameValue: required to be `ToString`ed! (see assert in constr)
-      return this.benv.addresses().join(this.objectRef.addresses());
-    }
+      function ()
+      {
+        // no addresses from nameValue: required to be `ToString`ed! (see assert in constr)
+        return this.benv.addresses().join(this.objectRef.addresses());
+      }
   MemberAssignmentValueKont.prototype.apply =
-    function (value, store, lkont, kont)
-    {
-      var node = this.node;
-      var objectRef = this.objectRef;
-      var nameValue = this.nameValue;
-      var effects = [];
-      var newValue;
-      switch (node.operator)
+      function (value, store, lkont, kont)
       {
-        case "=":
+        var node = this.node;
+        var objectRef = this.objectRef;
+        var nameValue = this.nameValue;
+        var effects = [];
+        var newValue;
+        switch (node.operator)
         {
-          newValue = value;
-          break;
+          case "=":
+          {
+            newValue = value;
+            break;
+          }
+          case "+=":
+          {
+            var existingValue = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
+            var newValue = l.add(existingValue, value);
+            break;
+          }
+          case "-=":
+          {
+            var existingValue = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
+            var newValue = l.sub(existingValue, value);
+            break;
+          }
+          case "|=":
+          {
+            var existingValue = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
+            newValue = l.binor(existingValue, value);
+            break;
+          }
+          default:
+            throw new Error("cannot handle assignment operator " + node.operator);
         }
-        case "+=":
+        if (newValue === BOT)
         {
-          var existingValue = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
-          var newValue = l.add(existingValue, value);
-          break;
+          return [];
         }
-        case "-=":
-        {
-          var existingValue = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
-          var newValue = l.sub(existingValue, value);
-          break;
-        }
-        case "|=":
-        {
-          var existingValue = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
-          newValue = l.binor(existingValue, value);
-          break;
-        }
-        default: throw new Error("cannot handle assignment operator " + node.operator);
+        store = doProtoSet(nameValue, newValue, objectRef, store, effects);
+        return [{state: new KontState(newValue, store, lkont, kont), effects: effects}];
       }
-      if (newValue === BOT)
-      {
-        return [];
-      }
-      store = doProtoSet(nameValue, newValue, objectRef, store, effects);
-      return [{state:new KontState(newValue, store, lkont, kont), effects:effects}];
-    }
   
   
   function doScopeLookup(nameNode, benv, store, effects)
   {
+    const globala = realm.GlobalObject;
     var name = nameNode.name;
     var a = benv.lookup(name);
     if (a === BOT)
@@ -3648,7 +3577,7 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
     effects.push(new readVarEffect(a, nameNode));
     return storeLookup(store, a);
   }
-
+  
   function doProtoLookup(name, as, store, effects)
   {
     var result = BOT;
@@ -3745,39 +3674,40 @@ function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont
         resultValue = resultValue.join(value);
       }
     }
-    return {value:resultValue, store:store};
+    return {value: resultValue, store: store};
   }
   
   function assignInternal(O, name, value, store)
-{
-  const as = O.addresses().values();
-  while (as.length > 0)
   {
-    const a = as.pop();
-    let obj = storeLookup(store, a);
-    obj = obj.setInternal(name, value);
-    store = storeUpdate(store, a, obj);
+    const as = O.addresses().values();
+    while (as.length > 0)
+    {
+      const a = as.pop();
+      let obj = storeLookup(store, a);
+      obj = obj.setInternal(name, value);
+      store = storeUpdate(store, a, obj);
+    }
+    return store;
   }
-  return store;
-}
-
-function hasInternal(O, name, store)
-{
-  assert(typeof name === "string");
-  assertDefinedNotNull(store);
-  let result = BOT;
-  const as = O.addresses().values();
-  while (as.length > 0)
+  
+  function hasInternal(O, name, store)
   {
-    const a = as.pop();
-    const obj = storeLookup(store, a);
-    result = result.join(l.abst1(obj.lookupInternal(name) !== undefined));
+    assert(typeof name === "string");
+    assertDefinedNotNull(store);
+    let result = BOT;
+    const as = O.addresses().values();
+    while (as.length > 0)
+    {
+      const a = as.pop();
+      const obj = storeLookup(store, a);
+      result = result.join(l.abst1(obj.lookupInternal(name) !== undefined));
+    }
+    return result;
   }
-  return result;
-}
-
-function doScopeSet(nameNode, value, benv, store, effects)
+  
+  function doScopeSet(nameNode, value, benv, store, effects)
   {
+    const globala = realm.GlobalObject;
     var name = nameNode.name;
     var a = benv.lookup(name);
     if (a === BOT)
@@ -3786,7 +3716,7 @@ function doScopeSet(nameNode, value, benv, store, effects)
       var aname = l.abst1(name);
       obj = obj.add(aname, new Property(value, BOT, BOT, BOT, BOT, BOT));
       effects.push(writeObjectEffect(globala, aname));
-      store = storeUpdate(store, globala, obj);      
+      store = storeUpdate(store, globala, obj);
     }
     else
     {
@@ -3807,7 +3737,7 @@ function doScopeSet(nameNode, value, benv, store, effects)
       effects.push(writeObjectEffect(a, name));
       if (obj.lookupInternal("isArray")) // TODO temp
       {
-        // ES5.1 15.4.5.1 
+        // ES5.1 15.4.5.1
         var n = name.ToNumber();
         var i = name.ToUint32();
         if (n.equals(i))
@@ -3827,29 +3757,30 @@ function doScopeSet(nameNode, value, benv, store, effects)
   
   function evalEmptyStatement(node, benv, store, lkont, kont)
   {
-    return [{state:new KontState(L_UNDEFINED, store, lkont, kont)}];
+    return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
   }
-
+  
   function evalLiteral(node, benv, store, lkont, kont)
   {
     var value = l.abst1(node.value);
-    return [{state:new KontState(value, store, lkont, kont)}];
+    return [{state: new KontState(value, store, lkont, kont)}];
   }
   
   function evalIdentifier(node, benv, store, lkont, kont, effects)
-   {
-     var value = doScopeLookup(node, benv, store, effects);
-     return [{state:new KontState(value, store, lkont, kont), effects:effects}];
-   }
-
+  {
+    var value = doScopeLookup(node, benv, store, effects);
+    return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+  }
+  
   function evalThisExpression(node, benv, store, lkont, kont, effects)
   {
     var value = l.abstRef(kont.thisa);
-    return [{state:new KontState(value, store, lkont, kont), effects:effects}];
+    return [{state: new KontState(value, store, lkont, kont), effects: effects}];
   }
   
   function evalProgram(node, benv, store, lkont, kont)
   {
+    const globala = realm.GlobalObject;
     var funScopeDecls = functionScopeDeclarations(node);
     var names = Object.keys(funScopeDecls);
     var effects = [];
@@ -3857,39 +3788,39 @@ function doScopeSet(nameNode, value, benv, store, effects)
     {
       var obj = storeLookup(store, globala);
       names.forEach(
-        function (name)
-        {
-          var node = funScopeDecls[name];
-          var aname = l.abst1(name);
-          if (Ast.isFunctionDeclaration(node))
+          function (name)
           {
-            var allocateResult = allocateClosure(node, benv, store, lkont, kont);
-            var closureRef = allocateResult.ref;
-            store = allocateResult.store;
-            obj = obj.add(aname, new Property(closureRef, BOT, BOT, BOT, BOT, BOT));
-            effects.push(writeObjectEffect(globala, aname));
-          }
-          else if (Ast.isVariableDeclarator(node))
-          {          
-            obj = obj.add(aname, new Property(L_UNDEFINED, BOT, BOT, BOT, BOT, BOT));
-            effects.push(writeObjectEffect(globala, aname));
-          }
-          else
-          {
-            throw new Error("cannot handle declaration " + node);
-          }
-        });
+            var node = funScopeDecls[name];
+            var aname = l.abst1(name);
+            if (Ast.isFunctionDeclaration(node))
+            {
+              var allocateResult = allocateClosure(node, benv, store, lkont, kont);
+              var closureRef = allocateResult.ref;
+              store = allocateResult.store;
+              obj = obj.add(aname, new Property(closureRef, BOT, BOT, BOT, BOT, BOT));
+              effects.push(writeObjectEffect(globala, aname));
+            }
+            else if (Ast.isVariableDeclarator(node))
+            {
+              obj = obj.add(aname, new Property(L_UNDEFINED, BOT, BOT, BOT, BOT, BOT));
+              effects.push(writeObjectEffect(globala, aname));
+            }
+            else
+            {
+              throw new Error("cannot handle declaration " + node);
+            }
+          });
       store = storeUpdate(store, globala, obj);
     }
     return evalStatementList(node, benv, store, lkont, kont, effects);
   }
-
+  
   function evalStatementList(node, benv, store, lkont, kont, effects)
   {
     var nodes = node.body;
     if (nodes.length === 0)
     {
-      return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];
+      return [{state: new KontState(L_UNDEFINED, store, lkont, kont), effects: effects}];
     }
     if (nodes.length === 1)
     {
@@ -3897,9 +3828,9 @@ function doScopeSet(nameNode, value, benv, store, effects)
       return evalNode(nodes[0], benv, store, lkont, kont, effects);
     }
     var frame = new BodyKont(node, 1, benv);
-    return [{state:new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont), effects:effects}];
+    return [{state: new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont), effects: effects}];
   }
-
+  
   function evalVariableDeclaration(node, benv, store, lkont, kont, effects)
   {
     var nodes = node.declarations;
@@ -3912,40 +3843,40 @@ function doScopeSet(nameNode, value, benv, store, effects)
       return evalVariableDeclarator(nodes[0], benv, store, lkont, kont, effects);
     }
     var frame = new VariableDeclarationKont(node, 1, benv);
-    return [{state:new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont)}];
   }
-
+  
   function evalVariableDeclarator(node, benv, store, lkont, kont, effects)
   {
     var init = node.init;
     if (init === null)
     {
-      return [{state:new KontState(L_UNDEFINED, store, lkont, kont), effects:effects}];      
+      return [{state: new KontState(L_UNDEFINED, store, lkont, kont), effects: effects}];
     }
     var frame = new VariableDeclaratorKont(node, benv);
-    return [{state:new EvalState(init, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(init, benv, store, [frame].concat(lkont), kont)}];
   }
-
+  
   function evalUnaryExpression(node, benv, store, lkont, kont)
   {
     var frame = new UnaryKont(node);
-    return [{state:new EvalState(node.argument, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(node.argument, benv, store, [frame].concat(lkont), kont)}];
   }
-
+  
   function evalBinaryExpression(node, benv, store, lkont, kont)
   {
     var frame = new LeftKont(node, benv);
-    return [{state:new EvalState(node.left, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(node.left, benv, store, [frame].concat(lkont), kont)}];
   }
-
+  
   function evalLogicalExpression(node, benv, store, lkont, kont)
   {
     var frame = new LogicalLeftKont(node, benv);
-    return [{state:new EvalState(node.left, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(node.left, benv, store, [frame].concat(lkont), kont)}];
   }
-
+  
   function evalAssignmentExpression(node, benv, store, lkont, kont)
-  { 
+  {
     var left = node.left;
     switch (left.type)
     {
@@ -3953,13 +3884,13 @@ function doScopeSet(nameNode, value, benv, store, effects)
       {
         var right = node.right;
         var frame = new AssignIdentifierKont(node, benv);
-        return [{state:new EvalState(right, benv, store, [frame].concat(lkont), kont)}];
+        return [{state: new EvalState(right, benv, store, [frame].concat(lkont), kont)}];
       }
       case "MemberExpression":
       {
         var object = left.object;
         var frame = new AssignMemberKont(node, benv);
-        return [{state:new EvalState(object, benv, store, [frame].concat(lkont), kont)}];    
+        return [{state: new EvalState(object, benv, store, [frame].concat(lkont), kont)}];
       }
       default:
       {
@@ -3990,7 +3921,8 @@ function doScopeSet(nameNode, value, benv, store, effects)
             updatedValue = l.sub(value, L_1);
             break;
           }
-          default: throw new Error("cannot handle update operator " + node.operator);
+          default:
+            throw new Error("cannot handle update operator " + node.operator);
         }
         if (updatedValue === BOT)
         {
@@ -3998,13 +3930,13 @@ function doScopeSet(nameNode, value, benv, store, effects)
         }
         store = doScopeSet(argument, updatedValue, benv, store, effects);
         var resultingValue = node.prefix ? updatedValue : value;
-        return [{state:new KontState(resultingValue, store, lkont, kont), effects:effects}];
+        return [{state: new KontState(resultingValue, store, lkont, kont), effects: effects}];
       }
       case "MemberExpression":
       {
         var object = argument.object;
         var frame = new UpdateMemberKont(node, benv);
-        return [{state:new EvalState(object, benv, store, [frame].concat(lkont), kont)}];    
+        return [{state: new EvalState(object, benv, store, [frame].concat(lkont), kont)}];
       }
       default:
       {
@@ -4012,35 +3944,35 @@ function doScopeSet(nameNode, value, benv, store, effects)
       }
     }
   }
-
-
+  
+  
   function allocateClosure(node, benv, store, lkont, kont)
   {
     var closure = createClosure(node, benv);
     var closurea = a.closure(node, benv, store, lkont, kont);
-  
-    var prototype = ObjectCreate(objectProtoRef);
+    
+    var prototype = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
     var prototypea = a.closureProtoObject(node, benv, store, lkont, kont);
     var closureRef = l.abstRef(closurea);
     prototype = prototype.add(P_CONSTRUCTOR, new Property(closureRef, BOT, BOT, BOT, BOT, BOT));
     store = storeAlloc(store, prototypea, prototype);
-  
+    
     closure = closure.add(P_PROTOTYPE, new Property(l.abstRef(prototypea), BOT, BOT, BOT, BOT, BOT));
     store = storeAlloc(store, closurea, closure);
     return {store: store, ref: closureRef}
   }
-
+  
   function evalFunctionExpression(node, benv, store, lkont, kont)
   {
     var allocateResult = allocateClosure(node, benv, store, lkont, kont);
     var closureRef = allocateResult.ref;
     store = allocateResult.store;
-    return [{state:new KontState(closureRef, store, lkont, kont)}];
+    return [{state: new KontState(closureRef, store, lkont, kont)}];
   }
-
+  
   function evalFunctionDeclaration(node, benv, store, lkont, kont)
   {
-    return [{state:new KontState(L_UNDEFINED, store, lkont, kont)}];
+    return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
   }
   
   function evalCallExpression(node, benv, store, lkont, kont, effects)
@@ -4048,17 +3980,17 @@ function doScopeSet(nameNode, value, benv, store, effects)
     var calleeNode = node.callee;
     
     if (Ast.isMemberExpression(calleeNode))
-    { 
+    {
       var object = calleeNode.object;
       var frame = new CallMemberKont(node, benv);
-      return [{state:new EvalState(object, benv, store, [frame].concat(lkont), kont), effects:effects}];
+      return [{state: new EvalState(object, benv, store, [frame].concat(lkont), kont), effects: effects}];
     }
     
     var frame = new OperatorKont(node, benv);
-    return [{state:new EvalState(calleeNode, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(calleeNode, benv, store, [frame].concat(lkont), kont)}];
   }
   
-
+  
   function applyProc(application, operatorValue, operandValues, thisa, benv, store, lkont, kont, effects)
   {
     var operatorAs = operatorValue.addresses();
@@ -4071,63 +4003,69 @@ function doScopeSet(nameNode, value, benv, store, effects)
       }
     }
     return operatorAs.flatMap(
-      function (operatora)
-      {
-        var operatorObj = storeLookup(store, operatora);
-        const Call = operatorObj.lookupInternal("[[Call]]");
-        if (!Call.values) {print(Call, operatorObj.nice());}
-        var callables = Call.values();
-        return callables.flatMap(
-          function (callable)
+        function (operatora)
+        {
+          var operatorObj = storeLookup(store, operatora);
+          const Call = operatorObj.lookupInternal("[[Call]]");
+          if (!Call.values)
           {
-            //if (!callable.applyFunction) {print(application, callable, Object.keys(callable))};
-            return callable.applyFunction(application, operandValues, thisa, operatorObj, store, lkont, kont, effects.slice(0));
-          })
-      })
+            print(Call, operatorObj.nice());
+          }
+          var callables = Call.values();
+          return callables.flatMap(
+              function (callable)
+              {
+                //if (!callable.applyFunction) {print(application, callable, Object.keys(callable))};
+                return callable.applyFunction(application, operandValues, thisa, operatorObj, store, lkont, kont, effects.slice(0));
+              })
+        })
   }
-
+  
   // cloned from 'applyProc', invokes 'applyConstructor' iso. 'applyFunction' on callables
   function applyCons(application, operatorValue, operandValues, benv, store, lkont, kont, effects)
   {
     var operatorAs = operatorValue.addresses();
     return operatorAs.flatMap(
-      function (operatora)
-      {
-        var benv = storeLookup(store, operatora);
-        var protoRef = benv.lookup(P_PROTOTYPE).Value;
-        const Call = benv.lookupInternal("[[Call]]");
-        if (!Call.values) {print(Call, benv.nice());}
-        var callables = Call.values();
-        return callables.flatMap(
-          function (callable)
+        function (operatora)
+        {
+          var benv = storeLookup(store, operatora);
+          var protoRef = benv.lookup(P_PROTOTYPE).Value;
+          const Call = benv.lookupInternal("[[Call]]");
+          if (!Call.values)
           {
-            return callable.applyConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects.slice(0));
-          })
-      })
+            print(Call, benv.nice());
+          }
+          var callables = Call.values();
+          return callables.flatMap(
+              function (callable)
+              {
+                return callable.applyConstructor(application, operandValues, protoRef, benv, store, lkont, kont, effects.slice(0));
+              })
+        })
   }
-
+  
   function evalReturnStatement(node, benv, store, lkont, kont, effects)
   {
     var argumentNode = node.argument;
     if (argumentNode === null)
     {
-      return [{state:new ReturnState(L_UNDEFINED, store, lkont, kont), effects:effects}];
+      return [{state: new ReturnState(L_UNDEFINED, store, lkont, kont), effects: effects}];
     }
     
     var frame = new ReturnKont(node);
-    return [{state:new EvalState(argumentNode, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(argumentNode, benv, store, [frame].concat(lkont), kont)}];
   }
   
   function evalBreakStatement(node, benv, store, lkont, kont, effects)
   {
-    return [{state:new BreakState(store, lkont, kont), effects: effects}];
+    return [{state: new BreakState(store, lkont, kont), effects: effects}];
   }
   
   function evalTryStatement(node, benv, store, lkont, kont, effects)
   {
     var block = node.block;
     var frame = new TryKont(node, benv);
-    return [{state:new EvalState(block, benv, store, [frame].concat(lkont), kont),effects:effects}];    
+    return [{state: new EvalState(block, benv, store, [frame].concat(lkont), kont), effects: effects}];
   }
   
   function evalThrowStatement(node, benv, store, lkont, kont, effects)
@@ -4135,21 +4073,21 @@ function doScopeSet(nameNode, value, benv, store, effects)
     var argumentNode = node.argument;
     
     var frame = new ThrowKont(node);
-    return [{state:new EvalState(argumentNode, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(argumentNode, benv, store, [frame].concat(lkont), kont)}];
   }
   
   function evalIfStatement(node, benv, store, lkont, kont)
   {
     var testNode = node.test;
     var frame = new IfKont(node, benv);
-    return [{state:new EvalState(testNode, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(testNode, benv, store, [frame].concat(lkont), kont)}];
   }
-
-  function evalConditionalExpression(node, benv, store, lkont, kont)  
+  
+  function evalConditionalExpression(node, benv, store, lkont, kont)
   {
     var testNode = node.test;
     var frame = new IfKont(node, benv);
-    return [{state:new EvalState(testNode, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(testNode, benv, store, [frame].concat(lkont), kont)}];
   }
   
   function evalForStatement(node, benv, store, lkont, kont)
@@ -4158,66 +4096,66 @@ function doScopeSet(nameNode, value, benv, store, effects)
     if (init)
     {
       var frame = new ForInitKont(node, benv);
-      return [{state:new EvalState(init, benv, store, [frame].concat(lkont), kont)}];      
+      return [{state: new EvalState(init, benv, store, [frame].concat(lkont), kont)}];
     }
     var test = node.test;
     var frame = new ForTestKont(node, L_UNDEFINED, benv);
-    return [{state:new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
   }
   
   function evalWhileStatement(node, benv, store, lkont, kont)
   {
     var test = node.test;
     var frame = new WhileTestKont(node, benv);
-    return [{state:new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
   }
   
   function evalDoWhileStatement(node, benv, store, lkont, kont)
   {
     var body = node.body;
     var frame = new WhileBodyKont(node, benv);
-    return [{state:new EvalState(body, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(body, benv, store, [frame].concat(lkont), kont)}];
   }
   
   function evalObjectExpression(node, benv, store, lkont, kont)
   {
-    var properties = node.properties;    
+    var properties = node.properties;
     if (properties.length === 0)
-    { 
-      var obj = ObjectCreate(objectProtoRef);
+    {
+      var obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
       var objectAddress = a.object(node, benv, store, lkont, kont);
       store = storeAlloc(store, objectAddress, obj);
 //      effects.push(allocObjectEffect(objectAddress));
       var objectRef = l.abstRef(objectAddress);
-      return [{state:new KontState(objectRef, store, lkont, kont)}];
+      return [{state: new KontState(objectRef, store, lkont, kont)}];
     }
     var frame = new ObjectKont(node, 1, benv, []);
-    return [{state:new EvalState(properties[0].value, benv, store, [frame].concat(lkont), kont)}];    
+    return [{state: new EvalState(properties[0].value, benv, store, [frame].concat(lkont), kont)}];
   }
   
   function evalArrayExpression(node, benv, store, lkont, kont)
   {
-    var elements = node.elements;    
+    var elements = node.elements;
     if (elements.length === 0)
-    { 
+    {
       var arr = createArray();
       arr = arr.add(P_LENGTH, new Property(L_0, BOT, BOT, BOT, BOT, BOT));
       var arrAddress = a.array(node, benv, store, lkont, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
-      return [{state:new KontState(arrRef, store, lkont, kont)}];
+      return [{state: new KontState(arrRef, store, lkont, kont)}];
     }
     var frame = new ArrayKont(node, 1, benv, []);
-    return [{state:new EvalState(elements[0], benv, store, [frame].concat(lkont), kont)}];    
+    return [{state: new EvalState(elements[0], benv, store, [frame].concat(lkont), kont)}];
   }
   
   function evalMemberExpression(node, benv, store, lkont, kont)
   {
     var object = node.object;
     var frame = new MemberKont(node, benv);
-    return [{state:new EvalState(object, benv, store, [frame].concat(lkont), kont)}];
+    return [{state: new EvalState(object, benv, store, [frame].concat(lkont), kont)}];
   }
-
+  
   function evalNode(node, benv, store, lkont, kont, effects)
   {
     assert(Array.isArray(effects));
@@ -4229,7 +4167,7 @@ function doScopeSet(nameNode, value, benv, store, effects)
   {
     switch (node.type)
     {
-      case "Literal": 
+      case "Literal":
         return evalLiteral(node, benv, store, lkont, kont, effects);
       case "Identifier":
         return evalIdentifier(node, benv, store, lkont, kont, effects);
@@ -4259,42 +4197,42 @@ function doScopeSet(nameNode, value, benv, store, effects)
         return evalUnaryExpression(node, benv, store, lkont, kont, effects);
       case "ExpressionStatement":
         return evalNode(node.expression, benv, store, lkont, kont, effects);
-      case "ReturnStatement": 
+      case "ReturnStatement":
         return evalReturnStatement(node, benv, store, lkont, kont, effects);
-      case "BreakStatement": 
+      case "BreakStatement":
         return evalBreakStatement(node, benv, store, lkont, kont, effects);
-      case "LabeledStatement": 
+      case "LabeledStatement":
         return evalLabeledStatement(node, benv, store, lkont, kont, effects);
-      case "IfStatement": 
+      case "IfStatement":
         return evalIfStatement(node, benv, store, lkont, kont, effects);
-      case "ConditionalExpression": 
+      case "ConditionalExpression":
         return evalConditionalExpression(node, benv, store, lkont, kont, effects);
-      case "SwitchStatement": 
+      case "SwitchStatement":
         return evalSwitchStatement(node, benv, store, lkont, kont, effects);
-      case "ForStatement": 
+      case "ForStatement":
         return evalForStatement(node, benv, store, lkont, kont, effects);
-      case "WhileStatement": 
+      case "WhileStatement":
         return evalWhileStatement(node, benv, store, lkont, kont, effects);
-      case "DoWhileStatement": 
+      case "DoWhileStatement":
         return evalDoWhileStatement(node, benv, store, lkont, kont, effects);
-      case "FunctionDeclaration": 
+      case "FunctionDeclaration":
         return evalFunctionDeclaration(node, benv, store, lkont, kont, effects);
-      case "VariableDeclaration": 
+      case "VariableDeclaration":
         return evalVariableDeclaration(node, benv, store, lkont, kont, effects);
-      case "VariableDeclarator": 
+      case "VariableDeclarator":
         return evalVariableDeclarator(node, benv, store, lkont, kont, effects);
       case "BlockStatement":
         return evalStatementList(node, benv, store, lkont, kont, effects);
       case "EmptyStatement":
         return evalEmptyStatement(node, benv, store, lkont, kont, effects);
-      case "TryStatement": 
+      case "TryStatement":
         return evalTryStatement(node, benv, store, lkont, kont, effects);
-      case "ThrowStatement": 
+      case "ThrowStatement":
         return evalThrowStatement(node, benv, store, lkont, kont, effects);
       case "Program":
         return evalProgram(node, benv, store, lkont, kont, effects);
       default:
-        throw new Error("cannot handle node " + node.type); 
+        throw new Error("cannot handle node " + node.type);
     }
   }
   
@@ -4302,14 +4240,40 @@ function doScopeSet(nameNode, value, benv, store, effects)
   {
     //const O = OrdinaryCreateFromConstructor();
     let obj = new Obj();
-    obj = obj.setInternal("[[Prototype]]", intrinsics.get("%ErrorPrototype%"));
+    obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ErrorPrototype%"));
     obj = obj.setInternal("[[ErrorData]]", L_UNDEFINED);
     obj = obj.add(P_MESSAGE, new Property(message, BOT, BOT, BOT, BOT, BOT));
     return obj;
   }
   
+  
+  
+  
+  
   function initialize(store)
   {
+    
+    function allocNative()
+    {
+      return a.object();
+    }
+    
+    
+    realm = new Realm(); // TODO setting global realm
+    const intrinsics = new Intrinsics();
+    realm.Intrinsics = intrinsics;
+  
+    const globala = allocNative();
+    realm.GlobalObject = globala; // TODO mmm
+    const globalRef = l.abstRef(globala);
+    
+    //var globalenva = "globalenv@0";
+    const objectPa = allocNative();
+    const objectProtoRef = l.abstRef(objectPa);
+    intrinsics.add("%ObjectPrototype%", objectProtoRef);
+    const functionPa = allocNative();
+    const functionProtoRef = l.abstRef(functionPa);
+    intrinsics.add("%FunctionPrototype%", functionProtoRef);
   
     function registerPrimitiveFunction(object, propertyName, applyFunction, applyConstructor)
     {
@@ -4318,16 +4282,7 @@ function doScopeSet(nameNode, value, benv, store, effects)
       store = storeAlloc(store, primFunObjectAddress, primFunObject);
       return registerProperty(object, propertyName, l.abstRef(primFunObjectAddress));
     }
-  
-    // function registerInternalMethod(name, applyFunction)
-    // {
-    //   var primFunObject = createPrimitive(applyFunction);
-    //   var primFunObjectAddress = allocNative();
-    //   globalEnv = globalEnv.add(name, primFunObjectAddress);
-    //   store0 = storeAlloc(store0, primFunObjectAddress, primFunObject);
-    //   //return l.abstRef(primFunObjectAddress));
-    // }
-  
+    
     function registerProperty(object, propertyName, value)
     {
       object = object.add(l.abst1(propertyName), new Property(value, BOT, BOT, BOT, BOT, BOT));
@@ -4335,6 +4290,8 @@ function doScopeSet(nameNode, value, benv, store, effects)
     }
 
 // BEGIN GLOBAL
+    var global = ObjectCreate(objectProtoRef);
+    
     // ECMA 15.1.1 value properties of the global object (no "null", ...)
     global = registerProperty(global, "undefined", L_UNDEFINED);
     global = registerProperty(global, "NaN", l.abst1(NaN));
@@ -4772,8 +4729,8 @@ function doScopeSet(nameNode, value, benv, store, effects)
     base = registerPrimitiveFunction(base, "addMeta", baseAddMeta);
     store = storeAlloc(store, basea, base);
     global = global.add(l.abst1("$BASE$"), new Property(l.abstRef(basea), BOT, BOT, BOT, BOT, BOT));
-  
-  
+    
+    
     function baseStringCreate(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [value] = operandValues; // TODO pass prototype as second param
@@ -4783,13 +4740,13 @@ function doScopeSet(nameNode, value, benv, store, effects)
       const ref = l.abstRef(obja);
       return [{state: new KontState(ref, store, lkont, kont), effects: effects}];
     }
-  
+    
     function baseSameNumberValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
       return [{state: new KontState(x.hasSameNumberValue(y), store, lkont, kont), effects: effects}];
     }
-  
+    
     function baseSameBooleanValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
@@ -4811,13 +4768,13 @@ function doScopeSet(nameNode, value, benv, store, effects)
       }
       return [{state: new KontState(result, store, lkont, kont), effects: effects}];
     }
-  
+    
     function baseSameStringValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
       return [{state: new KontState(x.hasSameStringValue(y), store, lkont, kont), effects: effects}];
     }
-  
+    
     function baseSameObjectValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
@@ -4845,14 +4802,14 @@ function doScopeSet(nameNode, value, benv, store, effects)
       }
       return [{state: new KontState(result, store, lkont, kont), effects: effects}];
     }
-  
+    
     function baseAddIntrinsic(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [Name, Value] = operandValues;
-      intrinsics.add(Name.conc1(), Value);
+      realm.Intrinsics.add(Name.conc1(), Value);
       return [{state: new KontState(l.abst1(undefined), store, lkont, kont), effects: effects}];
     }
-  
+    
     function baseHasInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [O, Name] = operandValues;
@@ -4892,7 +4849,7 @@ function doScopeSet(nameNode, value, benv, store, effects)
     }
     
     // BEGIN PERFORMANCE
-    let perf = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
+    let perf = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
     const perfa = allocNative();
     perf = registerPrimitiveFunction(perf, "now", performanceNow, null);
     store = storeAlloc(store, perfa, perf);
@@ -4929,223 +4886,88 @@ function doScopeSet(nameNode, value, benv, store, effects)
     
     store = storeAlloc(store, globala, global);
     // END GLOBAL
-  
-  
-    const initializerInterface = {globala, l, a, preludeExplore,
-       EvalState, KontState,
-       ObjectCreate, createArray, createPrimitive,
-       registerProperty,
-       allocNative, storeAlloc, storeLookup, storeUpdate, doProtoLookup, doProtoSet,
-       readObjectEffect, writeObjectEffect, Property,
-       hasInternal, lookupInternal, assignInternal, callInternal
-     };
-     initializers.forEach(function (initializer) {store = initializer.run(initializerInterface, store, intrinsics)});
-  
-    return store;
-  } // end initializeStore
-  
-  
-  var module = {};
-  module.l = l;
-  //module.store = store;
-  module.globala = globala;
-  
-  module.inject = 
-    function (node, override)
-    {
-      override = override || {};
-      //var haltFrame = new HaltKont([globala]);
-      var globalContext = createContext(null, globala, "globalctx", ArraySet.from1(globala), null);
-      return new EvalState(node, override.benv || globalEnv, override.store || store0, [], globalContext);
-    }
-  
-  module.explore =
-    function (ast)
-    {
-      var startTime = performance.now();
-      var id = 0;
-      var initial = stateGet(this.inject(ast));
-      var result = ArraySet.empty();
-      var todo = [initial];
-      while (todo.length > 0)
-      {
-        if (states.length > 20000)
-        {
-          print("STATE SIZE LIMIT", states.length);
-          break;
-        }
-        var s = todo.pop();
-        if (s._sstorei === sstorei)
-        {
-          continue;
-        }
-        s._sstorei = sstorei;
-        var next = s._successors;
-        if (next && s instanceof EvalState)
-        {
-          for (var i = 0; i < next.length; i++)
-          {
-            var t2 = next[i];
-            var s2 = t2.state;
-            todo.push(s2);
-          }
-          continue;
-        }
-        next = s.next();
-        s._successors = next;
-        if (next.length === 0)
-        {
-          result = result.add(s);
-          continue;
-        }
-        for (var i = 0; i < next.length; i++)
-        {
-          var t2 = next[i];
-          var s2 = t2.state;
-          var ss2 = stateGet(s2);
-          if (ss2 !== s2)
-          {
-            t2.state = ss2;
-            todo.push(ss2);
-            continue;
-          }
-          todo.push(ss2);
-          if (states.length % 10000 === 0)
-          {
-            print(Formatter.displayTime(performance.now()-startTime), "states", states.length, "todo", todo.length, "ctxs", contexts.length, "sstorei", sstorei);
-          }
-        }
-      }
-//      print("sstorei-skip", skipped1, "eval-skip", skipped2, "nexted", nexted);
-      return {initial, result, contexts, states, time:performance.now()-startTime};
-    }
-  
-  module.concExplore =
-    function (ast)
-    {
-      var startTime = performance.now();
-      var initial = this.inject(ast);
-      var s = initial;
-      var id = 0;
-      while (true)
-      {
-        var next = s.next();
-        id++;
-        if (id % 10000 === 0)
-        {
-          print(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
-        }
-        var l = next.length;
-        if (l === 1)
-        {
-          s = next[0].state;
-        }
-        else if (l === 0)
-        {
-          return {initial:initial, result: ArraySet.from1(s), sstore:sstore, numStates:id, time:performance.now()-startTime};
-        }
-        else
-        {
-          throw new Error("more than one next state");
-        }
-      }
-    }
-  
-  function preludeExplore(ast, store)
-  {
-    var startTime = performance.now();
-    var oldA = a;
-    a = {};
-    a.object =
-        function (node, benva, store, kont)
-        {
-          return allocNative();
-        }
     
-    a.closure =
-        function (node, benva, store, kont)
-        {
-          return allocNative();
-        }
-    
-    a.closureProtoObject =
-        function (node, benva, store, kont)
-        {
-          return allocNative();
-        }
-    
-    a.array =
-        function (node, benva, store, kont)
-        {
-          return allocNative();
-        }
-    
-    a.string =
-        function (node, benva, store, kont)
-        {
-          return allocNative();
-        }
-    
-    a.benv =
-        function (node, benva, store, kont)
-        {
-          return allocNative();
-        }
+    return {store, realm};
+  } // end initialize
   
-    a.constructor =
-        function (node, benva, store, kont)
-        {
-          return allocNative();
-        }
+  const initial = inject(ast, ceskState);
+  const system = performExplore([initial]);
+  return system;
+  } // end `explore`
   
-    a.error =
-        function (node, benva, store, kont)
-        {
-          return allocNative();
-        }
   
-    a.vr =
-        function (name, ctx)
-        {
-          return allocNative();
-        }
-    
-    var initial = module.inject(ast, {store});
-    var s = initial;
-    var id = 0;
-    while (true)
-    {
-      var next = s.next();
-      id++;
-      if (id % 10000 === 0)
-      {
-        print(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
-      }
-      var l = next.length;
-      if (l === 1)
-      {
-        s = next[0].state;
-      }
-      else if (l === 0)
-      {
-        //print("loaded prelude", Formatter.displayTime(performance.now()-startTime), "states", id);
-        a = oldA;
-        store = s.store;
-        return store;
-      }
-      else
-      {
-        a = oldA;
-        throw new Error("more than one next state");
-      }
-    }
-  }
-  module.preludeExplore = preludeExplore;
+  const module = {};
   
-  var global = ObjectCreate(objectProtoRef);
-  const store0 = initialize(Store.empty());
+  module.explore = explore;
+      
   return module;
 }
+
+  
+  
+function concExplore(ast)
+{
+  var startTime = performance.now();
+  var initial = this.inject(ast);
+  var s = initial;
+  var id = 0;
+  while (true)
+  {
+    var next = s.next();
+    id++;
+    if (id % 10000 === 0)
+    {
+      print(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
+    }
+    var l = next.length;
+    if (l === 1)
+    {
+      s = next[0].state;
+    }
+    else if (l === 0)
+    {
+      return {initial:initial, result: ArraySet.from1(s), sstore:sstore, numStates:id, time:performance.now()-startTime};
+    }
+    else
+    {
+      throw new Error("more than one next state");
+    }
+  }
+}
+  
+  // function preludeExplore(ast, state)
+  // {
+  //   var startTime = performance.now();
+  //   var initial = module.inject(ast, state.benv, state.);
+  //   var s = initial;
+  //   var id = 0;
+  //   while (true)
+  //   {
+  //     var next = s.next();
+  //     id++;
+  //     if (id % 10000 === 0)
+  //     {
+  //       print(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
+  //     }
+  //     var l = next.length;
+  //     if (l === 1)
+  //     {
+  //       s = next[0].state;
+  //     }
+  //     else if (l === 0)
+  //     {
+  //       //print("loaded prelude", Formatter.displayTime(performance.now()-startTime), "states", id);
+  //       a = oldA;
+  //       store = s.store;
+  //       return store;
+  //     }
+  //     else
+  //     {
+  //       a = oldA;
+  //       throw new Error("more than one next state");
+  //     }
+  //   }
+  // }
 
 
 function retrieveEndStates(initial) // not used for the moment
@@ -5245,5 +5067,4 @@ Effect.prototype.isAllocEffect =
   {
     return this.operation === Effect.Operations.ALLOC;
   }
-
   

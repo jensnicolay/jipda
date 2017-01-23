@@ -1,3 +1,19 @@
+function computeInitialCeskState(lat)
+{
+  const ast0 = Ast.createAst(ast0src);
+  const prelCesk = jsCesk({a:concAlloc, kalloc: concKalloc, l:lat, gc: true, errors:true});
+  const prelSystem = prelCesk.explore(ast0);
+  const prelResult = prelSystem.result;
+  if (prelResult.size !== 1)
+  {
+    throw new Error("wrong number of prelude results: " + prelResult.size);
+  }
+  const prelStore = [...prelResult][0].store;
+  const prelRealm = prelSystem.realm;//[...prelResult][0].realm;
+  return {store:prelStore, realm:prelRealm};
+}
+
+
 function concEval(src)
 {
   var ast = Ast.createAst(src);
@@ -10,7 +26,7 @@ function concEval(src)
 function typeEval(src)
 {
   var ast = Ast.createAst(src);
-  var cesk = jsCesk({a:createTagAg(), l: new JipdaLattice(), ast0src});
+  var cesk = jsCesk({a:createTagAg(), l: new TypeLattice(), ast0src});
   var system = cesk.explore(ast);
   var result = computeResultValue(system.result); 
   print(result.value);
@@ -59,7 +75,7 @@ function serverTest()
     {
       var src = read(bprefix + benchmark);
       var ast = Ast.createAst(src);
-      var cesk = jsCesk({a:createTagAg(), l:new JipdaLattice(), errors:true});
+      var cesk = jsCesk({a:createTagAg(), l:new TypeLattice(), errors:true});
       var system = cesk.explore(ast);
       var result = computeResultValue(system.result);
       var resultValue = result.value;
