@@ -216,7 +216,7 @@ ConcAddr.prototype.addresses =
 ConcAddr.prototype.toString =
     function ()
     {
-      return String(this.addr);
+      return "@" + this.addr;
     }
 
 ConcAddr.prototype.join =

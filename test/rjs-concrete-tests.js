@@ -1,32 +1,16 @@
-var suiteConcreteTests = 
+var suiteRjsConcreteTests =
   
 (function () 
 {
-  
-  
-  var module = new TestSuite("suiteConcreteTests");
+  var module = new TestSuite("suiteRjsConcreteTests");
   
   const concLattice = new ConcLattice();
-  
-  const ast0 = Ast.createAst(ast0src);
-  const prelCesk = jsCesk({a:concAlloc, kalloc: concKalloc, l:concLattice, gc: true, errors:true});
-  const prelSystem = prelCesk.explore(ast0);
-  const prelResult = prelSystem.result;
-  if (prelResult.size !== 1)
-  {
-    throw new Error("wrong number of prelude results: " + prelResult.size);
-  }
-  const prelStore = [...prelResult][0].store;
-  const prelGlobalObject = [...prelResult][0].value.addresses().values()[0]; //TODO globalobj should be ref and not address
-  
-  const base = new CeskBase(prelCesk);
-  
   
   function run(src, expected)
   {
     var ast = Ast.createAst(src);
-    const cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: concLattice, errors:true, base});
-    var system = cesk.explore(ast, {store:prelStore, realm:{GlobalObject:prelGlobalObject}});
+    var cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: concLattice, errors:true});
+    var system = cesk.explore(ast);
     var result = computeResultValue(system.result);
     result.msgs.join("\n");
     var actual = result.value;
@@ -37,6 +21,8 @@ var suiteConcreteTests =
     function ()
     {
       run("42", 42);
+      run("undefined", undefined);
+      run("'abc'", "abc");
     }
         
   module.test2 =
@@ -119,7 +105,7 @@ var suiteConcreteTests =
   module.test22a =
     function ()
     {
-      run("[1,2,3].concat([4,5]).toString()", "1,2,3,4,5");
+        run("[1,2,3].concat([4,5]).toString()", "1,2,3,4,5");
     }  
     
   module.test22b =
@@ -807,39 +793,14 @@ var suiteConcreteTests =
         var src = read("test/resources/return1.js");
         run(src, 123);
       }
-    
+  
     module.testCoen1 =
       function ()
       {
         var src = read("test/resources/coen1.js");
         run(src, 20);
       }
-      
-    module.test106 =
-        function ()
-        {
-          run("var o={}; Object.defineProperty(o, 'x', {value:42}); o.x", "42");
-        }
-          
-    module.test107 =
-        function ()
-        {
-          run("TypeError.prototype instanceof Error", true);
-          run("TypeError.prototype === Error", false);
-          run("TypeError.prototype === Error.prototype", false);
-        }
-    module.test108 =
-        function ()
-        {
-          run("new TypeError('123').toString()", "TypeError: 123");
-        }
-        
-    module.test109 =
-        function ()
-        {
-          run("'123'.toString()", "123");
-        }
-        
+    
     module.test110 =
         function ()
         {
@@ -852,18 +813,12 @@ var suiteConcreteTests =
           run("typeof null", "object");
         }
   
-    module.test111 =
-        function ()
-        {
-          run("var o = {x:123};o.hasOwnProperty('x')", true);
-          run("var o = {x:123};o.hasOwnProperty('y')", false);
-        }
-        
-    module.test112 =
-        function ()
-        {
-          run("var o = {}; o instanceof Object", true);
-        }
+    //
+    // module.test112 =
+    //     function ()
+    //     {
+    //       run("var o = {}; o instanceof Object", true);
+    //     }
         
   return module;
   

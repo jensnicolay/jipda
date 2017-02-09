@@ -45,21 +45,6 @@
 	var system, cesk, states, transitions, graph, initial, result, contexts;
 	var ag, lat, kalloc;
   
-  function computeInitialCeskState(ast0src, lat)
-  {
-    const ast0 = Ast.createAst(ast0src);
-    const prelCesk = jsCesk({a:concAlloc, kalloc: concKalloc, l:lat, gc: true, errors:true});
-    const prelSystem = prelCesk.explore(ast0);
-    const prelResult = prelSystem.result;
-    if (prelResult.size !== 1)
-    {
-      throw new Error("wrong number of prelude results: " + prelResult.size);
-    }
-    const prelStore = [...prelResult][0].store;
-    const prelRealm = prelSystem.realm;//[...prelResult][0].realm;
-    return {store:prelStore, realm:prelRealm};
-  }
-  
   
   /* SHORTCUTS */
 	function purity()
@@ -121,9 +106,6 @@
     var gc = true;
     
     
-    var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
-    const initialCeskState = computeInitialCeskState(ast0src, lat);
-	  
 	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 	  
 //    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date());
@@ -131,7 +113,7 @@
     var start = Date.now();
     
 		const cesk = jsCesk({a:ag, kalloc, l:lat, gc, errors});
-		system = cesk.explore(ast, initialCeskState);
+		system = cesk.explore(ast);
     
     
     var time = Date.now() - start;
