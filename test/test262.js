@@ -181,7 +181,7 @@ function handleFiles(files)
       }
       if (resultState.value === BOT)
       {
-        throw new Error("BOT value");
+        throw new Error("BOT VALUE");
       }
       let actual = resultState.value.value;
       assertTrue(actual === undefined);
@@ -192,7 +192,7 @@ function handleFiles(files)
 
 function computeGlobalResult(startTime, duration, results)
 {
-  const name = "test262-" + new Date(startTime); // TODO: once this works properly in node, add some date formatting
+  const name = "test262-" + new Date(startTime); // TODO: once this works properly in NODE, add some date formatting
   const numberOfTests = results.length;
   
   const statusCounts = {PASS:0,FAIL:0};

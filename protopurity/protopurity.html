@@ -5,7 +5,7 @@
 	<link rel="stylesheet" href="protopurity.css" type="text/css" media="all"/> 
 	<link rel="stylesheet" href="../lib/web/jquery-ui-1.11.1/jquery-ui.min.css" type="text/css" media="all"/>  
 	<link rel="stylesheet" href="../lib/web/codemirror/codemirror.css" type="text/css" media="all"/>
-  <link rel="import" href="../rjsPrelude.js"/>
+  <link rel="import" href="../js.rjs"/>
 	<title>JIPDA</title>
 	<script type="text/javascript" src="../lib/esprima.js"></script>
 	<script type="text/javascript" src="../common.js"></script>
@@ -130,9 +130,9 @@
 //    console.profile(profileName);
     var start = Date.now();
     
-		const cesk = jsCesk({a:ag, kalloc, l:lat, gc, errors});
-		system = cesk.explore(ast, initialCeskState);
-    
+    var ast = Ast.createAst(src);
+    const cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: lat, errors:true});
+    system = cesk.runMain([ast], initialCeskState);
     
     var time = Date.now() - start;
 //    console.profileEnd(profileName);
@@ -208,7 +208,7 @@
 	       
 /* 	       $('#config').on('change', function (e) {
 	         var optionSelected = $("option:selected", this);
-	         var valueSelected = this.value;
+	         var valueSelected = this.VALUE;
 	         alert(valueSelected);
 	            }) */
 

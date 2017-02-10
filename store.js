@@ -109,7 +109,7 @@ Store.prototype.lookupAval =
     {
       return value;
     }
-    throw new Error("no value at address " + address + "\n" + this.nice());
+    throw new Error("no VALUE at address " + address + "\n" + this.nice());
   }
   
 Store.prototype.allocAval =
@@ -127,7 +127,7 @@ Store.prototype.updateAval =
     const value = map.get(address);
     if (value === undefined)
     {
-      throw new Error("no value at address " + address);  
+      throw new Error("no VALUE at address " + address);  
     }
     return new Store(map.put(address, value.join(aval)));
   }

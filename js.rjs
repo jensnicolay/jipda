@@ -1,0 +1,320 @@
+var NODE;
+var ENV;
+var KONT;
+var VALUE;
+
+
+function BodyKont(node, i, env)
+{
+  this.node = node;
+  this.i = i;
+  this.env = env;
+}
+
+BodyKont.prototype.apply =
+    function ()
+    {
+      var i = this.i;
+      var nodes = this.node.body;
+      NODE = nodes[i];
+      ENV = this.env;
+      if (i === nodes.length - 1)
+      {
+        return evalNode();
+      }
+      var frame = new BodyKont(this.node, i + 1, ENV);
+      KONT.push(frame);
+      return evalNode();
+    }
+
+function evalStatementList()
+{
+  var nodes = NODE.body;
+  if (nodes.length === 0)
+  {
+    return undefined;
+  }
+  if (nodes.length === 1)
+  {
+    NODE = nodes[0];
+    return evalNode();
+  }
+  var frame = new BodyKont(NODE, 1, ENV);
+  NODE = nodes[0];
+  KONT.push(frame);
+  return evalNode();
+}
+
+function evalProgram()
+{
+  return evalStatementList();
+}
+
+function evalExpressionStatement()
+{
+  NODE = NODE.expression;
+  return evalNode();
+}
+
+function evalLiteral()
+{
+  VALUE = NODE.value;
+  return cont();
+}
+
+function VariableDeclaratorKont(name, env)
+{
+  this.name = name;
+  this.env = env;
+}
+VariableDeclaratorKont.prototype.apply =
+    function ()
+    {
+      ENV = this.env;
+      ENV[this.name] = VALUE;
+      VALUE = undefined;
+      return cont();
+    }
+
+function evalVariableDeclaration()
+{
+  //var kind = NODE.kind;
+  var declarator = NODE.declarations[0];
+  var name = declarator.id.name;
+  var frame = new VariableDeclaratorKont(name, ENV);
+  NODE = declarator.init;
+  KONT.push(frame)
+  return evalNode();
+}
+
+function evalFunctionExpression()
+{
+  VALUE = {fun: NODE, env: ENV};
+  return cont();
+}
+
+function evalIdentifier()
+{
+  var name = NODE.name;
+  var env = ENV;
+  VALUE = env[name];
+  while (VALUE === undefined)
+  {
+    env = env.__parent__;
+    if (env === undefined)
+    {
+      throw new Error(name + " is not defined");
+    }
+    VALUE = env[name];
+  }
+  return cont();
+}
+
+function CallKont()
+{
+}
+CallKont.prototype.isReturnHandler = true;
+CallKont.prototype.apply =
+    function ()
+    {
+      return cont();
+    }
+    
+function OperandKont(node, i, env, rator, rands)
+{
+  this.node = node;
+  this.i = i;
+  this.env = env;
+  this.rator = rator;
+  this.rands = rands;
+}
+OperandKont.prototype.apply =
+    function ()
+    {
+      this.rands.push(VALUE);
+      if (this.i === this.node.arguments.length)
+      {
+        var frame = new CallKont();
+        NODE = this.rator.fun.body;
+        ENV = {__parent__:this.rator.env};
+        for (var j = 0; j < this.rator.fun.params.length; j++)
+        {
+          var paramName = this.rator.fun.params[j].name;
+          var paramValue = this.rands[j];
+          ENV[paramName] = paramValue;
+        }
+        KONT.push(frame);
+        return evalNode();
+      }
+      var frame = new OperandKont(this.node, this.i + 1, this.env, this.rator, this.rands);
+      NODE = this.node.arguments[this.i];
+      ENV = this.env;
+      KONT.push(frame);
+      return evalNode();
+    }
+
+function OperatorKont(node, env)
+{
+  this.node = node;
+  this.env = env;
+}
+OperatorKont.prototype.apply =
+    function ()
+    {
+      if (this.node.arguments.length === 0)
+      {
+        var frame = new CallKont();
+        NODE = VALUE.fun.body;
+        ENV = {__parent__:VALUE.env};
+        KONT.push(frame);
+        return evalNode();
+      }
+      var frame = new OperandKont(this.node, 1, this.env, VALUE, []);
+      NODE = this.node.arguments[0];
+      ENV = this.env;
+      KONT.push(frame);
+      return evalNode();
+    }
+
+function evalCallExpression()
+{
+  var frame = new OperatorKont(NODE, ENV);
+  NODE = NODE.callee;
+  KONT.push(frame);
+  return evalNode();
+}
+
+function evalBlockStatement()
+{
+  return evalStatementList();
+}
+
+function ReturnKont()
+{
+}
+ReturnKont.prototype.apply =
+    function ()
+    {
+      var frame = KONT.pop();
+      while (!frame.isReturnHandler)
+      {
+        frame = KONT.pop();
+      }
+      return cont();
+    }
+
+function evalReturnStatement()
+{
+  var frame = new ReturnKont();
+  NODE = NODE.argument;
+  KONT.push(frame);
+  return evalNode();
+}
+
+function RightKont(node, env, leftValue)
+{
+  this.node = node;
+  this.env = env;
+  this.leftValue = leftValue;
+}
+RightKont.prototype.apply =
+    function ()
+    {
+      ENV = this.env;
+      var operator = this.node.operator;
+      if (operator === "*")
+      {
+        VALUE = this.leftValue * VALUE;
+        return cont();
+      }
+      throw new Error("cannot handle binary operator " + operator);
+    }
+
+
+function LeftKont(node, env)
+{
+  this.node = node;
+  this.env = env;
+}
+LeftKont.prototype.apply =
+    function ()
+    {
+      var frame = new RightKont(this.node, this.env, VALUE);
+      NODE = this.node.right;
+      ENV = this.env;
+      KONT.push(frame);
+      return evalNode();
+    }
+
+function evalBinaryExpression()
+{
+  var frame = new LeftKont(NODE, ENV);
+  NODE = NODE.left;
+  KONT.push(frame);
+  return evalNode();
+}
+
+function evalNode()
+{
+  var type = NODE.type;
+  if (type === "Literal")
+  {
+    return evalLiteral();
+  }
+  if (type === "Identifier")
+  {
+    return evalIdentifier();
+  }
+  if (type === "CallExpression")
+  {
+    return evalCallExpression();
+  }
+  if (type === "BinaryExpression")
+  {
+    return evalBinaryExpression();
+  }
+  if (type === "FunctionExpression")
+  {
+    return evalFunctionExpression();
+  }
+  if (type === "ExpressionStatement")
+  {
+    return evalExpressionStatement();
+  }
+  if (type === "ReturnStatement")
+  {
+    return evalReturnStatement();
+  }
+  if (type === "BlockStatement")
+  {
+    return evalBlockStatement();
+  }
+  if (type === "VariableDeclaration")
+  {
+    return evalVariableDeclaration();
+  }
+  if (type === "Program")
+  {
+    return evalProgram();
+  }
+  throw new Error("cannot handle node type " + type);
+}
+
+function cont()
+{
+  if (KONT.length === 0)
+  {
+    return;
+  }
+  var k = KONT.pop();
+  return k.apply();
+}
+
+function main(args)
+{
+  NODE = args[0];
+  ENV = {};
+  KONT = [];
+  evalNode();
+  return VALUE;
+}

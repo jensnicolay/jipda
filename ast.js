@@ -696,9 +696,9 @@ Ast.enclosingBlock =
   }
   
 //Ast.enclosingFunction =  // does not deal with scope per se (does not deal with top-level Program scope)
-//  function (node, ast)
+//  function (NODE, ast)
 //  {
-//    var p = parent(node, ast);
+//    var p = parent(NODE, ast);
 //    while (p)
 //    {
 //      if (isFunctionExpression(p) || Ast.isFunctionDeclaration(p))
@@ -805,21 +805,21 @@ Ast.findDeclarationNode =
 //  function (ast)
 //  {
 //  
-//    function helper(node)
+//    function helper(NODE)
 //    {
-//      switch (node.type)
+//      switch (NODE.type)
 //      {
 //        case "FunctionDeclaration":
-//          var decls = Ast.functionScopeDeclarations(node);
-//          node.declarations = decls;
-//          node.enclosingFunScope
+//          var decls = Ast.functionScopeDeclarations(NODE);
+//          NODE.declarations = decls;
+//          NODE.enclosingFunScope
 //          break;
 //        case "FunctionExpression":
-//          var decls = Ast.functionScopeDeclarations(node);
-//          node.declarations = decls;
+//          var decls = Ast.functionScopeDeclarations(NODE);
+//          NODE.declarations = decls;
 //          break;
 //        case "Identifier":
-//          var enclosingFunScope0 = Ast.enclosingFunScope(node, ast);
+//          var enclosingFunScope0 = Ast.enclosingFunScope(NODE, ast);
 //          var enclosingFunScope = enclosingFuncScope0;
 //          while (enclosingFunScope)
 //          {
@@ -827,8 +827,8 @@ Ast.findDeclarationNode =
 //            var dnode = varScope[name];
 //            if (dnode)
 //            {
-//              node.enclosingFunScope = enclosingFunScope0;
-//              node.targetFunScope = varScope;
+//              NODE.enclosingFunScope = enclosingFunScope0;
+//              NODE.targetFunScope = varScope;
 //            }
 //            enclosingFunScope = enclosingFunScope;
 //          }

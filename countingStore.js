@@ -257,7 +257,7 @@ Store.prototype.updateAval =
 //      print("UPDATED", address, updatedValue);
       return new Store(this.map.put(address, updatedValue));
     }
-    throw new Error("Store.updateAval: no abstract value at address " + address);
+    throw new Error("Store.updateAval: no abstract VALUE at address " + address);
   };
   
 Store.prototype.join =

@@ -79,7 +79,7 @@ Node.prototype.elements =
     }
 Node.prototype.toString =
     function () {
-        return "value " + this.value + ", from_count " + this.fromCount;
+        return "VALUE " + this.value + ", from_count " + this.fromCount;
     }
 
 function BiGraph(e, h) {
@@ -232,7 +232,7 @@ function parseCmdLine(args) {
 function usage() {
     print("usage: java Em3d -n <nodes> -d <degree> [-p] [-m] [-h]");
     print("    -n the number of nodes");
-    print("    -d the out-degree of each node");
+    print("    -d the out-degree of each NODE");
     print("    -i the number of iterations");
     print("    -p (print detailed results)");
     print("    -m (print informative messages)");

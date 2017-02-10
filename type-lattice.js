@@ -73,7 +73,7 @@ Some.prototype.abst =
       {
         return TypeValue._NULL;
       }
-      throw new Error("cannot abstract value " + prim);
+      throw new Error("cannot abstract VALUE " + prim);
     }
 
 Some.prototype.isTruthy =
@@ -559,7 +559,7 @@ TypeLattice.prototype.abst1 =
       {
         return TypeValue._NULL;
       }
-      throw new Error("cannot abstract value " + value);
+      throw new Error("cannot abstract VALUE " + value);
     }
 
 TypeLattice.prototype.NUMBER = TypeValue._NUM;

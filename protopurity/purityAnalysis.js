@@ -2,7 +2,7 @@ function getDeclarationNode(nameNode, ast)
 {
   if (!nameNode.name)
   {
-    throw new Error("not a name node:" + nameNode);
+    throw new Error("not a name NODE:" + nameNode);
   }
   var declarationNode = nameNode._declarationNode;
   if (!declarationNode)
@@ -12,7 +12,7 @@ function getDeclarationNode(nameNode, ast)
   }
   //if (!declarationNode)
   //{
-  //  throw new Error("no declaration node for " + nameNode);
+  //  throw new Error("no declaration NODE for " + nameNode);
   //}
   return declarationNode;
 }
@@ -178,7 +178,7 @@ function getFresh(node, ast, kont, vars2fresh)
       return FRESH;
     case "ThisExpression":
       return isConstructorCall(kont);
-//    case "VariableDeclarator": return node.init && isFresh(node.init, ast, kont, freshVars);
+//    case "VariableDeclarator": return NODE.init && isFresh(NODE.init, ast, KONT, freshVars);
     default: return UNFRESH;
   }
 }
@@ -380,7 +380,7 @@ function computePurity(system, freshnessFlag)
 
                 if (freshnessFlag && localVar(name, s.kont.callable.node))
                 {
-                  //print("VFRESH", s._id, name, "local in", s.kont);
+                  //print("VFRESH", s._id, name, "local in", s.KONT);
                   return;
                 }
 
@@ -438,7 +438,7 @@ function computePurity(system, freshnessFlag)
               var funOdeps = getOdeps(address, name);
               if (varEffect) {
                 if (freshnessFlag && localVar(name, s.kont.callable.node)) {
-                  //print("VFRESH", s._id, name, "local in", s.kont);
+                  //print("VFRESH", s._id, name, "local in", s.KONT);
                   return;
                 }
                 ctxs.forEach(

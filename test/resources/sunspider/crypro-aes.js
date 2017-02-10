@@ -8,7 +8,7 @@
  *
  *   applies Nr rounds (10/12/14) using key schedule w for 'add round key' stage
  *
- *   returns byte-array encrypted value (16 bytes)
+ *   returns byte-array encrypted VALUE (16 bytes)
  */
 function Cipher(input, w) {    // main Cipher function [§5.1]
   var Nb = 4;               // block size (in words): no of columns in state (fixed at 4 for AES)

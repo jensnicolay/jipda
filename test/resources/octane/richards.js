@@ -357,7 +357,7 @@ TaskControlBlock.prototype.toString = function () {
  * An idle task doesn't do any work itself but cycles control between the two
  * device tasks.
  * @param {Scheduler} scheduler the scheduler that manages this task
- * @param {int} v1 a seed value that controls how the device tasks are scheduled
+ * @param {int} v1 a seed VALUE that controls how the device tasks are scheduled
  * @param {int} count the number of times this task should be scheduled
  * @constructor
  */

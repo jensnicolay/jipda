@@ -275,7 +275,7 @@ var suiteJipdaTests =
 //      var actual = result.map(State.topOfStack).reduce(Lattice.join, BOT);
 //      assertEquals(jipda.lattice.abst1(true), actual);
 //      var store = result.map(State.store).reduce(Lattice.join, BOT);
-//      var slv = store.lookupAval(jipda.globalObject).lookup(lat.abst1("solver")).value;
+//      var slv = store.lookupAval(jipda.globalObject).lookup(lat.abst1("solver")).VALUE;
 //      assertTrue(slv.addresses().length === 1);
 //      assertTrue(slv.user === BOT);
 //    }

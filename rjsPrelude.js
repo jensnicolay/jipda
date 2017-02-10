@@ -468,7 +468,7 @@
       {
         return true;
       }
-      print("not same value", P, O);
+      print("not same VALUE", P, O);
     }
   }
   

@@ -3,33 +3,33 @@ var suiteConcreteTests =
 (function () 
 {
   
+  function computeInitialCeskState(lat)
+  {
+    const ast0 = Ast.createAst(jsRjs);
+    const prelCesk = jsCesk({a:concAlloc, kalloc: concKalloc, l:lat, gc: true, errors:true});
+    const prelSystem = prelCesk.explore(ast0);
+    const prelResult = prelSystem.result;
+    if (prelResult.size !== 1)
+    {
+      throw new Error("wrong number of prelude results: " + prelResult.size);
+    }
+    const prelStore = [...prelResult][0].store;
+    const prelRealm = prelSystem.realm;//[...prelResult][0].realm;
+    return {store:prelStore, realm:prelRealm, performApply:prelSystem.performApply};
+  }
+  
   
   var module = new TestSuite("suiteConcreteTests");
   
   const concLattice = new ConcLattice();
   
-  const ast0 = Ast.createAst(ast0src);
-  const prelCesk = jsCesk({a:concAlloc, kalloc: concKalloc, l:concLattice, gc: true, errors:true});
-  const prelSystem = prelCesk.explore(ast0);
-  const prelResult = prelSystem.result;
-  if (prelResult.size !== 1)
-  {
-    throw new Error("wrong number of prelude results: " + prelResult.size);
-  }
-  const prelStore = [...prelResult][0].store;
-  const prelGlobalObject = [...prelResult][0].value.addresses().values()[0]; //TODO globalobj should be ref and not address
-  
-  const base = new CeskBase(prelCesk);
-  
+  const prelState = computeInitialCeskState(concLattice);
   
   function run(src, expected)
   {
     var ast = Ast.createAst(src);
-    const cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: concLattice, errors:true, base});
-    var system = cesk.explore(ast, {store:prelStore, realm:{GlobalObject:prelGlobalObject}});
-    var result = computeResultValue(system.result);
-    result.msgs.join("\n");
-    var actual = result.value;
+    const cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: concLattice, errors:true});
+    const {value:actual} = cesk.runMain(concLattice.abst1(ast), prelState);
     assertEquals(concLattice.abst1(expected), actual);
   }
 
@@ -818,7 +818,7 @@ var suiteConcreteTests =
     module.test106 =
         function ()
         {
-          run("var o={}; Object.defineProperty(o, 'x', {value:42}); o.x", "42");
+          run("var o={}; Object.defineProperty(o, 'x', {VALUE:42}); o.x", "42");
         }
           
     module.test107 =

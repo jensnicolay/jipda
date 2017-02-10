@@ -331,7 +331,7 @@ function parseCmdLine(args) {
         } else if (arg === "-s") {
             if (i < args.length) {
                 seed = parseInt(args[i++], 10);
-            } else throw new Error("-s requires a seed value");
+            } else throw new Error("-s requires a seed VALUE");
         } else if (arg === "-p") {
             printResult = true;
         } else if (arg === "-m") {

@@ -553,7 +553,7 @@ Character.isDigit =
 //  };    
   
 // debug
-//function d(value) { print(Array.prototype.slice.call(arguments)); return value; }
+//function d(VALUE) { print(Array.prototype.slice.call(arguments)); return VALUE; }
 //function dreadline() { var str = readline(); if (str === ":b") { throw new Error(":b"); }}
 
 // assertions
@@ -1697,7 +1697,7 @@ MutableArraySet.prototype.addAll =
   }
 
 //MutableArraySet.prototype.remove =
-//  function (value)
+//  function (VALUE)
 //  {
 //  }
 

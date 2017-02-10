@@ -214,7 +214,7 @@ Date.prototype.formatDate = function (input,time) {
         }
         
         // week 1, is the week that has the first thursday in it.
-        // note that this value is not zero index.
+        // note that this VALUE is not zero index.
         if (nyDay <= 3) {
             // first day of the year fell on a thursday, or earlier.
             return 1 + Math.floor( ( z() + nyDay ) / 7 );

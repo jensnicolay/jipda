@@ -13,7 +13,6 @@ function computeInitialCeskState(lat)
   return {store:prelStore, realm:prelRealm};
 }
 
-
 function concEval(src)
 {
   var ast = Ast.createAst(src);

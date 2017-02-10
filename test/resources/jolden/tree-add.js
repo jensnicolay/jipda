@@ -60,9 +60,9 @@ TreeNode.createTree =
   }
 
   /**
-   * Add the value of this node with the cumulative values
-   * of the children of this node.
-   * @return the cumulative value of this tree.
+   * Add the VALUE of this NODE with the cumulative values
+   * of the children of this NODE.
+   * @return the cumulative VALUE of this tree.
    **/
   TreeNode.prototype.addTree =
     function ()

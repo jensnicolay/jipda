@@ -123,7 +123,7 @@ Value.prototype.inOrder =
     function() {
         if (this.left != null)
             left.inOrder();
-        print(value);
+        print(VALUE);
         if (this.right != null)
             right.inOrder();
     }
