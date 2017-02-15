@@ -1,80 +1,109 @@
 "use strict";
 
-function Internals(map)
+function Prop(value, must)
+{
+  this.value = value;
+  this.must = must;
+}
+
+Prop.fromValue =
+    function (value)
+    {
+      return new Prop(value, true);
+    }
+
+Prop.prototype.equals =
+    function (other)
+    {
+      if (this === other)
+      {
+        return true;
+      }
+      return this.value.equals(other.value)
+          && this.must === other.must
+    }
+
+Prop.prototype.hashCode =
+    function ()
+    {
+      return this.value.hashCode();
+    }
+    
+Prop.prototype.join =
+    function (other)
+    {
+      if (other === BOT || this === other)
+      {
+        return this;
+      }
+      return new Prop(this.value.join(other.value), this.must && other.must);
+    }
+    
+Prop.prototype.addresses =
+    function ()
+    {
+      return this.value.addresses();
+    }
+
+    
+    
+function Record(map)
 {
   assertDefinedNotNull(map);
   this.map = map;
 }
 
-Internals.empty =
+Record.empty =
     function ()
     {
-      return new Internals(new Map());
+      return new Record(new Map());
     }
 
-Internals.internalsJoin =
+Record.internalsJoin =
     function (x, y)
     {
-      if (x instanceof Set)
-      {
-        return Sets.union(x, y);
-      }
       return x.join(y);
     }
 
-Internals.prototype.set =
+Record.prototype.set =
     function (name, value)
     {
       const newMap = new Map(this.map);
       newMap.set(name, value);
-      return new Internals(newMap);
+      return new Record(newMap);
     }
 
-Internals.prototype.get =
+Record.prototype.get =
     function (name)
     {
       if (this.map.has(name))
       {
         return this.map.get(name);
       }
-      throw new Error("unknown internal: " + name);
+      return BOT;
     }
 
-Internals.prototype.has =
-    function (name)
-    {
-      return this.map.get(name) !== undefined;
-    }
-    
-Internals.prototype.join =
+Record.prototype.join =
     function (other)
     {
-      const joinedMap = Maps.join(this.map, other.map, Internals.internalsJoin, BOT);
-      return new Internals(joinedMap);
+      const joinedMap = Maps.join(this.map, other.map, Record.internalsJoin, BOT);
+      return new Record(joinedMap);
     }
     
-Internals.prototype.addresses =
+Record.prototype.addresses =
     function ()
     {
       let addresses = ArraySet.empty();
       this.map.forEach((value, key) => {
-        if (value instanceof Set_) // TODO hack for [[Call]]
-        {
-          value.forEach((val) => addresses = addresses.join(val.addresses()));
-        }
-        else
-        {
-          addresses = addresses.join(value.addresses());
-        }});
+        addresses = addresses.join(value.addresses())
+      });
       return addresses;
     }
-    
-    
 
 function Obj()
   {
     this.frame = Obj.EMPTY_FRAME;
-    this.internals = Internals.empty();
+    this.internals = Record.empty();
    }
   
   Obj.EMPTY_FRAME = HashMap.empty();
@@ -130,16 +159,10 @@ Obj.prototype.setInternal =
       return result;
     }
 
-Obj.prototype.lookupInternal =
+Obj.prototype.getInternal =
     function (name)
     {
       return this.internals.get(name);
-    }
-
-Obj.prototype.hasInternal =
-    function (name)
-    {
-      return this.internals.has(name);
     }
 
 Obj.prototype.add =
@@ -147,7 +170,6 @@ Obj.prototype.add =
     {
       assert(name);
       assertTrue(value.constructor.name === "Property");
-      assertDefinedNotNull(value.Value.subsumes);
       const result = new Obj();
       result.frame = strongUpdateFrame(this.frame, name, value);
       result.internals = this.internals;

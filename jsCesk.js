@@ -60,43 +60,49 @@ function jsCesk(cc)
   const P_LENGTH = l.abst1("length");
   const P_MESSAGE = l.abst1("message");
   
-  // function SetValue(set)
-  // {
-  //   this.set = set || new Set();
-  // }
-  //
-  // SetValue.from1 =
-  //     function (x)
-  //     {
-  //       return new SetValue(new Set([x]));
-  //     }
-  //
-  // SetValue.prototype.add =
-  //     function (x)
-  //     {
-  //       return new SetValue(Sets.add(this.set, x));
-  //     }
-  //
-  // SetValue.prototype.join =
-  //     function (x)
-  //     {
-  //       if (x === BOT)
-  //       {
-  //         return this;
-  //       }
-  //       return new SetValue(Sets.union(this.set, x.set));
-  //     }
-  //
-  // SetValue.prototype.addresses =
-  //     function ()
-  //     {
-  //       let as = ArraySet.empty();
-  //       for (const x of this.set)
-  //       {
-  //         as = as.join(x.addresses());
-  //       }
-  //       return as;
-  //     }
+  function SetValue(set)
+  {
+    this.set = set || new Set();
+  }
+
+  SetValue.from1 =
+      function (x)
+      {
+        return new SetValue(new Set([x]));
+      }
+
+  SetValue.prototype.add =
+      function (x)
+      {
+        return new SetValue(Sets.add(this.set, x));
+      }
+
+  SetValue.prototype.join =
+      function (x)
+      {
+        if (x === BOT)
+        {
+          return this;
+        }
+        return new SetValue(Sets.union(this.set, x.set));
+      }
+
+  SetValue.prototype.addresses =
+      function ()
+      {
+        let as = ArraySet.empty();
+        for (const x of this.set)
+        {
+          as = as.join(x.addresses());
+        }
+        return as;
+      }
+  
+  SetValue.prototype[Symbol.iterator] =
+      function*()
+      {
+        yield* this.set;
+      }
   
   function SetValueNoAddresses(set)
   {
@@ -138,6 +144,11 @@ function jsCesk(cc)
         return as;
       }
   
+  SetValue.prototype[Symbol.iterator] =
+      function*()
+      {
+        yield* this.set;
+      }
   
   function Intrinsics()
   {
@@ -248,6 +259,11 @@ function jsCesk(cc)
         return "[ctx#" + this._id + " app: " + (this.ex ? this.ex.tag : this.ex) + "]";
       }
   
+  function createEnvironment(parents)
+  {
+    var benv = Benv.empty(parents);
+    return benv;
+  }
   
   function explore(ast, ceskState)
   {
@@ -256,9 +272,9 @@ function jsCesk(cc)
   
     const contexts = []; // do not pre-alloc
     const stacks = []; // do not pre-alloc
-    
+  
     let realm; // TODO thread through states
-    
+  
     function inject(node, ceskState)
     {
       if (!ceskState)
@@ -267,14 +283,14 @@ function jsCesk(cc)
       }
       const store = ceskState.store;
       realm = ceskState.realm; // TODO setting global realm
-  
+    
       assert(store);
       assert(realm);
-      
+    
       const kont = createContext(node, realm.GlobalObject, "globalctx", ArraySet.from1(realm.GlobalObject), null);
       return new EvalState(node, Benv.empty(), store, [], kont);
     }
-    
+  
     function performExplore(initialStates)
     {
       const kont2states = new Array(2048);
@@ -328,12 +344,12 @@ function jsCesk(cc)
           todo.push(ss2);
           if (states.length % 10000 === 0)
           {
-            print(Formatter.displayTime(performance.now()-startTime), "states", states.length, "todo", todo.length, "ctxs", contexts.length, "sstorei", sstorei);
+            print(Formatter.displayTime(performance.now() - startTime), "states", states.length, "todo", todo.length, "ctxs", contexts.length, "sstorei", sstorei);
           }
         }
       }
-      return {initial, result, states, contexts, realm, time:performance.now()-startTime};
-  
+      return {initial, result, states, contexts, realm, time: performance.now() - startTime};
+    
       function stateGet(s)
       {
         let statesReg = kont2states[s.kont._id];
@@ -411,50 +427,47 @@ function jsCesk(cc)
     }
   
   
-  ////////////////////////////////
-    
-    
-    
+    ////////////////////////////////
   
   
-  function Stack(lkont, kont)
-  {
-    return {lkont, kont, _id: -1}
-  }
-  
-  function Stack_equals(st1, st2)
-  {
-    if (st1 === st2)
+    function Stack(lkont, kont)
     {
-      return true;
+      return {lkont, kont, _id: -1}
     }
-    return st1.lkont.equals(st2.lkont)
-        && st1.kont === st2.kont;
-  }
   
-  function Stackget(st)
-  {
-    for (let i = 0; i < stacks.length; i++)
+    function Stack_equals(st1, st2)
     {
-      if (Stack_equals(stacks[i], st))
+      if (st1 === st2)
       {
-        return stacks[i];
+        return true;
       }
+      return st1.lkont.equals(st2.lkont)
+          && st1.kont === st2.kont;
     }
-    st._id = stacks.push(st) - 1;
-    return st;
-  }
   
-  function stackAddresses(lkont, kont) // TODO put onto Context proto with sig `lkont`
-  {
-    var addresses = kont.addresses();
-    for (var i = 0; i < lkont.length; i++)
+    function Stackget(st)
     {
-      var frame = lkont[i];
-      addresses = addresses.join(frame.addresses());
+      for (let i = 0; i < stacks.length; i++)
+      {
+        if (Stack_equals(stacks[i], st))
+        {
+          return stacks[i];
+        }
+      }
+      st._id = stacks.push(st) - 1;
+      return st;
     }
-    return addresses;
-  }
+  
+    function stackAddresses(lkont, kont) // TODO put onto Context proto with sig `lkont`
+    {
+      var addresses = kont.addresses();
+      for (var i = 0; i < lkont.length; i++)
+      {
+        var frame = lkont[i];
+        addresses = addresses.join(frame.addresses());
+      }
+      return addresses;
+    }
 
 //  function storeWeakAlloc(store, addr, value)
 //  {
@@ -462,23 +475,23 @@ function jsCesk(cc)
 //    return store.weakAllocAval(addr, value);
 //  }
   
-  function storeAlloc(store, addr, value)
-  {
-    //assert(addr>>>0===addr);
-    return store.allocAval(addr, value);
-  }
+    function storeAlloc(store, addr, value)
+    {
+      //assert(addr>>>0===addr);
+      return store.allocAval(addr, value);
+    }
   
-  function storeUpdate(store, addr, value)
-  {
-    //assert(addr>>>0===addr);
-    return store.updateAval(addr, value);
-  }
+    function storeUpdate(store, addr, value)
+    {
+      //assert(addr>>>0===addr);
+      return store.updateAval(addr, value);
+    }
   
-  function storeLookup(store, addr)
-  {
-    //assert(addr>>>0===addr);
-    return store.lookupAval(addr);
-  }
+    function storeLookup(store, addr)
+    {
+      //assert(addr>>>0===addr);
+      return store.lookupAval(addr);
+    }
 
 
 //  function allocObjectEffect(a)
@@ -486,493 +499,684 @@ function jsCesk(cc)
 //    return new Effect(Effect.Operations.ALLOC, Effect.Targets.OBJECT, a);
 //  }
   
-  function readObjectEffect(a, name)
-  {
-    return new Effect(Effect.Operations.READ, a, name);
-  }
-  
-  function readVarEffect(a, vr)
-  {
-    return new Effect(Effect.Operations.READ, a, vr);
-  }
-  
-  function writeObjectEffect(a, name)
-  {
-    return new Effect(Effect.Operations.WRITE, a, name);
-  }
-  
-  function writeVarEffect(a, vr)
-  {
-    return new Effect(Effect.Operations.WRITE, a, vr);
-  }
-  
-  
-  function invokeMeta(name, operands, store, lkont, kont, as)
-  {
-    const globala = realm.GlobalObject;
-    const global = storeLookup(store, globala);
-    const metaOperator = global.lookupInternal(name);
-    if (!metaOperator)
+    function readObjectEffect(a, name)
     {
-      throw new Error("meta operator not found: " + name);
+      return new Effect(Effect.Operations.READ, a, name);
     }
-    //console.debug("invokeMeta", name);
-    const addresses = stackAddresses(lkont, kont).join(as || ArraySet.empty());
-    const kont2 = createContext(null, globala, name + kcount++/*userCtx*/, addresses, null);
-    const result = runMeta(applyProc(null, metaOperator, operands, globala, null, store, [], kont2, []));
-    return result;
-    
-    function runMeta(initialTansitions)
+  
+    function readVarEffect(a, vr)
     {
-      const initialStates = initialTansitions.map((transition) => transition.state);
-      const system = performExplore(initialStates);
-      const resultStates = system.result;
-      let value = BOT;
-      let store = BOT;
-      for (const resultState of resultStates)
+      return new Effect(Effect.Operations.READ, a, vr);
+    }
+  
+    function writeObjectEffect(a, name)
+    {
+      return new Effect(Effect.Operations.WRITE, a, name);
+    }
+  
+    function writeVarEffect(a, vr)
+    {
+      return new Effect(Effect.Operations.WRITE, a, vr);
+    }
+  
+    function hasInternalProperty(obj, name)
+    {
+      let result = BOT;
+      const prop = obj.getInternal(name);
+      if (prop === BOT)
       {
-        if (resultState.isKontState)
+        result = result.join(L_FALSE);
+      }
+      else
+      {
+        result = result.join(L_TRUE);
+        if (!prop.must)
         {
-          value = value.join(resultState.value);
-          store = store.join(resultState.store);
-        }
-        else
-        {
-          throw new Error("(TODO) meta call generated non-kont state: " + resultState);
+          result = result.join(L_FALSE);
         }
       }
-      return {value, store};
+      return result;
     }
-  }
   
   
-  // 6
-  function Type(x)
-  {
-    let result = SET;
-    if (x.projectUndefined() !== BOT)
-    {
-      result = result.joinValue(Types.Undefined);
-    }
-    if (x.projectNull() !== BOT)
-    {
-      result = result.joinValue(Types.Null);
-    }
-    if (x.projectBoolean() !== BOT)
-    {
-      result = result.joinValue(Types.Boolean);
-    }
-    if (x.projectString() !== BOT)
-    {
-      result = result.joinValue(Types.String);
-    }
-    // if (x.projectSymbol() !== BOT)
+    //   function invokeMeta(name, operands, store, lkont, kont, as)
     // {
-    //   result = result.joinValue(Types.Symbol);
-    // } TODO
-    if (x.projectNumber() !== BOT)
-    {
-      result = result.joinValue(Types.Number);
-    }
-    if (x.projectObject() !== BOT)
-    {
-      result = result.joinValue(Types.Object);
-    }
-    return result;
-  }
-  
-  // 6.1
-  const Types = {};
-  // 6.1.1
-  Types.Undefined = new String("undefined");
-  // 6.1.2
-  Types.Null = new String("null");
-  // 6.1.3
-  Types.Boolean = new String("boolean");
-  // 6.1.4
-  Types.String = new String("string");
-  // 6.1.5
-  Types.Symbol = new String("symbol");
-  // 6.1.6
-  Types.Number = new String("number");
-  // 6.1.7
-  Types.Object = new String("object");
-  
-  
-  // helper
-  function projectNonNumber(value)
-  {
-    let result = BOT;
-    result = result.join(value.projectUndefined());
-    result = result.join(value.projectNull());
-    result = result.join(value.projectBoolean());
-    result = result.join(value.projectString());
-    //result = result.join(value.projectSymbol()) TODO;
-    result = result.join(value.projectObject());
-    return result;
-  }
-  
-  // 6.1.7.1
-  function Property(Value, Get, Set, Writable, Enumerable, Configurable)
-  {
-    this.Value = Value;
-    this.Get = Get;
-    this.Set = Set;
-    this.Writable = Writable;
-    this.Enumerable = Enumerable;
-    this.Configurable = Configurable;
-    this.definitelyPresent = true;
-  }
-  
-  Property.prototype.setInternal =
-      function (name, value)
-      {
-        const newProp = new Property(this.Value, this.Get, this.Set, this.Writable, this.Enumerable, this.Configurable);
-        newProp.definitelyPresent = this.definitelyPresent;
-        switch (name)
-        {
-          case "[[Value]]":
-            newProp.Value = value;
-            break;
-          case "[[Get]]":
-            newProp.Get = value;
-            break;
-          case "[[Set]]":
-            newProp.Get = value;
-            break;
-          case "[[Writable]]":
-            newProp.Writable = value;
-            break;
-          case "[[Enumerable]]":
-            newProp.Enumerable = value;
-            break;
-          case "[[Configurable]]":
-            newProp.Configurable = value;
-            break;
-          default: throw new Error("no such internal property: " + name);
-        }
-        return newProp;
-      }
-    
-  Property.prototype.hasInternal =
-      function (name)
-      {
-        switch (name)
-        {
-          case "[[Value]]":
-            return this.Value !== BOT;
-          case "[[Get]]":
-            return this.Get !== BOT;
-          case "[[Set]]":
-            return this.Set !== BOT;
-          case "[[Writable]]":
-            return this.Writable !== BOT;
-          case "[[Enumerable]]":
-            return this.Enumerable !== BOT;
-          case "[[Configurable]]":
-            return this.Configurable !== BOT;
-          default: throw new Error("no such internal property: " + name);
-        }
-      }
-  
-   Property.prototype.addresses =
-      function ()
-      {
-        return this.Value.addresses().join(this.Get.addresses()).join(this.Set.addresses());
-      }
-  
-  Property.prototype.toString =
-      function ()
-      {
-        return "{[[Value]]:" + this.Value + " [[Get]]:" + this.Get + " [[Set]]:" + this.Set
-            + " [[Writable]]:" + this.Writable + " [[Enumerable]]:" + this.Enumerable + " [[Configurable]]:" + this.Configurable
-            + " definitelyPresent:" + this.definitelyPresent + "}";
-      }
-  
-  Property.prototype.equals =
-      function (x)
-      {
-        return (x instanceof Property)
-            && (this.Value === x.Value || this.Value.equals(x.Value))
-            && (this.Get === x.Get || this.Get.equals(x.Get))
-            && (this.Set === x.Set || this.Set.equals(x.Set))
-            && (this.Writable === x.Writable || this.Writable.equals(x.Writable))
-            && (this.Enumerable === x.Enumerable || this.Enumerable.equals(x.Enumerable))
-            && (this.Configurable === x.Configurable || this.Configurable.equals(x.Configurable))
-            && (this.definitelyPresent === x.definitelyPresent)
-      }
-  Property.prototype.hashCode =
-      function ()
-      {
-        var prime = 31;
-        var result = 1;
-        result = prime * result + this.Value.hashCode();
-        result = prime * result + this.Get.hashCode();
-        result = prime * result + this.Set.hashCode();
-        result = prime * result + this.Writable.hashCode();
-        result = prime * result + this.Enumerable.hashCode();
-        result = prime * result + this.Configurable.hashCode();
-        result = prime * result + this.definitelyPresent.hashCode();
-        return result;
-      }
-  
-  // 6.2.2
-  function Completion(Type, Value, Target)
-  {
-    this.Type = Type;
-    this.Value = Value;
-    this.Target = Target;
-  }
-  
-  Completion.normal = new String("normal");
-  Completion.break = new String("break");
-  Completion.continue = new String("continue");
-  Completion.return = new String("return");
-  Completion.throw = new String("throw");
-  Completion.empty = new String("empty");
-  
-  // 6.2.2.1
-  function NormalCompletion(argument)
-  {
-    return Completion(Completion.normal, value, Completion.empty);
-  }
-  
-  // 7.1.13
-  function ToObject(argument, store, lkont, kont, as)
-  {
-    if (!argument.isNonRef())
-    {
-      return {value: argument, store};
-    }
-    
-    const result = invokeMeta("ToObject", [argument], store, lkont, kont, as);
-    return result;
-  }
-  
-  // 7.2.3
-//  function IsCallable(argument)
-  
-  // 7.2.7
-//  function IsPropertyKey(argument)
-  
-  // 7.2.9
-//  function SameValue(x, y)
-  
-  // 7.2.11
-//  function SameValueNonNumber(x, y)
-  
-  // 7.3.1
-//  function Get(O, P)
-  
-  function createEnvironment(parents)
-  {
-    var benv = Benv.empty(parents);
-    return benv;
-  }
-  
-  function createArray()
-  {
-    var obj = new Obj();
-    obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ArrayPrototype%"));
-    // TODO temp
-    obj = obj.setInternal("isArray", L_TRUE);
-    return obj;
-  }
-  
-  // 7.3.19
-  function OrdinaryHasInstance(C, O, store)
-  {
-    // let result = BOOLEAN;
-    // const ic = IsCallable(C);
-    // if (ic.isFalse())
-    // {
-    //   result = result.joinFalse();
-    // }
-    // if (ic.isTrue())
-    // {
-    //   //const hb = hasProtoLookup(l.abst1("[[BoundTargetFunction]]"), C.addresses(), store, []); // TODO
-    //   const to = O.isNonRef();
-    //   if (to)
+    //   const globala = realm.GlobalObject;
+    //   const global = storeLookup(store, globala);
+    //   const metaOperator = global.getInternal(name).value;
+    //   if (!metaOperator)
     //   {
-    //     result = result.joinFalse();
+    //     throw new Error("meta operator not found: " + name);
     //   }
-    //   else
+    //   //console.debug("invokeMeta", name);
+    //   const addresses = stackAddresses(lkont, kont).join(as || ArraySet.empty());
+    //   const kont2 = createContext(null, globala, name + kcount++/*userCtx*/, addresses, null);
+    //   const result = runMeta(applyProc(null, metaOperator, operands, globala, null, store, [], kont2, []));
+    //   return result;
+    //
+    //   function runMeta(initialTansitions)
     //   {
-    //     const P = Get(C, P_PROTOTYPE);
-    //     const tp = P.isNonRef();
-    //     if (tp)
+    //     const initialStates = initialTansitions.map((transition) => transition.state);
+    //     const system = performExplore(initialStates);
+    //     const resultStates = system.result;
+    //     let value = BOT;
+    //     let store = BOT;
+    //     for (const resultState of resultStates)
     //     {
-    //       throw new TypeError("TODO");
-    //     }
-    //     else
-    //     {
-    //       let loop = true;
-    //       while (loop)
+    //       if (resultState.isKontState)
     //       {
-    //         loop = false;
-    //         O = OrdinaryGetPrototypeOf(O, store);
-    //         const isn = l.eqq(O, L_NULL);
-    //         if (isn.isTrue())
-    //         {
-    //           result = result.joinFalse();
-    //         }
-    //         if (isn.isFalse())
-    //         {
-    //           const sv = SameValue(P, O);
-    //           if (sv.isTrue())
-    //           {
-    //             result = result.joinTrue();
-    //           }
-    //           if (sv.isFalse())
-    //           {
-    //             loop = true;
-    //           }
-    //         }
+    //         value = value.join(resultState.value);
+    //         store = store.join(resultState.store);
+    //       }
+    //       else
+    //       {
+    //         throw new Error("(TODO) meta call generated non-kont state: " + resultState);
     //       }
     //     }
+    //     return {value, store};
     //   }
     // }
-    // return result;
-  }
   
-  // 8.2
-  function Realm()
-  {
-    this.Intrinsics = undefined;
-    this.GlobalObject = undefined;
-  }
-
-  // // 8.2.1
-  // function CreateRealm()
-  // {
-  //   let realmRec = new Realm();
-  //   CreateIntrinsics(realmRec);
-  //   realmRec.GlobalObject = L_UNDEFINED;
-  //   return realmRec;
-  // }
-  //
-  // // 8.2.2
-  // function CreateIntrinsics(realmRec, store)
-  // {
-  //   const intrinsics = new Intrinsics();
-  //   realmRec.Intrinsics = intrinsics;
-  //   const objProto = ObjectCreate(L_NULL);
-  //   const objProtoa = a.object();
-  //   intrinsics.add("%ObjectPrototype%", )
-  // }
-  
-  // 9.1.1.1
-  function OrdinaryGetPrototypeOf(O, store, lkont, kont, as)
-  {
-    return invokeMeta("OrdinaryGetPrototypeOf", [O], store, lkont, kont, as)
-  }
-  
-  // 9.1.5.1
-  function OrdinaryGetOwnProperty(O, P, store, lkont, kont, as)
-  {
-    return invokeMeta("OrdinaryGetOwnProperty", [O, P], store, lkont, kont, as);
-  }
-  
-  // 9.1.7.1
-  function OrdinaryHasProperty(O, P, store, lkont, kont, as)
-  {
-    const result = invokeMeta("OrdinaryHasProperty", [O, P], store, lkont, kont, as);
-    return result;
-  }
-    
-  // 9.1.8.1
-  function OrdinaryGet(O, P, Receiver, store, lkont, kont, as)
-  {
-    //return invokeMeta("OrdinaryGet", [O, P, Receiver], store, lkont, kont, as);
-    const value = doProtoLookup(P, O.addresses(), store, []);
-    return {value, store};
-  }
-  
-  // 9.1.12
-  function ObjectCreate(proto, internalSlotsList)
-  {
-    if (internalSlotsList === undefined)
+    function createArray()
     {
-      internalSlotsList = [];
+      var obj = new Obj();
+      obj = obj.setInternal("[[Prototype]]", Prop.fromValue(realm.Intrinsics.get("%ArrayPrototype%")));
+      // TODO temp
+      obj = obj.setInternal("isArray", Prop.fromValue(L_TRUE));
+      return obj;
     }
-    //let obj = newObject; // cannot use template because of old-style internals
-    let obj = new Obj();
-    obj = obj.setInternal("[[Call]]", BOT);
-    internalSlotsList.forEach((slot) => obj = obj.setInternal(slot, BOT));
-    // step 3
-    // 9.1.1
-    obj = obj.setInternal("[[GetPrototypeOf]]", SetValueNoAddresses.from1(function (O, args, store, lkont, kont)
-    {
-      return OrdinaryGetPrototypeOf(O, store, lkont, kont);
-    }));
-    // 9.1.5
-    obj = obj.setInternal("[[GetOwnProperty]]", SetValueNoAddresses.from1(function (O, args, store, lkont, kont)
-    {
-      const [P] = args;
-      return OrdinaryGetOwnProperty(O, P, store, lkont, kont);
-    }));
-    // 9.1.7
-    obj = obj.setInternal("[[HasProperty]]", SetValueNoAddresses.from1(function (O, args, store, lkont, kont)
-    {
-      const [P] = args;
-      return OrdinaryHasProperty(O, P, store, lkont, kont);
-    }));
-    // 9.1.8
-    obj = obj.setInternal("[[Get]]", SetValueNoAddresses.from1(function (O, args, store, lkont, kont)
-    {
-      const [P, Receiver] = args;
-      return OrdinaryGet(O, P, Receiver, store, lkont, kont);
-    }));
-    // TODO: more step 3
-    // step 4
-    obj = obj.setInternal("[[Prototype]]", proto);
-    obj = obj.setInternal("[[Extensible]]", L_TRUE);
-    return obj;
-  }
   
-  // 9.1.13
-  function OrdinaryCreateFromConstructor(constructor, intrinsicDefaultProto, internalSlotsList)
-  {
-    assert(realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
-    const proto = GetPrototypeFromConstructor(constructor, intrinsicDefaultProto);
-    return ObjectCreate(proto, internalSlotsList);
-  }
-  
-  // 9.1.14
-  function GetPrototypeFromConstructor(constructor, intrinsicDefaultProto)
-  {
-    assert(realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
-    assert(IsCallable(constructor));
-    let proto = Get(constructor, P_PROTOTYPE);
-    if (proto.isNonRef())
+    // 6
+    function Type(x)
     {
-      // TODO realms
-      proto = proto.join(realm.Intrinsics.get(intrinsicDefaultProto));
+      let result = new Set();
+      if (x.projectUndefined() !== BOT)
+      {
+        result.add(Types.Undefined);
+      }
+      if (x.projectNull() !== BOT)
+      {
+        result.add(Types.Null);
+      }
+      if (x.projectBoolean() !== BOT)
+      {
+        result.add(Types.Boolean);
+      }
+      if (x.projectString() !== BOT)
+      {
+        result.add(Types.String);
+      }
+      // if (x.projectSymbol() !== BOT)
+      // {
+      //   result = result.joinValue(Types.Symbol);
+      // } TODO
+      if (x.projectNumber() !== BOT)
+      {
+        result.add(Types.Number);
+      }
+      if (x.projectObject() !== BOT)
+      {
+        result.add(Types.Object);
+      }
+      return result;
     }
-    return proto;
-  }
   
-  // 9.4.3.3
-  function StringCreate(lprim)
-  {
-    let obj = new Obj();
-    obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%StringPrototype%"));
-    obj = obj.setInternal("[[StringData]]", lprim);
-    obj = obj.add(P_LENGTH, new Property(lprim.stringLength(), BOT, BOT, BOT, BOT, BOT));
-    return obj;
-  }
+    // 6.1
+    const Types = {};
+    // 6.1.1
+    Types.Undefined = new String("undefined");
+    // 6.1.2
+    Types.Null = new String("null");
+    // 6.1.3
+    Types.Boolean = new String("boolean");
+    // 6.1.4
+    Types.String = new String("string");
+    // 6.1.5
+    Types.Symbol = new String("symbol");
+    // 6.1.6
+    Types.Number = new String("number");
+    // 6.1.7
+    Types.Object = new String("object");
   
-  // 12.10.4
-  function InstanceofOperator(O, C, benv, store, lkont, kont)
-  {
-    const result = invokeMeta("InstanceofOperator", [O, C], store, lkont, kont, benv.addresses());
-    if (result)
+  
+    // helper
+    function projectNonNumber(value)
     {
-      return result
+      let result = BOT;
+      result = result.join(value.projectUndefined());
+      result = result.join(value.projectNull());
+      result = result.join(value.projectBoolean());
+      result = result.join(value.projectString());
+      //result = result.join(value.projectSymbol()) TODO;
+      result = result.join(value.projectObject());
+      return result;
     }
-    //return {value:argument, store};
-    throw new Error("no base implementation");
-  }
+  
+    // 6.1.7.1
+    function Property(Value, Get, Set, Writable, Enumerable, Configurable)
+    {
+      this.Value = Value;
+      this.Get = Get;
+      this.Set = Set;
+      this.Writable = Writable;
+      this.Enumerable = Enumerable;
+      this.Configurable = Configurable;
+    }
+  
+    Property.fromValue =
+        function (value)
+        {
+          return new Property(Prop.fromValue(value), BOT, BOT, BOT, BOT, BOT);
+        }
+  
+    Property.prototype.equals =
+        function (x)
+        {
+          return (x instanceof Property)
+              && this.Value.equals(x.Value)
+              && this.Get.equals(x.Get)
+              && this.Set.equals(x.Set)
+              && this.Writable.equals(x.Writable)
+              && this.Enumerable.equals(x.Enumerable)
+              && this.Configurable.equals(x.Configurable)
+        }
+    Property.prototype.hashCode =
+        function ()
+        {
+          var prime = 31;
+          var result = 1;
+          result = prime * result + this.Value.hashCode();
+          result = prime * result + this.Get.hashCode();
+          result = prime * result + this.Set.hashCode();
+          result = prime * result + this.Writable.hashCode();
+          result = prime * result + this.Enumerable.hashCode();
+          result = prime * result + this.Configurable.hashCode();
+          return result;
+        }
+  
+    Property.prototype.join =
+        function (other)
+        {
+          if (this === other || other === BOT)
+          {
+            return this;
+          }
+          return new Property(
+              this.Value.join(other.Value),
+              this.Get.join(other.Get),
+              this.Set.join(other.Set),
+              this.Writable.join(other.Writable),
+              this.Enumerable.join(other.Enumerable),
+              this.Configurable.join(other.Configurable)
+          );
+        }
+  
+    Property.prototype.addresses =
+        function ()
+        {
+          return this.Value.addresses().join(this.Get.addresses()).join(this.Set.addresses());
+        }
+  
+    Property.prototype.toString =
+        function ()
+        {
+          return "{[[Value]]:" + this.Value + " [[Get]]:" + this.Get + " [[Set]]:" + this.Set
+              + " [[Writable]]:" + this.Writable + " [[Enumerable]]:" + this.Enumerable + " [[Configurable]]:" + this.Configurable
+              + "}";
+        }
+  
+    // 6.2.2
+    function Completion(Type, Value, Target)
+    {
+      this.Type = Type;
+      this.Value = Value;
+      this.Target = Target;
+    }
+  
+    Completion.normal = new String("normal");
+    Completion.break = new String("break");
+    Completion.continue = new String("continue");
+    Completion.return = new String("return");
+    Completion.throw = new String("throw");
+    Completion.empty = new String("empty");
+  
+    // 6.2.2.1
+    function NormalCompletion(argument)
+    {
+      return Completion(Completion.normal, value, Completion.empty);
+    }
+  
+    // 6.2.5.5
+    function ToPropertyDescriptor(Obj, store, lkont, kont, cont)
+    {
+      let result = [];
+      if (Obj.isNonRef())
+      {
+        result.push({state: new ThrowState(l.abst1("TODO: typeError"), store, lkont, kont), effects: []});
+      }
+      if (Obj.isRef())
+      {
+        let desc = new Property(BOT, BOT, BOT, BOT, BOT, BOT);
+        result = result.concat(HasProperty(Obj, l.abst1("value"), store, lkont, kont,
+            function (value, store)
+            {
+              if (value.isTrue())
+              {
+                return Get(Obj, l.abst1("value"), store, lkont, kont,
+                    function (value)
+                    {
+                      desc = desc.join(Property.fromValue(value));
+                      return cont(desc);
+                    });
+              }
+              return cont(desc);
+            }));
+      }
+      return result;
+    }
+  
+    // 7.1.13
+    function ToObject(argument, node, store, lkont, kont, cont)
+    {
+      // fast path
+      if (!argument.isNonRef())
+      {
+        return cont(argument, store);
+      }
+  
+      // slow path
+      let result = [];
+      if (argument.isUndefined())
+      {
+        throw new Error("TODO");
+      }
+      if (argument.isNull())
+      {
+        throw new Error("TODO");
+      }
+      const barg = argument.projectBoolean();
+      if (barg !== BOT)
+      {
+        throw new Error("TODO");
+      }
+      const narg = argument.projectNumber();
+      if (narg !== BOT)
+      {
+        throw new Error("TODO");
+      }
+      const sarg = argument.projectString();
+      if (sarg !== BOT)
+      {
+        let obj = ObjectCreate(realm.Intrinsics.get("%StringPrototype%"));
+        obj = obj.setInternal("[[StringData]]", Prop.fromValue(sarg));
+        const addr = a.string(node);
+        store = storeAlloc(store, addr, obj);
+        const ref = l.abstRef(addr);
+        result = result.concat(cont(ref, store));
+      }
+      // TODO symbols
+      if (argument.isRef())
+      {
+        result = result.concat(cont(argument, store));
+      }
+      return result;
+    }
+  
+    // 7.1.14
+    function ToPropertyKey(argument, cont)
+    {
+      // TODO
+      return cont(argument);
+    }
+  
+    // 7.2.3
+    function IsCallable(argument, store)
+    {
+      let result = BOT;
+      if (argument.isNonRef())
+      {
+        result = result.join(L_FALSE);
+      }
+      if (argument.isRef())
+      {
+        result = result.join(hasInternal(argument, '[[Call]]', store));
+      }
+      return result;
+    }
+  
+    // 7.2.7
+//  function IsPropertyKey(argument)
+  
+    // 7.2.9
+    function SameValue(x, y)
+    {
+      let result = BOT;
+      const tx = Type(x);
+      const ty = Type(y);
+      if (!Sets.equals(tx, ty))
+      {
+        result = result.join(L_FALSE);
+      }
+      else
+      {
+        const nx = x.projectNumber();
+        if (nx !== BOT)
+        {
+          const ny = y.projectNumber();
+          if (nx.equals(L_NAN) && ny.equals(L_NAN))
+          {
+            result = result.join(L_TRUE);
+          }
+          if (nx.equals(L_0) && ny.equals(L_MIN0))
+          {
+            result = result.join(L_FALSE);
+          }
+          if (nx.equals(L_MIN0) && ny.equals(L_0))
+          {
+            result = result.join(L_FALSE);
+          }
+          const snv = l.hasSameNumberValue(nx, ny);
+          if (snv)
+          {
+            result = result.join(L_TRUE);
+          }
+          else
+          {
+            result = result.join(L_FALSE);
+          }
+        }
+        if (nx === BOT)
+        {
+          result = result.join(SameValueNonNumber(x, y));
+        }
+      }
+      return result;
+    }
+  
+    // 7.2.11
+    function SameValueNonNumber(x, y)
+    {
+      const tx = Type(x);
+      const ty = Type(y);
+      assert(!tx.has(Types.Number));
+      assert(Sets.equals(tx, ty));
+      let result = BOT;
+      if (tx.has(Types.Undefined))
+      {
+        result = result.join(L_TRUE);
+      }
+      if (tx.has(Types.Null))
+      {
+        result = result.join(L_TRUE);
+      }
+      if (tx.has(Types.String))
+      {
+        result = result.join(l.abst1(l.hasSameStringValue(x, y)));
+      }
+      if (tx.has(Types.Boolean))
+      {
+        const bx = x.projectBoolean();
+        const by = y.projectBoolean();
+        result = result.join(l.abst1(bx.equals(by)));
+      }
+      // TODO: symbol
+      if (x.isRef())
+      {
+        result = result.join(l.abst1(x.addresses().equals(y.addresses())));
+      }
+      return result;
+    }
+  
+    // 7.3.1
+    function Get(O, P, store, lkont, kont, cont)
+    {
+      return callInternal(O, "[[Get]]", [P, O], store, lkont, kont, cont);
+    }
+  
+    // 7.3.7
+    function DefinePropertyOrThrow(O, P, desc, store, lkont, kont, cont)
+    {
+      return callInternal(O, "[[DefineOwnProperty]]", [P, desc], store, lkont, kont,
+          function (success, store)
+          {
+            let result = [];
+            if (success.isTrue())
+            {
+              result = result.concat(cont(success, store));
+            }
+            if (success.isFalse())
+            {
+              throw new Error("TODO");
+            }
+            return result;
+          });
+    }
+  
+    // 7.3.10
+    function HasProperty(O, P, store, lkont, kont, cont)
+    {
+      return callInternal(O, "[[HasProperty]]", [P], store, lkont, kont, cont);
+    }
+  
+    // 7.3.19
+    function OrdinaryHasInstance(C, O, store, lkont, kont, cont)
+    {
+      let result = [];
+      const ic = IsCallable(C, store);
+      if (ic.isFalse())
+      {
+        result = result.concat(cont(L_FALSE));
+      }
+      if (ic.isTrue())
+      {
+        // [[BoundTargetFunction]] // TODO
+        if (O.isNonRef())
+        {
+          result = result.concat(cont(L_FALSE));
+        }
+        if (O.isRef())
+        {
+          result = result.concat(Get(C, P_PROTOTYPE, store, lkont, kont,
+              function (P)
+              {
+                let result = [];
+                if (P.isNonRef())
+                {
+                  throw new Error("TODO");
+                }
+                if (P.isRef())
+                {
+                 result = result.concat(callInternal(O, "[[GetPrototypeOf]]", [], store, lkont, kont,
+                     function repeat(O, store)
+                     {
+                       let result = [];
+                       if (O.isNull())
+                       {
+                         result = result.concat(cont(L_FALSE));
+                       }
+                       if (O.isNonNull())
+                       {
+                         const sv = SameValue(P, O);
+                         if (sv.isTrue())
+                         {
+                           result = result.concat(cont(L_TRUE));
+                         }
+                         if (sv.isFalse())
+                         {
+                           result = result.concat(callInternal(O, "[[GetPrototypeOf]]", [], store, lkont, kont, repeat));
+                         }
+                       }
+                       return result;
+                     }));
+                }
+                return result;
+              }));
+        }
+      }
+      return result;
+    }
+  
+    // 8.2
+    function Realm()
+    {
+      this.Intrinsics = undefined;
+      this.GlobalObject = undefined;
+    }
+  
+    // // 8.2.1
+    // function CreateRealm()
+    // {
+    //   let realmRec = new Realm();
+    //   CreateIntrinsics(realmRec);
+    //   realmRec.GlobalObject = L_UNDEFINED;
+    //   return realmRec;
+    // }
+    //
+    // // 8.2.2
+    // function CreateIntrinsics(realmRec, store)
+    // {
+    //   const intrinsics = new Intrinsics();
+    //   realmRec.Intrinsics = intrinsics;
+    //   const objProto = ObjectCreate(L_NULL);
+    //   const objProtoa = a.object();
+    //   intrinsics.add("%ObjectPrototype%", )
+    // }
+  
+    // 9.1.1.1
+    function OrdinaryGetPrototypeOf(O, store, cont)
+    {
+      const P = getInternal(O, "[[Prototype]]", store);
+      return cont(P, store);
+    }
+  
+    // 9.1.5.1
+    function OrdinaryGetOwnProperty(O, P, store, lkont, kont, as)
+    {
+      return invokeMeta("OrdinaryGetOwnProperty", [O, P], store, lkont, kont, as);
+    }
+  
+    // 9.1.6.1
+    function OrdinaryDefineOwnProperty(O, P, Desc, store, lkont, kont, cont)
+    {
+      // TODO
+      const as = O.addresses().values();
+      while (as.length > 0)
+      {
+        const a = as.pop();
+        let obj = storeLookup(store, a);
+        obj = obj.add(P, Desc);
+        store = storeUpdate(store, a, obj);
+      }
+      return cont(L_TRUE, store);
+    }
+  
+    // 9.1.7.1
+    function OrdinaryHasProperty(O, P, store, lkont, kont, cont)
+    {
+      const value = doProtoLookup(P, O.addresses(), store, []);
+      return cont(l.abst1(value !== BOT), store);
+    }
+  
+    // 9.1.8.1
+    function OrdinaryGet(O, P, Receiver, store, lkont, kont, cont)
+    {
+      //return invokeMeta("OrdinaryGet", [O, P, Receiver], store, lkont, kont, as);
+      const value = doProtoLookup(P, O.addresses(), store, []);
+      return cont(value);
+    }
+  
+    // 9.1.12
+    function ObjectCreate(proto, internalSlotsList)
+    {
+      if (internalSlotsList === undefined)
+      {
+        internalSlotsList = [];
+      }
+      //let obj = newObject; // cannot use template because of old-style internals
+      let obj = new Obj();
+      internalSlotsList.forEach((slot) => obj = obj.setInternal(slot, BOT));
+      // step 3
+      // 9.1.1
+      obj = obj.setInternal("[[GetPrototypeOf]]", Prop.fromValue(
+          SetValueNoAddresses.from1(function (O, args, store, lkont, kont, cont)
+          {
+            return OrdinaryGetPrototypeOf(O, store, cont)
+          })));
+      // 9.1.5
+      obj = obj.setInternal("[[GetOwnProperty]]", Prop.fromValue(SetValueNoAddresses.from1(OrdinaryGetOwnProperty)));
+      // 9.1.6
+      obj = obj.setInternal("[[DefineOwnProperty]]", Prop.fromValue(
+          SetValueNoAddresses.from1(function (O, args, store, lkont, kont, cont)
+          {
+            return OrdinaryDefineOwnProperty(O, args[0], args[1], store, lkont, kont, cont)
+          })));
+      // 9.1.7
+      obj = obj.setInternal("[[HasProperty]]", Prop.fromValue(SetValueNoAddresses.from1(OrdinaryHasProperty)));
+      // 9.1.8
+      obj = obj.setInternal("[[Get]]", Prop.fromValue(
+          SetValueNoAddresses.from1(function (O, args, store, lkont, kont, cont)
+          {
+            return OrdinaryGet(O, args[0], args[1], store, lkont, kont, cont)
+          })));
+      // TODO: more step 3
+      // step 4
+      obj = obj.setInternal("[[Prototype]]", Prop.fromValue(proto));
+      obj = obj.setInternal("[[Extensible]]", Prop.fromValue(L_TRUE));
+      return obj;
+    }
+  
+    // 9.1.13
+    function OrdinaryCreateFromConstructor(constructor, intrinsicDefaultProto, internalSlotsList, store)
+    {
+      assert(realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
+      const proto = GetPrototypeFromConstructor(constructor, intrinsicDefaultProto, store);
+      return ObjectCreate(proto, internalSlotsList);
+    }
+  
+    // 9.1.14
+    function GetPrototypeFromConstructor(constructor, intrinsicDefaultProto, store, lkont, kont)
+    {
+      assert(realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
+      assert(IsCallable(constructor, store));
+      let proto = Get(constructor, P_PROTOTYPE, store, lkont, kont);
+      if (proto.isNonRef())
+      {
+        // TODO realms
+        proto = proto.join(realm.Intrinsics.get(intrinsicDefaultProto));
+      }
+      return proto;
+    }
+  
+    // 9.4.3.3
+    function StringCreate(lprim)
+    {
+      let obj = new Obj();
+      obj = obj.setInternal("[[Prototype]]", Prop.fromValue(realm.Intrinsics.get("%StringPrototype%")));
+      obj = obj.setInternal("[[StringData]]", Prop.fromValue(lprim));
+      obj = obj.add(P_LENGTH, Property.fromValue(lprim.stringLength()));
+      return obj;
+    }
+  
+    // 12.10.4
+    function InstanceofOperator(O, C, store, lkont, kont, cont)
+    {
+      let result = [];
+      if (O.isNonRef())
+      {
+        throw new Error("TODO");
+      }
+      // TODO instHandler
+      const c = IsCallable(C, store);
+      if (c.isFalse())
+      {
+        throw new Error("TODO");
+      }
+      if (c.isTrue())
+      {
+        result = result.concat(OrdinaryHasInstance(C, O, store, lkont, kont, cont));
+      }
+      return result;
+    }
   
   function createClosure(node, scope)
   {
@@ -989,7 +1193,7 @@ function jsCesk(cc)
   function createFunction(Call)
   {
     var obj = ObjectCreate(realm.Intrinsics.get("%FunctionPrototype%"));
-    obj = obj.setInternal("[[Call]]", ArraySet.from1(Call));
+    obj = obj.setInternal("[[Call]]", Prop.fromValue(SetValue.from1(Call)));
     return obj;
   }
   
@@ -2118,94 +2322,96 @@ function jsCesk(cc)
         var node = this.node;
         var leftValue = this.leftValue;
         var operator = node.operator;
-        var value = applyBinaryOperator(operator, leftValue, rightValue, Benv.empty() /*TODO*/, store, lkont, kont);
-//      value = sanitize(value); //TODO?
-        return [{state: new KontState(value, store, lkont, kont)}];
+        return applyBinaryOperator(operator, leftValue, rightValue, store, lkont, kont);
       }
   
-  function applyBinaryOperator(operator, leftValue, rightValue, benv, store, lkont, kont)
+  function applyBinaryOperator(operator, leftValue, rightValue, store, lkont, kont)
   {
     switch (operator)
     {
       case "+":
       {
-        return l.add(leftValue, rightValue);
+        return [{state: new KontState(l.add(leftValue, rightValue), store, lkont, kont)}];
       }
       case "*":
       {
-        return l.mul(leftValue, rightValue);
+        return [{state: new KontState(l.mul(leftValue, rightValue), store, lkont, kont)}];
       }
       case "-":
       {
-        return l.sub(leftValue, rightValue);
+        return [{state: new KontState(l.sub(leftValue, rightValue), store, lkont, kont)}];
       }
       case "/":
       {
-        return l.div(leftValue, rightValue);
+        return [{state: new KontState(l.div(leftValue, rightValue), store, lkont, kont)}];
       }
       case "%":
       {
-        return l.rem(leftValue, rightValue);
+        return [{state: new KontState(l.rem(leftValue, rightValue), store, lkont, kont)}];
       }
       case "===":
       {
-        return l.eqq(leftValue, rightValue);
+        return [{state: new KontState(l.eqq(leftValue, rightValue), store, lkont, kont)}];
       }
       case "!==":
       {
-        return l.neqq(leftValue, rightValue);
+        return [{state: new KontState(l.neqq(leftValue, rightValue), store, lkont, kont)}];
       }
       case "==":
       {
-        return l.eq(leftValue, rightValue);
+        return [{state: new KontState(l.eq(leftValue, rightValue), store, lkont, kont)}];
       }
       case "!=":
       {
-        return l.neq(leftValue, rightValue);
+        return [{state: new KontState(l.neq(leftValue, rightValue), store, lkont, kont)}];
       }
       case "<":
       {
-        return l.lt(leftValue, rightValue);
+        return [{state: new KontState(l.lt(leftValue, rightValue), store, lkont, kont)}];
       }
       case "<=":
       {
-        return l.lte(leftValue, rightValue);
+        return [{state: new KontState(l.lte(leftValue, rightValue), store, lkont, kont)}];
       }
       case ">":
       {
-        return l.gt(leftValue, rightValue);
+        return [{state: new KontState(l.gt(leftValue, rightValue), store, lkont, kont)}];
       }
       case ">=":
       {
-        return l.gte(leftValue, rightValue);
+        return [{state: new KontState(l.gte(leftValue, rightValue), store, lkont, kont)}];
       }
       case "&":
       {
-        return l.binand(leftValue, rightValue);
+        return [{state: new KontState(l.binand(leftValue, rightValue), store, lkont, kont)}];
       }
       case "|":
       {
-        return l.binor(leftValue, rightValue);
+        return [{state: new KontState(l.binor(leftValue, rightValue), store, lkont, kont)}];
       }
       case "^":
       {
-        return l.binxor(leftValue, rightValue);
+        return [{state: new KontState(l.binxor(leftValue, rightValue), store, lkont, kont)}];
       }
       case "<<":
       {
-        return l.shl(leftValue, rightValue);
+        return [{state: new KontState(l.shl(leftValue, rightValue), store, lkont, kont)}];
       }
       case ">>":
       {
-        return l.shr(leftValue, rightValue);
+        return [{state: new KontState(l.shr(leftValue, rightValue), store, lkont, kont)}];
       }
       case ">>>":
       {
-        return l.shrr(leftValue, rightValue);
+        return [{state: new KontState(l.shrr(leftValue, rightValue), store, lkont, kont)}];
       }
       case "instanceof":
       {
-        return InstanceofOperator(leftValue, rightValue, benv, store, lkont, kont).value; // TODO return {value, store} here and everywhere else
+        return InstanceofOperator(leftValue, rightValue, store, lkont, kont,
+            function (value)
+            {
+              return [{state: new KontState(value, store, lkont, kont)}];
+            });
       }
       default:
         throw new Error("cannot handle binary operator " + operator);
@@ -3085,7 +3291,7 @@ function jsCesk(cc)
           for (var j = 0; j < i; j++)
           {
             var propertyName = l.abst1(properties[j].key.name);
-            obj = obj.add(propertyName, new Property(initValues[j], BOT, BOT, BOT, BOT, BOT));
+            obj = obj.add(propertyName, Property.fromValue(initValues[j]));
           }
           store = storeAlloc(store, objectAddress, obj);
 //        effects.push(allocObjectEffect(objectAddress));
@@ -3159,9 +3365,9 @@ function jsCesk(cc)
           for (var j = 0; j < i; j++)
           {
             var indexName = l.abst1(String(j));
-            arr = arr.add(indexName, new Property(initValues[j], BOT, BOT, BOT, BOT, BOT));
+            arr = arr.add(indexName, Property.fromValue(initValues[j]));
           }
-          arr = arr.add(P_LENGTH, new Property(l.abst1(i), BOT, BOT, BOT, BOT, BOT));
+          arr = arr.add(P_LENGTH, Property.fromValue(l.abst1(i)));
           store = storeAlloc(store, arrAddress, arr);
           return [{state: new KontState(l.abstRef(arrAddress), store, lkont, kont)}];
         }
@@ -3213,15 +3419,18 @@ function jsCesk(cc)
         var benv = this.benv;
         var property = node.property;
         let objectRef;
-        ({value: objectRef, store} = ToObject(objectValue, store, lkont, kont, benv.addresses()));
-        if (node.computed)
-        {
-          var frame = new MemberPropertyKont(node, benv, objectRef);
-          return [{state: new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
-        }
-        var effects = [];
-        var value = doProtoLookup(l.abst1(property.name), objectRef.addresses(), store, effects);
-        return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+        return ToObject(objectValue, node, store, lkont, kont,
+            function (objectRef, store)
+            {
+              if (node.computed)
+              {
+                var frame = new MemberPropertyKont(node, benv, objectRef);
+                return [{state: new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
+              }
+              var effects = [];
+              var value = doProtoLookup(l.abst1(property.name), objectRef.addresses(), store, effects);
+              return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+            });
       }
   
   function MemberPropertyKont(node, benv, objectRef)
@@ -3328,12 +3537,15 @@ function jsCesk(cc)
           throw new Error("TODO");
         }
         var nameValue = l.abst1(property.name);
-        var objectRef;
-        ({value: objectRef, store} = ToObject(objectValue, store, lkont, kont, benv.addresses()));
-        var thisAddresses = objectRef.addresses();
-        var operands = node.arguments;
-        return invoke(node, thisAddresses, nameValue, operands, benv, store, lkont, kont);
+        return ToObject(objectValue, node, store, lkont, kont,
+            function (objectRef, store)
+            {
+              var thisAddresses = objectRef.addresses();
+              var operands = node.arguments;
+              return invoke(node, thisAddresses, nameValue, operands, benv, store, lkont, kont);
+            });
       }
+  
   
   function invoke(application, thisAddresses, nameValue, operands, benv, store, lkont, kont)
   {
@@ -3649,7 +3861,7 @@ function jsCesk(cc)
       if (prop !== BOT)
       {
         effects.push(new readObjectEffect(globala, aname));
-        return prop.Value;
+        return prop.Value.value;
       }
       // TODO: if not present, then Error
       throw new Error("not found in scope: " + nameNode);
@@ -3671,13 +3883,13 @@ function jsCesk(cc)
       let found = false;
       if (prop !== BOT)
       {
-        var value = prop.Value;
-        found = prop.definitelyPresent;
-        result = result.join(value);
+        var Value = prop.Value;
+        found = Value.must;
+        result = result.join(Value.value);
       }
       if (!found)
       {
-        const proto = obj.lookupInternal("[[Prototype]]");
+        const proto = obj.getInternal("[[Prototype]]").value;
         if (proto.subsumes(L_NULL))
         {
           result = result.join(L_UNDEFINED);
@@ -3698,12 +3910,11 @@ function jsCesk(cc)
     {
       var a = as.pop();
       var obj = storeLookup(store, a);
-      effects.push(readObjectEffect(a, name));
       var prop = obj.lookup(name);
       if (prop !== BOT)
       {
         result = result.join(L_TRUE);
-        var present = prop.definitelyPresent;
+        var present = prop.Value.must; // TODO getter/setter
         if (!present)
         {
           result = result.join(L_FALSE);
@@ -3726,35 +3937,33 @@ function jsCesk(cc)
     {
       const a = as.pop();
       const obj = storeLookup(store, a);
-      const value = obj.lookupInternal(name);
+      const value = obj.getInternal(name).value;
       result = result.join(value);
     }
     return result;
   }
   
-  function callInternal(O, name, args, store, lkont, kont)
+  function callInternal(O, name, args, store, lkont, kont, cont)
   {
     assertDefinedNotNull(store);
-    let result = BOT;
+    let result = [];
     const as = O.addresses().values();
     let resultValue = BOT;
     while (as.length > 0)
     {
       const a = as.pop();
       const obj = storeLookup(store, a);
-      const fs = obj.lookupInternal(name);
+      const fs = obj.getInternal(name).value;
       if (!fs)
       {
         throw new Error("no internal slot: " + name);
       }
       for (const f of fs)
       {
-        let value;
-        ({value, store} = f(O, args, store, lkont, kont));
-        resultValue = resultValue.join(value);
+        result = result.concat(f(O, args, store, lkont, kont, cont));
       }
     }
-    return {value: resultValue, store: store};
+    return result;
   }
   
   function assignInternal(O, name, value, store)
@@ -3764,28 +3973,43 @@ function jsCesk(cc)
     {
       const a = as.pop();
       let obj = storeLookup(store, a);
-      obj = obj.setInternal(name, value);
+      obj = obj.setInternal(name, Prop.fromValue(value));
       store = storeUpdate(store, a, obj);
     }
     return store;
   }
   
-  function hasInternal(O, name, store)
-  {
-    assert(typeof name === "string");
-    assertDefinedNotNull(store);
-    let result = BOT;
-    const as = O.addresses().values();
-    while (as.length > 0)
+    function hasInternal(O, name, store)
     {
-      const a = as.pop();
-      const obj = storeLookup(store, a);
-      result = result.join(l.abst1(obj.hasInternal(name)));
+      assert(typeof name === "string");
+      assertDefinedNotNull(store);
+      let result = BOT;
+      const as = O.addresses().values();
+      while (as.length > 0)
+      {
+        const a = as.pop();
+        const obj = storeLookup(store, a);
+        result = result.join(hasInternalProperty(obj, name));
+      }
+      return result;
     }
-    return result;
-  }
   
-  function doScopeSet(nameNode, value, benv, store, effects)
+    function getInternal(O, name, store)
+    {
+      assert(typeof name === "string");
+      assertDefinedNotNull(store);
+      let result = BOT;
+      const as = O.addresses().values();
+      while (as.length > 0)
+      {
+        const a = as.pop();
+        const obj = storeLookup(store, a);
+        result = result.join(obj.getInternal(name).value);
+      }
+      return result;
+    }
+  
+    function doScopeSet(nameNode, value, benv, store, effects)
   {
     const globala = realm.GlobalObject;
     var name = nameNode.name;
@@ -3794,7 +4018,7 @@ function jsCesk(cc)
     {
       var obj = storeLookup(store, globala);
       var aname = l.abst1(name);
-      obj = obj.add(aname, new Property(value, BOT, BOT, BOT, BOT, BOT));
+      obj = obj.add(aname, Property.fromValue(value));
       effects.push(writeObjectEffect(globala, aname));
       store = storeUpdate(store, globala, obj);
     }
@@ -3813,19 +4037,19 @@ function jsCesk(cc)
     {
       var a = as.pop();
       var obj = storeLookup(store, a);
-      obj = obj.add(name, new Property(value, BOT, BOT, BOT, BOT, BOT));
+      obj = obj.add(name, Property.fromValue(value));
       effects.push(writeObjectEffect(a, name));
-      if (obj.hasInternal("isArray")) // TODO temp
+      if (hasInternalProperty(obj, "isArray").isTrue()) // TODO temp
       {
         // ES5.1 15.4.5.1
         var n = name.ToNumber();
         var i = name.ToUint32();
         if (n.equals(i))
         {
-          var len = obj.lookup(P_LENGTH).Value;
+          var len = obj.lookup(P_LENGTH).Value.value;
           if (l.gte(i, len).isTrue())
           {
-            obj = obj.add(P_LENGTH, new Property(l.add(i, L_1), BOT, BOT, BOT, BOT, BOT));
+            obj = obj.add(P_LENGTH, Property.fromValue(l.add(i, L_1)));
             effects.push(writeObjectEffect(a, P_LENGTH));
           }
         }
@@ -3877,12 +4101,12 @@ function jsCesk(cc)
               var allocateResult = allocateClosure(node, benv, store, lkont, kont);
               var closureRef = allocateResult.ref;
               store = allocateResult.store;
-              obj = obj.add(aname, new Property(closureRef, BOT, BOT, BOT, BOT, BOT));
+              obj = obj.add(aname, Property.fromValue(closureRef));
               effects.push(writeObjectEffect(globala, aname));
             }
             else if (Ast.isVariableDeclarator(node))
             {
-              obj = obj.add(aname, new Property(L_UNDEFINED, BOT, BOT, BOT, BOT, BOT));
+              obj = obj.add(aname, Property.fromValue(L_UNDEFINED));
               effects.push(writeObjectEffect(globala, aname));
             }
             else
@@ -4034,10 +4258,10 @@ function jsCesk(cc)
     var prototype = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
     var prototypea = a.closureProtoObject(node, benv, store, lkont, kont);
     var closureRef = l.abstRef(closurea);
-    prototype = prototype.add(P_CONSTRUCTOR, new Property(closureRef, BOT, BOT, BOT, BOT, BOT));
+    prototype = prototype.add(P_CONSTRUCTOR, Property.fromValue(closureRef));
     store = storeAlloc(store, prototypea, prototype);
     
-    closure = closure.add(P_PROTOTYPE, new Property(l.abstRef(prototypea), BOT, BOT, BOT, BOT, BOT));
+    closure = closure.add(P_PROTOTYPE, Property.fromValue(l.abstRef(prototypea)));
     store = storeAlloc(store, closurea, closure);
     return {store: store, ref: closureRef}
   }
@@ -4086,12 +4310,8 @@ function jsCesk(cc)
         function (operatora)
         {
           var operatorObj = storeLookup(store, operatora);
-          const Call = operatorObj.lookupInternal("[[Call]]");
-          if (!Call.values)
-          {
-            print(Call, operatorObj.nice());
-          }
-          var callables = Call.values();
+          const Call = operatorObj.getInternal("[[Call]]").value;
+          var callables = [...Call];
           return callables.flatMap(
               function (callable)
               {
@@ -4108,14 +4328,10 @@ function jsCesk(cc)
     return operatorAs.flatMap(
         function (operatora)
         {
-          var benv = storeLookup(store, operatora);
-          var protoRef = benv.lookup(P_PROTOTYPE).Value;
-          const Call = benv.lookupInternal("[[Call]]");
-          if (!Call.values)
-          {
-            print(Call, benv.nice());
-          }
-          var callables = Call.values();
+          var obj = storeLookup(store, operatora);
+          var protoRef = obj.lookup(P_PROTOTYPE).Value.value;
+          const Call = obj.getInternal("[[Call]]").value;
+          var callables = [...Call];
           return callables.flatMap(
               function (callable)
               {
@@ -4219,7 +4435,7 @@ function jsCesk(cc)
     if (elements.length === 0)
     {
       var arr = createArray();
-      arr = arr.add(P_LENGTH, new Property(L_0, BOT, BOT, BOT, BOT, BOT));
+      arr = arr.add(P_LENGTH, Property.fromValue(L_0));
       var arrAddress = a.array(node, benv, store, lkont, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
@@ -4320,9 +4536,9 @@ function jsCesk(cc)
   {
     //const O = OrdinaryCreateFromConstructor();
     let obj = new Obj();
-    obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ErrorPrototype%"));
-    obj = obj.setInternal("[[ErrorData]]", L_UNDEFINED);
-    obj = obj.add(P_MESSAGE, new Property(message, BOT, BOT, BOT, BOT, BOT));
+    obj = obj.setInternal("[[Prototype]]", Prop.fromValue(realm.Intrinsics.get("%ErrorPrototype%")));
+    obj = obj.setInternal("[[ErrorData]]", Prop.fromValue(L_UNDEFINED));
+    obj = obj.add(P_MESSAGE, Property.fromValue(message));
     return obj;
   }
   
@@ -4365,7 +4581,7 @@ function jsCesk(cc)
     
     function registerProperty(object, propertyName, value)
     {
-      object = object.add(l.abst1(propertyName), new Property(value, BOT, BOT, BOT, BOT, BOT));
+      object = object.add(l.abst1(propertyName), Property.fromValue(value));
       return object;
     }
 
@@ -4390,8 +4606,8 @@ function jsCesk(cc)
     objectP = registerProperty(objectP, "constructor", l.abstRef(objecta));
     
     var object = createPrimitive(null, objectConstructor);
-    object = object.add(P_PROTOTYPE, new Property(objectProtoRef, BOT, BOT, BOT, BOT, BOT));//was objectProtoRef
-    global = global.add(l.abst1("Object"), new Property(l.abstRef(objecta), BOT, BOT, BOT, BOT, BOT));
+    object = object.add(P_PROTOTYPE, Property.fromValue(objectProtoRef));//was objectProtoRef
+    global = global.add(l.abst1("Object"), Property.fromValue(l.abstRef(objecta)));
     
     object = registerPrimitiveFunction(object, "create", objectCreate);
     //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
@@ -4466,8 +4682,8 @@ function jsCesk(cc)
     var fun = createPrimitive(function ()
     {
     }); // TODO
-    fun = fun.add(P_PROTOTYPE, new Property(functionProtoRef, BOT, BOT, BOT, BOT, BOT));
-    global = global.add(l.abst1("Function"), new Property(l.abstRef(functiona), BOT, BOT, BOT, BOT, BOT));
+    fun = fun.add(P_PROTOTYPE, Property.fromValue(functionProtoRef));
+    global = global.add(l.abst1("Function"), Property.fromValue(l.abstRef(functiona)));
     store = storeAlloc(store, functiona, fun);
     
     store = storeAlloc(store, functionPa, functionP);
@@ -4483,8 +4699,8 @@ function jsCesk(cc)
     var errora = allocNative();
     var errorP = registerProperty(errorP, "constructor", l.abstRef(errora));
     var error = createPrimitive(errorFunction, errorConstructor);
-    error = error.add(P_PROTOTYPE, new Property(errorProtoRef, BOT, BOT, BOT, BOT, BOT));
-    global = global.add(l.abst1("Error"), new Property(l.abstRef(errora), BOT, BOT, BOT, BOT, BOT));
+    error = error.add(P_PROTOTYPE, Property.fromValue(errorProtoRef));
+    global = global.add(l.abst1("Error"), Property.fromValue(l.abstRef(errora)));
     store = storeAlloc(store, errora, error);
     store = storeAlloc(store, errorPa, errorP);
     
@@ -4521,8 +4737,8 @@ function jsCesk(cc)
     var stringa = allocNative();
     var stringP = registerProperty(stringP, "constructor", l.abstRef(stringa));
     var string = createPrimitive(stringFunction, null);
-    string = string.add(P_PROTOTYPE, new Property(intrinsics.get("%StringPrototype%"), BOT, BOT, BOT, BOT, BOT));
-    global = global.add(l.abst1("String"), new Property(l.abstRef(stringa), BOT, BOT, BOT, BOT, BOT));
+    string = string.add(P_PROTOTYPE, Property.fromValue(intrinsics.get("%StringPrototype%")));
+    global = global.add(l.abst1("String"), Property.fromValue(l.abstRef(stringa)));
     store = storeAlloc(store, stringa, string);
     
     stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
@@ -4543,7 +4759,7 @@ function jsCesk(cc)
     function stringCharAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       var str = storeLookup(store, thisa);
-      var lprim = str.lookupInternal("[[StringData]]");
+      var lprim = str.getInternal("[[StringData]]").value;
       var value = lprim.charAt(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
@@ -4551,7 +4767,7 @@ function jsCesk(cc)
     function stringCharCodeAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       var str = storeLookup(store, thisa);
-      var lprim = str.lookupInternal("[[StringData]]");
+      var lprim = str.getInternal("[[StringData]]").value;
       var value = lprim.charCodeAt(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
@@ -4559,7 +4775,7 @@ function jsCesk(cc)
     function stringStartsWith(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       var str = storeLookup(store, thisa);
-      var lprim = str.lookupInternal("[[StringData]]");
+      var lprim = str.getInternal("[[StringData]]").value;
       var value = lprim.startsWith(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
@@ -4576,8 +4792,8 @@ function jsCesk(cc)
     var arraya = allocNative();
     var arrayP = registerProperty(arrayP, "constructor", l.abstRef(arraya));
     var array = createPrimitive(arrayFunction, arrayConstructor);
-    array = array.add(P_PROTOTYPE, new Property(arrayProtoRef, BOT, BOT, BOT, BOT, BOT));
-    global = global.add(l.abst1("Array"), new Property(l.abstRef(arraya), BOT, BOT, BOT, BOT, BOT));
+    array = array.add(P_PROTOTYPE, Property.fromValue(arrayProtoRef));
+    global = global.add(l.abst1("Array"), Property.fromValue(l.abstRef(arraya)));
     store = storeAlloc(store, arraya, array);
     
     arrayP = registerPrimitiveFunction(arrayP, "toString", arrayToString);
@@ -4603,7 +4819,7 @@ function jsCesk(cc)
       {
         throw new Error("TODO: " + operandValues.length);
       }
-      arr = arr.add(P_LENGTH, new Property(length, BOT, BOT, BOT, BOT, BOT));
+      arr = arr.add(P_LENGTH, Property.fromValue(length));
       
       var arrAddress = a.array(application, benv, store, kont);
       store = storeAlloc(store, arrAddress, arr);
@@ -4616,9 +4832,9 @@ function jsCesk(cc)
       var arr = createArray();
       for (var i = 0; i < operandValues.length; i++)
       {
-        arr = arr.add(l.abst1(String(i)), new Property(operandValues[i], BOT, BOT, BOT, BOT, BOT));
+        arr = arr.add(l.abst1(String(i)), Property.fromValue(operandValues[i]));
       }
-      arr = arr.add(P_LENGTH, new Property(l.abst1(operandValues.length), BOT, BOT, BOT, BOT, BOT));
+      arr = arr.add(P_LENGTH, Property.fromValue(l.abst1(operandValues.length)));
       
       var arrAddress = a.array(application, benv, store, kont);
       store = storeAlloc(store, arrAddress, arr);
@@ -4629,7 +4845,7 @@ function jsCesk(cc)
     function arrayToString(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       var arr = storeLookup(store, thisa);
-      var len = arr.lookup(P_LENGTH).Value;
+      var len = arr.lookup(P_LENGTH).Value.value;
       effects.push(readObjectEffect(thisa, P_LENGTH));
       var i = L_0;
       var r = [];
@@ -4657,7 +4873,7 @@ function jsCesk(cc)
         return [];
       }
       var thisArr = storeLookup(store, thisa);
-      var thisLen = thisArr.lookup(P_LENGTH).Value;
+      var thisLen = thisArr.lookup(P_LENGTH).Value.value;
       effects.push(readObjectEffect(thisa, P_LENGTH));
       var argAddrs = operandValues[0].addresses();
       var resultArr = createArray();
@@ -4668,14 +4884,14 @@ function jsCesk(cc)
         seen = seen.add(i);
         var iname = i.ToString();
         var v = doProtoLookup(iname, ArraySet.from1(thisa), store, effects);
-        resultArr = resultArr.add(iname, new Property(v, BOT, BOT, BOT, BOT, BOT));
+        resultArr = resultArr.add(iname, Property.fromValue(v));
         i = l.add(i, L_1);
       }
       argAddrs.forEach(
           function (argAddr)
           {
             var argArr = storeLookup(store, argAddr);
-            var argLen = argArr.lookup(P_LENGTH).Value;
+            var argLen = argArr.lookup(P_LENGTH).Value.value;
             effects.push(readObjectEffect(argAddr, P_LENGTH));
             var i = L_0;
             var seen = ArraySet.empty();
@@ -4684,10 +4900,10 @@ function jsCesk(cc)
               seen = seen.add(i);
               var iname = i.ToString();
               var v = doProtoLookup(iname, ArraySet.from1(argAddr), store, effects);
-              resultArr = resultArr.add(l.add(thisLen, i).ToString(), new Property(argArr.lookup(iname).Value, BOT, BOT, BOT, BOT, BOT, BOT));
+              resultArr = resultArr.add(l.add(thisLen, i).ToString(), Property.fromValue(argArr.lookup(iname).Value.value, BOT));
               i = l.add(i, L_1);
             }
-            resultArr = resultArr.add(P_LENGTH, new Property(l.add(thisLen, i), BOT, BOT, BOT, BOT, BOT));
+            resultArr = resultArr.add(P_LENGTH, Property.fromValue(l.add(thisLen, i)));
           });
       var arrAddress = a.array(application, benv, store, lkont, kont);
       store = storeAlloc(store, arrAddress, resultArr);
@@ -4697,13 +4913,13 @@ function jsCesk(cc)
     function arrayPush(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       var arr = storeLookup(store, thisa);
-      var len = arr.lookup(P_LENGTH).Value;
+      var len = arr.lookup(P_LENGTH).Value.value;
       effects.push(readObjectEffect(thisa, P_LENGTH));
       var lenStr = len.ToString();
-      arr = arr.add(lenStr, new Property(operandValues[0], BOT, BOT, BOT, BOT, BOT))
+      arr = arr.add(lenStr, Property.fromValue(operandValues[0]))
       effects.push(writeObjectEffect(thisa, lenStr));
       var len1 = l.add(len, L_1);
-      arr = arr.add(P_LENGTH, new Property(len1, BOT, BOT, BOT, BOT, BOT));
+      arr = arr.add(P_LENGTH, Property.fromValue(len1));
       effects.push(writeObjectEffect(thisa, P_LENGTH))
       store = storeUpdate(store, thisa, arr);
       return [{state: new KontState(len1, store, lkont, kont), effects: effects}];
@@ -4725,7 +4941,7 @@ function jsCesk(cc)
 //  math = registerPrimitiveFunction(math, matha, "max", mathMax);
 //  math = registerProperty(math, "PI", l.abst1(Math.PI));
     store = storeAlloc(store, matha, math);
-    global = global.add(l.abst1("Math"), new Property(l.abstRef(matha), BOT, BOT, BOT, BOT, BOT));
+    global = global.add(l.abst1("Math"), Property.fromValue(l.abstRef(matha)));
     
     
     function mathSqrt(application, operandValues, thisa, benv, store, lkont, kont, effects)
@@ -4792,30 +5008,60 @@ function jsCesk(cc)
     // BEGIN BASE
     var base = ObjectCreate(l.abst1(null));
     var basea = allocNative();
-    // meta = registerPrimitiveFunction(meta, "HasStringDataInternalSlot", metaHasStringDataInternalSlot);
-    // meta = registerPrimitiveFunction(meta, "GetStringDataInternalSlot", metaGetStringDataInternalSlot);
-    // meta = registerPrimitiveFunction(meta, "SetStringDataInternalSlot", metaSetStringDataInternalSlot);
     base = registerPrimitiveFunction(base, "addIntrinsic", baseAddIntrinsic);
-    base = registerPrimitiveFunction(base, "hasInternal", baseHasInternal);
-    base = registerPrimitiveFunction(base, "lookupInternal", baseLookupInternal);
     base = registerPrimitiveFunction(base, "assignInternal", baseAssignInternal);
     base = registerPrimitiveFunction(base, "callInternal", baseCallInternal);
-    base = registerPrimitiveFunction(base, "sameNumberValue", baseSameNumberValue);
-    base = registerPrimitiveFunction(base, "sameBooleanValue", baseSameBooleanValue);
-    base = registerPrimitiveFunction(base, "sameStringValue", baseSameStringValue);
-    base = registerPrimitiveFunction(base, "sameObjectValue", baseSameObjectValue);
-    base = registerPrimitiveFunction(base, "StringCreate", baseStringCreate);
+    base = registerPrimitiveFunction(base, "DefinePropertyOrThrow", baseDefinePropertyOrThrow);
+    base = registerPrimitiveFunction(base, "hasInternal", baseHasInternal);
+    base = registerPrimitiveFunction(base, "lookupInternal", baseLookupInternal);
     base = registerPrimitiveFunction(base, "newPropertyDescriptor", baseNewPropertyDescriptor);
+    base = registerPrimitiveFunction(base, "sameBooleanValue", baseSameBooleanValue);
+    base = registerPrimitiveFunction(base, "sameNumberValue", baseSameNumberValue);
+    base = registerPrimitiveFunction(base, "sameObjectValue", baseSameObjectValue);
+    base = registerPrimitiveFunction(base, "sameStringValue", baseSameStringValue);
+    base = registerPrimitiveFunction(base, "StringCreate", baseStringCreate);
+    base = registerPrimitiveFunction(base, "ToObject", baseToObject);
+    base = registerPrimitiveFunction(base, "ToPropertyDescriptor", baseToPropertyDescriptor);
+    base = registerPrimitiveFunction(base, "ToPropertyKey", baseToPropertyKey);
     
-    base = registerPrimitiveFunction(base, "addMeta", baseAddMeta);
     store = storeAlloc(store, basea, base);
-    global = global.add(l.abst1("$BASE$"), new Property(l.abstRef(basea), BOT, BOT, BOT, BOT, BOT));
+    global = global.add(l.abst1("$BASE$"), Property.fromValue(l.abstRef(basea)));
   
+  
+    function baseDefinePropertyOrThrow(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [O, key, desc] = operandValues;
+      return DefinePropertyOrThrow(O, key, desc, store, lkont, kont,
+          function (success, store)
+          {
+            return [{state: new KontState(O, store, lkont, kont), effects: effects}];
+          });
+    }
   
     function baseNewPropertyDescriptor(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
-      const property = new Property(BOT, BOT, BOT, BOT, BOT, BOT);
+      const property = Property.fromValue(BOT);
       return [{state: new KontState(property, store, lkont, kont), effects: effects}];
+    }
+  
+    function baseToPropertyKey(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [argument] = operandValues;
+      return ToPropertyKey(argument,
+          function (value)
+          {
+            return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+          });
+    }
+  
+    function baseToPropertyDescriptor(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [Attributes] = operandValues;
+      return ToPropertyDescriptor(Attributes, store, lkont, kont,
+          function (desc)
+          {
+            return [{state: new KontState(desc, store, lkont, kont), effects: effects}];
+          });
     }
   
     function baseStringCreate(application, operandValues, thisa, benv, store, lkont, kont, effects)
@@ -4828,12 +5074,22 @@ function jsCesk(cc)
       return [{state: new KontState(ref, store, lkont, kont), effects: effects}];
     }
   
+    function baseToObject(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    {
+      const [O] = operandValues;
+      return ToObject(O, application, store, lkont, kont,
+        function (objectRef, store)
+        {
+          return [{state: new KontState(objectRef, store, lkont, kont), effects: effects}];
+        });
+    }
+  
     function baseSameNumberValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
       return [{state: new KontState(x.hasSameNumberValue(y), store, lkont, kont), effects: effects}];
     }
-    
+  
     function baseSameBooleanValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
@@ -4914,24 +5170,17 @@ function jsCesk(cc)
     function baseCallInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [O, Name, ...args] = operandValues;
-      let value;
-      ({value, store} = callInternal(O, Name.conc1(), args, store, lkont, kont));
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return callInternal(O, Name.conc1(), args, store, lkont, kont,
+          function (value, store)
+          {
+            return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+          });
     }
     
     function baseAssignInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
     {
       const [O, Name, Value] = operandValues;
       store = assignInternal(O, Name.conc1(), Value, store);
-      return [{state: new KontState(l.abst1(undefined), store, lkont, kont), effects: effects}];
-    }
-    
-    function baseAddMeta(application, operandValues, thisa, benv, store, lkont, kont, effects)
-    {
-      const [Name, Value] = operandValues;
-      let global = storeLookup(store, globala);
-      global = global.setInternal(Name.conc1(), Value);
-      store = storeUpdate(store, globala, global);
       return [{state: new KontState(l.abst1(undefined), store, lkont, kont), effects: effects}];
     }
     

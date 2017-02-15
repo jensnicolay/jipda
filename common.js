@@ -438,6 +438,27 @@ Sets.difference = function(x, y) {
   return difference;
 }
 
+Sets.equals =
+    function (x, y)
+    {
+      if (x === y)
+      {
+        return true;
+      }
+      if (x.size !== y.size)
+      {
+        return false;
+      }
+      for (const xvalue of x)
+      {
+        if (!y.has(xvalue))
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+
 const Maps = {};
 Maps.join =
     function (x, y, join, bot)

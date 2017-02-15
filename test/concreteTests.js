@@ -804,7 +804,7 @@ var suiteConcreteTests =
     module.test106 =
         function ()
         {
-          run("var o={}; Object.defineProperty(o, 'x', {value:42}); o.x", "42");
+          run("var o={}; Object.defineProperty(o, 'x', {value:42}); o.x", 42);
         }
           
     module.test107 =

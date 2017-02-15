@@ -169,6 +169,30 @@ ConcValue.prototype.isNonRef =
       return true;
     }
 
+ConcValue.prototype.isNull =
+    function ()
+    {
+      return this.value === null;
+    }
+
+ConcValue.prototype.isNonNull =
+    function ()
+    {
+      return this.value !== null;
+    }
+
+ConcValue.prototype.isUndefined =
+    function ()
+    {
+      return this.value === undefined;
+    }
+
+ConcValue.prototype.isNonUndefined =
+    function ()
+    {
+      return this.value !== undefined;
+    }
+
 ConcValue.prototype.hasSameNumberValue =
     function (x)
     {
@@ -265,6 +289,30 @@ ConcAddr.prototype.isNonRef =
     function ()
     {
       return false;
+    }
+
+ConcAddr.prototype.isNull =
+    function ()
+    {
+      return false;
+    }
+
+ConcAddr.prototype.isNonNull =
+    function ()
+    {
+      return true;
+    }
+
+ConcAddr.prototype.isUndefined =
+    function ()
+    {
+      return false;
+    }
+
+ConcAddr.prototype.isNonUndefined =
+    function ()
+    {
+      return true;
     }
 
 ConcAddr.prototype.projectString =
