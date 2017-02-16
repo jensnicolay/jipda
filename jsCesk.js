@@ -182,11 +182,13 @@ function jsCesk(cc)
       }
   
   
-  function JipdaContext(ex, thisa, userContext, as)
+  function JipdaContext(ex, thisValue, userContext, as)
   {
-    assertDefinedNotNull(thisa);
+    assert(thisValue);
+    assert(thisValue.addresses);
+    assert(as instanceof ArraySet);
     this.ex = ex;
-    this.thisa = thisa;
+    this.thisValue = thisValue;
     this.userContext = userContext;
     this.as = as;
     this._stacks = null;
@@ -201,7 +203,7 @@ function jsCesk(cc)
           return true;
         }
         return this.ex === ctx.ex
-            && this.thisa.equals(ctx.thisa)
+            && this.thisValue.equals(ctx.thisValue)
             && this.userContext.equals(ctx.userContext)
             && this.as.equals(ctx.as)
       }
@@ -224,7 +226,7 @@ function jsCesk(cc)
   JipdaContext.prototype.addresses =
       function ()
       {
-        return this.as.add(this.thisa);
+        return this.as.join(this.thisValue.addresses());
       }
   
   JipdaContext.prototype.getReachableContexts =
@@ -287,7 +289,7 @@ function jsCesk(cc)
       assert(store);
       assert(realm);
     
-      const kont = createContext(node, realm.GlobalObject, "globalctx", ArraySet.from1(realm.GlobalObject), null);
+      const kont = createContext(node, realm.GlobalObject, "globalctx", ArraySet.empty(), null);
       return new EvalState(node, Benv.empty(), store, [], kont);
     }
   
@@ -478,12 +480,18 @@ function jsCesk(cc)
     function storeAlloc(store, addr, value)
     {
       //assert(addr>>>0===addr);
+      assert(value);
+      assert(value.toString);
+      assert(value.addresses);
       return store.allocAval(addr, value);
     }
   
     function storeUpdate(store, addr, value)
     {
       //assert(addr>>>0===addr);
+      assert(value);
+      assert(value.toString);
+      assert(value.addresses);
       return store.updateAval(addr, value);
     }
   
@@ -1208,27 +1216,6 @@ function jsCesk(cc)
     return funScopeDecls;
   }
   
-  // registerInternalMethod("Object.[[GetPrototypeOf]]", objectGetPrototypeOf);
-  // function objectGetPrototypeOf(application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
-  // {
-  //   return OrdinaryGetPrototypeOf(l.abst1(thisa), store, lkont, kont);
-  // }
-  //
-  // registerInternalMethod("Object.[[GetOwnProperty]]", objectGetOwnProperty);
-  // function objectGetOwnProperty(application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
-  // {
-  //   const [O, P] = operandValues;
-  //   return OrdinaryGetOwnProperty(O, P, store, lkont, kont);
-  // }
-  //
-  // registerInternalMethod("Object.[[HasProperty]]", objectHasProperty);
-  // function objectHasProperty(application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
-  // {
-  //   const [O, P] = operandValues;
-  //   return OrdinaryHasProperty(O, P, store, lkont, kont);
-  // }
-  
-  
   function ObjPrimitiveCall(applyFunction, applyConstructor)
   {
     this.applyFunction = applyFunction;
@@ -1310,9 +1297,9 @@ function jsCesk(cc)
         return result;
       }
   
-  function createContext(application, thisa, userContext, stackAs, previousStack)
+  function createContext(application, thisValue, userContext, stackAs, previousStack)
   {
-    var ctx0 = new JipdaContext(application, thisa, userContext, stackAs);
+    var ctx0 = new JipdaContext(application, thisValue, userContext, stackAs);
     var ctx = ctx0.intern(contexts);
     if (ctx === ctx0)
     {
@@ -1389,28 +1376,28 @@ function jsCesk(cc)
   
   
   ObjClosureCall.prototype.applyFunction =
-      function (application, operandValues, thisa, TODO_REMOVE, store, lkont, kont, effects)
+      function (application, operandValues, thisValue, TODO_REMOVE, store, lkont, kont, effects)
       {
         const userContext = kalloc(this, operandValues, store);
         var previousStack = Stackget(Stack(lkont, kont));
         var stackAs = stackAddresses(lkont, kont).join(this.addresses());
-        var ctx = createContext(application, thisa, userContext, stackAs, previousStack);
+        var ctx = createContext(application, thisValue, userContext, stackAs, previousStack);
         return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects)
       }
   
   ObjClosureCall.prototype.applyConstructor =
       function (application, operandValues, protoRef, TODO_REMOVE, store, lkont, kont, effects)
       {
-        var previousStack = Stackget(Stack(lkont, kont));
-        var funNode = this.node;
         // call store should not contain freshly allocated `this`
         const userContext = kalloc(this, operandValues, store);
-        var thisa = a.constructor(funNode, application);
-        //print("allocated for this", thisa);
-        var stackAs = stackAddresses(lkont, kont).join(this.addresses());
-        var ctx = createContext(application, thisa, userContext, stackAs, previousStack);
-        var obj = ObjectCreate(protoRef);
+        const funNode = this.node;
+        const obj = ObjectCreate(protoRef);
+        const thisa = a.constructor(funNode, application);
         store = store.allocAval(thisa, obj);
+        const thisValue = l.abstRef(thisa);
+        const stackAs = stackAddresses(lkont, kont).join(this.addresses());
+        const previousStack = Stackget(Stack(lkont, kont));
+        const ctx = createContext(application, thisValue, userContext, stackAs, previousStack);
         return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, effects);
       }
   
@@ -1563,7 +1550,7 @@ function jsCesk(cc)
           
           if (kont.ex && Ast.isNewExpression(kont.ex))
           {
-            value = l.abstRef(kont.thisa);
+            value = kont.thisValue;
           }
           else
           {
@@ -1657,7 +1644,7 @@ function jsCesk(cc)
           }
           if (value.isNonRef())
           {
-            returnValue = returnValue.join(l.abstRef(kont.thisa));
+            returnValue = returnValue.join(kont.thisValue);
           }
           value = returnValue;
         }
@@ -2549,7 +2536,6 @@ function jsCesk(cc)
   OperatorKont.prototype.apply =
       function (operatorValue, store, lkont, kont)
       {
-        const globala = realm.GlobalObject;
         var node = this.node;
         var benv = this.benv;
         var operands = node.arguments;
@@ -2560,13 +2546,13 @@ function jsCesk(cc)
           {
             return applyCons(node, operatorValue, [], benv, store, lkont, kont, []);
           }
-          return applyProc(node, operatorValue, [], globala, null, store, lkont, kont, []);
+          return applyProc(node, operatorValue, [], realm.GlobalObject, null, store, lkont, kont, []);
         }
         var frame = new OperandsKont(node, 1, benv, operatorValue, [], realm.GlobalObject);
         return [{state: new EvalState(operands[0], benv, store, [frame].concat(lkont), kont)}];
       }
   
-  function OperandsKont(node, i, benv, operatorValue, operandValues, thisa)
+  function OperandsKont(node, i, benv, operatorValue, operandValues, thisValue)
   {
     assertDefinedNotNull(operatorValue);
     this.node = node;
@@ -2574,7 +2560,7 @@ function jsCesk(cc)
     this.benv = benv;
     this.operatorValue = operatorValue;
     this.operandValues = operandValues;
-    this.thisa = thisa;
+    this.thisValue = thisValue;
   }
   
   OperandsKont.prototype.equals =
@@ -2584,7 +2570,7 @@ function jsCesk(cc)
             && this.node === x.node
             && this.i === x.i
             && (this.benv === x.benv || this.benv.equals(x.benv))
-            && (this.thisa === x.thisa || this.thisa.equals(x.thisa))
+            && (this.thisValue === x.thisValue || this.thisValue.equals(x.thisValue))
             && (this.operatorValue === x.operatorValue || this.operatorValue.equals(x.operatorValue))
             && (this.operandValues === x.operandValues || this.operandValues.equals(x.operandValues))
       }
@@ -2598,7 +2584,7 @@ function jsCesk(cc)
         result = prime * result + this.benv.hashCode();
         result = prime * result + this.operatorValue.hashCode();
         result = prime * result + this.operandValues.hashCode();
-        result = prime * result + this.thisa.hashCode();
+        result = prime * result + this.thisValue.hashCode();
         return result;
       }
   OperandsKont.prototype.toString =
@@ -2616,7 +2602,7 @@ function jsCesk(cc)
       {
         const operatorAs = this.operatorValue.addresses();
         const benvAs = this.benv.addresses();
-        var addresses = operatorAs.add(this.thisa).join(benvAs);
+        var addresses = operatorAs.join(this.thisValue.addresses()).join(benvAs);
         this.operandValues.forEach(function (value)
         {
           addresses = addresses.join(value.addresses())
@@ -2631,7 +2617,7 @@ function jsCesk(cc)
         var i = this.i;
         var operatorValue = this.operatorValue;
         var operandValues = this.operandValues;
-        var thisa = this.thisa;
+        var thisValue = this.thisValue;
         var operands = node.arguments;
         
         if (i === operands.length)
@@ -2640,9 +2626,9 @@ function jsCesk(cc)
           {
             return applyCons(node, operatorValue, operandValues.addLast(operandValue), benv, store, lkont, kont, []);
           }
-          return applyProc(node, operatorValue, operandValues.addLast(operandValue), thisa, null, store, lkont, kont, []);
+          return applyProc(node, operatorValue, operandValues.addLast(operandValue), thisValue, null, store, lkont, kont, []);
         }
-        var frame = new OperandsKont(node, i + 1, benv, operatorValue, operandValues.addLast(operandValue), thisa);
+        var frame = new OperandsKont(node, i + 1, benv, operatorValue, operandValues.addLast(operandValue), thisValue);
         return [{state: new EvalState(operands[i], benv, store, [frame].concat(lkont), kont)}];
       }
   
@@ -3540,31 +3526,26 @@ function jsCesk(cc)
         return ToObject(objectValue, node, store, lkont, kont,
             function (objectRef, store)
             {
-              var thisAddresses = objectRef.addresses();
               var operands = node.arguments;
-              return invoke(node, thisAddresses, nameValue, operands, benv, store, lkont, kont);
+              return invoke(node, objectRef, nameValue, operands, benv, store, lkont, kont);
             });
       }
   
   
-  function invoke(application, thisAddresses, nameValue, operands, benv, store, lkont, kont)
+  function invoke(application, thisValue, nameValue, operands, benv, store, lkont, kont)
   {
-    return thisAddresses.flatMap(
-        function (thisa)
-        {
-          var effects = [];
-          var operatorValue = doProtoLookup(nameValue, ArraySet.from1(thisa), store, effects);
-          if (operands.length === 0)
-          {
-            if (Ast.isNewExpression(application))
-            {
-              return applyCons(application, operatorValue, [], benv, store, lkont, kont, effects);
-            }
-            return applyProc(application, operatorValue, [], thisa, null, store, lkont, kont, effects);
-          }
-          var frame = new OperandsKont(application, 1, benv, operatorValue, [], thisa);
-          return [{state: new EvalState(operands[0], benv, store, [frame].concat(lkont), kont), effects: effects}];
-        });
+    var effects = [];
+    var operatorValue = doProtoLookup(nameValue, thisValue.addresses(), store, effects);
+    if (operands.length === 0)
+    {
+      if (Ast.isNewExpression(application))
+      {
+        return applyCons(application, operatorValue, [], benv, store, lkont, kont, effects);
+      }
+      return applyProc(application, operatorValue, [], thisValue, null, store, lkont, kont, effects);
+    }
+    var frame = new OperandsKont(application, 1, benv, operatorValue, [], thisValue);
+    return [{state: new EvalState(operands[0], benv, store, [frame].concat(lkont), kont), effects: effects}];
   }
   
   function AssignMemberKont(node, benv)
@@ -3850,21 +3831,17 @@ function jsCesk(cc)
   
   function doScopeLookup(nameNode, benv, store, effects)
   {
-    const globala = realm.GlobalObject;
     var name = nameNode.name;
     var a = benv.lookup(name);
     if (a === BOT)
     {
-      var obj = storeLookup(store, globala);
       var aname = l.abst1(name);
-      var prop = obj.lookup(aname);
-      if (prop !== BOT)
+      const value = doProtoLookup(aname, realm.GlobalObject.addresses(), store, effects);
+      if (value === BOT)
       {
-        effects.push(new readObjectEffect(globala, aname));
-        return prop.Value.value;
+        throw new Error("not found in scope: " + nameNode);
       }
-      // TODO: if not present, then Error
-      throw new Error("not found in scope: " + nameNode);
+      return value;
     }
     effects.push(new readVarEffect(a, nameNode));
     return storeLookup(store, a);
@@ -4008,19 +3985,15 @@ function jsCesk(cc)
       }
       return result;
     }
-  
+    
     function doScopeSet(nameNode, value, benv, store, effects)
   {
-    const globala = realm.GlobalObject;
     var name = nameNode.name;
     var a = benv.lookup(name);
     if (a === BOT)
     {
-      var obj = storeLookup(store, globala);
       var aname = l.abst1(name);
-      obj = obj.add(aname, Property.fromValue(value));
-      effects.push(writeObjectEffect(globala, aname));
-      store = storeUpdate(store, globala, obj);
+      store = doProtoSet(aname, value, realm.GlobalObject, store, effects);
     }
     else
     {
@@ -4078,20 +4051,16 @@ function jsCesk(cc)
   
   function evalThisExpression(node, benv, store, lkont, kont, effects)
   {
-    var value = l.abstRef(kont.thisa);
+    const value = kont.thisValue;
     return [{state: new KontState(value, store, lkont, kont), effects: effects}];
   }
   
   function evalProgram(node, benv, store, lkont, kont)
   {
-    const globala = realm.GlobalObject;
     var funScopeDecls = functionScopeDeclarations(node);
-    var names = Object.keys(funScopeDecls);
     var effects = [];
-    if (names.length > 0)
-    {
-      var obj = storeLookup(store, globala);
-      names.forEach(
+    var names = Object.keys(funScopeDecls);
+    names.forEach(
           function (name)
           {
             var node = funScopeDecls[name];
@@ -4100,22 +4069,17 @@ function jsCesk(cc)
             {
               var allocateResult = allocateClosure(node, benv, store, lkont, kont);
               var closureRef = allocateResult.ref;
-              store = allocateResult.store;
-              obj = obj.add(aname, Property.fromValue(closureRef));
-              effects.push(writeObjectEffect(globala, aname));
+              store = doProtoSet(aname, closureRef, realm.GlobalObject, allocateResult.store, effects);
             }
             else if (Ast.isVariableDeclarator(node))
             {
-              obj = obj.add(aname, Property.fromValue(L_UNDEFINED));
-              effects.push(writeObjectEffect(globala, aname));
+              store = doProtoSet(aname, L_UNDEFINED, realm.GlobalObject, store, effects);
             }
             else
             {
               throw new Error("cannot handle declaration " + node);
             }
           });
-      store = storeUpdate(store, globala, obj);
-    }
     return evalStatementList(node, benv, store, lkont, kont, effects);
   }
   
@@ -4295,7 +4259,7 @@ function jsCesk(cc)
   }
   
   
-  function applyProc(application, operatorValue, operandValues, thisa, benv, store, lkont, kont, effects)
+  function applyProc(application, operatorValue, operandValues, thisValue, benv, store, lkont, kont, effects)
   {
     var operatorAs = operatorValue.addresses();
     if (errors)
@@ -4316,7 +4280,7 @@ function jsCesk(cc)
               function (callable)
               {
                 //if (!callable.applyFunction) {print(application, callable, Object.keys(callable))};
-                return callable.applyFunction(application, operandValues, thisa, operatorObj, store, lkont, kont, effects.slice(0));
+                return callable.applyFunction(application, operandValues, thisValue, operatorObj, store, lkont, kont, effects.slice(0));
               })
         })
   }
@@ -4560,8 +4524,8 @@ function jsCesk(cc)
     realm.Intrinsics = intrinsics;
   
     const globala = allocNative();
-    realm.GlobalObject = globala; // TODO mmm
     const globalRef = l.abstRef(globala);
+    realm.GlobalObject = globalRef;
     
     //var globalenva = "globalenv@0";
     const objectPa = allocNative();
@@ -4628,7 +4592,7 @@ function jsCesk(cc)
     }
     
     // not to be confused with 9.1.12
-    function objectCreate(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function objectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       if (operandValues.length !== 1)
       {
@@ -4661,13 +4625,13 @@ function jsCesk(cc)
     //   // return [{state:new KontState(result, store, lkont, kont), effects:effects}];
     // }
     
-    function objectHasOwnProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function objectHasOwnProperty(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       if (operandValues.length !== 1)
       {
         return [];
       }
-      const result = hasProtoLookup(operandValues[0], ArraySet.from1(thisa), store, effects);
+      const result = hasProtoLookup(operandValues[0], thisValue.addresses(), store, effects);
       return [{state: new KontState(result, store, lkont, kont), effects: effects}];
     }
     
@@ -4704,7 +4668,7 @@ function jsCesk(cc)
     store = storeAlloc(store, errora, error);
     store = storeAlloc(store, errorPa, errorP);
     
-    function errorFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function errorFunction(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       return errorInitializer(application, operandValues, benv, store, lkont, kont, effects);
     }
@@ -4747,7 +4711,7 @@ function jsCesk(cc)
     
     store = storeAlloc(store, stringPa, stringP);
     
-    function stringFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function stringFunction(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       if (operandValues.length === 0)
       {
@@ -4756,26 +4720,23 @@ function jsCesk(cc)
       return [{state: new KontState(operandValues[0].ToString(), store, lkont, kont), effects: effects}];
     }
     
-    function stringCharAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function stringCharAt(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
-      var str = storeLookup(store, thisa);
-      var lprim = str.getInternal("[[StringData]]").value;
+      var lprim = getInternal(thisValue, "[[StringData]]", store);
       var value = lprim.charAt(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
     
-    function stringCharCodeAt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function stringCharCodeAt(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
-      var str = storeLookup(store, thisa);
-      var lprim = str.getInternal("[[StringData]]").value;
+      var lprim = getInternal(thisValue, "[[StringData]]", store);
       var value = lprim.charCodeAt(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
     
-    function stringStartsWith(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function stringStartsWith(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
-      var str = storeLookup(store, thisa);
-      var lprim = str.getInternal("[[StringData]]").value;
+      var lprim = getInternal(thisValue, "[[StringData]]", store);
       var value = lprim.startsWith(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
@@ -4827,7 +4788,7 @@ function jsCesk(cc)
       return [{state: new KontState(arrRef, store, lkont, kont), effects: effects}];
     }
     
-    function arrayFunction(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function arrayFunction(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var arr = createArray();
       for (var i = 0; i < operandValues.length; i++)
@@ -4842,87 +4803,100 @@ function jsCesk(cc)
       return [{state: new KontState(arrRef, store, lkont, kont), effects: effects}];
     }
     
-    function arrayToString(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function arrayToString(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
-      var arr = storeLookup(store, thisa);
-      var len = arr.lookup(P_LENGTH).Value.value;
-      effects.push(readObjectEffect(thisa, P_LENGTH));
-      var i = L_0;
-      var r = [];
-      var seen = ArraySet.empty();
-      var thisAs = ArraySet.from1(thisa);
-      while ((!seen.contains(i)) && l.lt(i, len).isTrue())
-      {
-        seen = seen.add(i);
-        var iname = i.ToString();
-        var v = doProtoLookup(iname, thisAs, store, effects);
-        if (v !== BOT)
-        {
-          r.push(v);
-        }
-        i = l.add(i, L_1);
-      }
-      return [{state: new KontState(l.abst1(r.join()), store, lkont, kont), effects: effects}];
+      return thisValue.addresses().values().map(
+          function (thisa)
+          {
+            var arr = storeLookup(store, thisa);
+            var len = arr.lookup(P_LENGTH).Value.value;
+            effects.push(readObjectEffect(thisa, P_LENGTH));
+            var i = L_0;
+            var r = [];
+            var seen = ArraySet.empty();
+            var thisAs = ArraySet.from1(thisa);
+            while ((!seen.contains(i)) && l.lt(i, len).isTrue())
+            {
+              seen = seen.add(i);
+              var iname = i.ToString();
+              var v = doProtoLookup(iname, thisAs, store, effects);
+              if (v !== BOT)
+              {
+                r.push(v);
+              }
+              i = l.add(i, L_1);
+            }
+            return {state: new KontState(l.abst1(r.join()), store, lkont, kont), effects: effects};
+          });
     }
     
-    function arrayConcat(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function arrayConcat(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       if (operandValues.length !== 1)
       {
         print("warning: array.concat");
         return [];
       }
-      var thisArr = storeLookup(store, thisa);
-      var thisLen = thisArr.lookup(P_LENGTH).Value.value;
-      effects.push(readObjectEffect(thisa, P_LENGTH));
-      var argAddrs = operandValues[0].addresses();
-      var resultArr = createArray();
-      var i = L_0;
-      var seen = ArraySet.empty();
-      while ((!seen.contains(i)) && l.lt(i, thisLen).isTrue())
-      {
-        seen = seen.add(i);
-        var iname = i.ToString();
-        var v = doProtoLookup(iname, ArraySet.from1(thisa), store, effects);
-        resultArr = resultArr.add(iname, Property.fromValue(v));
-        i = l.add(i, L_1);
-      }
-      argAddrs.forEach(
-          function (argAddr)
+      return thisValue.addresses().values().map(
+          function (thisa)
           {
-            var argArr = storeLookup(store, argAddr);
-            var argLen = argArr.lookup(P_LENGTH).Value.value;
-            effects.push(readObjectEffect(argAddr, P_LENGTH));
+            var thisArr = storeLookup(store, thisa);
+            var thisLen = thisArr.lookup(P_LENGTH).Value.value;
+            effects.push(readObjectEffect(thisa, P_LENGTH));
+            var argAddrs = operandValues[0].addresses();
+            var resultArr = createArray();
             var i = L_0;
             var seen = ArraySet.empty();
-            while ((!seen.contains(i)) && l.lt(i, argLen).isTrue())
+            while ((!seen.contains(i)) && l.lt(i, thisLen).isTrue())
             {
               seen = seen.add(i);
               var iname = i.ToString();
-              var v = doProtoLookup(iname, ArraySet.from1(argAddr), store, effects);
-              resultArr = resultArr.add(l.add(thisLen, i).ToString(), Property.fromValue(argArr.lookup(iname).Value.value, BOT));
+              var v = doProtoLookup(iname, ArraySet.from1(thisa), store, effects);
+              resultArr = resultArr.add(iname, Property.fromValue(v));
               i = l.add(i, L_1);
             }
-            resultArr = resultArr.add(P_LENGTH, Property.fromValue(l.add(thisLen, i)));
+            argAddrs.forEach(
+                function (argAddr)
+                {
+                  var argArr = storeLookup(store, argAddr);
+                  var argLen = argArr.lookup(P_LENGTH).Value.value;
+                  effects.push(readObjectEffect(argAddr, P_LENGTH));
+                  var i = L_0;
+                  var seen = ArraySet.empty();
+                  while ((!seen.contains(i)) && l.lt(i, argLen).isTrue())
+                  {
+                    seen = seen.add(i);
+                    var iname = i.ToString();
+                    var v = doProtoLookup(iname, ArraySet.from1(argAddr), store, effects);
+                    resultArr = resultArr.add(l.add(thisLen, i).ToString(), Property.fromValue(argArr.lookup(iname).Value.value, BOT));
+                    i = l.add(i, L_1);
+                  }
+                  resultArr = resultArr.add(P_LENGTH, Property.fromValue(l.add(thisLen, i)));
+                });
+            var arrAddress = a.array(application, benv, store, lkont, kont);
+            store = storeAlloc(store, arrAddress, resultArr);
+            return {state: new KontState(l.abstRef(arrAddress), store, lkont, kont), effects: effects};
           });
-      var arrAddress = a.array(application, benv, store, lkont, kont);
-      store = storeAlloc(store, arrAddress, resultArr);
-      return [{state: new KontState(l.abstRef(arrAddress), store, lkont, kont), effects: effects}];
     }
     
-    function arrayPush(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function arrayPush(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
-      var arr = storeLookup(store, thisa);
-      var len = arr.lookup(P_LENGTH).Value.value;
-      effects.push(readObjectEffect(thisa, P_LENGTH));
-      var lenStr = len.ToString();
-      arr = arr.add(lenStr, Property.fromValue(operandValues[0]))
-      effects.push(writeObjectEffect(thisa, lenStr));
-      var len1 = l.add(len, L_1);
-      arr = arr.add(P_LENGTH, Property.fromValue(len1));
-      effects.push(writeObjectEffect(thisa, P_LENGTH))
-      store = storeUpdate(store, thisa, arr);
-      return [{state: new KontState(len1, store, lkont, kont), effects: effects}];
+      return thisValue.addresses().values().map(
+          function (thisa)
+          {
+  
+            var arr = storeLookup(store, thisa);
+            var len = arr.lookup(P_LENGTH).Value.value;
+            effects.push(readObjectEffect(thisa, P_LENGTH));
+            var lenStr = len.ToString();
+            arr = arr.add(lenStr, Property.fromValue(operandValues[0]))
+            effects.push(writeObjectEffect(thisa, lenStr));
+            var len1 = l.add(len, L_1);
+            arr = arr.add(P_LENGTH, Property.fromValue(len1));
+            effects.push(writeObjectEffect(thisa, P_LENGTH))
+            store = storeUpdate(store, thisa, arr);
+            return {state: new KontState(len1, store, lkont, kont), effects: effects};
+          });
     }
     
     // END ARRAY
@@ -4944,37 +4918,37 @@ function jsCesk(cc)
     global = global.add(l.abst1("Math"), Property.fromValue(l.abstRef(matha)));
     
     
-    function mathSqrt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function mathSqrt(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.sqrt(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
     
-    function mathAbs(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function mathAbs(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.abs(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
     
-    function mathRound(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function mathRound(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.round(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
     
-    function mathFloor(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function mathFloor(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.floor(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
     
-    function mathCos(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function mathCos(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.cos(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
     
-    function mathSin(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function mathSin(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.sin(operandValues[0]);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
@@ -4996,7 +4970,7 @@ function jsCesk(cc)
       };
     }());
     
-    function mathRandom(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function mathRandom(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.abst1(random());
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
@@ -5028,7 +5002,7 @@ function jsCesk(cc)
     global = global.add(l.abst1("$BASE$"), Property.fromValue(l.abstRef(basea)));
   
   
-    function baseDefinePropertyOrThrow(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseDefinePropertyOrThrow(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [O, key, desc] = operandValues;
       return DefinePropertyOrThrow(O, key, desc, store, lkont, kont,
@@ -5038,13 +5012,13 @@ function jsCesk(cc)
           });
     }
   
-    function baseNewPropertyDescriptor(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseNewPropertyDescriptor(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const property = Property.fromValue(BOT);
       return [{state: new KontState(property, store, lkont, kont), effects: effects}];
     }
   
-    function baseToPropertyKey(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseToPropertyKey(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [argument] = operandValues;
       return ToPropertyKey(argument,
@@ -5054,7 +5028,7 @@ function jsCesk(cc)
           });
     }
   
-    function baseToPropertyDescriptor(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseToPropertyDescriptor(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [Attributes] = operandValues;
       return ToPropertyDescriptor(Attributes, store, lkont, kont,
@@ -5064,7 +5038,7 @@ function jsCesk(cc)
           });
     }
   
-    function baseStringCreate(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseStringCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [value] = operandValues; // TODO pass prototype as second param
       const obj = StringCreate(value);
@@ -5074,7 +5048,7 @@ function jsCesk(cc)
       return [{state: new KontState(ref, store, lkont, kont), effects: effects}];
     }
   
-    function baseToObject(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseToObject(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [O] = operandValues;
       return ToObject(O, application, store, lkont, kont,
@@ -5084,13 +5058,13 @@ function jsCesk(cc)
         });
     }
   
-    function baseSameNumberValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseSameNumberValue(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
       return [{state: new KontState(x.hasSameNumberValue(y), store, lkont, kont), effects: effects}];
     }
   
-    function baseSameBooleanValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseSameBooleanValue(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
       let result = BOT;
@@ -5112,13 +5086,13 @@ function jsCesk(cc)
       return [{state: new KontState(result, store, lkont, kont), effects: effects}];
     }
     
-    function baseSameStringValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseSameStringValue(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
       return [{state: new KontState(x.hasSameStringValue(y), store, lkont, kont), effects: effects}];
     }
     
-    function baseSameObjectValue(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseSameObjectValue(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
       let result = BOT;
@@ -5146,28 +5120,28 @@ function jsCesk(cc)
       return [{state: new KontState(result, store, lkont, kont), effects: effects}];
     }
     
-    function baseAddIntrinsic(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseAddIntrinsic(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [Name, Value] = operandValues;
       realm.Intrinsics.add(Name.conc1(), Value);
       return [{state: new KontState(l.abst1(undefined), store, lkont, kont), effects: effects}];
     }
     
-    function baseHasInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseHasInternal(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [O, Name] = operandValues;
       const result = hasInternal(O, Name.conc1(), store);
       return [{state: new KontState(result, store, lkont, kont), effects: effects}];
     }
     
-    function baseLookupInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseLookupInternal(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [O, Name] = operandValues;
       const result = lookupInternal(O, Name.conc1(), store);
       return [{state: new KontState(result, store, lkont, kont), effects: effects}];
     }
     
-    function baseCallInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseCallInternal(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [O, Name, ...args] = operandValues;
       return callInternal(O, Name.conc1(), args, store, lkont, kont,
@@ -5177,7 +5151,7 @@ function jsCesk(cc)
           });
     }
     
-    function baseAssignInternal(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function baseAssignInternal(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [O, Name, Value] = operandValues;
       store = assignInternal(O, Name.conc1(), Value, store);
@@ -5191,7 +5165,7 @@ function jsCesk(cc)
     store = storeAlloc(store, perfa, perf);
     global = registerProperty(global, "performance", l.abstRef(perfa));
     
-    function performanceNow(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function performanceNow(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.abst1(performance.now());
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
@@ -5200,19 +5174,19 @@ function jsCesk(cc)
     // END PERFORMANCE
     
     
-    function $join(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function $join(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = operandValues.reduce(Lattice.join, BOT);
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
     }
     
-    function _print(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function _print(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       print(operandValues);
       return [{state: new KontState(L_UNDEFINED, store, lkont, kont), effects: effects}];
     }
     
-    function globalParseInt(application, operandValues, thisa, benv, store, lkont, kont, effects)
+    function globalParseInt(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = operandValues[0].parseInt(); // TODO: 2nd (base) arg
       return [{state: new KontState(value, store, lkont, kont), effects: effects}];
