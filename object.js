@@ -169,9 +169,9 @@ Obj.prototype.add =
     function (name, value)
     {
       assert(name);
-      assertTrue(value.constructor.name === "Property");
+      const prop = Prop.fromValue(value);
       const result = new Obj();
-      result.frame = strongUpdateFrame(this.frame, name, value);
+      result.frame = strongUpdateFrame(this.frame, name, prop);
       result.internals = this.internals;
       return result;
     }

@@ -87,10 +87,12 @@ var Ast = {}
         return "do " + nodeToString(node.body) + " while (" + nodeToString(node.test) + ")";
       case "ForStatement":
         return "for (" + nodeToString(node.init) + ";" + nodeToString(node.test) + ";" + nodeToString(node.update) + ") " + nodeToString(node.body) + ";";
-      case "FunctionDeclaration": 
+      case "ForOfStatement":
+        return "for (" + nodeToString(node.left) + " of " + nodeToString(node.right) + ") " + nodeToString(node.body) + ";";
+      case "FunctionDeclaration":
         return "function " + nodeToString(node.id) + "(" + node.params.map(nodeToString).join() + ") " + nodeToString(node.body) + ";";
       case "VariableDeclaration": 
-        return node.kind + " " + node.declarations.map(nodeToString).join() + ";";
+        return node.kind + " " + node.declarations.map(nodeToString).join();
       case "VariableDeclarator": 
         return nodeToString(node.id) + (node.init ? "=" + nodeToString(node.init) : "");
       case "Property": 
@@ -365,6 +367,8 @@ Ast.isFunctionDeclaration =
         return [node.body, node.test];
       case "ForStatement":
         return [node.init, node.test, node.update, node.body].filter(function (n) { return n !== null});
+      case "ForOfStatement":
+        return [node.left, node.right, node.body];
       case "FunctionDeclaration":
         return [node.id].concat(node.params).concat([node.body]);
       case "VariableDeclaration": 

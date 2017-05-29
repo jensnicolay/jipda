@@ -293,6 +293,18 @@ TypeValue.prototype.isFalsy =
       return (this.type & TypeValue.FALSY);
     }
 
+TypeValue.prototype.isUndefined =
+    function ()
+    {
+      return (this.type & TypeValue.UND);
+    }
+
+TypeValue.prototype.isNull =
+    function ()
+    {
+      return (this.type & TypeValue.NULL);
+    }
+
 TypeValue.prototype.ToString =
     function ()
     {
@@ -678,6 +690,17 @@ TypeLattice.prototype.eq =
     }
 
 TypeLattice.prototype.neq =
+    function (x, y)
+    {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim != y.prim);
+      }
+      
+      return this.BOOL;
+    }
+
+TypeLattice.prototype.neqq =
     function (x, y)
     {
       if (x instanceof Some && y instanceof Some)

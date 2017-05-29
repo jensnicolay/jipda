@@ -283,6 +283,7 @@ function jsCesk(cc)
       {
         ceskState = initialize(Store.empty());
       }
+      ceskState = initializeTraits(ceskState);
       const store = ceskState.store;
       realm = ceskState.realm; // TODO setting global realm
     
@@ -674,7 +675,7 @@ function jsCesk(cc)
     Property.fromValue =
         function (value)
         {
-          return new Property(Prop.fromValue(value), BOT, BOT, BOT, BOT, BOT);
+          return new Property(value, BOT, BOT, BOT, BOT, BOT);
         }
   
     Property.prototype.equals =
@@ -796,11 +797,11 @@ function jsCesk(cc)
       let result = [];
       if (argument.isUndefined())
       {
-        throw new Error("TODO");
+        result.push({state: new ThrowState(l.abst1("7.1.13 - Undefined"), store, lkont, kont)});
       }
       if (argument.isNull())
       {
-        throw new Error("TODO");
+        result.push({state: new ThrowState(l.abst1("7.1.13 - Null"), store, lkont, kont)});
       }
       const barg = argument.projectBoolean();
       if (barg !== BOT)
@@ -1058,8 +1059,10 @@ function jsCesk(cc)
     }
   
     // 9.1.5.1
-    function OrdinaryGetOwnProperty(O, P, store, lkont, kont, as)
+    function OrdinaryGetOwnProperty(O, P, store, lkont, kont, cont)
     {
+      //assert(IsPropertyKey(P)); TODO
+      
       return invokeMeta("OrdinaryGetOwnProperty", [O, P], store, lkont, kont, as);
     }
   
@@ -1091,6 +1094,20 @@ function jsCesk(cc)
       //return invokeMeta("OrdinaryGet", [O, P, Receiver], store, lkont, kont, as);
       const value = doProtoLookup(P, O.addresses(), store, []);
       return cont(value);
+    }
+    
+    // 9.1.11.1
+    function OrdinaryOwnPropertyKeys(O, store, lkont, kont, cont)
+    {
+      let keys = ArraySet.empty();
+      const as = O.addresses().values();
+      for (const a in as)
+      {
+        const obj = storeLookup(store, a);
+        // TODO symbols, ascending numeric, chronological order, etc.
+        keys = keys.addAll(obj.keys());
+      }
+      return cont(keys.values());
     }
   
     // 9.1.12
@@ -1185,7 +1202,62 @@ function jsCesk(cc)
       }
       return result;
     }
-  
+    
+    // 19.1.2.3.1
+    // function ObjectDefineProperties(O, Properties, node, store, lkont, kont, cont)
+    // {
+    //   if (O.isNonRef())
+    //   {
+    //     throw new Error("TODO");
+    //   }
+    //   return ToObject(O, node, store, lkont, kont,
+    //       function (props, store)
+    //       {
+    //         return callInternal(props, "[[OwnPropertyKeys]]", [], store, lkont, kont,
+    //             function (keys, store)
+    //             {
+    //               const descriptors = [];
+    //               let result = [];
+    //               let loopStore = store;
+    //               for (const nextKey of keys)
+    //               {
+    //                 const r = callInternal(props, "[[GetOwnProperty]]", [nextKey], loopStore, lkont, kont, store,
+    //                     function (propDesc, store)
+    //                     {
+    //                       if (propDesc.isNonUndefined() && propDesc.Enumerable.isTrue())
+    //                       {
+    //                         return Get(props, nextKey, store, lkont, kont,
+    //                             function (descObj)
+    //                             {
+    //                               return ToPropertyDescriptor(descObj, store, lkont, kont,
+    //                                   function (desc)
+    //                                   {
+    //                                     descriptors.push([nextKey, desc]);
+    //                                     loopStore = store;
+    //                                     return [];
+    //                                   });
+    //                             });
+    //                       }
+    //                       loopStore = store;
+    //                       return [];
+    //                     });
+    //                 result = result.concat(r);
+    //               }
+    //               for (const pair of descriptors)
+    //               {
+    //                 const [P, desc] = pair;
+    //                 const r = DefinePropertyOrThrow(O, P, desc, loopStore, lkont, kont,
+    //                     function (success, store)
+    //                     {
+    //                       loopStore = store;
+    //                     })
+    //               }
+    //               return cont(O, loopStore);
+    //             });
+    //       });
+    // }
+    
+    
   function createClosure(node, scope)
   {
     var obj = createFunction(new ObjClosureCall(node, scope));
@@ -3843,7 +3915,6 @@ function jsCesk(cc)
       }
       return value;
     }
-    effects.push(new readVarEffect(a, nameNode));
     return storeLookup(store, a);
   }
   
@@ -3855,14 +3926,14 @@ function jsCesk(cc)
     {
       var a = as.pop();
       var obj = storeLookup(store, a);
-      effects.push(readObjectEffect(a, name));
-      var prop = obj.lookup(name);
+      const prop = obj.lookup(name);
       let found = false;
       if (prop !== BOT)
       {
-        var Value = prop.Value;
-        found = Value.must;
-        result = result.join(Value.value);
+        found = prop.must;
+        const property = prop.value;
+        const value = property.Value;
+        result = result.join(value);
       }
       if (!found)
       {
@@ -3891,7 +3962,7 @@ function jsCesk(cc)
       if (prop !== BOT)
       {
         result = result.join(L_TRUE);
-        var present = prop.Value.must; // TODO getter/setter
+        const present = prop.must; // TODO getter/setter
         if (!present)
         {
           result = result.join(L_FALSE);
@@ -4019,7 +4090,7 @@ function jsCesk(cc)
         var i = name.ToUint32();
         if (n.equals(i))
         {
-          var len = obj.lookup(P_LENGTH).Value.value;
+          var len = obj.lookup(P_LENGTH).value.Value;
           if (l.gte(i, len).isTrue())
           {
             obj = obj.add(P_LENGTH, Property.fromValue(l.add(i, L_1)));
@@ -4293,7 +4364,7 @@ function jsCesk(cc)
         function (operatora)
         {
           var obj = storeLookup(store, operatora);
-          var protoRef = obj.lookup(P_PROTOTYPE).Value.value;
+          var protoRef = obj.lookup(P_PROTOTYPE).value.Value;
           const Call = obj.getInternal("[[Call]]").value;
           var callables = [...Call];
           return callables.flatMap(
@@ -4573,7 +4644,7 @@ function jsCesk(cc)
     object = object.add(P_PROTOTYPE, Property.fromValue(objectProtoRef));//was objectProtoRef
     global = global.add(l.abst1("Object"), Property.fromValue(l.abstRef(objecta)));
     
-    object = registerPrimitiveFunction(object, "create", objectCreate);
+    //object = registerPrimitiveFunction(object, "create", objectCreate);
     //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
     //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
     store = storeAlloc(store, objecta, object);
@@ -4591,19 +4662,28 @@ function jsCesk(cc)
       return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
     }
     
-    // not to be confused with 9.1.12
-    function objectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
-    {
-      if (operandValues.length !== 1)
-      {
-        return [];
-      }
-      var obj = ObjectCreate(operandValues[0]);
-      var objectAddress = a.object(application, benv, store, kont);
-      store = storeAlloc(store, objectAddress, obj);
-      var objRef = l.abstRef(objectAddress);
-      return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
-    }
+    // // 19.1.2.2
+    // function objectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
+    // {
+    //   const [O, Properties] = operandValues;
+    //   var obj = ObjectCreate(O);
+    //
+    //   // step 3
+    //   if (Properties !== undefined)
+    //   {
+    //     return ObjectDefineProperties(obj, Properties, application, store, lkont, kont, objectCreateCont);
+    //   }
+    //   return objectCreateCont(obj, store);
+    //
+    //   // step 4
+    //   function objectCreateCont(obj, store)
+    //   {
+    //     const objectAddress = a.object(application, benv, store, kont);
+    //     store = storeAlloc(store, objectAddress, obj);
+    //     const objRef = l.abstRef(objectAddress);
+    //     return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
+    //   }
+    // }
     
     // // 19.1.2.4
     // function objectDefineProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
@@ -4809,7 +4889,7 @@ function jsCesk(cc)
           function (thisa)
           {
             var arr = storeLookup(store, thisa);
-            var len = arr.lookup(P_LENGTH).Value.value;
+            var len = arr.lookup(P_LENGTH).value.Value;
             effects.push(readObjectEffect(thisa, P_LENGTH));
             var i = L_0;
             var r = [];
@@ -4841,7 +4921,7 @@ function jsCesk(cc)
           function (thisa)
           {
             var thisArr = storeLookup(store, thisa);
-            var thisLen = thisArr.lookup(P_LENGTH).Value.value;
+            var thisLen = thisArr.lookup(P_LENGTH).value.Value;
             effects.push(readObjectEffect(thisa, P_LENGTH));
             var argAddrs = operandValues[0].addresses();
             var resultArr = createArray();
@@ -4859,7 +4939,7 @@ function jsCesk(cc)
                 function (argAddr)
                 {
                   var argArr = storeLookup(store, argAddr);
-                  var argLen = argArr.lookup(P_LENGTH).Value.value;
+                  var argLen = argArr.lookup(P_LENGTH).value.Value;
                   effects.push(readObjectEffect(argAddr, P_LENGTH));
                   var i = L_0;
                   var seen = ArraySet.empty();
@@ -4868,7 +4948,7 @@ function jsCesk(cc)
                     seen = seen.add(i);
                     var iname = i.ToString();
                     var v = doProtoLookup(iname, ArraySet.from1(argAddr), store, effects);
-                    resultArr = resultArr.add(l.add(thisLen, i).ToString(), Property.fromValue(argArr.lookup(iname).Value.value, BOT));
+                    resultArr = resultArr.add(l.add(thisLen, i).ToString(), Property.fromValue(argArr.lookup(iname).value.Value, BOT));
                     i = l.add(i, L_1);
                   }
                   resultArr = resultArr.add(P_LENGTH, Property.fromValue(l.add(thisLen, i)));
@@ -4886,7 +4966,7 @@ function jsCesk(cc)
           {
   
             var arr = storeLookup(store, thisa);
-            var len = arr.lookup(P_LENGTH).Value.value;
+            var len = arr.lookup(P_LENGTH).value.Value;
             effects.push(readObjectEffect(thisa, P_LENGTH));
             var lenStr = len.ToString();
             arr = arr.add(lenStr, Property.fromValue(operandValues[0]))
@@ -4994,6 +5074,7 @@ function jsCesk(cc)
     base = registerPrimitiveFunction(base, "sameObjectValue", baseSameObjectValue);
     base = registerPrimitiveFunction(base, "sameStringValue", baseSameStringValue);
     base = registerPrimitiveFunction(base, "StringCreate", baseStringCreate);
+    base = registerPrimitiveFunction(base, "ObjectCreate", baseObjectCreate);
     base = registerPrimitiveFunction(base, "ToObject", baseToObject);
     base = registerPrimitiveFunction(base, "ToPropertyDescriptor", baseToPropertyDescriptor);
     base = registerPrimitiveFunction(base, "ToPropertyKey", baseToPropertyKey);
@@ -5045,6 +5126,16 @@ function jsCesk(cc)
       const obja = a.string(application);
       store = storeAlloc(store, obja, obj);
       const ref = l.abstRef(obja);
+      return [{state: new KontState(ref, store, lkont, kont), effects: effects}];
+    }
+  
+    function baseObjectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
+    {
+      const [proto, internalSlotsList] = operandValues;
+      const obj = ObjectCreate(proto, internalSlotsList);
+      const objAddr = a.object(application);
+      store = storeAlloc(store, objAddr, obj);
+      const ref = l.abstRef(objAddr);
       return [{state: new KontState(ref, store, lkont, kont), effects: effects}];
     }
   
@@ -5199,6 +5290,12 @@ function jsCesk(cc)
     
     return {store, realm};
   } // end initialize
+  
+  function initializeTraits(ceskState)
+  {
+    let store = ceskState.store;
+    return {store, realm:ceskState.realm};
+  }
   
   const initial = inject(ast, ceskState);
   const system = performExplore([initial]);

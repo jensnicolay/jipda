@@ -36,7 +36,7 @@ Array.prototype.toString =
   load("../test.js");
   
   load("purityAnalysis.js");
-  load("cop.js");
+  load("protopurity.js");
   
   load("test/purityTests.js");
 
