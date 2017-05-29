@@ -565,7 +565,7 @@ TypeLattice.prototype.abst1 =
       }
       if (value === undefined)
       {
-        return TypeValue._UND;
+        return new Some(value);
       }
       if (value === null)
       {
@@ -750,6 +750,11 @@ TypeLattice.prototype.shrr =
 TypeLattice.prototype.not =
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(!x.prim);
+      }
+      
       return this.BOOL;
     }
 

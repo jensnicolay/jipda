@@ -672,6 +672,12 @@ function jsCesk(cc)
       this.Configurable = Configurable;
     }
   
+    Property.empty =
+        function ()
+        {
+          return new Property(BOT, BOT, BOT, BOT, BOT, BOT);
+        }
+  
     Property.fromValue =
         function (value)
         {
@@ -1061,9 +1067,30 @@ function jsCesk(cc)
     // 9.1.5.1
     function OrdinaryGetOwnProperty(O, P, store, lkont, kont, cont)
     {
-      //assert(IsPropertyKey(P)); TODO
-      
-      return invokeMeta("OrdinaryGetOwnProperty", [O, P], store, lkont, kont, as);
+      // assert(IsPropertyKey(P))
+      let result = [];
+      const as = O.addresses().values();
+      for (const a of as)
+      {
+        const obj = storeLookup(store, a);
+        const X = obj.lookup(P);
+        if (X === BOT)
+        {
+          result = result.concat(cont(L_UNDEFINED));
+        }
+        else
+        {
+          const D = Property.empty();
+          D.Value = X.Value;
+          D.Writable = X.Writable;
+          D.Get = X.Get;
+          D.Set = X.Set;
+          D.Enumerable = X.Enumerable;
+          D.Configurable = X.Configurable;
+          result = result.concat(cont(D));
+        }
+      }
+      return result;
     }
   
     // 9.1.6.1
@@ -1220,7 +1247,7 @@ function jsCesk(cc)
           function (props, store)
           {
             return callInternal(props, "[[OwnPropertyKeys]]", [], store, lkont, kont,
-                function (keys, store)
+                function (keys)
                 {
                   const descriptors = [];
                   let result = [];
@@ -1255,9 +1282,11 @@ function jsCesk(cc)
                     const r = DefinePropertyOrThrow(O, P, desc, loopStore, lkont, kont,
                         function (success, store)
                         {
+                          assertDefinedNotNull(store);
                           loopStore = store;
                         })
                   }
+                  assertDefinedNotNull(loopStore);
                   return cont(O, loopStore);
                 });
           });
@@ -1562,6 +1591,7 @@ function jsCesk(cc)
   function KontState(value, store, lkont, kont)
   {
     assertDefinedNotNull(value);
+    assertDefinedNotNull(store);
     this.value = value;
     this.store = store;
     this.lkont = lkont;
@@ -4650,7 +4680,7 @@ function jsCesk(cc)
     object = object.add(P_PROTOTYPE, Property.fromValue(objectProtoRef));//was objectProtoRef
     global = global.add(l.abst1("Object"), Property.fromValue(l.abstRef(objecta)));
     
-    object = registerPrimitiveFunction(object, "create", objectCreate);
+    //object = registerPrimitiveFunction(object, "create", objectCreate);
     //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
     //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
     store = storeAlloc(store, objecta, object);
@@ -4669,27 +4699,27 @@ function jsCesk(cc)
     }
     
     // // 19.1.2.2
-    function objectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
-    {
-      const [O, Properties] = operandValues;
-      var obj = ObjectCreate(O);
-
-      // step 3
-      if (Properties !== undefined)
-      {
-        return ObjectDefineProperties(obj, Properties, application, store, lkont, kont, objectCreateCont);
-      }
-      return objectCreateCont(obj, store);
-
-      // step 4
-      function objectCreateCont(obj, store)
-      {
-        const objectAddress = a.object(application, benv, store, kont);
-        store = storeAlloc(store, objectAddress, obj);
-        const objRef = l.abstRef(objectAddress);
-        return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
-      }
-    }
+    // function objectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
+    // {
+    //   const [O, Properties] = operandValues;
+    //   var obj = ObjectCreate(O);
+    //
+    //   // step 3
+    //   if (Properties !== undefined)
+    //   {
+    //     return ObjectDefineProperties(obj, Properties, application, store, lkont, kont, objectCreateCont);
+    //   }
+    //   return objectCreateCont(obj, store);
+    //
+    //   // step 4
+    //   function objectCreateCont(obj, store)
+    //   {
+    //     const objectAddress = a.object(application, benv, store, kont);
+    //     store = storeAlloc(store, objectAddress, obj);
+    //     const objRef = l.abstRef(objectAddress);
+    //     return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
+    //   }
+    // }
     
     // // 19.1.2.4
     // function objectDefineProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)

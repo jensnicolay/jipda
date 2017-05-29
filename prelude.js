@@ -9,20 +9,20 @@
   }
   
   // // 19.1.2.2
-  // Object.create =
-  //     function (O, Properties)
-  //     {
-  //       if (!(typeof O === "object" || O === null))
-  //       {
-  //         throw new TypeError("19.1.2.2");
-  //       }
-  //       var obj = $BASE$.ObjectCreate(O);
-  //       if (Properties !== undefined)
-  //       {
-  //         return $BASE$.ObjectDefineProperties(obj, Properties);
-  //       }
-  //       return obj;
-  //     }
+  Object.create =
+      function (O, Properties)
+      {
+        if (!(typeof O === "object" || O === null))
+        {
+          throw new TypeError("19.1.2.2");
+        }
+        var obj = $BASE$.ObjectCreate(O);
+        if (Properties !== undefined)
+        {
+          return $BASE$.ObjectDefineProperties(obj, Properties);
+        }
+        return obj;
+      }
       
   // 19.1.2.3
   Object.defineProperties = $BASE$.ObjectDefineProperties;
