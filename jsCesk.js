@@ -1101,11 +1101,11 @@ function jsCesk(cc)
     {
       let keys = ArraySet.empty();
       const as = O.addresses().values();
-      for (const a in as)
+      for (const a of as)
       {
         const obj = storeLookup(store, a);
         // TODO symbols, ascending numeric, chronological order, etc.
-        keys = keys.addAll(obj.keys());
+        keys = keys.addAll(obj.names());
       }
       return cont(keys.values());
     }
@@ -1142,6 +1142,12 @@ function jsCesk(cc)
           SetValueNoAddresses.from1(function (O, args, store, lkont, kont, cont)
           {
             return OrdinaryGet(O, args[0], args[1], store, lkont, kont, cont)
+          })));
+      // 9.1.11
+      obj = obj.setInternal("[[OwnPropertyKeys]]", Prop.fromValue(
+          SetValueNoAddresses.from1(function (O, args, store, lkont, kont, cont)
+          {
+            return OrdinaryOwnPropertyKeys(O, store, lkont, kont, cont)
           })));
       // TODO: more step 3
       // step 4
@@ -1204,58 +1210,58 @@ function jsCesk(cc)
     }
     
     // 19.1.2.3.1
-    // function ObjectDefineProperties(O, Properties, node, store, lkont, kont, cont)
-    // {
-    //   if (O.isNonRef())
-    //   {
-    //     throw new Error("TODO");
-    //   }
-    //   return ToObject(O, node, store, lkont, kont,
-    //       function (props, store)
-    //       {
-    //         return callInternal(props, "[[OwnPropertyKeys]]", [], store, lkont, kont,
-    //             function (keys, store)
-    //             {
-    //               const descriptors = [];
-    //               let result = [];
-    //               let loopStore = store;
-    //               for (const nextKey of keys)
-    //               {
-    //                 const r = callInternal(props, "[[GetOwnProperty]]", [nextKey], loopStore, lkont, kont, store,
-    //                     function (propDesc, store)
-    //                     {
-    //                       if (propDesc.isNonUndefined() && propDesc.Enumerable.isTrue())
-    //                       {
-    //                         return Get(props, nextKey, store, lkont, kont,
-    //                             function (descObj)
-    //                             {
-    //                               return ToPropertyDescriptor(descObj, store, lkont, kont,
-    //                                   function (desc)
-    //                                   {
-    //                                     descriptors.push([nextKey, desc]);
-    //                                     loopStore = store;
-    //                                     return [];
-    //                                   });
-    //                             });
-    //                       }
-    //                       loopStore = store;
-    //                       return [];
-    //                     });
-    //                 result = result.concat(r);
-    //               }
-    //               for (const pair of descriptors)
-    //               {
-    //                 const [P, desc] = pair;
-    //                 const r = DefinePropertyOrThrow(O, P, desc, loopStore, lkont, kont,
-    //                     function (success, store)
-    //                     {
-    //                       loopStore = store;
-    //                     })
-    //               }
-    //               return cont(O, loopStore);
-    //             });
-    //       });
-    // }
+    function ObjectDefineProperties(O, Properties, node, store, lkont, kont, cont)
+    {
+      if (O.isNonRef())
+      {
+        throw new Error("TODO");
+      }
+      return ToObject(O, node, store, lkont, kont,
+          function (props, store)
+          {
+            return callInternal(props, "[[OwnPropertyKeys]]", [], store, lkont, kont,
+                function (keys, store)
+                {
+                  const descriptors = [];
+                  let result = [];
+                  let loopStore = store;
+                  for (const nextKey of keys)
+                  {
+                    const r = callInternal(props, "[[GetOwnProperty]]", [nextKey], loopStore, lkont, kont, store,
+                        function (propDesc, store)
+                        {
+                          if (propDesc.isNonUndefined() && propDesc.Enumerable.isTrue())
+                          {
+                            return Get(props, nextKey, store, lkont, kont,
+                                function (descObj)
+                                {
+                                  return ToPropertyDescriptor(descObj, store, lkont, kont,
+                                      function (desc)
+                                      {
+                                        descriptors.push([nextKey, desc]);
+                                        loopStore = store;
+                                        return [];
+                                      });
+                                });
+                          }
+                          loopStore = store;
+                          return [];
+                        });
+                    result = result.concat(r);
+                  }
+                  for (const pair of descriptors)
+                  {
+                    const [P, desc] = pair;
+                    const r = DefinePropertyOrThrow(O, P, desc, loopStore, lkont, kont,
+                        function (success, store)
+                        {
+                          loopStore = store;
+                        })
+                  }
+                  return cont(O, loopStore);
+                });
+          });
+    }
     
     
   function createClosure(node, scope)
@@ -4644,7 +4650,7 @@ function jsCesk(cc)
     object = object.add(P_PROTOTYPE, Property.fromValue(objectProtoRef));//was objectProtoRef
     global = global.add(l.abst1("Object"), Property.fromValue(l.abstRef(objecta)));
     
-    //object = registerPrimitiveFunction(object, "create", objectCreate);
+    object = registerPrimitiveFunction(object, "create", objectCreate);
     //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
     //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
     store = storeAlloc(store, objecta, object);
@@ -4663,27 +4669,27 @@ function jsCesk(cc)
     }
     
     // // 19.1.2.2
-    // function objectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
-    // {
-    //   const [O, Properties] = operandValues;
-    //   var obj = ObjectCreate(O);
-    //
-    //   // step 3
-    //   if (Properties !== undefined)
-    //   {
-    //     return ObjectDefineProperties(obj, Properties, application, store, lkont, kont, objectCreateCont);
-    //   }
-    //   return objectCreateCont(obj, store);
-    //
-    //   // step 4
-    //   function objectCreateCont(obj, store)
-    //   {
-    //     const objectAddress = a.object(application, benv, store, kont);
-    //     store = storeAlloc(store, objectAddress, obj);
-    //     const objRef = l.abstRef(objectAddress);
-    //     return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
-    //   }
-    // }
+    function objectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
+    {
+      const [O, Properties] = operandValues;
+      var obj = ObjectCreate(O);
+
+      // step 3
+      if (Properties !== undefined)
+      {
+        return ObjectDefineProperties(obj, Properties, application, store, lkont, kont, objectCreateCont);
+      }
+      return objectCreateCont(obj, store);
+
+      // step 4
+      function objectCreateCont(obj, store)
+      {
+        const objectAddress = a.object(application, benv, store, kont);
+        store = storeAlloc(store, objectAddress, obj);
+        const objRef = l.abstRef(objectAddress);
+        return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
+      }
+    }
     
     // // 19.1.2.4
     // function objectDefineProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
@@ -5078,6 +5084,7 @@ function jsCesk(cc)
     base = registerPrimitiveFunction(base, "ToObject", baseToObject);
     base = registerPrimitiveFunction(base, "ToPropertyDescriptor", baseToPropertyDescriptor);
     base = registerPrimitiveFunction(base, "ToPropertyKey", baseToPropertyKey);
+    base = registerPrimitiveFunction(base, "ObjectDefineProperties", baseObjectDefineProperties);
     
     store = storeAlloc(store, basea, base);
     global = global.add(l.abst1("$BASE$"), Property.fromValue(l.abstRef(basea)));
@@ -5089,14 +5096,24 @@ function jsCesk(cc)
       return DefinePropertyOrThrow(O, key, desc, store, lkont, kont,
           function (success, store)
           {
-            return [{state: new KontState(O, store, lkont, kont), effects: effects}];
+            return [{state: new KontState(O, store, lkont, kont)}];
+          });
+    }
+  
+    function baseObjectDefineProperties(application, operandValues, thisValue, benv, store, lkont, kont, effects)
+    {
+      const [O, Properties] = operandValues;
+      return ObjectDefineProperties(O, Properties, application, store, lkont, kont,
+          function (O, store)
+          {
+            return [{state: new KontState(O, store, lkont, kont)}];
           });
     }
   
     function baseNewPropertyDescriptor(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const property = Property.fromValue(BOT);
-      return [{state: new KontState(property, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(property, store, lkont, kont)}];
     }
   
     function baseToPropertyKey(application, operandValues, thisValue, benv, store, lkont, kont, effects)

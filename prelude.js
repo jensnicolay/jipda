@@ -8,51 +8,53 @@
     }
   }
   
-  // 19.1.2.2
-  Object.create =
-      function (O, Properties)
-      {
-        if (!(typeof O === "object" || O === null))
-        {
-          throw new TypeError("19.1.2.2");
-        }
-        var obj = $BASE$.ObjectCreate(O);
-        print("properties"); print(Properties);
-        if (Properties !== undefined)
-        {
-          return ObjectDefineProperties(obj, Properties);
-        }
-        return obj;
-      }
+  // // 19.1.2.2
+  // Object.create =
+  //     function (O, Properties)
+  //     {
+  //       if (!(typeof O === "object" || O === null))
+  //       {
+  //         throw new TypeError("19.1.2.2");
+  //       }
+  //       var obj = $BASE$.ObjectCreate(O);
+  //       if (Properties !== undefined)
+  //       {
+  //         return $BASE$.ObjectDefineProperties(obj, Properties);
+  //       }
+  //       return obj;
+  //     }
+      
+  // 19.1.2.3
+  Object.defineProperties = $BASE$.ObjectDefineProperties;
   
-  // 19.1.2.3.1
-  function ObjectDefineProperties(O, Properties)
-    {
-      if (typeof O !== "object")
-      {
-        throw new TypeError();
-      }
-      var props = $BASE$.ToObject(Properties);
-      var keys = $BASE$.callInternal(props, "[[OwnPropertyKeys]]");
-      var descriptors = [];
-      for (var nextKey of keys)
-      {
-        var propDesc = $BASE$.callInternal(props, "[[GetOwnProperty]]", [nextKey]);
-        if (propDesc !== undefined && $BASE$.lookupInternal(propDesc, "[[Enumerable]]"))
-        {
-          var descObj = $BASE$.callInternal(props, "[[Get]]", nextKey);
-          var desc = $BASE$.ToPropertyDescriptor(descObj);
-          descriptors.push([nextKey, desc]);
-        }
-      }
-      for (var pair of descriptors)
-      {
-        var P = pair[0];
-        var desc = pair[1];
-        $BASE$.DefinePropertyOrThrow(O, P, desc);
-      }
-      return O;
-    }
+  // // 19.1.2.3.1
+  // function ObjectDefineProperties(O, Properties)
+  //   {
+  //     if (typeof O !== "object")
+  //     {
+  //       throw new TypeError();
+  //     }
+  //     var props = $BASE$.ToObject(Properties);
+  //     var keys = $BASE$.callInternal(props, "[[OwnPropertyKeys]]");
+  //     var descriptors = [];
+  //     for (var nextKey of keys)
+  //     {
+  //       var propDesc = $BASE$.callInternal(props, "[[GetOwnProperty]]", [nextKey]);
+  //       if (propDesc !== undefined && $BASE$.lookupInternal(propDesc, "[[Enumerable]]"))
+  //       {
+  //         var descObj = $BASE$.callInternal(props, "[[Get]]", nextKey);
+  //         var desc = $BASE$.ToPropertyDescriptor(descObj);
+  //         descriptors.push([nextKey, desc]);
+  //       }
+  //     }
+  //     for (var pair of descriptors)
+  //     {
+  //       var P = pair[0];
+  //       var desc = pair[1];
+  //       $BASE$.DefinePropertyOrThrow(O, P, desc);
+  //     }
+  //     return O;
+  //   }
   
   // 19.1.2.4
   Object.defineProperty =
