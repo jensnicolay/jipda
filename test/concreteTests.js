@@ -581,6 +581,13 @@ var suiteConcreteTests =
       run("var o = {}; var oo = Object.create(o); Object.getPrototypeOf(oo) === o;", true);
       run("function S() {}; S.prototype.x = 123; function F() {};  F.prototype = Object.create(S.prototype); var f = new F(); f.x", 123);
     }
+    
+  module.test82e =
+      function ()
+      {
+        run("var o = Object.create(null); Object.getPrototypeOf(o) === null", true);
+        run("var o = {}; Object.getPrototypeOf(o) === Object.prototype", true);
+      }
 
   module.test83 =
     function ()
@@ -800,14 +807,35 @@ var suiteConcreteTests =
         var src = read("test/resources/coen1.js");
         run(src, 20);
       }
-      
-    module.test106 =
-        function ()
-        {
-          run("var o={}; Object.defineProperty(o, 'x', {value:42}); o.x", 42);
-        }
-          
-    module.test107 =
+  
+  module.test106a =
+      function ()
+      {
+        run("var o={}; Object.defineProperty(o, 'x', {value:42}); o.x", 42);
+        run("var o={}; Object.defineProperty(o, 'x', {value:42}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", false);
+        run("var o={}; Object.defineProperty(o, 'x', {value:42}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);
+        run("var o={}; Object.defineProperty(o, 'x', {value:42}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", false);
+      }
+  
+  module.test106b =
+      function ()
+      {
+        run("var o=Object.create({}, {x:{value:42}}); o.x", 42);
+        run("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", false);
+        run("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);
+        run("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", false);
+      }
+  
+  module.test106c =
+      function ()
+      {
+        run("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", true);
+        run("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", true);
+        run("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", true);
+      }
+  
+  
+  module.test107 =
         function ()
         {
           run("TypeError.prototype instanceof Error", true);
@@ -849,6 +877,12 @@ var suiteConcreteTests =
         function ()
         {
           run("var o = {}; o instanceof Object", true);
+        }
+        
+    module.test113 =
+        function ()
+        {
+       //   run()
         }
         
   return module;

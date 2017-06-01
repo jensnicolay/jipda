@@ -293,6 +293,24 @@ TypeValue.prototype.isFalsy =
       return (this.type & TypeValue.FALSY);
     }
 
+TypeValue.prototype.isUndefined =
+    function ()
+    {
+      return (this.type & TypeValue.UND);
+    }
+
+TypeValue.prototype.isNonUndefined =
+    function ()
+    {
+      return (this.type ^ TypeValue.UND) || this.isRef();
+    }
+
+TypeValue.prototype.isNull =
+    function ()
+    {
+      return (this.type & TypeValue.NULL);
+    }
+
 TypeValue.prototype.ToString =
     function ()
     {
@@ -553,7 +571,7 @@ TypeLattice.prototype.abst1 =
       }
       if (value === undefined)
       {
-        return TypeValue._UND;
+        return new Some(value);
       }
       if (value === null)
       {
@@ -682,6 +700,17 @@ TypeLattice.prototype.neq =
     {
       if (x instanceof Some && y instanceof Some)
       {
+        return new Some(x.prim != y.prim);
+      }
+      
+      return this.BOOL;
+    }
+
+TypeLattice.prototype.neqq =
+    function (x, y)
+    {
+      if (x instanceof Some && y instanceof Some)
+      {
         return new Some(x.prim !== y.prim);
       }
       
@@ -727,6 +756,11 @@ TypeLattice.prototype.shrr =
 TypeLattice.prototype.not =
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(!x.prim);
+      }
+      
       return this.BOOL;
     }
 

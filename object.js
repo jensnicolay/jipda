@@ -69,7 +69,7 @@ Record.prototype.set =
     function (name, value)
     {
       const newMap = new Map(this.map);
-      newMap.set(name, value);
+      newMap.set(name, Prop.fromValue(value));
       return new Record(newMap);
     }
 
@@ -169,9 +169,9 @@ Obj.prototype.add =
     function (name, value)
     {
       assert(name);
-      assertTrue(value.constructor.name === "Property");
+      const prop = Prop.fromValue(value);
       const result = new Obj();
-      result.frame = strongUpdateFrame(this.frame, name, value);
+      result.frame = strongUpdateFrame(this.frame, name, prop);
       result.internals = this.internals;
       return result;
     }

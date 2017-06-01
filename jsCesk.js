@@ -283,6 +283,7 @@ function jsCesk(cc)
       {
         ceskState = initialize(Store.empty());
       }
+      ceskState = initializeTraits(ceskState);
       const store = ceskState.store;
       realm = ceskState.realm; // TODO setting global realm
     
@@ -470,13 +471,7 @@ function jsCesk(cc)
       }
       return addresses;
     }
-
-//  function storeWeakAlloc(store, addr, value)
-//  {
-//    assert(addr>>>0===addr);
-//    return store.weakAllocAval(addr, value);
-//  }
-  
+    
     function storeAlloc(store, addr, value)
     {
       //assert(addr>>>0===addr);
@@ -500,33 +495,7 @@ function jsCesk(cc)
       //assert(addr>>>0===addr);
       return store.lookupAval(addr);
     }
-
-
-//  function allocObjectEffect(a)
-//  {
-//    return new Effect(Effect.Operations.ALLOC, Effect.Targets.OBJECT, a);
-//  }
-  
-    function readObjectEffect(a, name)
-    {
-      return new Effect(Effect.Operations.READ, a, name);
-    }
-  
-    function readVarEffect(a, vr)
-    {
-      return new Effect(Effect.Operations.READ, a, vr);
-    }
-  
-    function writeObjectEffect(a, name)
-    {
-      return new Effect(Effect.Operations.WRITE, a, name);
-    }
-  
-    function writeVarEffect(a, vr)
-    {
-      return new Effect(Effect.Operations.WRITE, a, vr);
-    }
-  
+    
     function hasInternalProperty(obj, name)
     {
       let result = BOT;
@@ -588,11 +557,31 @@ function jsCesk(cc)
     function createArray()
     {
       var obj = new Obj();
-      obj = obj.setInternal("[[Prototype]]", Prop.fromValue(realm.Intrinsics.get("%ArrayPrototype%")));
+      obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ArrayPrototype%"));
       // TODO temp
-      obj = obj.setInternal("isArray", Prop.fromValue(L_TRUE));
+      obj = obj.setInternal("isArray", L_TRUE);
       return obj;
     }
+    
+    
+    /// semantic helpers
+    function assertIsObject(O)
+    {
+      assert(O.isRef());
+    }
+    
+    function assertIsPropertyKey(P)
+    {
+      const result = IsPropertyKey(P);
+      assert(result.isTrue());
+    }
+    
+    function throwTypeError(msg, store, lkont, kont)
+    {
+      return {state: new ThrowState(l.abst1(msg), store, lkont, kont)};
+    }
+    ///
+    
   
     // 6
     function Type(x)
@@ -671,10 +660,16 @@ function jsCesk(cc)
       this.Configurable = Configurable;
     }
   
+    Property.empty =
+        function ()
+        {
+          return new Property(BOT, BOT, BOT, BOT, BOT, BOT);
+        }
+  
     Property.fromValue =
         function (value)
         {
-          return new Property(Prop.fromValue(value), BOT, BOT, BOT, BOT, BOT);
+          return new Property(value, BOT, BOT, BOT, BOT, BOT);
         }
   
     Property.prototype.equals =
@@ -753,6 +748,122 @@ function jsCesk(cc)
     {
       return Completion(Completion.normal, value, Completion.empty);
     }
+    
+    // 6.2.5.1
+    function IsAccessorDescriptor(Desc)
+    {
+      if (Desc === undefined)
+      {
+        return false;
+      }
+      if ((Desc.Get === BOT) && (Desc.Set === BOT))
+      {
+        return false;
+      }
+      return true;
+    }
+    
+    // 6.2.5.2
+    function IsDataDescriptor(Desc)
+    {
+      if (Desc === undefined)
+      {
+        return false;
+      }
+      if ((Desc.Value === BOT) && (Desc.Writable === BOT))
+      {
+        return false;
+      }
+      return true;
+    }
+    
+    // 6.2.5.3
+    function IsGenericDescriptor(Desc)
+    {
+      if (Desc === undefined)
+      {
+        return false;
+      }
+      if (!IsAccessorDescriptor(Desc) && !IsDataDescriptor(Desc))
+      {
+        return true;
+      }
+      return false;
+    }
+    
+    // 6.2.5.4
+    // moving this kind of function to prelude requires turning Property into (regular?) obj with internal props
+    function FromPropertyDescriptor(Desc, node, store, lkont, kont, cont)
+    {
+      let result = [];
+      if (Desc === undefined)
+      {
+        result = result.concat(cont(L_UNDEFINED, store));
+      }
+      else
+      {
+        const obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
+        const objAddr = a.object(node);
+        const objRef = l.abstRef(objAddr);
+        store = storeAlloc(store, objAddr, obj);
+        if (Desc.Value !== BOT)
+        {
+          CreateDataProperty(objRef, l.abst1("value"), Desc.Value, store, lkont, kont,
+              function (success, updatedStore)
+              {
+                store = updatedStore;
+                assert(!success.isFalse());
+              })
+        }
+        if (Desc.Writable !== BOT)
+        {
+          CreateDataProperty(objRef, l.abst1("writable"), Desc.Writable, store, lkont, kont,
+              function (success, updatedStore)
+              {
+                store = updatedStore;
+                assert(!success.isFalse());
+              })
+        }
+        if (Desc.Get !== BOT)
+        {
+          CreateDataProperty(objRef, l.abst1("get"), Desc.Get, store, lkont, kont,
+              function (success, updatedStore)
+              {
+                store = updatedStore;
+                assert(!success.isFalse());
+              })
+        }
+        if (Desc.Set !== BOT)
+        {
+          CreateDataProperty(objRef, l.abst1("set"), Desc.Set, store, lkont, kont,
+              function (success, updatedStore)
+              {
+                store = updatedStore;
+                assert(!success.isFalse());
+              })
+        }
+        if (Desc.Enumerable !== BOT)
+        {
+          CreateDataProperty(objRef, l.abst1("enumerable"), Desc.Enumerable, store, lkont, kont,
+              function (success, updatedStore)
+              {
+                store = updatedStore;
+                assert(!success.isFalse());
+              })
+        }
+        if (Desc.Configurable !== BOT)
+        {
+          CreateDataProperty(objRef, l.abst1("configurable"), Desc.Configurable, store, lkont, kont,
+              function (success, updatedStore)
+              {
+                store = updatedStore;
+                assert(!success.isFalse());
+              })
+        }
+        result = result.concat(cont(objRef, store));
+      }
+      return result;
+    }
   
     // 6.2.5.5
     function ToPropertyDescriptor(Obj, store, lkont, kont, cont)
@@ -760,25 +871,103 @@ function jsCesk(cc)
       let result = [];
       if (Obj.isNonRef())
       {
-        result.push({state: new ThrowState(l.abst1("TODO: typeError"), store, lkont, kont), effects: []});
+        result.push(throwTypeError("6.2.5.5"));
       }
       if (Obj.isRef())
       {
         let desc = new Property(BOT, BOT, BOT, BOT, BOT, BOT);
-        result = result.concat(HasProperty(Obj, l.abst1("value"), store, lkont, kont,
-            function (value, store)
+        result = result.concat(HasProperty(Obj, l.abst1("enumerable"), store, lkont, kont,
+            function (hasValue, updatedStore)
             {
-              if (value.isTrue())
+              store = updatedStore;
+              if (hasValue.isTrue())
+              {
+                return Get(Obj, l.abst1("enumerable"), store, lkont, kont, // TODO ToBoolean
+                    function (value)
+                    {
+                      desc.Enumerable = desc.Enumerable.join(value);
+                      return [];
+                    });
+              }
+              return [];
+            }));
+        result = result.concat(HasProperty(Obj, l.abst1("configurable"), store, lkont, kont,
+            function (hasValue, updatedStore)
+            {
+              store = updatedStore;
+              if (hasValue.isTrue())
+              {
+                return Get(Obj, l.abst1("configurable"), store, lkont, kont, // TODO ToBoolean
+                    function (value)
+                    {
+                      desc.Configurable = desc.Configurable.join(value);
+                      return [];
+                    });
+              }
+              return [];
+            }));
+        result = result.concat(HasProperty(Obj, l.abst1("value"), store, lkont, kont,
+            function (hasValue, updatedStore)
+            {
+              store = updatedStore;
+              if (hasValue.isTrue())
               {
                 return Get(Obj, l.abst1("value"), store, lkont, kont,
                     function (value)
                     {
-                      desc = desc.join(Property.fromValue(value));
-                      return cont(desc);
+                      desc.Value = desc.Value.join(value);
+                      return [];
                     });
               }
-              return cont(desc);
+              return [];
             }));
+        result = result.concat(HasProperty(Obj, l.abst1("writable"), store, lkont, kont,
+            function (hasValue, updatedStore)
+            {
+              store = updatedStore;
+              if (hasValue.isTrue())
+              {
+                return Get(Obj, l.abst1("writable"), store, lkont, kont, // TODO ToBoolean
+                    function (value)
+                    {
+                      desc.Writable = desc.Writable.join(value);
+                      return [];
+                    });
+              }
+              return [];
+            }));
+        result = result.concat(HasProperty(Obj, l.abst1("get"), store, lkont, kont,
+            function (hasValue, updatedStore)
+            {
+              store = updatedStore;
+              if (hasValue.isTrue())
+              {
+                return Get(Obj, l.abst1("get"), store, lkont, kont,
+                    function (value)
+                    {
+                      desc.Get = desc.Get.join(value); // TODO IsCallable, not undefined
+                      return [];
+                    });
+              }
+              return [];
+            }));
+        result = result.concat(HasProperty(Obj, l.abst1("set"), store, lkont, kont,
+            function (hasValue, updatedStore)
+            {
+              store = updatedStore;
+              if (hasValue.isTrue())
+              {
+                return Get(Obj, l.abst1("set"), store, lkont, kont,
+                    function (value)
+                    {
+                      desc.Set = desc.Set.join(value); // TODO IsCallable, not undefined
+                      return [];
+                    });
+              }
+              return [];
+            }));
+        // TODO final checks on presence of Get/Set and Value/Writable
+        result = result.concat(cont(desc, store));
       }
       return result;
     }
@@ -796,11 +985,11 @@ function jsCesk(cc)
       let result = [];
       if (argument.isUndefined())
       {
-        throw new Error("TODO");
+        result.push({state: new ThrowState(l.abst1("7.1.13 - Undefined"), store, lkont, kont)});
       }
       if (argument.isNull())
       {
-        throw new Error("TODO");
+        result.push({state: new ThrowState(l.abst1("7.1.13 - Null"), store, lkont, kont)});
       }
       const barg = argument.projectBoolean();
       if (barg !== BOT)
@@ -816,7 +1005,7 @@ function jsCesk(cc)
       if (sarg !== BOT)
       {
         let obj = ObjectCreate(realm.Intrinsics.get("%StringPrototype%"));
-        obj = obj.setInternal("[[StringData]]", Prop.fromValue(sarg));
+        obj = obj.setInternal("[[StringData]]", sarg);
         const addr = a.string(node);
         store = storeAlloc(store, addr, obj);
         const ref = l.abstRef(addr);
@@ -831,10 +1020,10 @@ function jsCesk(cc)
     }
   
     // 7.1.14
-    function ToPropertyKey(argument, cont)
+    function ToPropertyKey(argument, store, lkont, kont, cont)
     {
       // TODO
-      return cont(argument);
+      return cont(argument, store);
     }
   
     // 7.2.3
@@ -853,7 +1042,23 @@ function jsCesk(cc)
     }
   
     // 7.2.7
-//  function IsPropertyKey(argument)
+    function IsPropertyKey(argument)
+    {
+      let result = BOT;
+      const projString = argument.projectString();
+      //const projSymbol = argument.projectSymbol(); TODO
+      if (projString !== BOT)
+      {
+        result = result.join(L_TRUE);
+      }
+      // if (projSymb...
+      if (!projString.equals(argument)) // .join(projSymbol).equals(... TODO
+      {
+        result = result.join(L_FALSE);
+      }
+      return result;
+    }
+    
   
     // 7.2.9
     function SameValue(x, y)
@@ -940,6 +1145,36 @@ function jsCesk(cc)
     {
       return callInternal(O, "[[Get]]", [P, O], store, lkont, kont, cont);
     }
+    
+    // 7.3.4
+    function CreateDataProperty(O, P, V, store, lkont, kont, cont)
+    {
+      assertIsObject(O);
+      assertIsPropertyKey(P);
+      const newDesc = new Property(V, BOT, BOT, L_TRUE, L_TRUE, L_TRUE);
+      return callInternal(O, "[[DefineOwnProperty]]", [P, newDesc], store, lkont, kont, cont);
+    }
+    
+    // 7.3.6
+    function CreateDataPropertyOrThrow(O, P, V, store, lkont, kont, cont)
+    {
+      assertIsObject(O);
+      assertIsPropertyKey(P);
+      return CreateDataProperty(O, P, V, store, lkont, kont,
+          function (success, store)
+          {
+            let result = [];
+            if (success.isFalse())
+            {
+              result.push(throwTypeError("7.3.6"));
+            }
+            if (success.isTrue())
+            {
+              result = result.concat(cont(success, store));
+            }
+            return result;
+          })
+    }
   
     // 7.3.7
     function DefinePropertyOrThrow(O, P, desc, store, lkont, kont, cont)
@@ -973,14 +1208,14 @@ function jsCesk(cc)
       const ic = IsCallable(C, store);
       if (ic.isFalse())
       {
-        result = result.concat(cont(L_FALSE));
+        result = result.concat(cont(L_FALSE, store), store);
       }
       if (ic.isTrue())
       {
         // [[BoundTargetFunction]] // TODO
         if (O.isNonRef())
         {
-          result = result.concat(cont(L_FALSE));
+          result = result.concat(cont(L_FALSE, store));
         }
         if (O.isRef())
         {
@@ -1000,14 +1235,14 @@ function jsCesk(cc)
                        let result = [];
                        if (O.isNull())
                        {
-                         result = result.concat(cont(L_FALSE));
+                         result = result.concat(cont(L_FALSE, store));
                        }
                        if (O.isNonNull())
                        {
                          const sv = SameValue(P, O);
                          if (sv.isTrue())
                          {
-                           result = result.concat(cont(L_TRUE));
+                           result = result.concat(cont(L_TRUE, store));
                          }
                          if (sv.isFalse())
                          {
@@ -1051,38 +1286,263 @@ function jsCesk(cc)
     // }
   
     // 9.1.1.1
-    function OrdinaryGetPrototypeOf(O, store, cont)
+    function OrdinaryGetPrototypeOf(O, store, lkont, kont, cont)
     {
       const P = getInternal(O, "[[Prototype]]", store);
       return cont(P, store);
     }
   
     // 9.1.5.1
-    function OrdinaryGetOwnProperty(O, P, store, lkont, kont, as)
+    function OrdinaryGetOwnProperty(O, P, store, lkont, kont, cont)
     {
-      return invokeMeta("OrdinaryGetOwnProperty", [O, P], store, lkont, kont, as);
+      assertIsPropertyKey(P);
+      let result = [];
+      const as = O.addresses().values();
+      for (const a of as)
+      {
+        const obj = storeLookup(store, a);
+        const X = obj.lookup(P);
+        if (X === BOT || !X.must)
+        {
+          result = result.concat(cont(undefined, store));
+        }
+        if (X !== BOT && X.must)
+        {
+          const D = Property.empty();
+          D.Value = X.value.Value;
+          D.Writable = X.value.Writable;
+          D.Get = X.value.Get;
+          D.Set = X.value.Set;
+          D.Enumerable = X.value.Enumerable;
+          D.Configurable = X.value.Configurable;
+          result = result.concat(cont(D, store));
+        }
+      }
+      return result;
     }
   
     // 9.1.6.1
     function OrdinaryDefineOwnProperty(O, P, Desc, store, lkont, kont, cont)
     {
-      // TODO
-      const as = O.addresses().values();
-      while (as.length > 0)
-      {
-        const a = as.pop();
-        let obj = storeLookup(store, a);
-        obj = obj.add(P, Desc);
-        store = storeUpdate(store, a, obj);
-      }
-      return cont(L_TRUE, store);
+      return callInternal(O, "[[GetOwnProperty]]", [P], store, lkont, kont,
+          function (current, store)
+          {
+            const extensible = lookupInternal(O, "[[Extensible]]", store);
+            return ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current, store, lkont, kont, cont);
+          });
     }
+    
+    // 9.1.6.3
+    function ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current, store, lkont, kont, cont)
+    {
+      // step 1
+      if (O.isNonUndefined())
+      {
+        assertIsPropertyKey(P);
+      }
+      let result = BOT;
+      // step 2
+      if (current === undefined)
+      {
+        if (extensible.isFalse())
+        {
+          result = result.join(L_FALSE);
+        }
+        if (extensible.isTrue())
+        {
+          if (IsGenericDescriptor(Desc) || IsDataDescriptor(Desc))
+          {
+            if (O.isNonUndefined())
+            {
+              const D = new Property(Desc.Value === BOT ? L_UNDEFINED : Desc.Value, BOT, BOT, Desc.Writable === BOT ? L_FALSE : Desc.Writable, Desc.Enumerable === BOT ? L_FALSE : Desc.Enumerable, Desc.Configurable === BOT ? L_FALSE : Desc.Configurable);
+              const as = O.addresses().values();
+              for (const a of as)
+              {
+                let obj = storeLookup(store, a);
+                obj = obj.add(P, D);
+                store = storeUpdate(store, a, obj);
+              }
+            }
+          }
+          if (IsAccessorDescriptor(Desc))
+          {
+            if (O.isNonUndefined())
+            {
+              const D = new Property(BOT, Desc.Get === BOT ? L_UNDEFINED : Desc.Get, Desc.Set === BOT ? L_UNDEFINED : Desc.Set, Desc.Writable === BOT ? L_FALSE : Desc.Writable, Desc.Enumerable === BOT ? L_FALSE : Desc.Enumerable, Desc.Configurable === BOT ? L_FALSE : Desc.Configurable);
+              const as = O.addresses().values();
+              for (const a of as)
+              {
+                let obj = storeLookup(store, a);
+                obj = obj.add(P, D);
+                store = storeUpdate(store, a, obj);
+              }
+            }
+          }
+          result = result.join(L_TRUE);
+        }
+      }
+      else
+      {
+        // step 3
+        if (Desc.Value === Desc.Get === Desc.Set === Desc.Writable === Desc.Enumerable === Desc.Configurable === BOT)
+        {
+          result = result.join(L_TRUE);
+        }
+        else
+        {
+          // step 4
+          if (current.Configurable.isFalse())
+          {
+            if (Desc.Configurable !== BOT && Desc.Configurable.isTrue())
+            {
+              result = result.join(L_FALSE);
+            }
+            if (Desc.Enumerable !== BOT && l.neqq(current.Enumerable, Desc.Enumerable).isTrue())
+            {
+              result = result.join(L_FALSE);
+            }
+          }
+          // step 5
+          if (IsGenericDescriptor(Desc))
+          {
+            result = result.join(L_TRUE);
+          }
+          // step 6
+          else if (IsDataDescriptor(current) !== IsDataDescriptor(Desc))
+          {
+            if (current.Configurable.isFalse())
+            {
+              result = result.join(L_FALSE);
+            }
+            if (current.Configurable.isTrue())
+            {
+              if (IsDataDescriptor(current))
+              {
+                if (O.isNonUndefined())
+                {
+                  const D = new Property(L_UNDEFINED, current.Get, current.Set, L_FALSE, current.Enumerable, current.Configurable);
+                  const as = O.addresses().values();
+                  for (const a of as)
+                  {
+                    let obj = storeLookup(store, a);
+                    obj = obj.add(P, D);
+                    store = storeUpdate(store, a, obj);
+                  }
+                }
+              }
+              else
+              {
+                if (O.isNonUndefined())
+                {
+                  const D = new Property(current.Value, L_UNDEFINED, L_UNDEFINED, L_FALSE, current.Enumerable, current.Configurable);
+                  const as = O.addresses().values();
+                  for (const a of as)
+                  {
+                    let obj = storeLookup(store, a);
+                    obj = obj.add(P, D);
+                    store = storeUpdate(store, a, obj);
+                  }
+                }
+              }
+              result = result.join(L_TRUE);
+            }
+          }
+          // step 7
+          else if (IsDataDescriptor(current) && IsDataDescriptor(Desc))
+          {
+            if (current.Configurable.isFalse())
+            {
+              if (current.Writable.isFalse())
+              {
+                if (Desc.Writable !== BOT && Desc.Writable.isTrue())
+                {
+                  result = result.join(L_FALSE);
+                }
+                if (Desc.Writable === BOT || Desc.Writable.isFalse())
+                {
+                  if (Desc.Value !== BOT && SameValue(Desc.Value, current.Value).isFalse())
+                  {
+                    result = result.join(L_FALSE);
+                  }
+                  if (Desc.Value === BOT || SameValue(Desc.Value, current.Value).isTrue())
+                  {
+                    result = result.join(L_TRUE);
+                  }
+                }
+              }
+            }
+          }
+          // step 8
+          else if (IsAccessorDescriptor(current) && IsAccessorDescriptor(Desc))
+          {
+            if (current.Configurable.isFalse())
+            {
+              if (Desc.Set !== BOT && SameValue(Desc.Set, current.Set).isFalse())
+              {
+                result = result.join(L_FALSE);
+              }
+              if (Desc.Get !== BOT && SameValue(Desc.Get, current.Get).isFalse())
+              {
+                result = result.join(L_FALSE);
+              }
+              if (Desc.Set === BOT || Desc.Get === BOT || SameValue(Desc.Set, current.Set).isTrue() || SameValue(Desc.Get, current.Get).isTrue())
+              {
+                result = result.join(L_TRUE);
+              }
+            }
+          }
+          else
+          {
+            // step 9
+            if (O.isNonUndefined())
+            {
+              const D = new Property(Desc.Value === BOT ? L_UNDEFINED : Desc.Value, Desc.Get === BOT ? L_UNDEFINED : Desc.Get, Desc.Set === BOT ? L_UNDEFINED : Desc.Set,
+                  Desc.Writable === BOT ? L_FALSE : Desc.Writable, Desc.Enumerable === BOT ? L_FALSE : Desc.Enumerable, Desc.Configurable === BOT ? L_FALSE : Desc.Configurable);
+              const as = O.addresses().values();
+              for (const a of as)
+              {
+                let obj = storeLookup(store, a);
+                obj = obj.add(P, D);
+                store = storeUpdate(store, a, obj);
+              }
+            }
+            result = result.join(L_TRUE);
+          }
+        }
+      }
+      return cont(result, store);
+    }
+    
   
     // 9.1.7.1
     function OrdinaryHasProperty(O, P, store, lkont, kont, cont)
     {
-      const value = doProtoLookup(P, O.addresses(), store, []);
-      return cont(l.abst1(value !== BOT), store);
+      assertIsPropertyKey(P);
+      return callInternal(O, "[[GetOwnProperty]]", [P], store, lkont, kont,
+          function (hasOwn, store)
+          {
+            if (hasOwn !== undefined)
+            {
+              return cont(L_TRUE, store);
+            }
+            else
+            {
+              return callInternal(O, "[[GetPrototypeOf]]", [], store, lkont, kont,
+                  function (parent, store)
+                  {
+                    let result = [];
+                    if (parent.isNonNull())
+                    {
+                      result = result.concat(callInternal(parent, "[[HasProperty]]", [P], store, lkont, kont, cont));
+                    }
+                    if (parent.isNull())
+                    {
+                      result = result.concat(cont(L_FALSE, store));
+                    }
+                    return result;
+                  });
+            }
+          });
     }
   
     // 9.1.8.1
@@ -1090,7 +1550,28 @@ function jsCesk(cc)
     {
       //return invokeMeta("OrdinaryGet", [O, P, Receiver], store, lkont, kont, as);
       const value = doProtoLookup(P, O.addresses(), store, []);
-      return cont(value);
+      return cont(value, store);
+    }
+    
+    // 9.1.9.1
+    function OrdinarySet(O, P, V, Receiver)
+    {
+      assertIsPropertyKey(P);
+      // TODO
+    }
+    
+    // 9.1.11.1
+    function OrdinaryOwnPropertyKeys(O, store, lkont, kont, cont)
+    {
+      let keys = ArraySet.empty();
+      const as = O.addresses().values();
+      for (const a of as)
+      {
+        const obj = storeLookup(store, a);
+        // TODO symbols, ascending numeric, chronological order, etc.
+        keys = keys.addAll(obj.names());
+      }
+      return cont(keys.values(), store);
     }
   
     // 9.1.12
@@ -1105,31 +1586,21 @@ function jsCesk(cc)
       internalSlotsList.forEach((slot) => obj = obj.setInternal(slot, BOT));
       // step 3
       // 9.1.1
-      obj = obj.setInternal("[[GetPrototypeOf]]", Prop.fromValue(
-          SetValueNoAddresses.from1(function (O, args, store, lkont, kont, cont)
-          {
-            return OrdinaryGetPrototypeOf(O, store, cont)
-          })));
+      obj = obj.setInternal("[[GetPrototypeOf]]", SetValueNoAddresses.from1(OrdinaryGetPrototypeOf));
       // 9.1.5
-      obj = obj.setInternal("[[GetOwnProperty]]", Prop.fromValue(SetValueNoAddresses.from1(OrdinaryGetOwnProperty)));
+      obj = obj.setInternal("[[GetOwnProperty]]", SetValueNoAddresses.from1(OrdinaryGetOwnProperty));
       // 9.1.6
-      obj = obj.setInternal("[[DefineOwnProperty]]", Prop.fromValue(
-          SetValueNoAddresses.from1(function (O, args, store, lkont, kont, cont)
-          {
-            return OrdinaryDefineOwnProperty(O, args[0], args[1], store, lkont, kont, cont)
-          })));
+      obj = obj.setInternal("[[DefineOwnProperty]]", SetValueNoAddresses.from1(OrdinaryDefineOwnProperty));
       // 9.1.7
-      obj = obj.setInternal("[[HasProperty]]", Prop.fromValue(SetValueNoAddresses.from1(OrdinaryHasProperty)));
+      obj = obj.setInternal("[[HasProperty]]", SetValueNoAddresses.from1(OrdinaryHasProperty));
       // 9.1.8
-      obj = obj.setInternal("[[Get]]", Prop.fromValue(
-          SetValueNoAddresses.from1(function (O, args, store, lkont, kont, cont)
-          {
-            return OrdinaryGet(O, args[0], args[1], store, lkont, kont, cont)
-          })));
+      obj = obj.setInternal("[[Get]]", SetValueNoAddresses.from1(OrdinaryGet));
+      // 9.1.11
+      obj = obj.setInternal("[[OwnPropertyKeys]]", SetValueNoAddresses.from1(OrdinaryOwnPropertyKeys));
       // TODO: more step 3
       // step 4
-      obj = obj.setInternal("[[Prototype]]", Prop.fromValue(proto));
-      obj = obj.setInternal("[[Extensible]]", Prop.fromValue(L_TRUE));
+      obj = obj.setInternal("[[Prototype]]", proto);
+      obj = obj.setInternal("[[Extensible]]", L_TRUE);
       return obj;
     }
   
@@ -1159,8 +1630,8 @@ function jsCesk(cc)
     function StringCreate(lprim)
     {
       let obj = new Obj();
-      obj = obj.setInternal("[[Prototype]]", Prop.fromValue(realm.Intrinsics.get("%StringPrototype%")));
-      obj = obj.setInternal("[[StringData]]", Prop.fromValue(lprim));
+      obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%StringPrototype%"));
+      obj = obj.setInternal("[[StringData]]", lprim);
       obj = obj.add(P_LENGTH, Property.fromValue(lprim.stringLength()));
       return obj;
     }
@@ -1185,7 +1656,64 @@ function jsCesk(cc)
       }
       return result;
     }
-  
+    
+    // 19.1.2.3.1
+    function ObjectDefineProperties(O, Properties, node, store, lkont, kont, cont)
+    {
+      if (O.isNonRef())
+      {
+        throw new Error("TODO");
+      }
+      return ToObject(Properties, node, store, lkont, kont,
+          function (props, store)
+          {
+            return callInternal(props, "[[OwnPropertyKeys]]", [], store, lkont, kont,
+                function (keys)
+                {
+                  const descriptors = [];
+                  let result = [];
+                  let loopStore = store;
+                  for (const nextKey of keys)
+                  {
+                    const r = callInternal(props, "[[GetOwnProperty]]", [nextKey], loopStore, lkont, kont,
+                        function (propDesc, store)
+                        {
+                          if (propDesc !== undefined && propDesc.Enumerable.isTrue())
+                          {
+                            return Get(props, nextKey, store, lkont, kont,
+                                function (descObj)
+                                {
+                                  return ToPropertyDescriptor(descObj, store, lkont, kont,
+                                      function (desc)
+                                      {
+                                        descriptors.push([nextKey, desc]);
+                                        loopStore = store;
+                                        return [];
+                                      });
+                                });
+                          }
+                          loopStore = store;
+                          return [];
+                        });
+                    result = result.concat(r);
+                  }
+                  for (const pair of descriptors)
+                  {
+                    const [P, desc] = pair;
+                    const r = DefinePropertyOrThrow(O, P, desc, loopStore, lkont, kont,
+                        function (success, store)
+                        {
+                          assertDefinedNotNull(store);
+                          loopStore = store;
+                        })
+                  }
+                  assertDefinedNotNull(loopStore);
+                  return cont(O, loopStore);
+                });
+          });
+    }
+    
+    
   function createClosure(node, scope)
   {
     var obj = createFunction(new ObjClosureCall(node, scope));
@@ -1201,7 +1729,7 @@ function jsCesk(cc)
   function createFunction(Call)
   {
     var obj = ObjectCreate(realm.Intrinsics.get("%FunctionPrototype%"));
-    obj = obj.setInternal("[[Call]]", Prop.fromValue(SetValue.from1(Call)));
+    obj = obj.setInternal("[[Call]]", SetValue.from1(Call));
     return obj;
   }
   
@@ -1329,7 +1857,7 @@ function jsCesk(cc)
     var nodes = bodyNode.body;
     if (nodes.length === 0)
     {
-      return [{state: new KontState(L_UNDEFINED, store, [], ctx), effects: effects}];
+      return [{state: new KontState(L_UNDEFINED, store, [], ctx)}];
     }
     
     var extendedBenv = scope.extend();
@@ -1371,7 +1899,7 @@ function jsCesk(cc)
             }
           });
     }
-    return [{state: new EvalState(bodyNode, extendedBenv, store, [], ctx), effects: effects}];
+    return [{state: new EvalState(bodyNode, extendedBenv, store, [], ctx)}];
   }
   
   
@@ -1484,6 +2012,7 @@ function jsCesk(cc)
   function KontState(value, store, lkont, kont)
   {
     assertDefinedNotNull(value);
+    assertDefinedNotNull(store);
     this.value = value;
     this.store = store;
     this.lkont = lkont;
@@ -2041,7 +2570,7 @@ function jsCesk(cc)
         var id = this.node.id;
         var benv = this.benv;
         store = doScopeSet(id, value, benv, store, effects);
-        return [{state: new KontState(L_UNDEFINED, store, lkont, kont), effects: effects}];
+        return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
       }
   
   function LeftKont(node, benv)
@@ -2493,7 +3022,7 @@ function jsCesk(cc)
         //   newValue = newValue.abst();
         // }
         store = doScopeSet(node.left, newValue, benv, store, effects);
-        return [{state: new KontState(newValue, store, lkont, kont), effects: effects}];
+        return [{state: new KontState(newValue, store, lkont, kont)}];
       }
   
   function OperatorKont(node, benv)
@@ -3271,17 +3800,30 @@ function jsCesk(cc)
         
         if (properties.length === i)
         {
-          var effects = [];
-          var obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
-          var objectAddress = a.object(node, benv, store, lkont, kont);
+          const obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
+          const objectAddress = a.object(node, benv, store, lkont, kont);
+          store = storeAlloc(store, objectAddress, obj);
+          const object = l.abstRef(objectAddress);
+          let result = [];
+          let overallSuccess = true;
           for (var j = 0; j < i; j++)
           {
-            var propertyName = l.abst1(properties[j].key.name);
-            obj = obj.add(propertyName, Property.fromValue(initValues[j]));
+            const propName = l.abst1(properties[j].key.name);
+            const propValue = initValues[j];
+            result = result.concat(CreateDataPropertyOrThrow(object, propName, propValue, store, lkont, kont,
+                function (success, updatedStore)
+                {
+                  store = updatedStore;
+                  overallSuccess = overallSuccess && success.isTrue();
+                  return [];
+                }));
+            //obj = obj.add(propertyName, Property.fromValue(initValues[j]));
           }
-          store = storeAlloc(store, objectAddress, obj);
-//        effects.push(allocObjectEffect(objectAddress));
-          return [{state: new KontState(l.abstRef(objectAddress), store, lkont, kont), effects: effects}];
+          if (overallSuccess)
+          {
+            result.push({state: new KontState(object, store, lkont, kont)});
+          }
+          return result;
         }
         var frame = new ObjectKont(node, i + 1, benv, initValues);
         return [{state: new EvalState(properties[i].value, benv, store, [frame].concat(lkont), kont)}];
@@ -3415,7 +3957,7 @@ function jsCesk(cc)
               }
               var effects = [];
               var value = doProtoLookup(l.abst1(property.name), objectRef.addresses(), store, effects);
-              return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+              return [{state: new KontState(value, store, lkont, kont)}];
             });
       }
   
@@ -3471,7 +4013,7 @@ function jsCesk(cc)
         var nameValue = propertyValue.ToString();
         var effects = [];
         var value = doProtoLookup(nameValue, objectRef.addresses(), store, effects);
-        return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+        return [{state: new KontState(value, store, lkont, kont)}];
       }
   
   
@@ -3545,7 +4087,7 @@ function jsCesk(cc)
       return applyProc(application, operatorValue, [], thisValue, null, store, lkont, kont, effects);
     }
     var frame = new OperandsKont(application, 1, benv, operatorValue, [], thisValue);
-    return [{state: new EvalState(operands[0], benv, store, [frame].concat(lkont), kont), effects: effects}];
+    return [{state: new EvalState(operands[0], benv, store, [frame].concat(lkont), kont)}];
   }
   
   function AssignMemberKont(node, benv)
@@ -3681,7 +4223,7 @@ function jsCesk(cc)
         }
         store = doProtoSet(name, updatedValue, objectRef, store, effects);
         var resultingValue = node.prefix ? updatedValue : value;
-        return [{state: new KontState(resultingValue, store, lkont, kont), effects: effects}];
+        return [{state: new KontState(resultingValue, store, lkont, kont)}];
       }
   
   function AssignMemberPropertyKont(node, benv, objectRef)
@@ -3825,7 +4367,7 @@ function jsCesk(cc)
           return [];
         }
         store = doProtoSet(nameValue, newValue, objectRef, store, effects);
-        return [{state: new KontState(newValue, store, lkont, kont), effects: effects}];
+        return [{state: new KontState(newValue, store, lkont, kont)}];
       }
   
   
@@ -3843,7 +4385,6 @@ function jsCesk(cc)
       }
       return value;
     }
-    effects.push(new readVarEffect(a, nameNode));
     return storeLookup(store, a);
   }
   
@@ -3855,14 +4396,14 @@ function jsCesk(cc)
     {
       var a = as.pop();
       var obj = storeLookup(store, a);
-      effects.push(readObjectEffect(a, name));
-      var prop = obj.lookup(name);
+      const prop = obj.lookup(name);
       let found = false;
       if (prop !== BOT)
       {
-        var Value = prop.Value;
-        found = Value.must;
-        result = result.join(Value.value);
+        found = prop.must;
+        const property = prop.value;
+        const value = property.Value;
+        result = result.join(value);
       }
       if (!found)
       {
@@ -3891,7 +4432,7 @@ function jsCesk(cc)
       if (prop !== BOT)
       {
         result = result.join(L_TRUE);
-        var present = prop.Value.must; // TODO getter/setter
+        const present = prop.must; // TODO getter/setter
         if (!present)
         {
           result = result.join(L_FALSE);
@@ -3926,9 +4467,8 @@ function jsCesk(cc)
     let result = [];
     const as = O.addresses().values();
     let resultValue = BOT;
-    while (as.length > 0)
+    for (const a of as)
     {
-      const a = as.pop();
       const obj = storeLookup(store, a);
       const fs = obj.getInternal(name).value;
       if (!fs)
@@ -3937,7 +4477,7 @@ function jsCesk(cc)
       }
       for (const f of fs)
       {
-        result = result.concat(f(O, args, store, lkont, kont, cont));
+        result = result.concat(f.apply(null, [O].concat(args).concat([store, lkont, kont, cont])));
       }
     }
     return result;
@@ -3950,7 +4490,7 @@ function jsCesk(cc)
     {
       const a = as.pop();
       let obj = storeLookup(store, a);
-      obj = obj.setInternal(name, Prop.fromValue(value));
+      obj = obj.setInternal(name, value);
       store = storeUpdate(store, a, obj);
     }
     return store;
@@ -3998,7 +4538,6 @@ function jsCesk(cc)
     else
     {
       store = storeUpdate(store, a, value);
-      effects.push(writeVarEffect(a, nameNode));
     }
     return store;
   }
@@ -4011,7 +4550,6 @@ function jsCesk(cc)
       var a = as.pop();
       var obj = storeLookup(store, a);
       obj = obj.add(name, Property.fromValue(value));
-      effects.push(writeObjectEffect(a, name));
       if (hasInternalProperty(obj, "isArray").isTrue()) // TODO temp
       {
         // ES5.1 15.4.5.1
@@ -4019,11 +4557,10 @@ function jsCesk(cc)
         var i = name.ToUint32();
         if (n.equals(i))
         {
-          var len = obj.lookup(P_LENGTH).Value.value;
+          var len = obj.lookup(P_LENGTH).value.Value;
           if (l.gte(i, len).isTrue())
           {
             obj = obj.add(P_LENGTH, Property.fromValue(l.add(i, L_1)));
-            effects.push(writeObjectEffect(a, P_LENGTH));
           }
         }
       }
@@ -4046,13 +4583,13 @@ function jsCesk(cc)
   function evalIdentifier(node, benv, store, lkont, kont, effects)
   {
     var value = doScopeLookup(node, benv, store, effects);
-    return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    return [{state: new KontState(value, store, lkont, kont)}];
   }
   
   function evalThisExpression(node, benv, store, lkont, kont, effects)
   {
     const value = kont.thisValue;
-    return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+    return [{state: new KontState(value, store, lkont, kont)}];
   }
   
   function evalProgram(node, benv, store, lkont, kont)
@@ -4088,7 +4625,7 @@ function jsCesk(cc)
     var nodes = node.body;
     if (nodes.length === 0)
     {
-      return [{state: new KontState(L_UNDEFINED, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
     }
     if (nodes.length === 1)
     {
@@ -4096,7 +4633,7 @@ function jsCesk(cc)
       return evalNode(nodes[0], benv, store, lkont, kont, effects);
     }
     var frame = new BodyKont(node, 1, benv);
-    return [{state: new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont), effects: effects}];
+    return [{state: new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont)}];
   }
   
   function evalVariableDeclaration(node, benv, store, lkont, kont, effects)
@@ -4119,7 +4656,7 @@ function jsCesk(cc)
     var init = node.init;
     if (init === null)
     {
-      return [{state: new KontState(L_UNDEFINED, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
     }
     var frame = new VariableDeclaratorKont(node, benv);
     return [{state: new EvalState(init, benv, store, [frame].concat(lkont), kont)}];
@@ -4198,7 +4735,7 @@ function jsCesk(cc)
         }
         store = doScopeSet(argument, updatedValue, benv, store, effects);
         var resultingValue = node.prefix ? updatedValue : value;
-        return [{state: new KontState(resultingValue, store, lkont, kont), effects: effects}];
+        return [{state: new KontState(resultingValue, store, lkont, kont)}];
       }
       case "MemberExpression":
       {
@@ -4251,7 +4788,7 @@ function jsCesk(cc)
     {
       var object = calleeNode.object;
       var frame = new CallMemberKont(node, benv);
-      return [{state: new EvalState(object, benv, store, [frame].concat(lkont), kont), effects: effects}];
+      return [{state: new EvalState(object, benv, store, [frame].concat(lkont), kont)}];
     }
     
     var frame = new OperatorKont(node, benv);
@@ -4293,7 +4830,7 @@ function jsCesk(cc)
         function (operatora)
         {
           var obj = storeLookup(store, operatora);
-          var protoRef = obj.lookup(P_PROTOTYPE).Value.value;
+          var protoRef = obj.lookup(P_PROTOTYPE).value.Value;
           const Call = obj.getInternal("[[Call]]").value;
           var callables = [...Call];
           return callables.flatMap(
@@ -4309,7 +4846,7 @@ function jsCesk(cc)
     var argumentNode = node.argument;
     if (argumentNode === null)
     {
-      return [{state: new ReturnState(L_UNDEFINED, store, lkont, kont), effects: effects}];
+      return [{state: new ReturnState(L_UNDEFINED, store, lkont, kont)}];
     }
     
     var frame = new ReturnKont(node);
@@ -4318,14 +4855,14 @@ function jsCesk(cc)
   
   function evalBreakStatement(node, benv, store, lkont, kont, effects)
   {
-    return [{state: new BreakState(store, lkont, kont), effects: effects}];
+    return [{state: new BreakState(store, lkont, kont)}];
   }
   
   function evalTryStatement(node, benv, store, lkont, kont, effects)
   {
     var block = node.block;
     var frame = new TryKont(node, benv);
-    return [{state: new EvalState(block, benv, store, [frame].concat(lkont), kont), effects: effects}];
+    return [{state: new EvalState(block, benv, store, [frame].concat(lkont), kont)}];
   }
   
   function evalThrowStatement(node, benv, store, lkont, kont, effects)
@@ -4385,7 +4922,6 @@ function jsCesk(cc)
       var obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
       var objectAddress = a.object(node, benv, store, lkont, kont);
       store = storeAlloc(store, objectAddress, obj);
-//      effects.push(allocObjectEffect(objectAddress));
       var objectRef = l.abstRef(objectAddress);
       return [{state: new KontState(objectRef, store, lkont, kont)}];
     }
@@ -4500,8 +5036,8 @@ function jsCesk(cc)
   {
     //const O = OrdinaryCreateFromConstructor();
     let obj = new Obj();
-    obj = obj.setInternal("[[Prototype]]", Prop.fromValue(realm.Intrinsics.get("%ErrorPrototype%")));
-    obj = obj.setInternal("[[ErrorData]]", Prop.fromValue(L_UNDEFINED));
+    obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ErrorPrototype%"));
+    obj = obj.setInternal("[[ErrorData]]", L_UNDEFINED);
     obj = obj.add(P_MESSAGE, Property.fromValue(message));
     return obj;
   }
@@ -4573,7 +5109,7 @@ function jsCesk(cc)
     object = object.add(P_PROTOTYPE, Property.fromValue(objectProtoRef));//was objectProtoRef
     global = global.add(l.abst1("Object"), Property.fromValue(l.abstRef(objecta)));
     
-    object = registerPrimitiveFunction(object, "create", objectCreate);
+    //object = registerPrimitiveFunction(object, "create", objectCreate);
     //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
     //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
     store = storeAlloc(store, objecta, object);
@@ -4588,22 +5124,31 @@ function jsCesk(cc)
       var objectAddress = a.object(application, benv, store, kont);
       store = storeAlloc(store, objectAddress, obj);
       var objRef = l.abstRef(objectAddress);
-      return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(objRef, store, lkont, kont)}];
     }
     
-    // not to be confused with 9.1.12
-    function objectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
-    {
-      if (operandValues.length !== 1)
-      {
-        return [];
-      }
-      var obj = ObjectCreate(operandValues[0]);
-      var objectAddress = a.object(application, benv, store, kont);
-      store = storeAlloc(store, objectAddress, obj);
-      var objRef = l.abstRef(objectAddress);
-      return [{state: new KontState(objRef, store, lkont, kont), effects: effects}];
-    }
+    // // 19.1.2.2
+    // function objectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
+    // {
+    //   const [O, Properties] = operandValues;
+    //   var obj = ObjectCreate(O);
+    //
+    //   // step 3
+    //   if (Properties !== undefined)
+    //   {
+    //     return ObjectDefineProperties(obj, Properties, application, store, lkont, kont, objectCreateCont);
+    //   }
+    //   return objectCreateCont(obj, store);
+    //
+    //   // step 4
+    //   function objectCreateCont(obj, store)
+    //   {
+    //     const objectAddress = a.object(application, benv, store, kont);
+    //     store = storeAlloc(store, objectAddress, obj);
+    //     const objRef = l.abstRef(objectAddress);
+    //     return [{state: new KontState(objRef, store, lkont, kont)}];
+    //   }
+    // }
     
     // // 19.1.2.4
     // function objectDefineProperty(application, operandValues, thisa, benv, store, lkont, kont, effects)
@@ -4632,7 +5177,7 @@ function jsCesk(cc)
         return [];
       }
       const result = hasProtoLookup(operandValues[0], thisValue.addresses(), store, effects);
-      return [{state: new KontState(result, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(result, store, lkont, kont)}];
     }
     
     // END OBJECT
@@ -4686,7 +5231,7 @@ function jsCesk(cc)
       var errAddress = a.error(application, benv, store, kont);
       store = storeAlloc(store, errAddress, obj);
       var errRef = l.abstRef(errAddress);
-      return [{state: new KontState(errRef, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(errRef, store, lkont, kont)}];
     }
     
     // END ERROR
@@ -4715,30 +5260,30 @@ function jsCesk(cc)
     {
       if (operandValues.length === 0)
       {
-        return [{state: new KontState(L_EMPTY_STRING, store, lkont, kont), effects: effects}];
+        return [{state: new KontState(L_EMPTY_STRING, store, lkont, kont)}];
       }
-      return [{state: new KontState(operandValues[0].ToString(), store, lkont, kont), effects: effects}];
+      return [{state: new KontState(operandValues[0].ToString(), store, lkont, kont)}];
     }
     
     function stringCharAt(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var lprim = getInternal(thisValue, "[[StringData]]", store);
       var value = lprim.charAt(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     function stringCharCodeAt(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var lprim = getInternal(thisValue, "[[StringData]]", store);
       var value = lprim.charCodeAt(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     function stringStartsWith(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var lprim = getInternal(thisValue, "[[StringData]]", store);
       var value = lprim.startsWith(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     // END STRING
@@ -4785,7 +5330,7 @@ function jsCesk(cc)
       var arrAddress = a.array(application, benv, store, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
-      return [{state: new KontState(arrRef, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(arrRef, store, lkont, kont)}];
     }
     
     function arrayFunction(application, operandValues, thisValue, benv, store, lkont, kont, effects)
@@ -4800,7 +5345,7 @@ function jsCesk(cc)
       var arrAddress = a.array(application, benv, store, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
-      return [{state: new KontState(arrRef, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(arrRef, store, lkont, kont)}];
     }
     
     function arrayToString(application, operandValues, thisValue, benv, store, lkont, kont, effects)
@@ -4809,8 +5354,7 @@ function jsCesk(cc)
           function (thisa)
           {
             var arr = storeLookup(store, thisa);
-            var len = arr.lookup(P_LENGTH).Value.value;
-            effects.push(readObjectEffect(thisa, P_LENGTH));
+            var len = arr.lookup(P_LENGTH).value.Value;
             var i = L_0;
             var r = [];
             var seen = ArraySet.empty();
@@ -4826,7 +5370,7 @@ function jsCesk(cc)
               }
               i = l.add(i, L_1);
             }
-            return {state: new KontState(l.abst1(r.join()), store, lkont, kont), effects: effects};
+            return {state: new KontState(l.abst1(r.join()), store, lkont, kont)};
           });
     }
     
@@ -4841,8 +5385,7 @@ function jsCesk(cc)
           function (thisa)
           {
             var thisArr = storeLookup(store, thisa);
-            var thisLen = thisArr.lookup(P_LENGTH).Value.value;
-            effects.push(readObjectEffect(thisa, P_LENGTH));
+            var thisLen = thisArr.lookup(P_LENGTH).value.Value;
             var argAddrs = operandValues[0].addresses();
             var resultArr = createArray();
             var i = L_0;
@@ -4859,8 +5402,7 @@ function jsCesk(cc)
                 function (argAddr)
                 {
                   var argArr = storeLookup(store, argAddr);
-                  var argLen = argArr.lookup(P_LENGTH).Value.value;
-                  effects.push(readObjectEffect(argAddr, P_LENGTH));
+                  var argLen = argArr.lookup(P_LENGTH).value.Value;
                   var i = L_0;
                   var seen = ArraySet.empty();
                   while ((!seen.contains(i)) && l.lt(i, argLen).isTrue())
@@ -4868,14 +5410,14 @@ function jsCesk(cc)
                     seen = seen.add(i);
                     var iname = i.ToString();
                     var v = doProtoLookup(iname, ArraySet.from1(argAddr), store, effects);
-                    resultArr = resultArr.add(l.add(thisLen, i).ToString(), Property.fromValue(argArr.lookup(iname).Value.value, BOT));
+                    resultArr = resultArr.add(l.add(thisLen, i).ToString(), Property.fromValue(argArr.lookup(iname).value.Value, BOT));
                     i = l.add(i, L_1);
                   }
                   resultArr = resultArr.add(P_LENGTH, Property.fromValue(l.add(thisLen, i)));
                 });
             var arrAddress = a.array(application, benv, store, lkont, kont);
             store = storeAlloc(store, arrAddress, resultArr);
-            return {state: new KontState(l.abstRef(arrAddress), store, lkont, kont), effects: effects};
+            return {state: new KontState(l.abstRef(arrAddress), store, lkont, kont)};
           });
     }
     
@@ -4886,16 +5428,13 @@ function jsCesk(cc)
           {
   
             var arr = storeLookup(store, thisa);
-            var len = arr.lookup(P_LENGTH).Value.value;
-            effects.push(readObjectEffect(thisa, P_LENGTH));
+            var len = arr.lookup(P_LENGTH).value.Value;
             var lenStr = len.ToString();
             arr = arr.add(lenStr, Property.fromValue(operandValues[0]))
-            effects.push(writeObjectEffect(thisa, lenStr));
             var len1 = l.add(len, L_1);
             arr = arr.add(P_LENGTH, Property.fromValue(len1));
-            effects.push(writeObjectEffect(thisa, P_LENGTH))
             store = storeUpdate(store, thisa, arr);
-            return {state: new KontState(len1, store, lkont, kont), effects: effects};
+            return {state: new KontState(len1, store, lkont, kont)};
           });
     }
     
@@ -4921,37 +5460,37 @@ function jsCesk(cc)
     function mathSqrt(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.sqrt(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     function mathAbs(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.abs(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     function mathRound(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.round(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     function mathFloor(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.floor(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     function mathCos(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.cos(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     function mathSin(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.sin(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     var random = (function ()
@@ -4973,7 +5512,7 @@ function jsCesk(cc)
     function mathRandom(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.abst1(random());
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     // END MATH
@@ -4994,9 +5533,12 @@ function jsCesk(cc)
     base = registerPrimitiveFunction(base, "sameObjectValue", baseSameObjectValue);
     base = registerPrimitiveFunction(base, "sameStringValue", baseSameStringValue);
     base = registerPrimitiveFunction(base, "StringCreate", baseStringCreate);
+    base = registerPrimitiveFunction(base, "ObjectCreate", baseObjectCreate);
     base = registerPrimitiveFunction(base, "ToObject", baseToObject);
     base = registerPrimitiveFunction(base, "ToPropertyDescriptor", baseToPropertyDescriptor);
+    base = registerPrimitiveFunction(base, "FromPropertyDescriptor", baseFromPropertyDescriptor);
     base = registerPrimitiveFunction(base, "ToPropertyKey", baseToPropertyKey);
+    base = registerPrimitiveFunction(base, "ObjectDefineProperties", baseObjectDefineProperties);
     
     store = storeAlloc(store, basea, base);
     global = global.add(l.abst1("$BASE$"), Property.fromValue(l.abstRef(basea)));
@@ -5008,44 +5550,74 @@ function jsCesk(cc)
       return DefinePropertyOrThrow(O, key, desc, store, lkont, kont,
           function (success, store)
           {
-            return [{state: new KontState(O, store, lkont, kont), effects: effects}];
+            return [{state: new KontState(O, store, lkont, kont)}];
+          });
+    }
+  
+    function baseObjectDefineProperties(application, operandValues, thisValue, benv, store, lkont, kont, effects)
+    {
+      const [O, Properties] = operandValues;
+      return ObjectDefineProperties(O, Properties, application, store, lkont, kont,
+          function (O, store)
+          {
+            return [{state: new KontState(O, store, lkont, kont)}];
           });
     }
   
     function baseNewPropertyDescriptor(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const property = Property.fromValue(BOT);
-      return [{state: new KontState(property, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(property, store, lkont, kont)}];
     }
   
     function baseToPropertyKey(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [argument] = operandValues;
-      return ToPropertyKey(argument,
-          function (value)
+      return ToPropertyKey(argument, store, lkont, kont,
+          function (value, store)
           {
-            return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+            return [{state: new KontState(value, store, lkont, kont)}];
           });
     }
   
-    function baseToPropertyDescriptor(application, operandValues, thisValue, benv, store, lkont, kont, effects)
+    function baseToPropertyDescriptor(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       const [Attributes] = operandValues;
       return ToPropertyDescriptor(Attributes, store, lkont, kont,
-          function (desc)
+          function (desc, store)
           {
-            return [{state: new KontState(desc, store, lkont, kont), effects: effects}];
+            return [{state: new KontState(desc, store, lkont, kont)}];
           });
     }
   
-    function baseStringCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
+    function baseFromPropertyDescriptor(application, operandValues, thisValue, benv, store, lkont, kont)
+    {
+      const [Desc] = operandValues;
+      return FromPropertyDescriptor(Desc, application, store, lkont, kont,
+          function (ref, store)
+          {
+            return [{state: new KontState(ref, store, lkont, kont)}];
+          });
+    }
+  
+    function baseStringCreate(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       const [value] = operandValues; // TODO pass prototype as second param
       const obj = StringCreate(value);
       const obja = a.string(application);
       store = storeAlloc(store, obja, obj);
       const ref = l.abstRef(obja);
-      return [{state: new KontState(ref, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(ref, store, lkont, kont)}];
+    }
+  
+    function baseObjectCreate(application, operandValues, thisValue, benv, store, lkont, kont, effects)
+    {
+      const [proto, internalSlotsList] = operandValues;
+      const obj = ObjectCreate(proto, internalSlotsList);
+      const objAddr = a.object(application);
+      store = storeAlloc(store, objAddr, obj);
+      const ref = l.abstRef(objAddr);
+      return [{state: new KontState(ref, store, lkont, kont)}];
     }
   
     function baseToObject(application, operandValues, thisValue, benv, store, lkont, kont, effects)
@@ -5054,14 +5626,14 @@ function jsCesk(cc)
       return ToObject(O, application, store, lkont, kont,
         function (objectRef, store)
         {
-          return [{state: new KontState(objectRef, store, lkont, kont), effects: effects}];
+          return [{state: new KontState(objectRef, store, lkont, kont)}];
         });
     }
   
     function baseSameNumberValue(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
-      return [{state: new KontState(x.hasSameNumberValue(y), store, lkont, kont), effects: effects}];
+      return [{state: new KontState(x.hasSameNumberValue(y), store, lkont, kont)}];
     }
   
     function baseSameBooleanValue(application, operandValues, thisValue, benv, store, lkont, kont, effects)
@@ -5083,13 +5655,13 @@ function jsCesk(cc)
       {
         result = result.join(L_FALSE);
       }
-      return [{state: new KontState(result, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(result, store, lkont, kont)}];
     }
     
     function baseSameStringValue(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [x, y] = operandValues;
-      return [{state: new KontState(x.hasSameStringValue(y), store, lkont, kont), effects: effects}];
+      return [{state: new KontState(x.hasSameStringValue(y), store, lkont, kont)}];
     }
     
     function baseSameObjectValue(application, operandValues, thisValue, benv, store, lkont, kont, effects)
@@ -5117,28 +5689,28 @@ function jsCesk(cc)
       {
         result = result.join(L_FALSE);
       }
-      return [{state: new KontState(result, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(result, store, lkont, kont)}];
     }
     
     function baseAddIntrinsic(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [Name, Value] = operandValues;
       realm.Intrinsics.add(Name.conc1(), Value);
-      return [{state: new KontState(l.abst1(undefined), store, lkont, kont), effects: effects}];
+      return [{state: new KontState(l.abst1(undefined), store, lkont, kont)}];
     }
     
     function baseHasInternal(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [O, Name] = operandValues;
       const result = hasInternal(O, Name.conc1(), store);
-      return [{state: new KontState(result, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(result, store, lkont, kont)}];
     }
     
     function baseLookupInternal(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       const [O, Name] = operandValues;
       const result = lookupInternal(O, Name.conc1(), store);
-      return [{state: new KontState(result, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(result, store, lkont, kont)}];
     }
     
     function baseCallInternal(application, operandValues, thisValue, benv, store, lkont, kont, effects)
@@ -5147,7 +5719,8 @@ function jsCesk(cc)
       return callInternal(O, Name.conc1(), args, store, lkont, kont,
           function (value, store)
           {
-            return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+            assertDefinedNotNull(store);
+            return [{state: new KontState(value, store, lkont, kont)}];
           });
     }
     
@@ -5155,7 +5728,7 @@ function jsCesk(cc)
     {
       const [O, Name, Value] = operandValues;
       store = assignInternal(O, Name.conc1(), Value, store);
-      return [{state: new KontState(l.abst1(undefined), store, lkont, kont), effects: effects}];
+      return [{state: new KontState(l.abst1(undefined), store, lkont, kont)}];
     }
     
     // BEGIN PERFORMANCE
@@ -5168,7 +5741,7 @@ function jsCesk(cc)
     function performanceNow(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = l.abst1(performance.now());
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     // END PERFORMANCE
@@ -5177,19 +5750,19 @@ function jsCesk(cc)
     function $join(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = operandValues.reduce(Lattice.join, BOT);
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     function _print(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       print(operandValues);
-      return [{state: new KontState(L_UNDEFINED, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
     }
     
     function globalParseInt(application, operandValues, thisValue, benv, store, lkont, kont, effects)
     {
       var value = operandValues[0].parseInt(); // TODO: 2nd (base) arg
-      return [{state: new KontState(value, store, lkont, kont), effects: effects}];
+      return [{state: new KontState(value, store, lkont, kont)}];
     }
     
     global = registerPrimitiveFunction(global, "parseInt", globalParseInt);
@@ -5199,6 +5772,12 @@ function jsCesk(cc)
     
     return {store, realm};
   } // end initialize
+  
+  function initializeTraits(ceskState)
+  {
+    let store = ceskState.store;
+    return {store, realm:ceskState.realm};
+  }
   
   const initial = inject(ast, ceskState);
   const system = performExplore([initial]);
@@ -5331,50 +5910,3 @@ function computeResultValue(endStates)
     });
   return {value:result, msgs:msgs};
 }
-
-function Effect(operation, address, name)
-{
-  this.operation = operation;
-  this.address = address;
-  this.name = name;
-}
-Effect.Operations = {READ:"R", WRITE:"W", ALLOC:"A"}
-Effect.prototype.toString =
-  function ()
-  {
-    return "[" + this.operation + "," + this.address + "," + this.name + "]";
-  }
-Effect.prototype.equals =
-  function (x)
-  {
-    return (x instanceof Effect)
-      && this.operation === x.operation
-      && this.address.equals(x.address)
-      && ((this.name === x.name) || (this.name && this.name.equals(x.name)))
-  }
-Effect.prototype.hashCode =
-  function ()
-  {
-    var prime = 31;
-    var result = 1;
-    result = prime * result + this.operation.hashCode();
-    result = prime * result + this.address.hashCode();
-    result = prime * result + HashCode.hashCode(this.name);
-    return result;          
-  }
-Effect.prototype.isReadEffect =
-  function ()
-  {
-    return this.operation === Effect.Operations.READ;
-  }
-Effect.prototype.isWriteEffect =
-  function ()
-  {
-    return this.operation === Effect.Operations.WRITE;
-  }
-Effect.prototype.isAllocEffect =
-  function ()
-  {
-    return this.operation === Effect.Operations.ALLOC;
-  }
-  
