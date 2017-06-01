@@ -69,7 +69,7 @@ Record.prototype.set =
     function (name, value)
     {
       const newMap = new Map(this.map);
-      newMap.set(name, value);
+      newMap.set(name, Prop.fromValue(value));
       return new Record(newMap);
     }
 

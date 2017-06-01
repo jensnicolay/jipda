@@ -299,6 +299,12 @@ TypeValue.prototype.isUndefined =
       return (this.type & TypeValue.UND);
     }
 
+TypeValue.prototype.isNonUndefined =
+    function ()
+    {
+      return (this.type ^ TypeValue.UND) || this.isRef();
+    }
+
 TypeValue.prototype.isNull =
     function ()
     {

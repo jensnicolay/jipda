@@ -8,7 +8,7 @@
     }
   }
   
-  // // 19.1.2.2
+  // 19.1.2.2
   Object.create =
       function (O, Properties)
       {
@@ -39,7 +39,7 @@
   //     var descriptors = [];
   //     for (var nextKey of keys)
   //     {
-  //       var propDesc = $BASE$.callInternal(props, "[[GetOwnProperty]]", [nextKey]);
+  //       var propDesc = $BASE$.callInternal(props, "[[GetOwnProperty]]", nextKey);
   //       if (propDesc !== undefined && $BASE$.lookupInternal(propDesc, "[[Enumerable]]"))
   //       {
   //         var descObj = $BASE$.callInternal(props, "[[Get]]", nextKey);
@@ -68,6 +68,16 @@
         var desc = $BASE$.ToPropertyDescriptor(Attributes);
         $BASE$.DefinePropertyOrThrow(O, key, desc);
         return O;
+      }
+      
+  // 19.1.2.7
+  Object.getOwnPropertyDescriptor =
+      function (O, P)
+      {
+        var obj = $BASE$.ToObject(O);
+        var key = $BASE$.ToPropertyKey(P);
+        var desc = $BASE$.callInternal(obj, "[[GetOwnProperty]]", key);
+        return $BASE$.FromPropertyDescriptor(desc);
       }
 
   // 19.1.2.11
