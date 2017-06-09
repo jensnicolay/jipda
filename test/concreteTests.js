@@ -878,13 +878,21 @@ var suiteConcreteTests =
         {
           run("var o = {}; o instanceof Object", true);
         }
-        
-    module.test113 =
-        function ()
-        {
-          run("var glob = []; for (var p in {x:42}) {glob.push(p)}; glob.length===1 && glob[0]==='x'", true);
-        }
-        
+  
+  module.test113 =
+      function ()
+      {
+        run("var glob = []; for (var p in {x:42}) {glob.push(p)}; glob.length===1 && glob[0]==='x'", true);
+        run("var glob = []; for (var p in {x:42, y:43}) {glob.push(p)}; glob.length===2 && glob.indexOf('x') > -1 && glob.indexOf('y') > -1", true);
+      }
+  
+  module.test114 =
+      function ()
+      {
+        run("function sq(x) {return x*x}; sq.call(null, 4)", 16);
+        run("function sq(x) {return this}; sq.call(42, 4)", 42);
+      }
+  
   return module;
   
 })()

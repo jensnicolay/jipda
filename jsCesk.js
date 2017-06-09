@@ -1717,6 +1717,25 @@ function jsCesk(cc)
           });
     }
     
+    // 19.2.3.3
+    function functionCall(application, operandValues, thisValue, benv, store, lkont, kont)
+    {
+      let result = [];
+      const ic = IsCallable(thisValue, store);
+      if (ic.isFalse())
+      {
+        result.push(throwTypeError("19.2.3.3", store, lkont, kont));
+      }
+      if (ic.isTrue())
+      {
+        const argList = operandValues.slice(1);
+        // TODO: PrepareForTailCall()
+        const r1 = applyProc(application, thisValue, argList, operandValues[0], null, store, lkont, kont);
+        result = result.concat(r1);
+      }
+      return result;
+    }
+    
     
   function createClosure(node, scope)
   {
@@ -3762,7 +3781,7 @@ function jsCesk(cc)
     ForInBodyKont.prototype.addresses =
         function ()
         {
-          return this.benv.addresses();
+          return this.benv.addresses().join(this.ref.addresses());
         }
     ForInBodyKont.prototype.apply =
         function (unusedValue, store, lkont, kont)
@@ -5313,6 +5332,8 @@ function jsCesk(cc)
     //   // return [{state:new KontState(result, store, lkont, kont)];
     // }
     
+    
+    
     function objectHasOwnProperty(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       if (operandValues.length !== 1)
@@ -5331,13 +5352,18 @@ function jsCesk(cc)
 //  functionP.toString = function () { return "~Function.prototype"; }; // debug
     var functiona = allocNative();
     var functionP = registerProperty(functionP, "constructor", l.abstRef(functiona));
+    
+    
+    
     var fun = createPrimitive(function ()
     {
     }); // TODO
     fun = fun.add(P_PROTOTYPE, Property.fromValue(functionProtoRef));
     global = global.add(l.abst1("Function"), Property.fromValue(l.abstRef(functiona)));
     store = storeAlloc(store, functiona, fun);
-    
+  
+    functionP = registerPrimitiveFunction(functionP, "call", functionCall);
+  
     store = storeAlloc(store, functionPa, functionP);
     // END FUNCTION
     
