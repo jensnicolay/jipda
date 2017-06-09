@@ -87,6 +87,8 @@ var Ast = {}
         return "do " + nodeToString(node.body) + " while (" + nodeToString(node.test) + ")";
       case "ForStatement":
         return "for (" + nodeToString(node.init) + ";" + nodeToString(node.test) + ";" + nodeToString(node.update) + ") " + nodeToString(node.body) + ";";
+      case "ForInStatement":
+        return "for (" + nodeToString(node.left) + " in " + nodeToString(node.right) + ") " + nodeToString(node.body) + ";";
       case "ForOfStatement":
         return "for (" + nodeToString(node.left) + " of " + nodeToString(node.right) + ") " + nodeToString(node.body) + ";";
       case "FunctionDeclaration":
@@ -367,6 +369,8 @@ Ast.isFunctionDeclaration =
         return [node.body, node.test];
       case "ForStatement":
         return [node.init, node.test, node.update, node.body].filter(function (n) { return n !== null});
+      case "ForInStatement":
+        return [node.left, node.right, node.body];
       case "ForOfStatement":
         return [node.left, node.right, node.body];
       case "FunctionDeclaration":

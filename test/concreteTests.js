@@ -882,7 +882,7 @@ var suiteConcreteTests =
     module.test113 =
         function ()
         {
-       //   run()
+          run("var glob = []; for (var p in {x:42}) {glob.push(p)}; glob.length===1 && glob[0]==='x'", true);
         }
         
   return module;
