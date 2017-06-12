@@ -902,6 +902,13 @@ var suiteConcreteTests =
         run("var glob=null;function sq(x) {glob=42}; sq.apply(null);glob", 42);
       }
   
+  module.test116 =
+      function ()
+      {
+        run("function hh(...args) {return args[1]}; hh(41,42,43)", 42);
+        run("function hh(x, ...args) {return args[1]}; hh(41,42,43)", 43);
+      }
+  
   return module;
   
 })()

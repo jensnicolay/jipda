@@ -2006,6 +2006,22 @@ function jsCesk(cc)
             {
               store = storeAlloc(store, addr, L_UNDEFINED);
             }
+            else if (Ast.isRestElement(node))
+            {
+              // cloned from arrayConstructor and modified
+              let arr = createArray();
+              for (let i = node.i; i < operandValues.length; i++)
+              {
+                arr = arr.add(l.abst1(String(i - node.i)), Property.fromValue(operandValues[i]));
+              }
+              arr = arr.add(P_LENGTH, Property.fromValue(l.abst1(operandValues.length - node.i)));
+  
+              const arrAddress = a.array(node, extendedBenv, store, kont);
+              store = storeAlloc(store, arrAddress, arr);
+              
+              const arrRef = l.abstRef(arrAddress);
+              store = storeAlloc(store, addr, arrRef);
+            }
             else
             {
               throw new Error("cannot handle declaration " + node);

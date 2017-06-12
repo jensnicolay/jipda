@@ -109,10 +109,12 @@ var Ast = {}
         return "catch (" + nodeToString(node.param) + ") " + nodeToString(node.body);
       case "ThrowStatement":
         return "throw " + nodeToString(node.argument);
+      case "RestElement":
+        return "..." + nodeToString(node.argument);
       case "EmptyStatement":
         return ";";
       default:
-        throw new Error("nodeToString: cannot handle " + node.type); 
+        throw new Error("cannot handle " + node.type);
       }
   }
   
@@ -164,14 +166,21 @@ Ast.isIdentifier =
   {
     return n.type === "VariableDeclaration";
   }
-  
+
 Ast.isVariableDeclarator =
-  function (n)
-  {
-    return n.type === "VariableDeclarator";
-  }
-  
-  function isAssignmentExpression(n)
+    function (n)
+    {
+      return n.type === "VariableDeclarator";
+    }
+
+    Ast.isRestElement =
+    function (n)
+    {
+      return n.type === "RestElement";
+    }
+
+
+function isAssignmentExpression(n)
   {
     return n.type === "AssignmentExpression";
   }
@@ -402,6 +411,8 @@ Ast.isFunctionDeclaration =
       case "CatchClause":
         return [node.param, node.body];
       case "ThrowStatement":
+        return [node.argument];
+      case "RestElement":
         return [node.argument];
       case "EmptyStatement":
         return [];
@@ -729,7 +740,14 @@ Ast.functionScopeDeclarations =
       nodeWithBody.params.forEach(
         function (param, i)
         {
-          result[param.name] = param;
+          if (Ast.isIdentifier(param))
+          {
+            result[param.name] = param;
+          }
+          else // rest param
+          {
+            result[param.argument.name] = param;
+          }
           param.i = i;
         });
       helper(nodeWithBody.body);
