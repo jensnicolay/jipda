@@ -387,12 +387,19 @@ Arrays.get =
   }
 
 const Sets = {};
+
 Sets.from1 =
     function (x)
     {
       const set = new Set();
       set.add(x);
       return set;
+    }
+
+Sets.from =
+    function (x)
+    {
+      return new Set(x);
     }
 
 Sets.add =

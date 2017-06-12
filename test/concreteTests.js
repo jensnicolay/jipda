@@ -891,6 +891,15 @@ var suiteConcreteTests =
       {
         run("function sq(x) {return x*x}; sq.call(null, 4)", 16);
         run("function sq(x) {return this}; sq.call(42, 4)", 42);
+        run("var glob=null;function sq(x) {glob=42}; sq.call(null);glob", 42);
+      }
+  
+  module.test115 =
+      function ()
+      {
+        run("function sq(x) {return x*x}; sq.apply(null, [4])", 16);
+        run("function sq(x) {return this}; sq.apply(42, [4])", 42);
+        run("var glob=null;function sq(x) {glob=42}; sq.apply(null);glob", 42);
       }
   
   return module;

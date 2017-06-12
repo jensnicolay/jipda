@@ -558,6 +558,10 @@ function jsCesk(cc)
     {
       var obj = new Obj();
       obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ArrayPrototype%"));
+  
+      // 9.4.5.4 TODO: exotic [[Get]] for Integer Indexed Exotic Objects
+      obj = obj.setInternal("[[Get]]", SetValueNoAddresses.from1(OrdinaryGet));
+      
       // TODO temp
       obj = obj.setInternal("isArray", L_TRUE);
       return obj;
@@ -1025,6 +1029,13 @@ function jsCesk(cc)
       // TODO
       return cont(argument, store);
     }
+    
+    // 7.1.15
+    function ToLength(argument, store, lkont, kont, cont)
+    {
+      // TODO
+      return cont(argument, store);
+    }
   
     // 7.2.3
     function IsCallable(argument, store)
@@ -1199,6 +1210,50 @@ function jsCesk(cc)
     function HasProperty(O, P, store, lkont, kont, cont)
     {
       return callInternal(O, "[[HasProperty]]", [P], store, lkont, kont, cont);
+    }
+    
+    // 7.3.17
+    function CreateListFromArrayLike(obj, elementTypes, store, lkont, kont, cont)
+    {
+      if (elementTypes === undefined)
+      {
+        elementTypes = Sets.from([Types.Undefined, Types.Null, Types.Boolean, Types.String, Types.Symbol, Types.Number, Types.Object]);
+      }
+      assert(elementTypes instanceof Set);
+      let result = [];
+      if (obj.isNonRef())
+      {
+        result.push(throwTypeError("7.3.17"));
+      }
+      if (obj.isRef())
+      {
+        const r1 = Get(obj, P_LENGTH, store, lkont, kont,
+            function (lenVal, store)
+            {
+              return ToLength(lenVal, store, lkont, kont,
+                  function (len, store)
+                  {
+                    const list = [];
+                    let index = L_0;
+                    var seen = ArraySet.empty();
+                    while ((!seen.contains(index)) && l.lt(index, len).isTrue())
+                    {
+                      seen = seen.add(index);
+                      const indexName = index.ToString(); // TODO actual ToString call
+                      const next = doProtoLookup(indexName, obj.addresses(), store); // TODO Get call
+                      const typeNext = Type(next);
+                      if (Sets.subsumes(elementTypes, typeNext))
+                      {
+                        list.push(next);
+                      }
+                      index = l.add(index, L_1);
+                    }
+                    return cont(list, store);
+                  });
+            });
+        result = result.concat(r1);
+      }
+      return result;
     }
   
     // 7.3.19
@@ -1716,6 +1771,39 @@ function jsCesk(cc)
                 });
           });
     }
+  
+    // 19.2.3.1
+    function functionApply(application, operandValues, thisValue, benv, store, lkont, kont)
+    {
+      let result = [];
+      const ic = IsCallable(thisValue, store);
+      if (ic.isFalse())
+      {
+        result.push(throwTypeError("19.2.3.1", store, lkont, kont));
+      }
+      if (ic.isTrue())
+      {
+        const thisArg = operandValues[0];
+        const argArray = operandValues[1];
+        // TODO: PrepareForTailCall()
+        if (!argArray)
+        {
+          const r1 = applyProc(application, thisValue, [], thisArg, null, store, lkont, kont);
+          result = result.concat(r1);
+        }
+        else
+        {
+          const r1 = CreateListFromArrayLike(argArray, undefined, store, lkont, kont,
+              function (argList, store)
+              {
+                // TODO: PrepareForTailCall()
+                return applyProc(application, thisValue, argList, thisArg, null, store, lkont, kont);
+              });
+          result = result.concat(r1);
+        }
+      }
+      return result;
+    }
     
     // 19.2.3.3
     function functionCall(application, operandValues, thisValue, benv, store, lkont, kont)
@@ -1728,16 +1816,18 @@ function jsCesk(cc)
       }
       if (ic.isTrue())
       {
+        const thisArg = operandValues[0];
         const argList = operandValues.slice(1);
         // TODO: PrepareForTailCall()
-        const r1 = applyProc(application, thisValue, argList, operandValues[0], null, store, lkont, kont);
+        const r1 = applyProc(application, thisValue, argList, thisArg, null, store, lkont, kont);
         result = result.concat(r1);
       }
       return result;
     }
-    
-    
-  function createClosure(node, scope)
+  
+  
+  
+    function createClosure(node, scope)
   {
     var obj = createFunction(new ObjClosureCall(node, scope));
     return obj;
@@ -5363,6 +5453,7 @@ function jsCesk(cc)
     store = storeAlloc(store, functiona, fun);
   
     functionP = registerPrimitiveFunction(functionP, "call", functionCall);
+    functionP = registerPrimitiveFunction(functionP, "apply", functionApply);
   
     store = storeAlloc(store, functionPa, functionP);
     // END FUNCTION
@@ -5519,27 +5610,10 @@ function jsCesk(cc)
     
     function arrayToString(application, operandValues, thisValue, benv, store, lkont, kont)
     {
-      return thisValue.addresses().values().map(
-          function (thisa)
+      return CreateListFromArrayLike(thisValue, undefined, store, lkont, kont,
+          function (list, store)
           {
-            var arr = storeLookup(store, thisa);
-            var len = arr.lookup(P_LENGTH).value.Value;
-            var i = L_0;
-            var r = [];
-            var seen = ArraySet.empty();
-            var thisAs = ArraySet.from1(thisa);
-            while ((!seen.contains(i)) && l.lt(i, len).isTrue())
-            {
-              seen = seen.add(i);
-              var iname = i.ToString();
-              var v = doProtoLookup(iname, thisAs, store);
-              if (v !== BOT)
-              {
-                r.push(v);
-              }
-              i = l.add(i, L_1);
-            }
-            return {state: new KontState(l.abst1(r.join()), store, lkont, kont)};
+            return {state: new KontState(l.abst1(list.join()), store, lkont, kont)};
           });
     }
     
