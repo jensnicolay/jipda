@@ -884,6 +884,7 @@ var suiteConcreteTests =
       {
         run("var glob = []; for (var p in {x:42}) {glob.push(p)}; glob.length===1 && glob[0]==='x'", true);
         run("var glob = []; for (var p in {x:42, y:43}) {glob.push(p)}; glob.length===2 && glob.indexOf('x') > -1 && glob.indexOf('y') > -1", true);
+        run("var x={a:1}; function Y() {this.b=2};Y.prototype=x;var obj=new Y();var glob=[];for (var prop in obj) {glob.push(prop)};glob.length===2 && glob.indexOf('a')>-1 && glob.indexOf('b')>-1", true);
       }
   
   module.test114 =

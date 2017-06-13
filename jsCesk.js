@@ -1820,6 +1820,14 @@ function jsCesk(cc)
           });
     }
     
+    // 19.1.2.6
+    function objectFreeze(application, operandValues, thisValue, benv, store, lkont, kont)
+    {
+      const [O] = operandValues;
+      // TODO
+      return [{state: new KontState(O, store, lkont, kont)}];
+    }
+    
     // 19.1.2.9
     function objectGetOwnPropertyNames(application, operandValues, thisValue, benv, store, lkont, kont)
     {
@@ -3891,11 +3899,30 @@ function jsCesk(cc)
               });
         }
         
+        
     function forInHelper(node, nameNode, ref, ownKeys, i, benv, store, lkont, kont)
     {
       if (i === ownKeys.length)
       {
-        return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}]; // TODO: lvps
+        return callInternal(ref, "[[GetPrototypeOf]]", [], store, lkont, kont,
+            function (protoRef, store)
+            {
+              let result = [];
+              if (protoRef.isNull())
+              {
+                result.push({state: new KontState(L_UNDEFINED, store, lkont, kont)});
+              }
+              if (protoRef.isNonNull()) // TODO: check for non-null ref/non-ref?
+              {
+                const r1 =  callInternal(protoRef, "[[OwnPropertyKeys]]", [], store, lkont, kont,
+                    function (ownKeys, store)
+                    {
+                      return forInHelper(node, nameNode, protoRef, ownKeys, 0, benv, store, lkont, kont);
+                    });
+                result = result.concat(r1);
+              }
+              return result;
+            });
       }
       const ownKey = ownKeys[i];
       return callInternal(ref, "[[GetOwnProperty]]", [ownKey], store, lkont, kont,
@@ -4860,7 +4887,7 @@ function jsCesk(cc)
     {
       var a = as.pop();
       var obj = storeLookup(store, a);
-      obj = obj.add(name, Property.fromValue(value));
+      obj = obj.add(name, new Property(value, BOT, BOT, L_TRUE, L_TRUE, L_TRUE));
       if (hasInternalProperty(obj, "isArray").isTrue()) // TODO temp
       {
         // ES5.1 15.4.5.1
@@ -5395,7 +5422,7 @@ function jsCesk(cc)
     
     function registerProperty(object, propertyName, value)
     {
-      object = object.add(l.abst1(propertyName), Property.fromValue(value));
+      object = object.add(l.abst1(propertyName), new Property(value, BOT, BOT, L_FALSE, L_FALSE, L_FALSE));//Property.fromValue(value));
       return object;
     }
 
@@ -5423,6 +5450,7 @@ function jsCesk(cc)
     object = object.add(P_PROTOTYPE, Property.fromValue(objectProtoRef));//was objectProtoRef
     global = global.add(l.abst1("Object"), Property.fromValue(l.abstRef(objecta)));
     
+    object = registerPrimitiveFunction(object, "freeze", objectFreeze);
     //object = registerPrimitiveFunction(object, "create", objectCreate);
     //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
     //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
