@@ -69,7 +69,7 @@
         $BASE$.DefinePropertyOrThrow(O, key, desc);
         return O;
       }
-      
+  
   // 19.1.2.7
   Object.getOwnPropertyDescriptor =
       function (O, P)
@@ -79,7 +79,7 @@
         var desc = $BASE$.callInternal(obj, "[[GetOwnProperty]]", key);
         return $BASE$.FromPropertyDescriptor(desc);
       }
-
+  
   // 19.1.2.11
   Object.getPrototypeOf =
       function (O)
@@ -185,6 +185,16 @@
         }
         return result;
       }
+
+  // 22.1.3.10
+  Array.prototype.forEach =
+      function (f)
+      {
+        for (var i = 0; i < this.length; i++)
+        {
+          f(this[i]);
+        }
+      }
       
   // 22.1.3.12
   Array.prototype.indexOf =
@@ -202,12 +212,48 @@
       
   // 22.1.3.16
   Array.prototype.map =
-      function (f)
+      function (f, thisArg)
       {
         var result = [];
         for (var i = 0; i < this.length; i++)
         {
-          result.push(f(this[i]))
+          var x = this[i];
+          if (x === undefined)
+          {
+            result.push(undefined);
+          }
+          else
+          {
+            result.push(f.call(thisArg, this[i], i));
+          }
+        }
+        return result;
+      }
+      
+  // 22.1.3.19
+  Array.prototype.reduce =
+      function (f, initialValue)
+      {
+        var result;
+        var start;
+        if (initialValue === undefined) // TODO not correct, should be absence check (# of args)
+        {
+          if (this.length === 0)
+          {
+            throw new TypeError("22.1.3.19");
+          }
+          result = this[0];
+          start = 1;
+        }
+        else
+        {
+          result = initialValue;
+          start = 0;
+        }
+    
+        for (var i = start; i < this.length; i++)
+        {
+          result = f(result, this[i]);
         }
         return result;
       }

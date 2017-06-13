@@ -1212,12 +1212,31 @@ function jsCesk(cc)
       return callInternal(O, "[[HasProperty]]", [P], store, lkont, kont, cont);
     }
     
+    // 7.3.16
+    function CreateArrayFromList(elements, node, store, lkont, kont, cont)
+    {
+      assert(Array.isArray(elements)); // TODO: this is a weaker assert than in spec
+      // TODO: spec
+      let arr = createArray();
+      for (let i = L_0; i < elements.length; i++)
+      {
+        arr = arr.add(l.abst1(String(i)), Property.fromValue(elements[i]));
+      }
+      arr = arr.add(P_LENGTH, Property.fromValue(l.abst1(elements.length)));
+  
+      const arrAddress = a.array(node, kont);
+      store = storeAlloc(store, arrAddress, arr);
+  
+      const arrRef = l.abstRef(arrAddress);
+      return cont(arrRef, store);
+    }
+    
     // 7.3.17
     function CreateListFromArrayLike(obj, elementTypes, store, lkont, kont, cont)
     {
       if (elementTypes === undefined)
       {
-        elementTypes = Sets.from([Types.Undefined, Types.Null, Types.Boolean, Types.String, Types.Symbol, Types.Number, Types.Object]);
+        elementTypes = Sets.of(Types.Undefined, Types.Null, Types.Boolean, Types.String, Types.Symbol, Types.Number, Types.Object);
       }
       assert(elementTypes instanceof Set);
       let result = [];
@@ -1242,7 +1261,7 @@ function jsCesk(cc)
                       const indexName = index.ToString(); // TODO actual ToString call
                       const next = doProtoLookup(indexName, obj.addresses(), store); // TODO Get call
                       const typeNext = Type(next);
-                      if (Sets.subsumes(elementTypes, typeNext))
+                      if (Sets.intersection(elementTypes, typeNext).size > 0)
                       {
                         list.push(next);
                       }
@@ -1771,6 +1790,39 @@ function jsCesk(cc)
                 });
           });
     }
+    
+    // 19.1.2.9
+    function objectGetOwnPropertyNames(application, operandValues, thisValue, benv, store, lkont, kont)
+    {
+      const [O] = operandValues;
+      return GetOwnPropertyKeys(O, Sets.of(Types.String), application, store, lkont, kont,
+          function (arrRef, store)
+          {
+            return [{state: new KontState(arrRef, store, lkont, kont)}];
+          });
+    }
+    
+    // 19.1.2.10.1
+    function GetOwnPropertyKeys(O, Type_, node, store, lkont, kont, cont)
+    {
+      return ToObject(O, node, store, lkont, kont,
+          function (obj, store)
+          {
+            return callInternal(obj, "[[OwnPropertyKeys]]", [], store, lkont, kont,
+                function (keys, store)
+                {
+                  let nameList = [];
+                  for (const nextKey of keys)
+                  {
+                    if (Sets.intersection(Type_, Type(nextKey)).size > 0)
+                    {
+                      nameList.push(nextKey);
+                    }
+                  }
+                  return CreateArrayFromList(nameList, node, store, lkont, kont, cont);
+                });
+          });
+    }
   
     // 19.2.3.1
     function functionApply(application, operandValues, thisValue, benv, store, lkont, kont)
@@ -2008,19 +2060,11 @@ function jsCesk(cc)
             }
             else if (Ast.isRestElement(node))
             {
-              // cloned from arrayConstructor and modified
-              let arr = createArray();
-              for (let i = node.i; i < operandValues.length; i++)
-              {
-                arr = arr.add(l.abst1(String(i - node.i)), Property.fromValue(operandValues[i]));
-              }
-              arr = arr.add(P_LENGTH, Property.fromValue(l.abst1(operandValues.length - node.i)));
-  
-              const arrAddress = a.array(node, extendedBenv, store, kont);
-              store = storeAlloc(store, arrAddress, arr);
-              
-              const arrRef = l.abstRef(arrAddress);
-              store = storeAlloc(store, addr, arrRef);
+              CreateArrayFromList(operandValues.slice(node.i), node, store, lkont, kont,
+                  function (arrRef, updatedStore)
+                  {
+                    store = storeAlloc(updatedStore, addr, arrRef);
+                  });
             }
             else
             {
@@ -5383,6 +5427,7 @@ function jsCesk(cc)
     store = storeAlloc(store, objecta, object);
     
     objectP = registerPrimitiveFunction(objectP, "hasOwnProperty", objectHasOwnProperty);
+    objectP = registerPrimitiveFunction(objectP, "getOwnPropertyNames", objectGetOwnPropertyNames);
     store = storeAlloc(store, objectPa, objectP);
     
     
@@ -5626,6 +5671,7 @@ function jsCesk(cc)
     
     function arrayToString(application, operandValues, thisValue, benv, store, lkont, kont)
     {
+      // TODO: this is a hack (no actual ToString called)
       return CreateListFromArrayLike(thisValue, undefined, store, lkont, kont,
           function (list, store)
           {

@@ -115,13 +115,13 @@ var suiteConcreteTests =
     }  
     
 
-//  module.test23 =
-//    function ()
-//    {
-//      runStr("var appender=function (h, a, b) {return h(a).concat(h(b))}; var lister=function (g) {return function (x) { return [g(x)]; };}; var square=function (y) { return y*y;}; appender(lister(square), 42, 43);", "[1764,1849]");
-//    };  
+   module.test23 =
+     function ()
+     {
+       run("var appender=function (h, a, b) {return h(a).concat(h(b))}; var lister=function (g) {return function (x) { return [g(x)]; };}; var square=function (y) { return y*y;}; appender(lister(square), 42, 43).toString();", "1764,1849");
+     };
+  
 //
-//    
 //  module.test24 =
 //    function ()
 //    {
@@ -156,13 +156,13 @@ var suiteConcreteTests =
       run("var o = {x:3}; var p = {y:o}; p.y.x;", 3);
       run("var o = {x:3}; var p = o; p.x;", 3);
     }
-//    
-//  module.test36 =
-//    function ()
-//    {
-//      runStr("var o={z:[]}; var appender=function (h, a, b) {return h(a).concat(h(b))}; var lister=function (g) {return function (x) { return [g(x)]; };}; var conser=function (y) { o.z = [y, o.z]; return o.z;}; appender(lister(conser), 42, 43);", "[[42,[]],[43,[42,[]]]]");
-//    }  
-//    
+
+ // module.test36 = // TODO: needs correct Array.proto.toString
+ //   function ()
+ //   {
+ //     run("var o={z:[]}; var appender=function (h, a, b) {return h(a).concat(h(b))}; var lister=function (g) {return function (x) { return [g(x)]; };}; var conser=function (y) { o.z = [y, o.z]; return o.z;}; appender(lister(conser), 42, 43).toString()", "42,,43,42,");
+ //   }
+
   module.test37 =
     function ()
     {
@@ -297,12 +297,12 @@ var suiteConcreteTests =
       run("var o = {x:3}; ++o.x + o.x;", 8);
     }
 
-//  module.test60a =
-//    function ()
-//    {
-//      run("var o={x:3}; var f=function() {return o}; f()['x']++ + o.x;", 7);
-//      run("var o={x:3}; var f=function() {return o}; ++f()['x'] + o.x;", 8);
-//    } 
+ // module.test60a =
+ //   function ()
+ //   {
+ //     run("var o={x:3}; var f=function() {return o}; f()['x']++ + o.x;", 7);
+ //     run("var o={x:3}; var f=function() {return o}; ++f()['x'] + o.x;", 8);
+ //   }
 
   module.test61a =
     function ()
@@ -630,7 +630,7 @@ var suiteConcreteTests =
 //      run("{42; 43;}", 43);
 //      run("ll:{42; break ll; 43;}", 42);
 //    }
-//
+
   module.test88a =
     function ()
     {
@@ -641,63 +641,63 @@ var suiteConcreteTests =
       run("var a = 1; function b() { a = 10; return; function a() {}}; b(); a;", 1);
     }
   
-//  module.test89 =
-//    function ()
-//    { 
-//      run("[].map(function () {}).length", 0);
-//      run("[3].map(function (x) {return x*x}).length", 1);
-//      run("[3].map(function (x) {return x*x})[0]", 9);
-//      run("[3,4].map(function (x) {return x*x}).length", 2);
-//      run("[3,4].map(function (x) {return x*x}).length", 2);
-//      run("[3,4].map(function (x) {return x*x})[1]", 16);
-//      run("var arr=new Array(10); arr.map(function () {return 123}).length", 10);
-//      run("var arr=new Array(3); arr.map(function () {return 123})[1]", undefined);
-//      run("var x=1; function f() { var x=2; return [9,9,9].map(function () {return this.x})}; f()[0];", 1);
-//      run("var x=1; function f() { var x=2; return [9,9,9].map(function () {return this.x}, {x:3})}; f()[0];", 3);
-//      run("var ar=[1,2,3].map(function (x) { return x*x*x }); ar[1]", 8);
-//      runStr("var arr = [1,2,3,4,5,6,7,8,9,10]; function f(x,y) {return x+y}; arr.map(f)", "[1,3,5,7,9,11,13,15,17,19]");
-//    }
-//  
-//  module.test90 =
-//    function ()
-//    { 
-//      runExc("[].reduce(function () {})");
-//      run("[].reduce(function () {}, 123)", 123);
-//      run("[3].reduce(function (x,y) {return x+y})", 3);
-//      run("[3].reduce(function (x,y) {return x+y}, 4)", 7);
-//      run("[3,4].reduce(function (x,y) {return x+y})", 7);
-//      run("[3,4].reduce(function (x,y) {return x+y}, 5)", 12);
-//    }
-//
-//  module.test91 =
-//    function ()
-//    { 
-//      run("function Circle(x,y,r){this.x=x;this.y=y;this.r=r};function area(s){return 3*s.r*s.r};var circles=[[10,100,4],[-10,-10,3],[0,50,5]].map(function (xyr){return new Circle(xyr[0], xyr[1], xyr[2])});var totalArea = circles.map(area).reduce(function (x,y) {return x+y});totalArea",150);
-//    }
-//  
-//  module.test92 =
-//    function ()
-//    {
-//      run("[].filter(function() {return true}).length", 0);
-//      run("[].filter(function() {return false}).length", 0);
-//      runStr("[1,2,3].filter(function() {return true})", "[1,2,3]");
-//      run("[1,2,3].filter(function() {return false}).length", 0);
-//      runStr("[1,2,3,4,5].filter(function(arg) {return arg%2})", "[1,3,5]");
-//    }
-//  
-//  module.test93 =
-//    function ()
-//    {
-//      run(read("test/resources/books.js"), 2);
-//    }
-//  
-//  module.test94 =
-//    function ()
-//    {
-//      run("for (var i = 0; i < 2000; i++) { 123 }", 123); // bug: throws JS stack overflow
-//      run("var a = [1,2,3]; for (var i = 0; i < 900; i++) { a[2] = 123 }", 123); // bug: throws JS stack overflow
-//    }
-//  
+ module.test89 =
+   function ()
+   {
+     run("[].map(function () {}).length", 0);
+     run("[3].map(function (x) {return x*x}).length", 1);
+     run("[3].map(function (x) {return x*x})[0]", 9);
+     run("[3,4].map(function (x) {return x*x}).length", 2);
+     run("[3,4].map(function (x) {return x*x}).length", 2);
+     run("[3,4].map(function (x) {return x*x})[1]", 16);
+     run("var arr=new Array(10); arr.map(function () {return 123}).length", 10);
+     run("var arr=new Array(3); arr.map(function () {return 123})[1]", undefined);
+     //run("var x=1; function f() { var x=2; return [9,9,9].map(function () {return this.x})}; f()[0];", 1); // non-strict only
+     run("var x=1; function f() { var x=2; return [9,9,9].map(function () {return this.x}, {x:3})}; f()[0];", 3);
+     run("var ar=[1,2,3].map(function (x) { return x*x*x }); ar[1]", 8);
+     run("var arr = [1,2,3,4,5,6,7,8,9,10]; function f(x,y) {return x+y}; arr.map(f).toString()", "1,3,5,7,9,11,13,15,17,19");
+   }
+
+   module.test90 =
+     function ()
+     {
+       run("var glob=false; try {[].reduce(function () {})} catch (ex) {glob=true};glob", true);
+       run("[].reduce(function () {}, 123)", 123);
+       run("[3].reduce(function (x,y) {return x+y})", 3);
+       run("[3].reduce(function (x,y) {return x+y}, 4)", 7);
+       run("[3,4].reduce(function (x,y) {return x+y})", 7);
+       run("[3,4].reduce(function (x,y) {return x+y}, 5)", 12);
+     }
+  
+   module.test91 =
+     function ()
+     {
+       run("function Circle(x,y,r){this.x=x;this.y=y;this.r=r};function area(s){return 3*s.r*s.r};var circles=[[10,100,4],[-10,-10,3],[0,50,5]].map(function (xyr){return new Circle(xyr[0], xyr[1], xyr[2])});var totalArea = circles.map(area).reduce(function (x,y) {return x+y});totalArea",150);
+     }
+  
+   module.test92 =
+     function ()
+     {
+       run("[].filter(function() {return true}).length", 0);
+       run("[].filter(function() {return false}).length", 0);
+       run("[1,2,3].filter(function() {return true}).toString()", "1,2,3");
+       run("[1,2,3].filter(function() {return false}).length", 0);
+       run("[1,2,3,4,5].filter(function(arg) {return arg%2}).toString()", "1,3,5");
+     }
+  
+   module.test93 =
+     function ()
+     {
+       run(read("test/resources/books.js"), 2);
+     }
+  
+   // module.test94 =
+   //   function ()
+   //   {
+   //     run("for (var i = 0; i < 2000; i++) { 123 }", 123); // bug: throws JS stack overflow
+   //     run("var a = [1,2,3]; for (var i = 0; i < 900; i++) { a[2] = 123 }", 123); // bug: throws JS stack overflow
+   //   }
+
   module.test95 =
     function ()
     {
@@ -907,6 +907,14 @@ var suiteConcreteTests =
       {
         run("function hh(...args) {return args[1]}; hh(41,42,43)", 42);
         run("function hh(x, ...args) {return args[1]}; hh(41,42,43)", 43);
+      }
+      
+  module.test117 =
+      function ()
+      {
+        run("Object.getOwnPropertyNames({x:42}).toString()", "x");
+        run("Object.getOwnPropertyNames({}).length", 0);
+        run("var ps = Object.getOwnPropertyNames({x:42,y:43});ps.length===2 && ps.indexOf('x')>-1 && ps.indexOf('y')>-1", true);
       }
   
   return module;

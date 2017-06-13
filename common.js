@@ -396,8 +396,8 @@ Sets.from1 =
       return set;
     }
 
-Sets.from =
-    function (x)
+Sets.of =
+    function (...x)
     {
       return new Set(x);
     }
