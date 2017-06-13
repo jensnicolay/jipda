@@ -1212,6 +1212,35 @@ function jsCesk(cc)
       return callInternal(O, "[[HasProperty]]", [P], store, lkont, kont, cont);
     }
     
+    // 7.3.11
+    function HasOwnProperty(O, P, store, lkont, kont, cont)
+    {
+      assertIsObject(O);
+      assertIsPropertyKey(P);
+      let result = BOT;
+      const as = O.addresses().values();
+      // TODO: call [[GetOwnProperty]]
+      for (const a of as)
+      {
+        const obj = storeLookup(store, a);
+        const prop = obj.lookup(P);
+        if (prop !== BOT)
+        {
+          result = result.join(L_TRUE);
+          const present = prop.must; // TODO getter/setter
+          if (!present)
+          {
+            result = result.join(L_FALSE);
+          }
+        }
+        else
+        {
+          result = result.join(L_FALSE);
+        }
+      }
+      return cont(result, store);
+    }
+    
     // 7.3.16
     function CreateArrayFromList(elements, node, store, lkont, kont, cont)
     {
@@ -4728,33 +4757,6 @@ function jsCesk(cc)
     return result;
   }
   
-  // TODO temp until properties refactoring
-  function hasProtoLookup(name, as, store)
-  {
-    var result = BOT;
-    as = as.values();
-    while (as.length !== 0)
-    {
-      var a = as.pop();
-      var obj = storeLookup(store, a);
-      var prop = obj.lookup(name);
-      if (prop !== BOT)
-      {
-        result = result.join(L_TRUE);
-        const present = prop.must; // TODO getter/setter
-        if (!present)
-        {
-          result = result.join(L_FALSE);
-        }
-      }
-      else
-      {
-        result = result.join(L_FALSE);
-      }
-    }
-    return result;
-  }
-  
   function lookupInternal(O, name, store)
   {
     assertDefinedNotNull(store);
@@ -5487,12 +5489,20 @@ function jsCesk(cc)
     
     function objectHasOwnProperty(application, operandValues, thisValue, benv, store, lkont, kont)
     {
-      if (operandValues.length !== 1)
-      {
-        return [];
-      }
-      const result = hasProtoLookup(operandValues[0], thisValue.addresses(), store);
-      return [{state: new KontState(result, store, lkont, kont)}];
+      const [V] = operandValues;
+      return ToPropertyKey(V, store, lkont, kont,
+          function (P, store)
+          {
+            return ToObject(thisValue, application, store, lkont, kont,
+                function (O, store)
+                {
+                  return HasOwnProperty(O, P, store, lkont, kont,
+                      function (hasOwn, store)
+                      {
+                        return [{state: new KontState(hasOwn, store, lkont, kont)}];
+                      });
+                });
+          });
     }
     
     // END OBJECT
