@@ -917,6 +917,22 @@ var suiteConcreteTests =
         run("Object.getOwnPropertyNames({}).length", 0);
         run("var ps = Object.getOwnPropertyNames({x:42,y:43});ps.length===2 && ps.indexOf('x')>-1 && ps.indexOf('y')>-1", true);
       }
+      
+  module.test118 =
+      function ()
+      {
+        // run("var trees=['redwood','bay','cedar','oak','maple'];0 in trees", true); // TODO: ToPropertyKey
+        // run("var trees=['redwood','bay','cedar','oak','maple'];3 in trees", true);
+        // run("var trees=['redwood','bay','cedar','oak','maple'];6 in trees", false);
+        run("var trees=['redwood','bay','cedar','oak','maple'];'bay' in trees", false);
+        run("var trees=['redwood','bay','cedar','oak','maple'];'length' in trees", true);
+        // run("'PI' in Math", true);
+        run("var mycar = {make: 'Honda', model: 'Accord', year: 1998};'make' in mycar", true);
+        run("var mycar = {make: 'Honda', model: 'Accord', year: 1998};'model' in mycar", true);
+        run("var mycar = {make: 'Honda', model: 'Accord', year: 1998};'floeper' in mycar", false);
+        // run("var color1 = new String('green');'length' in color1", true);
+        // run("var glob=false;var color2 = 'coral';try{'length' in color1} catch (ex) {glob=true};glob", true);
+      }
   
   return module;
   

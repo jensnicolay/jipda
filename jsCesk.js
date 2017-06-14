@@ -559,8 +559,15 @@ function jsCesk(cc)
       var obj = new Obj();
       obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ArrayPrototype%"));
   
-      // 9.4.5.4 TODO: exotic [[Get]] for Integer Indexed Exotic Objects
+      // TODO 9.4.5.4: exotic [[Get]] for Integer Indexed Exotic Objects
       obj = obj.setInternal("[[Get]]", SetValueNoAddresses.from1(OrdinaryGet));
+      // TODO 9.4.5.2
+      obj = obj.setInternal("[[HasProperty]]", SetValueNoAddresses.from1(OrdinaryHasProperty));
+      // TODO 9.4.5.1
+      obj = obj.setInternal("[[GetOwnProperty]]", SetValueNoAddresses.from1(OrdinaryGetOwnProperty));
+  
+      obj = obj.setInternal("[[GetPrototypeOf]]", SetValueNoAddresses.from1(OrdinaryGetPrototypeOf));
+
       
       // TODO temp
       obj = obj.setInternal("isArray", L_TRUE);
@@ -3137,6 +3144,28 @@ function jsCesk(cc)
             {
               return [{state: new KontState(value, store, lkont, kont)}];
             });
+      }
+      case "in":
+      {
+        let result = [];
+        if (rightValue.isNonRef())
+        {
+          result.push(throwTypeError("in: not an object"));
+        }
+        if (rightValue.isRef())
+        {
+          const r1 = ToPropertyKey(leftValue, store, lkont, kont,
+              function (P, store)
+              {
+                return HasProperty(rightValue, P, store, lkont, kont,
+                    function (result, store)
+                    {
+                      return [{state: new KontState(result, store, lkont, kont)}];
+                    });
+              });
+          result = result.concat(r1);
+        }
+        return result;
       }
       default:
         throw new Error("cannot handle binary operator " + operator);
