@@ -395,6 +395,13 @@ var suiteConcreteTests =
       run("try { throw 42 } catch (e) { e }", 42);
       run("try { 123 } catch (e) { e }", 123);
     }
+    
+  module.test75b =
+      function ()
+      {
+        run("var glob=[]; try { try {throw new Error('oops')} finally {glob.push(1)}} catch (ex) {glob.push(ex.message)};glob.toString()", "1,oops");
+        run("try {123} finally {456}", 123);
+      }
 
   module.test76a =
     function ()

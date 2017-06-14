@@ -3534,13 +3534,39 @@ function jsCesk(cc)
       function (tryValue, store, lkont, kont)
       {
         var node = this.node;
+        const finalizer = node.finalizer;
+        if (finalizer !== null)
+        {
+          const finalizerBody = finalizer.body;
+          if (finalizerBody.length === 0)
+          {
+            return [{state: new KontState(tryValue, store, lkont, kont)}];
+          }
+          const benv = this.benv;
+          const frame = new FinalizerKont(node, tryValue, false);
+          return evalStatementList(finalizer, benv, store, [frame].concat(lkont), kont);
+        }
         return [{state: new KontState(tryValue, store, lkont, kont)}];
       }
   TryKont.prototype.applyThrow =
       function (throwValue, store, lkont, kont)
       {
         var node = this.node;
+        const benv = this.benv;
         var handler = node.handler;
+        
+        if (handler === null)
+        {
+          const finalizer = node.finalizer;
+          const finalizerBody = finalizer.body;
+          if (finalizerBody.length === 0)
+          {
+            return [{state: new ThrowState(throwValue, store, lkont, kont)}];
+          }
+          const frame = new FinalizerKont(node, throwValue, true);
+          return evalStatementList(finalizer, benv, store, [frame].concat(lkont), kont);
+        }
+        
         var body = handler.body;
         var nodes = body.body;
         if (nodes.length === 0)
@@ -3557,48 +3583,100 @@ function jsCesk(cc)
         return evalStatementList(body, extendedBenv, store, lkont, kont, []);
       }
   
-  function ThrowKont(node)
-  {
-    this.node = node;
-  }
+    function FinalizerKont(node, value, thrw)
+    {
+      this.node = node;
+      this.value = value;
+      this.thrw = thrw;
+    }
   
-  ThrowKont.prototype.equals =
-      function (x)
-      {
-        return x instanceof ThrowKont
-            && this.node === x.node
-      }
-  ThrowKont.prototype.hashCode =
-      function ()
-      {
-        var prime = 31;
-        var result = 1;
-        result = prime * result + this.node.hashCode();
-        return result;
-      }
-  ThrowKont.prototype.toString =
-      function ()
-      {
-        return "throw-" + this.node.tag;
-      }
-  ThrowKont.prototype.nice =
-      function ()
-      {
-        return "throw-" + this.node.tag;
-      }
-  ThrowKont.prototype.addresses =
-      function ()
-      {
-        return EMPTY_ADDRESS_SET;
-      }
-  ThrowKont.prototype.apply =
-      function (throwValue, store, lkont, kont)
-      {
-        var node = this.node;
-        return [{state: new ThrowState(throwValue, store, lkont, kont)}];
-      }
+    FinalizerKont.prototype.equals =
+        function (x)
+        {
+          return x instanceof FinalizerKont
+              && this.node === x.node
+              && this.value.equals(x.value)
+              && this.thrw === x.thrw
+        }
+    FinalizerKont.prototype.hashCode =
+        function ()
+        {
+          var prime = 31;
+          var result = 1;
+          result = prime * result + this.node.hashCode();
+          result = prime * result + this.value.hashCode();
+          result = prime * result + HashCode.hashCode(this.thrw);
+          return result;
+        }
+    FinalizerKont.prototype.toString =
+        function ()
+        {
+          return "finalizer-" + this.node.tag;
+        }
+    FinalizerKont.prototype.nice =
+        function ()
+        {
+          return "finalizer-" + this.node.tag;
+        }
+    FinalizerKont.prototype.addresses =
+        function ()
+        {
+          return this.value.addresses();
+        }
+    FinalizerKont.prototype.apply =
+        function (finalValue, store, lkont, kont)
+        {
+          const value = this.value;
+          const thrw = this.thrw;
+          if (thrw)
+          {
+            return [{state: new ThrowState(value, store, lkont, kont)}];
+          }
+          return [{state: new KontState(value, store, lkont, kont)}];
+        }
   
-  function IfKont(node, benv)
+    function ThrowKont(node)
+    {
+      this.node = node;
+    }
+  
+    ThrowKont.prototype.equals =
+        function (x)
+        {
+          return x instanceof ThrowKont
+              && this.node === x.node
+        }
+    ThrowKont.prototype.hashCode =
+        function ()
+        {
+          var prime = 31;
+          var result = 1;
+          result = prime * result + this.node.hashCode();
+          return result;
+        }
+    ThrowKont.prototype.toString =
+        function ()
+        {
+          return "throw-" + this.node.tag;
+        }
+    ThrowKont.prototype.nice =
+        function ()
+        {
+          return "throw-" + this.node.tag;
+        }
+    ThrowKont.prototype.addresses =
+        function ()
+        {
+          return EMPTY_ADDRESS_SET;
+        }
+    ThrowKont.prototype.apply =
+        function (throwValue, store, lkont, kont)
+        {
+          var node = this.node;
+          return [{state: new ThrowState(throwValue, store, lkont, kont)}];
+        }
+  
+    function IfKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
