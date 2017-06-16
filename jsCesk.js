@@ -587,6 +587,12 @@ function jsCesk(cc)
       assert(result.isTrue());
     }
     
+    function assertIsCallable(F, store)
+    {
+      const result = IsCallable(F, store);
+      assert(result.isTrue());
+    }
+    
     function throwTypeError(msg, store, lkont, kont)
     {
       return {state: new ThrowState(l.abst1(msg), store, lkont, kont)};
@@ -1248,6 +1254,25 @@ function jsCesk(cc)
       return cont(result, store);
     }
     
+    // 7.3.12
+    function Call(F, V, argumentsList, node, benv, store, lkont, kont, cont)
+    {
+      // non-spec: argumentsList must be []
+      // (spec: if argList not passed,set to [])
+      assert(Array.isArray(argumentsList));
+      let result = [];
+      const ic = IsCallable(F);
+      if (ic.isFalse())
+      {
+        result.push(throwTypeError("not a function"));
+      }
+      if (ic.isTrue())
+      {
+        result = result.concat(applyProc(node, F, argumentsList, V, benv, store, lkont, kont));
+      }
+      return result;
+    }
+    
     // 7.3.16
     function CreateArrayFromList(elements, node, store, lkont, kont, cont)
     {
@@ -1478,7 +1503,7 @@ function jsCesk(cc)
           {
             if (O.isNonUndefined())
             {
-              const D = new Property(BOT, Desc.Get === BOT ? L_UNDEFINED : Desc.Get, Desc.Set === BOT ? L_UNDEFINED : Desc.Set, Desc.Writable === BOT ? L_FALSE : Desc.Writable, Desc.Enumerable === BOT ? L_FALSE : Desc.Enumerable, Desc.Configurable === BOT ? L_FALSE : Desc.Configurable);
+              const D = new Property(BOT, Desc.Get === BOT ? L_UNDEFINED : Desc.Get, Desc.Set === BOT ? L_UNDEFINED : Desc.Set, /*Desc.Writable === BOT ? L_FALSE : Desc.Writable*/ BOT, Desc.Enumerable === BOT ? L_FALSE : Desc.Enumerable, Desc.Configurable === BOT ? L_FALSE : Desc.Configurable);
               const as = O.addresses().values();
               for (const a of as)
               {
@@ -3001,7 +3026,15 @@ function jsCesk(cc)
             }
             if (value.isRef())
             {
-              resultValue = resultValue.join(l.abst1("object"));
+              const ic = IsCallable(value, store);
+              if (ic.isTrue())
+              {
+                resultValue = resultValue.join(l.abst1("function"));
+              }
+              if (ic.isFalse())
+              {
+                resultValue = resultValue.join(l.abst1("object"));
+              }
             }
             break;
           }
@@ -4873,9 +4906,17 @@ function jsCesk(cc)
       if (prop !== BOT)
       {
         found = prop.must;
-        const property = prop.value;
-        const value = property.Value;
-        result = result.join(value);
+        const desc = prop.value;
+        
+        if (IsDataDescriptor(desc))
+        {
+          const value = desc.Value;
+          result = result.join(value);
+        }
+        if (IsAccessorDescriptor(desc))
+        {
+          throw new Error("NIY");
+        }
       }
       if (!found)
       {

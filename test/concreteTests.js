@@ -841,6 +841,19 @@ var suiteConcreteTests =
         run("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", true);
       }
   
+  module.test106d =
+      function ()
+      {
+        run("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); typeof p.get", "function");
+        run("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", undefined);
+        run("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);
+        run("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", false);
+        run("var o = Object.defineProperty({}, 'x',{set:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); typeof p.set", "function");
+        run("var o = Object.defineProperty({}, 'x',{set:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", undefined);
+        run("var o = Object.defineProperty({}, 'x',{set:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);
+        run("var o = Object.defineProperty({}, 'x',{set:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", false);
+      }
+  
   
   module.test107 =
         function ()
@@ -871,6 +884,7 @@ var suiteConcreteTests =
           run("typeof false", "boolean");
           run("typeof undefined", "undefined");
           run("typeof null", "object");
+          run("typeof function () {}", "function");
         }
   
     module.test111 =
@@ -940,6 +954,13 @@ var suiteConcreteTests =
         // run("var color1 = new String('green');'length' in color1", true);
         // run("var glob=false;var color2 = 'coral';try{'length' in color1} catch (ex) {glob=true};glob", true);
       }
+      
+  // module.test119 = TODO: NYI
+  //     function ()
+  //     {
+  //       run("var o = Object.defineProperty({}, 'a',{get:function(){return 42}});o.a", 42);
+  //       run("var o={};var bValue=38;Object.defineProperty(o,'b',{get:function() {return bValue},set:function(newValue) {bValue=newValue},enumerable:true,configurable:true});o.b=42;o.b===bValue", true)
+  //     }
   
   return module;
   
