@@ -185,6 +185,21 @@
         }
         return result;
       }
+      
+  // 22.1.3.8
+  Array.prototype.find =
+      function (f, thisArg)
+      {
+        for (var i = 0; i < this.length; i++)
+        {
+         var x = this[i];
+          if (f.call(thisArg, x))
+          {
+            return x;
+          }
+        }
+        return undefined;
+      }
 
   // 22.1.3.10
   Array.prototype.forEach =

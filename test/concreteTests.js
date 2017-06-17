@@ -962,6 +962,12 @@ var suiteConcreteTests =
   //       run("var o={};var bValue=38;Object.defineProperty(o,'b',{get:function() {return bValue},set:function(newValue) {bValue=newValue},enumerable:true,configurable:true});o.b=42;o.b===bValue", true)
   //     }
   
+  module.test120 =
+      function()
+      {
+        run("var inventory = [{name: 'apples', quantity: 2},{name: 'bananas', quantity: 0},{name: 'cherries', quantity: 5}];function findCherries(fruit) {return fruit.name === 'cherries'};inventory.find(findCherries).quantity", 5);
+      }
+  
   return module;
   
 })()

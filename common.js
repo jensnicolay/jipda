@@ -1192,7 +1192,7 @@ HashMap.prototype.clear =
 HashMap.prototype.toString =
   function ()
   {
-    return this.entries().map(function (entry) {return entry[0] + " -> " + entry[1]}).toString();
+    return this.entries().toString();
   }
 
 HashMap.prototype.nice =

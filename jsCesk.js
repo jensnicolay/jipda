@@ -37,6 +37,8 @@ function jsCesk(cc)
   
   const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
   
+  const fastPath = true;
+  
   //const helpers = cc.helpers;
   
   assert(a);
@@ -595,7 +597,13 @@ function jsCesk(cc)
     
     function throwTypeError(msg, store, lkont, kont)
     {
-      return {state: new ThrowState(l.abst1(msg), store, lkont, kont)};
+      print(msg);
+      assert(typeof msg === "string");
+      const obj = createError(l.abst1(msg));
+      const addr = a.error("@"+msg);
+      store = storeAlloc(store, addr, obj);
+      const ref = l.abstRef(addr);
+      return [{state: new ThrowState(ref, store, lkont, kont)}];
     }
     ///
     
@@ -888,7 +896,7 @@ function jsCesk(cc)
       let result = [];
       if (Obj.isNonRef())
       {
-        result.push(throwTypeError("6.2.5.5"));
+        result.push(throwTypeError("6.2.5.5", store, lkont, kont));
       }
       if (Obj.isRef())
       {
@@ -988,17 +996,76 @@ function jsCesk(cc)
       }
       return result;
     }
+    
+    // 7.1.1
+    function ToPrimitive(input, PreferredType, store, lkont, kont, cont)
+    {
+      let result = [];
+      if (input.isRef())
+      {
+        let hint;
+        if (PreferredType === undefined)
+        {
+          hint = "default";
+        }
+        else if (PreferredType === "String")
+        {
+          hint = "string";
+        }
+        else if (PreferredType === 'Number')
+        {
+          hint = "number";
+        }
+        let exoticToPrim = L_UNDEFINED; // TODO: exotic stuff
+        if (exoticToPrim.isUndefined())
+        {
+        
+        }
+        if (exoticToPrim.isNonUndefined())
+        {
+          // TODO
+        }
+        if (hint === "default")
+        {
+          hint = "number";
+        }
+        const r1 = OrdinaryToPrimitive(input, hint);
+        result = result.concat(r1);
+      }
+      if (input.isNonRef())
+      {
+        const r1 = cont(input, store);
+        result = result.concat(r1);
+      }
+      return result;
+    }
+    
+    // 7.1.1.1
+    function OrdinaryToPrimitive(O, hint, store, lkont, kont, cont)
+    {
+      assertIsObject(O);
+      assert(hint === "string" || hint === "number");
+      let methodNames;
+      if (hint === "string")
+      {
+        methodNames = ["toString", "valueOf"];
+      }
+      else
+      {
+        methodNames = ["valueOf", "toString"];
+      }
+      // TODO ... requires "Call"
+      throw new Error("NYI");
+    }
   
     // 7.1.13
     function ToObject(argument, node, store, lkont, kont, cont)
     {
-      // fast path
-      if (!argument.isNonRef())
+      if (fastPath && !argument.isNonRef())
       {
         return cont(argument, store);
       }
   
-      // slow path
       let result = [];
       if (argument.isUndefined())
       {
@@ -1039,8 +1106,15 @@ function jsCesk(cc)
     // 7.1.14
     function ToPropertyKey(argument, store, lkont, kont, cont)
     {
-      // TODO
       return cont(argument, store);
+      
+      // TODO:
+      // return ToPrimitive(argument, "String", store, lkont, kont,
+      //   function (key, store)
+      //   {
+      //     // TODO: If Type(key) is Symbol, then Return key.
+      //     return ToString(key, store, lkont, kont, cont);
+      //   });
     }
     
     // 7.1.15
@@ -1190,7 +1264,7 @@ function jsCesk(cc)
             let result = [];
             if (success.isFalse())
             {
-              result.push(throwTypeError("7.3.6"));
+              result.push(throwTypeError("7.3.6", store, lkont, kont));
             }
             if (success.isTrue())
             {
@@ -1264,7 +1338,7 @@ function jsCesk(cc)
       const ic = IsCallable(F);
       if (ic.isFalse())
       {
-        result.push(throwTypeError("not a function"));
+        result.push(throwTypeError("not a function", store, lkont, kont));
       }
       if (ic.isTrue())
       {
@@ -1303,7 +1377,7 @@ function jsCesk(cc)
       let result = [];
       if (obj.isNonRef())
       {
-        result.push(throwTypeError("7.3.17"));
+        result.push(throwTypeError("7.3.17", store, lkont, kont));
       }
       if (obj.isRef())
       {
@@ -2196,12 +2270,12 @@ function jsCesk(cc)
   EvalState.prototype.toString =
       function ()
       {
-        return "#eval " + this.node.tag;
+        return "#eval " + this.node + this.kont;
       }
   EvalState.prototype.nice =
       function ()
       {
-        return "#eval " + this.node.tag;
+        return "#eval " + this.node + " " + this.benv + " " + this.kont;
       }
   EvalState.prototype.equals =
       function (x)
@@ -2444,6 +2518,7 @@ function jsCesk(cc)
   
   function ThrowState(value, store, lkont, kont)
   {
+    assertFalse(value instanceof Obj);
     this.value = value;
     this.store = store;
     this.lkont = lkont;
@@ -3705,6 +3780,7 @@ function jsCesk(cc)
     ThrowKont.prototype.apply =
         function (throwValue, store, lkont, kont)
         {
+          assertFalse(throwValue instanceof Obj)
           var node = this.node;
           return [{state: new ThrowState(throwValue, store, lkont, kont)}];
         }
@@ -4030,7 +4106,7 @@ function jsCesk(cc)
             case "VariableDeclaration":
               nameNode = left.declarations[0].id;
               break;
-            default: throw new Error("cannot handle left expression " + left);
+            default: throw new Error("cannot handle left expression " + left + " (" + left.type + ")");
           }
           return callInternal(ref, "[[OwnPropertyKeys]]", [], store, lkont, kont,
               function (ownKeys, store)
@@ -5287,8 +5363,7 @@ function jsCesk(cc)
     {
       if (operatorAs.count() === 0)
       {
-        let throwValue = createError(l.abst1(application.callee + " is not a function"));
-        return new ThrowKont(application.callee).apply(throwValue, store, lkont, kont);
+        return throwTypeError(application.callee + " is not a function", store, lkont, kont);
       }
     }
     return operatorAs.flatMap(
@@ -5861,7 +5936,7 @@ function jsCesk(cc)
       return CreateListFromArrayLike(thisValue, undefined, store, lkont, kont,
           function (list, store)
           {
-            return {state: new KontState(l.abst1(list.join()), store, lkont, kont)};
+            return [{state: new KontState(l.abst1(list.join()), store, lkont, kont)}];
           });
     }
     
