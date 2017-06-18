@@ -272,5 +272,33 @@
         }
         return result;
       }
-      
+  
+  function insertionSort(arr, f)
+  {
+    for (i = 1; i < arr.length; i++)
+    {
+      var x = arr[i];
+      var j = i - 1;
+      while (j >= 0 && f(arr[j], x) > 0)
+      {
+        arr[j+1] = arr[j]
+        j--;
+      }
+      arr[j+1] = x;
+    }
+    return arr;
+  }
+  
+  // 22.1.3.25
+  Array.prototype.sort =
+      function (f)
+      {
+        if (f === undefined)
+        {
+          throw new Error("NYI");
+        }
+        return insertionSort(this, f);
+      }
+  
+  
 })(this);

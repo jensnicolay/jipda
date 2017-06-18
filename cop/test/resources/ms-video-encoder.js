@@ -1,19 +1,16 @@
 var Trait = (function(){
-
+  
   var call = Function.prototype.call;
-
+  
   /**
    * An ad hoc version of bind that only binds the 'this' parameter.
    */
   var bindThis = function(fun, self) {
-      function funcBound(...arguments) {
-        return fun.apply(self, arguments);
-      }
-      return funcBound;
+    function funcBound(...arguments) {
+      return fun.apply(self, arguments);
     }
-  
-  var slice = bindThis(call, Array.prototype.slice);
-
+    return funcBound;
+  }
   
   function makeConflictAccessor(name) {
     var accessor = function(var_args) {
@@ -22,7 +19,7 @@ var Trait = (function(){
     Object.freeze(accessor.prototype);
     return Object.freeze(accessor);
   };
-
+  
   function makeRequiredPropDesc(name) {
     return Object.freeze({
       value: undefined,
@@ -34,9 +31,9 @@ var Trait = (function(){
   function makeConflictingPropDesc(name) {
     var conflict = makeConflictAccessor(name);
     return Object.freeze({
-    value: conflict,
-    enumerable: false,
-    conflict: true
+      value: conflict,
+      enumerable: false,
+      conflict: true
     });
   }
   
@@ -54,11 +51,11 @@ var Trait = (function(){
       return x !== x && y !== y;
     }
   }
-
+  
   // Note: isSameDesc should return true if both
   // desc1 and desc2 represent a 'required' property
   // (otherwise two composed required properties would be turned into
-  // a conflict) 
+  // a conflict)
   function isSameDesc(desc1, desc2) {
     // for conflicting properties, don't compare values because
     // the conflicting property values are never equal
@@ -66,18 +63,18 @@ var Trait = (function(){
       return true;
     } else {
       return (   desc1.get === desc2.get
-              && desc1.set === desc2.set
-              && identical(desc1.value, desc2.value)
-              && desc1.enumerable === desc2.enumerable
-              && desc1.required === desc2.required
-              && desc1.conflict === desc2.conflict); 
+      && desc1.set === desc2.set
+      && identical(desc1.value, desc2.value)
+      && desc1.enumerable === desc2.enumerable
+      && desc1.required === desc2.required
+      && desc1.conflict === desc2.conflict);
     }
   }
   
   function freezeAndBind(meth, self) {
     return Object.freeze(bindThis(meth, self));
   }
-
+  
   /* makeSet(['foo', ...]) => { foo: true, ...}
    *
    * makeSet returns an object whose own properties represent a set.
@@ -94,16 +91,16 @@ var Trait = (function(){
     });
     return Object.freeze(set);
   }
-
-  // == singleton object to be used as the placeholder for a required
-  // property == 
   
-  var required = Object.freeze({ 
-    toString: function() { return '<Trait.required>'; } 
+  // == singleton object to be used as the placeholder for a required
+  // property ==
+  
+  var required = Object.freeze({
+    toString: function() { return '<Trait.required>'; }
   });
-
+  
   // == The public API methods ==
-
+  
   /**
    * var newTrait = trait({ foo:required, ... })
    *
@@ -115,11 +112,11 @@ var Trait = (function(){
    * literal, since the object merely serves as a record
    * descriptor. Both its identity and its prototype chain are
    * irrelevant.
-   * 
+   *
    * Data properties bound to function objects in the argument will be
    * flagged as 'method' properties. The prototype of these function
    * objects is frozen.
-   * 
+   *
    * Data properties bound to the 'required' singleton exported by
    * this module will be marked as 'required' properties.
    *
@@ -148,14 +145,14 @@ var Trait = (function(){
     });
     return map;
   }
-
+  
   /**
    * var newTrait = compose(trait_1, trait_2, ..., trait_N)
    *
    * @param trait_i a trait object
    * @returns a new trait containing the combined own properties of
    *          all the trait_i.
-   * 
+   *
    * If two or more traits have own properties with the same name, the new
    * trait will contain a 'conflict' property for that name. 'compose' is
    * a commutative and associative operation, and the order of its
@@ -171,7 +168,7 @@ var Trait = (function(){
     traits.forEach(function (trait) {
       Object.getOwnPropertyNames(trait).forEach(function (name) {
         var pd = trait[name];
-        if (Object.hasOwnProperty(newTrait, name) &&
+        if (newTrait.hasOwnProperty(name) &&
             !newTrait[name].required) {
           
           // a non-required property with the same name was previously
@@ -179,14 +176,14 @@ var Trait = (function(){
           // 'required' property itself:
           if (pd.required) {
             return; // skip this property, the required property is
-   	            // now present 
+            // now present
           }
-            
+          
           if (!isSameDesc(newTrait[name], pd)) {
             // a distinct, non-required property with the same name
             // was previously defined by another trait => mark as
-	    // conflicting property
-            newTrait[name] = makeConflictingPropDesc(name); 
+            // conflicting property
+            newTrait[name] = makeConflictingPropDesc(name);
           } // else,
           // properties are not in conflict if they refer to the same value
           
@@ -198,7 +195,7 @@ var Trait = (function(){
     
     return Object.freeze(newTrait);
   }
-
+  
   /* var newTrait = exclude(['name', ...], trait)
    *
    * @param names a list of strings denoting property names.
@@ -215,7 +212,7 @@ var Trait = (function(){
     
     Object.getOwnPropertyNames(trait).forEach(function (name) {
       // required properties are not excluded but ignored
-      if (!Object.hasOwnProperty(exclusions, name) || trait[name].required) {
+      if (!exclusions.hasOwnProperty(name) || trait[name].required) {
         newTrait[name] = trait[name];
       } else {
         // excluded properties are replaced by required properties
@@ -225,7 +222,7 @@ var Trait = (function(){
     
     return Object.freeze(newTrait);
   }
-
+  
   /**
    * var newTrait = override(trait_1, trait_2, ..., trait_N)
    *
@@ -253,7 +250,7 @@ var Trait = (function(){
         // add this trait's property to the composite trait only if
         // - the trait does not yet have this property
         // - or, the trait does have the property, but it's a required property
-        if (!Object.hasOwnProperty(newTrait, name) || newTrait[name].required) {
+        if (!newTrait.hasOwnProperty(name) || newTrait[name].required) {
           newTrait[name] = pd;
         }
       });
@@ -266,7 +263,7 @@ var Trait = (function(){
    * var newTrait = rename(map, trait)
    *
    * @param map an object whose own properties serve as a mapping from
-            old names to new names.
+   old names to new names.
    * @param trait a trait object
    * @returns a new trait with the same properties as the original trait,
    *          except that all properties whose name is an own property
@@ -290,10 +287,10 @@ var Trait = (function(){
     var renamedTrait = {};
     Object.getOwnPropertyNames(trait).forEach(function (name) {
       // required props are never renamed
-      if (Object.hasOwnProperty(map, name) && !trait[name].required) {
+      if (map.hasOwnProperty(name) && !trait[name].required) {
         var alias = map[name]; // alias defined in map
-        if (Object.hasOwnProperty(renamedTrait, alias) && 
-	    !renamedTrait[alias].required) {
+        if (renamedTrait.hasOwnProperty(alias) &&
+            !renamedTrait[alias].required) {
           // could happen if 2 props are mapped to the same alias
           renamedTrait[alias] = makeConflictingPropDesc(alias);
         } else {
@@ -304,14 +301,14 @@ var Trait = (function(){
         // but only if a property under the original name does not exist
         // such a prop could exist if an earlier prop in the trait was
         // previously aliased to this name
-        if (!Object.hasOwnProperty(renamedTrait, name)) {
-          renamedTrait[name] = makeRequiredPropDesc(name);     
+        if (!renamedTrait.hasOwnProperty(name)) {
+          renamedTrait[name] = makeRequiredPropDesc(name);
         }
       } else { // no alias defined
-        if (Object.hasOwnProperty(renamedTrait, name)) {
+        if (renamedTrait.hasOwnProperty(name)) {
           // could happen if another prop was previously aliased to name
           if (!trait[name].required) {
-            renamedTrait[name] = makeConflictingPropDesc(name);            
+            renamedTrait[name] = makeConflictingPropDesc(name);
           }
           // else required property overridden by a previously aliased
           // property and otherwise ignored
@@ -335,8 +332,8 @@ var Trait = (function(){
    * all the keys that map to undefined (or another falsy value).
    *
    * @param resolutions an object whose own properties serve as a
-            mapping from old names to new names, or to undefined if
-            the property should be excluded
+   mapping from old names to new names, or to undefined if
+   the property should be excluded
    * @param trait a trait object
    * @returns a resolved trait with the same own properties as the
    * original trait.
@@ -350,7 +347,7 @@ var Trait = (function(){
    * and rename are not associative, for example:
    * rename({a: 'b'}, exclude(['b'], trait({ a:1,b:2 }))) eqv trait({b:1})
    * exclude(['b'], rename({a: 'b'}, trait({ a:1,b:2 }))) eqv
-   * trait({b:Trait.required}) 
+   * trait({b:Trait.required})
    *
    * writing resolve({a:'b', b: undefined},trait({a:1,b:2})) makes it
    * clear that what is meant is to simply drop the old 'b' and rename
@@ -361,7 +358,7 @@ var Trait = (function(){
     var exclusions = [];
     // preprocess renamed and excluded properties
     for (var name in resolutions) {
-      if (Object.hasOwnProperty(resolutions, name)) {
+      if (resolutions.hasOwnProperty(name)) {
         if (resolutions[name]) { // old name -> new name
           renames[name] = resolutions[name];
         } else { // name -> undefined
@@ -371,7 +368,7 @@ var Trait = (function(){
     }
     return rename(renames, exclude(exclusions, trait));
   }
-
+  
   /**
    * var obj = create(proto, trait)
    *
@@ -381,14 +378,14 @@ var Trait = (function(){
    * @throws 'Missing required property' the trait still contains a
    *         required property.
    * @throws 'Remaining conflicting property' if the trait still
-   *         contains a conflicting property. 
+   *         contains a conflicting property.
    *
    * Trait.create is like Object.create, except that it generates
    * high-integrity or final objects. In addition to creating a new object
    * from a trait, it also ensures that:
    *    - an exception is thrown if 'trait' still contains required properties
    *    - an exception is thrown if 'trait' still contains conflicting
-   *      properties 
+   *      properties
    *    - the object is and all of its accessor and method properties are frozen
    *    - the 'this' pseudovariable in all accessors and methods of
    *      the object is bound to the composed object.
@@ -399,7 +396,7 @@ var Trait = (function(){
    *      (the properties are simply dropped from the composite object)
    *    - no exception is thrown if 'trait' still contains conflicting
    *      properties (these properties remain as conflicting
-   *      properties in the composite object) 
+   *      properties in the composite object)
    *    - neither the object nor its accessor and method properties are frozen
    *    - the 'this' pseudovariable in all accessors and methods of
    *      the object is left unbound.
@@ -407,7 +404,7 @@ var Trait = (function(){
   function create(proto, trait) {
     var self = Object.create(proto);
     var properties = {};
-  
+    
     forEach(Object.getOwnPropertyNames(trait), function (name) {
       var pd = trait[name];
       // check for remaining 'required' properties
@@ -432,19 +429,19 @@ var Trait = (function(){
           properties[name] = pd;
         }
       } else { // accessor property
-          throw new Error("NYI");
+        throw new Error("NYI");
       }
     });
-
+    
     Object.defineProperties(self, properties);
     return Object.freeze(self);
   }
-
+  
   /** A shorthand for create(Object.prototype, trait({...}), options) */
   function object(record, options) {
     return create(Object.prototype, trait(record), options);
   }
-
+  
   /**
    * Tests whether two traits are equivalent. T1 is equivalent to T2 iff
    * both describe the same set of property names and for all property
@@ -499,17 +496,17 @@ var Trait = (function(){
 
 var cop = (function() {
   var ActivationAgePolicy, Adaptation, Context, Manager, Namespace, Policy, contexts, ensureObject, exports, findScriptHome, strategies, traceableMethod, traceableTrait, traits;
-
-  Function.prototype.inheritFrom = 
-    function(parent) {
-      this.prototype = new parent();
-      return this;
-    }
-
+  
+  Function.prototype.inheritFrom =
+      function(parent) {
+        this.prototype = new parent();
+        return this;
+      }
+  
   Array.prototype.top = function() {
     return this[this.length - 1];
   };
-
+  
   Context = function(name) {
     var _ref1;
     this.activationCount = 0;
@@ -522,192 +519,212 @@ var cop = (function() {
     }
     return this;
   };
-
+  
   Context.prototype.activate =
-    function() {
-      if (++this.activationCount === 1) {
-        this.activationStamp = ++this.manager.totalActivations;
-        this.activateAdaptations();
-      }
-      return this;
-    }
-
-  Context.prototype.deactivate = 
-    function() {
-      if (this.activationCount > 0) {
-        if (--this.activationCount === 0) {
-          this.deactivateAdaptations();
-          delete this.activationStamp;
+      function() {
+        if (++this.activationCount === 1) {
+          this.activationStamp = ++this.manager.totalActivations;
+          this.activateAdaptations();
         }
-      } else {
-        throw new Error('Cannot deactivate inactive context');
+        return this;
       }
-      return this;
-    }
-
+  
+  Context.prototype.deactivate =
+      function() {
+        if (this.activationCount > 0) {
+          if (--this.activationCount === 0) {
+            this.deactivateAdaptations();
+            delete this.activationStamp;
+          }
+        } else {
+          throw new Error('Cannot deactivate inactive context');
+        }
+        return this;
+      }
+  
   Context.prototype.isActive =
-    function() {
-      return this.activationCount > 0;
-    }
-
+      function() {
+        return this.activationCount > 0;
+      }
+  
   Context.prototype.adapt =
-    function(object, trait) {
-      if (!(object instanceof Object)) {
-        throw new Error("Values of type " + (typeof object) + " cannot be adapted.");
+      function(object, trait) {
+        if (!(object instanceof Object)) {
+          throw new Error("Values of type " + (typeof object) + " cannot be adapted.");
+        }
+        contexts.Default.addAdaptation(object, Trait(object), strategies.preserve);
+        return this.addAdaptation(object, trait, strategies.compose);
       }
-      contexts.Default.addAdaptation(object, Trait(object), strategies.preserve);
-      return this.addAdaptation(object, trait, strategies.compose);
-    }
-
+  
   Context.prototype.addAdaptation =
-    function(object, trait, strategy) {
-      var adaptation;
-      trait = traceableTrait(trait, object);
-      adaptation = this.adaptationFor(object);
-      if (adaptation) {
-        adaptation.trait = strategy(adaptation, trait);
-        if (this.isActive()) {
-          this.manager.updateBehaviorOf(object);
+      function(object, trait, strategy) {
+        var adaptation;
+        trait = traceableTrait(trait, object);
+        adaptation = this.adaptationFor(object);
+        if (adaptation) {
+          adaptation.trait = strategy(adaptation, trait);
+          if (this.isActive()) {
+            this.manager.updateBehaviorOf(object);
+          }
+        } else {
+          trait = Trait.compose(trait, traits.Extensible);
+          adaptation = new Adaptation(this, object, trait);
+          this.adaptations.push(adaptation);
+          if (this.isActive()) {
+            this.manager.deployAdaptation(adaptation);
+          }
         }
-      } else {
-        trait = Trait.compose(trait, traits.Extensible);
-        adaptation = new Adaptation(this, object, trait);
-        this.adaptations.push(adaptation);
-        if (this.isActive()) {
-          this.manager.deployAdaptation(adaptation);
-        }
+        return this;
       }
-      return this;
-    }
-
-    Context.prototype.adaptationFor =
+  
+  Context.prototype.adaptationFor =
       function(object) {
         return this.adaptations.find(function(adaptation) {
           return adaptation.object === object;
         });
-    }
-
-    Context.prototype.activateAdaptations =
-     function() {
-      var adaptation, _i, _len, _ref1, _results;
-      _ref1 = this.adaptations;
-      _results = [];
-      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-        adaptation = _ref1[_i];
-        _results.push(this.manager.deployAdaptation(adaptation));
       }
-      return _results;
-    }
-
-    Context.prototype.deactivateAdaptations =
-    function() {
-      var adaptation, _i, _len, _ref1, _results;
-      _ref1 = this.adaptations;
-      _results = [];
-      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-        adaptation = _ref1[_i];
-        _results.push(this.manager.withdrawAdaptation(adaptation));
+  
+  Context.prototype.activateAdaptations =
+      function() {
+        var adaptation, _i, _len, _ref1, _results;
+        _ref1 = this.adaptations;
+        _results = [];
+        _len = _ref1.length;
+        for (_i = 0; _i < _len; _i++) {
+          adaptation = _ref1[_i];
+          _results.push(this.manager.deployAdaptation(adaptation));
+        }
+        return _results;
       }
-      return _results;
-    }
-
-  Context.prototype.activationAge = 
-    function() {
-      return this.manager.totalActivations - this.activationStamp;
-    }
-
+  
+  Context.prototype.deactivateAdaptations =
+      function() {
+        var adaptation, _i, _len, _ref1, _results;
+        _ref1 = this.adaptations;
+        _results = [];
+        _len = _ref1.length;
+        for (_i = 0; _i < _len; _i++) {
+          adaptation = _ref1[_i];
+          _results.push(this.manager.withdrawAdaptation(adaptation));
+        }
+        return _results;
+      }
+  
+  Context.prototype.activationAge =
+      function() {
+        return this.manager.totalActivations - this.activationStamp;
+      }
+  
   Context.prototype.path =
-    function(from) {
-      var i, keys, p, subspace, values, _i, _len;
-      if (from == null) {
-        from = contexts;
-      }
-      keys = _.keys(from);
-      values = _.values(from);
-      i = values.indexOf(this);
-      if (i !== -1) {
-        return [keys[i]];
-      } else {
-        for (i = _i = 0, _len = values.length; _i < _len; i = ++_i) {
-          subspace = values[i];
-          if (subspace instanceof Namespace && keys[i] !== 'parent') {
-            p = this.path(subspace);
-            if (p) {
-              p.unshift(keys[i]);
-              return p;
+      function(from) {
+        var i, keys, p, subspace, values, _i, _len;
+        if (from == null) {
+          from = contexts;
+        }
+        keys = _.keys(from);
+        values = _.values(from);
+        i = values.indexOf(this);
+        if (i !== -1) {
+          return [keys[i]];
+        } else {
+          _len = values.length
+          for (i = _i = 0; _i < _len; i = ++_i) {
+            subspace = values[i];
+            if (subspace instanceof Namespace && keys[i] !== 'parent') {
+              p = this.path(subspace);
+              if (p) {
+                p.unshift(keys[i]);
+                return p;
+              }
             }
           }
+          return false;
         }
-        return false;
       }
-    }
-
+  
   Context.prototype.name =
-    function() {
-      var path;
-      path = this.path();
-      if (path) {
-        return path.join('.');
-      } else {
-        return 'anonymous';
+      function() {
+        var path;
+        path = this.path();
+        if (path) {
+          return path.join('.');
+        } else {
+          return 'anonymous';
+        }
       }
-    }
-
-  Context.prototype.toString = 
-  function() {
-      return this.name() + ' context';
-    }
-
+  
+  Context.prototype.toString =
+      function() {
+        return this.name() + ' context';
+      }
+  
   Policy = function() {
     return this;
   };
-
+  
+  function insertionSort(arr, f)
+  {
+    for (i = 1; i < arr.length; i++)
+    {
+      var x = arr[i];
+      var j = i - 1;
+      while (j >= 0 && f(arr[j], x))
+      {
+        arr[j+1] = arr[j]
+        j--;
+      }
+      arr[j+1] = x;
+    }
+    return arr;
+  }
+  
+  
   Policy.prototype.order =
-    function(adaptations) {
-      var self;
-      self = this;
-      return adaptations.sort(function(adaptation1, adaptation2) {
-        if (adaptation1.object !== adaptation2.object) {
-          throw new Error("Refusing to order adaptations of different objects");
-        }
-        return self.compare(adaptation1, adaptation2);
-      });
-    }
-
-  Policy.prototype.compare = 
-    function(adaptation1, adaptation2) {
-      throw new Error("There is no criterium to order adaptations");
-    }
-    
+      function(adaptations) {
+        var self;
+        self = this;
+        return insertionSort(adaptations, function(adaptation1, adaptation2) {
+          if (adaptation1.object !== adaptation2.object) {
+            throw new Error("Refusing to order adaptations of different objects");
+          }
+          return self.compare(adaptation1, adaptation2);
+        });
+      }
+  
+  Policy.prototype.compare =
+      function(adaptation1, adaptation2) {
+        throw new Error("There is no criterium to order adaptations");
+      }
+  
   Policy.prototype.toString =
-    function() {
-      return this.name() + ' policy';
-    }
-
+      function() {
+        return this.name() + ' policy';
+      }
+  
   Policy.prototype.name =
-    function() {
-      return 'anonymous';
-    }
-
-
+      function() {
+        return 'anonymous';
+      }
+  
+  
   ActivationAgePolicy = function() {
     Policy.call(this);
     return this;
   };
-
+  
   ActivationAgePolicy.inheritFrom(Policy);
-
-  ActivationAgePolicy.prototype.compare = 
-    function(adaptation1, adaptation2) {
-      return adaptation1.context.activationAge() - adaptation2.context.activationAge();
-    }
-
+  
+  ActivationAgePolicy.prototype.compare =
+      function(adaptation1, adaptation2) {
+        return adaptation1.context.activationAge() - adaptation2.context.activationAge();
+      }
+  
   ActivationAgePolicy.prototype.name =
-    function() {
-      return 'activation age';
-    }
-
-
+      function() {
+        return 'activation age';
+      }
+  
+  
   Namespace = function(name, parent) {
     if (parent == null) {
       parent = null;
@@ -722,113 +739,6 @@ var cop = (function() {
     }
     return this;
   };
-
-  // Namespace.prototype.root =
-  //   function() {
-  //     if (this.parent != null) {
-  //       return this.parent.root();
-  //     } else {
-  //       return this;
-  //     }
-  //   }
-
-  // Namespace.prototype.path =
-  //  function() {
-  //     var path;
-  //     if (this.parent != null) {
-  //       path = this.parent.path();
-  //       path.push(this.name);
-  //       return path;
-  //     } else {
-  //       return [this.name];
-  //     }
-  //   }
-
-  // Namespace.prototype.normalizePath =
-  //   function(path) {
-  //     if (_.isString(path)) {
-  //       return path = path.split('.');
-  //     } else if (_.isArray(path)) {
-  //       return path;
-  //     } else {
-  //       throw new Error("Invalid path specification");
-  //     }
-  //   }
-
-  // Namespace.prototype.ensure =
-  //   function(path) {
-  //     var name, namespace, _i, _len;
-  //     path = this.normalizePath(path);
-  //     namespace = this;
-  //     for (_i = 0, _len = path.length; _i < _len; _i++) {
-  //       name = path[_i];
-  //       if (namespace[name] == null) {
-  //         namespace[name] = new Namespace(name, namespace);
-  //       }
-  //       namespace = namespace[name];
-  //     }
-  //     return namespace;
-  //   }
-
-  // Namespace.prototype.add =
-  //   function(properties) {
-  //     return _.extend(this, properties);
-  //   }
-
-  // Namespace.prototype.load =
-  //   function(path, options) {
-  //     var failure, success;
-  //     success = options.success || (function() {});
-  //     failure = options.failure || (function() {});
-  //     path = this.normalizePath(path);
-  //     if (typeof document !== "undefined" && document !== null) {
-  //       return this.loadInBrowser(path, success, failure);
-  //     } else {
-  //       throw new Error("Loading of context modules not supported in current JavaScript platform.");
-  //     }
-  //   }
-
-  // Namespace.prototype.loadInBrowser =
-  //   function(path, success, failure) {
-  //     var target, url;
-  //     if (typeof $ === "undefined" || $ === null) {
-  //       throw new Error("Context module loading depends on jQuery");
-  //     }
-  //     target = this;
-  //     url = target.root().home + (target.path().concat(path)).join('/') + '.js';
-  //     return $.ajax({
-  //       url: url,
-  //       dataType: "text",
-  //       success: function(data, textStatus, jqXHR) {
-  //         var leaf, origExports;
-  //         try {
-  //           if (window.hasOwnProperty('exports')) {
-  //             origExports = window.exports;
-  //           }
-  //           window.exports = {};
-  //           $.globalEval(data);
-  //           leaf = target.ensure(path);
-  //           leaf.add(window.exports);
-  //           if (origExports != null) {
-  //             window.exports = origExports;
-  //           } else {
-  //             delete window.exports;
-  //           }
-  //           console.log('Loaded ' + url);
-  //           return success();
-  //         } catch (error) {
-  //           return failure(error);
-  //         }
-  //       },
-  //       error: function(jqXHR, status, error) {
-  //         console.log("Failed to load " + url + " (" + status + "): " + error);
-  //         return failure(error);
-  //       }
-  //     });
-  //   }
-
-    
-    
   
   Adaptation = function(context, object, trait) {
     this.context = context;
@@ -836,22 +746,22 @@ var cop = (function() {
     this.trait = trait;
     return this;
   };
-
-    Adaptation.prototype.deploy =
-    function() {
-      return extend(this.object, Object.create({}, this.trait));
-    }
-
+  
+  Adaptation.prototype.deploy =
+      function() {
+        return extend(this.object, Object.create({}, this.trait));
+      }
+  
   Adaptation.prototype.toString =
-    function() {
-      return "Adaptation for " + this.object + " in " + this.context;
-    }
-
+      function() {
+        return "Adaptation for " + this.object + " in " + this.context;
+      }
+  
   Adaptation.prototype.equivalent =
-    function(other) {
-      return this.context === other.context && this.object === other.object && Trait.eqv(this.trait, other.trait);
-    }
-
+      function(other) {
+        return this.context === other.context && this.object === other.object && Trait.eqv(this.trait, other.trait);
+      }
+  
   Manager = function() {
     this.adaptations = [];
     this.invocations = [];
@@ -859,14 +769,14 @@ var cop = (function() {
     this.totalActivations = 0;
     return this;
   };
-
-    Manager.prototype.deployAdaptation =
+  
+  Manager.prototype.deployAdaptation =
       function(adaptation) {
         this.adaptations.push(adaptation);
         return this.updateBehaviorOf(adaptation.object);
       }
-
-    Manager.prototype.withdrawAdaptation =
+  
+  Manager.prototype.withdrawAdaptation =
       function(adaptation) {
         var i;
         i = this.adaptations.indexOf(adaptation);
@@ -876,52 +786,55 @@ var cop = (function() {
         var s = this.adaptations.splice(i, 1);
         return this.updateBehaviorOf(adaptation.object);
       }
-    
-    Manager.prototype.updateBehaviorOf =
+  
+  Manager.prototype.updateBehaviorOf =
       function(object) {
         this.adaptationChainFor(object)[0].deploy();
         return this;
       }
-
-    Manager.prototype.adaptationChainFor =
+  
+  Manager.prototype.adaptationChainFor =
       function(object) {
         var relevantAdaptations;
         relevantAdaptations = this.adaptations.filter(function(adaptation) {
-        return adaptation.object === object;
+          return adaptation.object === object;
         });
         if (relevantAdaptations.length === 0) {
           throw new Error("No adaptations found for " + object);
         }
         return this.policy.order(relevantAdaptations);
-    }
-
-    Manager.prototype.orderedMethods =
-  function(object, name) {
-      var adaptation, adaptations, _i, _len, _results;
-      adaptations = this.adaptationChainFor(object);
-      _results = [];
-      for (_i = 0, _len = adaptations.length; _i < _len; _i++) {
-        adaptation = adaptations[_i];
-        _results.push(adaptation.trait[name].value);
       }
-      return _results;
-    }
-
-
   
-
-
-
-
+  Manager.prototype.orderedMethods =
+      function(object, name) {
+        var adaptation, adaptations, _i, _len, _results;
+        adaptations = this.adaptationChainFor(object);
+        _results = [];
+        _len = adaptations.length;
+        for (_i = 0; _i < _len; _i++) {
+          adaptation = adaptations[_i];
+          _results.push(adaptation.trait[name].value);
+        }
+        return _results;
+      }
+  
+  
+  
+  
+  
+  
+  
   strategies = {
     compose: function(adaptation, trait) {
-      var name, propdesc, resultingTrait;
+      var propdesc, resultingTrait;
       resultingTrait = Trait.compose(adaptation.trait, trait);
-      for (name in resultingTrait) {
-        if (!__hasProp.call(resultingTrait, name)) continue;
-        propdesc = resultingTrait[name];
-        if (propdesc.conflict) {
-          throw new Error(("Property '" + name + "' already adapted for ") + adaptation.object + " in " + adaptation.context);
+      for (var name in resultingTrait) {
+        if (__hasProp.call(resultingTrait, name))
+        {
+          propdesc = resultingTrait[name];
+          if (propdesc.conflict) {
+            throw new Error(("Property '" + name + "' already adapted for ") + adaptation.object + " in " + adaptation.context);
+          }
         }
       }
       return resultingTrait;
@@ -936,9 +849,9 @@ var cop = (function() {
       throw new Error(adaptation.object + " already adapted in " + adaptation.context);
     }
   };
-
-
-
+  
+  
+  
   function extend(target, source)
   {
     for (var prop in source) {
@@ -946,10 +859,10 @@ var cop = (function() {
     }
     return target;
   }
-
-
+  
+  
   traits = {};
-
+  
   traits.Extensible = Trait({
     proceed: function(...arguments) {
       var alternatives, args, index, invocations, manager, method, name, object, _ref1;
@@ -958,7 +871,11 @@ var cop = (function() {
       if (invocations.length === 0) {
         throw new Error("Proceed must be called from an adaptation");
       }
-      _ref1 = invocations.top(), object = _ref1[0], method = _ref1[1], name = _ref1[2], args = _ref1[3];
+      _ref1 = invocations.top();
+      object = _ref1[0];
+      method = _ref1[1];
+      name = _ref1[2];
+      args = _ref1[3];
       args = arguments.length === 0 ? args : arguments;
       alternatives = manager.orderedMethods(object, name);
       index = alternatives.indexOf(method);
@@ -971,7 +888,7 @@ var cop = (function() {
       return alternatives[index + 1].apply(this, args);
     }
   });
-
+  
   traceableMethod = function(object, name, method) {
     var wrapper;
     wrapper = function(...arguments) {
@@ -986,26 +903,28 @@ var cop = (function() {
     };
     return wrapper;
   };
-
+  
   traceableTrait = function(trait, object) {
-    var name, newTrait, propdesc;
+    var newTrait, propdesc;
     newTrait = Trait.compose(trait);
-    for (name in newTrait) {
-      if (!newTrait.hasOwnProperty(name)) continue;
-      propdesc = newTrait[name];
-      if (propdesc.value instanceof Function) { // TODO: typeof x === "function"
-        propdesc.value = traceableMethod(object, name, propdesc.value);
+    for (var name in newTrait) {
+      if (newTrait.hasOwnProperty(name))
+      {
+        propdesc = newTrait[name];
+        if (typeof propdesc.value === "function") {
+          propdesc.value = traceableMethod(object, name, propdesc.value);
+        }
       }
     }
     return newTrait;
   };
-
+  
   contexts = new Namespace('contexts');
-
+  
   contexts.Default = new Context('default');
-
+  
   contexts.Default.activate();
-
+  
   return {
     Context:Context,
     Namespace:Namespace,
@@ -1014,6 +933,29 @@ var cop = (function() {
     contexts:contexts
   }
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+print("base behavior definition");
 
 /*
  * Base behavior definition

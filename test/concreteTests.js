@@ -968,6 +968,12 @@ var suiteConcreteTests =
         run("var inventory = [{name: 'apples', quantity: 2},{name: 'bananas', quantity: 0},{name: 'cherries', quantity: 5}];function findCherries(fruit) {return fruit.name === 'cherries'};inventory.find(findCherries).quantity", 5);
       }
   
+  module.test121 =
+      function()
+      {
+        run("var numbers=[4,2,5,1,3];numbers.sort(function (a, b) {return a - b});numbers.toString()", "1,2,3,4,5");
+      }
+  
   return module;
   
 })()

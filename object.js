@@ -45,6 +45,11 @@ Prop.prototype.addresses =
       return this.value.addresses();
     }
 
+Prop.prototype.toString =
+    function ()
+    {
+      return String(this.value);
+    }
     
     
 function Record(map)
