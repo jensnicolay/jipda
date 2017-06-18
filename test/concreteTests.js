@@ -974,6 +974,13 @@ var suiteConcreteTests =
         run("var numbers=[4,2,5,1,3];numbers.sort(function (a, b) {return a - b});numbers.toString()", "1,2,3,4,5");
       }
   
+      module.test122 =
+      function()
+      {
+        run("var myFish = ['angel', 'clown', 'mandarin', 'sturgeon']; myFish.splice(2, 1);myFish.toString()", "angel,clown,sturgeon");
+      }
+  
+  
   return module;
   
 })()

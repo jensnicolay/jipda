@@ -299,6 +299,19 @@
         }
         return insertionSort(this, f);
       }
+      
+  // 22.1.3.26
+  Array.prototype.splice =
+      function (index, c)
+      {
+        for (i = index + c; i < this.length; i++)
+        {
+          this[i - c] = this[i];
+        }
+        this.length = this.length - c;
+        return undefined;
+      }
+  
   
   
 })(this);
