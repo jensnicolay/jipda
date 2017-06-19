@@ -534,7 +534,7 @@ var cop = (function() {
         if (this.activationCount > 0) {
           if (--this.activationCount === 0) {
             this.deactivateAdaptations();
-            delete this.activationStamp;
+            this.activationStamp = undefined;
           }
         } else {
           throw new Error('Cannot deactivate inactive context');
@@ -662,28 +662,11 @@ var cop = (function() {
     return this;
   };
   
-  function insertionSort(arr, f)
-  {
-    for (i = 1; i < arr.length; i++)
-    {
-      var x = arr[i];
-      var j = i - 1;
-      while (j >= 0 && f(arr[j], x))
-      {
-        arr[j+1] = arr[j]
-        j--;
-      }
-      arr[j+1] = x;
-    }
-    return arr;
-  }
-  
-  
   Policy.prototype.order =
       function(adaptations) {
         var self;
         self = this;
-        return insertionSort(adaptations, function(adaptation1, adaptation2) {
+        return adaptations.sort(function(adaptation1, adaptation2) {
           if (adaptation1.object !== adaptation2.object) {
             throw new Error("Refusing to order adaptations of different objects");
           }
@@ -783,7 +766,7 @@ var cop = (function() {
         if (i === -1) {
           throw new Error("Attempt to withdraw unmanaged adaptation");
         }
-        var s = this.adaptations.splice(i, 1);
+        this.adaptations.splice(i, 1);
         return this.updateBehaviorOf(adaptation.object);
       }
   
@@ -954,7 +937,6 @@ var cop = (function() {
 
 
 
-
 print("base behavior definition");
 
 /*
@@ -1035,3 +1017,5 @@ Compression.deactivate();
 Encryption.deactivate();
 Compression.deactivate();
 //CompressedEncryption.deactivate();
+
+"yes"

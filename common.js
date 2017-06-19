@@ -503,6 +503,10 @@ Maps.equals =
       {
         return false;
       }
+      if (x[Symbol.iterator] === undefined)
+      {
+        print(x, x.constructor.name, Object.keys(x));
+      }
       for (const [key, xvalue] of x)
       {
         if (!y.has(key))

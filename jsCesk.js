@@ -38,6 +38,7 @@ function jsCesk(cc)
   const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
   
   const fastPath = true;
+  const hardSemanticAsserts = cc.hardAsserts === undefined ? false : cc.hardAsserts;
   
   //const helpers = cc.helpers;
   
@@ -306,7 +307,7 @@ function jsCesk(cc)
       var result = new Set();
       while (todo.length > 0)
       {
-        if (states.length > 20000)
+        if (states.length > 100000)
         {
           print("STATE SIZE LIMIT", states.length);
           break;
@@ -578,21 +579,35 @@ function jsCesk(cc)
     
     
     /// semantic helpers
+    function semanticAssert(x)
+    {
+      if (x !== true)
+      {
+        const msg = "expected true, got " + x;
+        if (hardSemanticAsserts)
+        {
+          throw new Error(msg);
+        }
+        print(msg);
+      }
+    }
+    
+    
     function assertIsObject(O)
     {
-      assert(O.isRef());
+      semanticAssert(O.isRef());
     }
     
     function assertIsPropertyKey(P)
     {
       const result = IsPropertyKey(P);
-      assert(result.isTrue());
+      semanticAssert(result.isTrue());
     }
     
     function assertIsCallable(F, store)
     {
       const result = IsCallable(F, store);
-      assert(result.isTrue());
+      semanticAssert(result.isTrue());
     }
     
     function throwTypeError(msg, store, lkont, kont)
@@ -777,7 +792,7 @@ function jsCesk(cc)
     // 6.2.5.1
     function IsAccessorDescriptor(Desc)
     {
-      if (Desc === undefined)
+      if (Desc.equals(L_UNDEFINED)) // TODO: assumption = descriptors not joinable
       {
         return false;
       }
@@ -791,7 +806,7 @@ function jsCesk(cc)
     // 6.2.5.2
     function IsDataDescriptor(Desc)
     {
-      if (Desc === undefined)
+      if (Desc.equals(L_UNDEFINED))
       {
         return false;
       }
@@ -805,7 +820,7 @@ function jsCesk(cc)
     // 6.2.5.3
     function IsGenericDescriptor(Desc)
     {
-      if (Desc === undefined)
+      if (Desc.equals(L_UNDEFINED))
       {
         return false;
       }
@@ -821,7 +836,7 @@ function jsCesk(cc)
     function FromPropertyDescriptor(Desc, node, store, lkont, kont, cont)
     {
       let result = [];
-      if (Desc === undefined)
+      if (Desc.equals(L_UNDEFINED))
       {
         result = result.concat(cont(L_UNDEFINED, store));
       }
@@ -1513,7 +1528,7 @@ function jsCesk(cc)
         const X = obj.lookup(P);
         if (X === BOT || !X.must)
         {
-          result = result.concat(cont(undefined, store));
+          result = result.concat(cont(L_UNDEFINED, store));
         }
         if (X !== BOT && X.must)
         {
@@ -1551,7 +1566,7 @@ function jsCesk(cc)
       }
       let result = BOT;
       // step 2
-      if (current === undefined)
+      if (current.isUndefined())
       {
         if (extensible.isFalse())
         {
@@ -1730,7 +1745,7 @@ function jsCesk(cc)
       return callInternal(O, "[[GetOwnProperty]]", [P], store, lkont, kont,
           function (hasOwn, store)
           {
-            if (hasOwn !== undefined)
+            if (!hasOwn.equals(L_UNDEFINED))
             {
               return cont(L_TRUE, store);
             }
@@ -6285,6 +6300,7 @@ function jsCesk(cc)
       return callInternal(O, Name.conc1(), args, store, lkont, kont,
           function (value, store)
           {
+            assertDefinedNotNull(value);
             assertDefinedNotNull(store);
             return [{state: new KontState(value, store, lkont, kont)}];
           });

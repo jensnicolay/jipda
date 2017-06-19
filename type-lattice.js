@@ -174,6 +174,30 @@ Some.prototype.isNonRef =
       return true;
     }
 
+Some.prototype.isNull =
+    function ()
+    {
+      return this.prim === null;
+    }
+
+Some.prototype.isNonNull =
+    function ()
+    {
+      return this.prim !== null;
+    }
+
+Some.prototype.isUndefined =
+    function ()
+    {
+      return this.prim === undefined;
+    }
+
+Some.prototype.isNonUndefined =
+    function ()
+    {
+      return this.prim !== null;
+    }
+
 Some.prototype.toString =
     function ()
     {
@@ -213,6 +237,26 @@ Some.prototype.projectBoolean =
 Some.prototype.projectObject =
     function ()
     {
+      return BOT;
+    }
+
+Some.prototype.projectUndefined =
+    function ()
+    {
+      if (this.prim === undefined)
+      {
+        return this;
+      }
+      return BOT;
+    }
+
+Some.prototype.projectNull =
+    function ()
+    {
+      if (this.prim === null)
+      {
+        return this;
+      }
       return BOT;
     }
 
@@ -309,6 +353,12 @@ TypeValue.prototype.isNull =
     function ()
     {
       return (this.type & TypeValue.NULL);
+    }
+
+TypeValue.prototype.isNonNull =
+    function ()
+    {
+      return (this.type ^ TypeValue.NULL) || this.isRef();
     }
 
 TypeValue.prototype.ToString =

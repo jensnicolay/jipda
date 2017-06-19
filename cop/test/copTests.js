@@ -5,7 +5,11 @@ var suiteCopTests =
   var module = new TestSuite("suiteCopTests");
   
   const concLattice = new ConcLattice();
-  const initialCeskState = computeInitialCeskState(concLattice);
+  const initialConcCeskState = computeInitialCeskState(concLattice);
+  
+  const typeLattice = new TypeLattice();
+  const initialTypeCeskState = computeInitialCeskState(typeLattice);
+  
   
   function printGraph(states)
   {
@@ -16,24 +20,42 @@ var suiteCopTests =
   }
   
   
-  function run(src, expected)
+  function runConc(src, expected)
   {
-    var ast = Ast.createAst(src);
-    var cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: concLattice, errors:true});
-    var system = cesk.explore(ast, initialCeskState);
-    var result = computeResultValue(system.result);
+    const ast = Ast.createAst(src);
+    const cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: concLattice, errors:true, hardAsserts:true});
+    const system = cesk.explore(ast, initialConcCeskState);
+    const result = computeResultValue(system.result);
     result.msgs.join("\n");
     //printGraph(system.states);
-    var actual = result.value;
+    const actual = result.value;
     assertEquals(concLattice.abst1(expected), actual);
   }
   
+  function runAbst(src, expected)
+  {
+    const ast = Ast.createAst(src);
+    const cesk = jsCesk({a:tagAlloc,  kalloc:aacLightKalloc, l:typeLattice, errors:true, gc:true});
+    const system = cesk.explore(ast, initialTypeCeskState);
+    const result = computeResultValue(system.result);
+    const actual = result.value;
+    assert(actual.subsumes(expected));
+  }
   
-  module.testMsVideoEncoder =
+  
+  
+  module.XXXtestMsVideoEncoderConc =
       function ()
       {
         var src = read("test/resources/ms-video-encoder.js");
-        run(src, undefined);
+        runConc(src, "yes");
+      }
+  
+  module.testMsVideoEncoderAbst =
+      function ()
+      {
+        var src = read("test/resources/ms-video-encoder.js");
+        runAbst(src, "yes");
       }
   
   

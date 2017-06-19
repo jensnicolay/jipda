@@ -88,6 +88,20 @@ Record.prototype.get =
       return BOT;
     }
 
+Record.prototype.equals =
+    function (x)
+    {
+      if (this === x)
+      {
+        return true;
+      }
+      return Maps.equals(this.maps, x.maps,
+          function (x,y)
+          {
+            return x === y || x.equals(y)
+          });
+    }
+
 Record.prototype.join =
     function (other)
     {
@@ -229,11 +243,7 @@ Obj.prototype.equals =
       return false;
     }
     return this.frame.equals(x.frame)
-        && Maps.equals(this.internals, x.internals, function (x,y) {
-          
-          return x === y || x.equals(y)
-        
-        });
+        && this.internals.equals(x.internals);
   }
 
 Obj.prototype.hashCode =

@@ -15,7 +15,7 @@ load("../conc-alloc.js");
 load("../conc-kalloc.js");
 load("../type-lattice.js");
 load("../tag-alloc.js");
-load("../aac-kalloc.js");
+load("../aac-light-kalloc.js");
 load("../ast.js");
 load("../benv.js");
 load("../object.js");
