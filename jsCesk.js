@@ -517,46 +517,7 @@ function jsCesk(cc)
       }
       return result;
     }
-  
-  
-    //   function invokeMeta(name, operands, store, lkont, kont, as)
-    // {
-    //   const globala = realm.GlobalObject;
-    //   const global = storeLookup(store, globala);
-    //   const metaOperator = global.getInternal(name).value;
-    //   if (!metaOperator)
-    //   {
-    //     throw new Error("meta operator not found: " + name);
-    //   }
-    //   //console.debug("invokeMeta", name);
-    //   const addresses = stackAddresses(lkont, kont).join(as || ArraySet.empty());
-    //   const kont2 = createContext(null, globala, name + kcount++/*userCtx*/, addresses, null);
-    //   const result = runMeta(applyProc(null, metaOperator, operands, globala, null, store, [], kont2, []));
-    //   return result;
-    //
-    //   function runMeta(initialTansitions)
-    //   {
-    //     const initialStates = initialTansitions.map((transition) => transition.state);
-    //     const system = performExplore(initialStates);
-    //     const resultStates = system.result;
-    //     let value = BOT;
-    //     let store = BOT;
-    //     for (const resultState of resultStates)
-    //     {
-    //       if (resultState.isKontState)
-    //       {
-    //         value = value.join(resultState.value);
-    //         store = store.join(resultState.store);
-    //       }
-    //       else
-    //       {
-    //         throw new Error("(TODO) meta call generated non-kont state: " + resultState);
-    //       }
-    //     }
-    //     return {value, store};
-    //   }
-    // }
-  
+    
     function createArray()
     {
       var obj = new Obj();
@@ -570,7 +531,6 @@ function jsCesk(cc)
       obj = obj.setInternal("[[GetOwnProperty]]", SetValueNoAddresses.from1(OrdinaryGetOwnProperty));
   
       obj = obj.setInternal("[[GetPrototypeOf]]", SetValueNoAddresses.from1(OrdinaryGetPrototypeOf));
-
       
       // TODO temp
       obj = obj.setInternal("isArray", L_TRUE);
@@ -1794,7 +1754,9 @@ function jsCesk(cc)
         const obj = storeLookup(store, a);
         // TODO: symbols, ascending numeric, chronological order, etc.
         // TODO: subsumption checking
+        
         keys = keys.addAll(obj.names());
+        print("keys", keys);
       }
       return cont(keys.values(), store);
     }

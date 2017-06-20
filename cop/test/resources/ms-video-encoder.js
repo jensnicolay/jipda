@@ -404,8 +404,8 @@ var Trait = (function(){
   function create(proto, trait) {
     var self = Object.create(proto);
     var properties = {};
-    
-    forEach(Object.getOwnPropertyNames(trait), function (name) {
+  
+    Object.getOwnPropertyNames(trait).forEach(function (name) {
       var pd = trait[name];
       // check for remaining 'required' properties
       // Note: it's OK for the prototype to provide the properties
