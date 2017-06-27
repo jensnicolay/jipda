@@ -118,6 +118,12 @@ var Ast = {}
       }
   }
   
+Ast.nodeToNiceString =
+    function (node, l = 30)
+    {
+      return nodeToString(node).substring(0, l) + " (" + node.loc.start.line + ":" + node.loc.start.column + ")";
+    }
+  
 Ast.isIdentifier =
   function (n)
   {

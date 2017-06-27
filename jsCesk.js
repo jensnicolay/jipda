@@ -336,6 +336,11 @@ function jsCesk(cc)
           result.add(s);
           continue;
         }
+        // if (next.length > 1)
+        // {
+        //   print("branch", next.length, s.nice());
+        //   printCallStacks(Stackget(new Stack(s.lkont, s.kont)).unroll());
+        // }
         for (var i = 0; i < next.length; i++)
         {
           var t2 = next[i];
@@ -356,7 +361,7 @@ function jsCesk(cc)
       }
       return {initial, result, states, contexts, realm, time: performance.now() - startTime};
     
-      function stateGet(s)
+      function  stateGet(s)
       {
         let statesReg = kont2states[s.kont._id];
         if (!statesReg)
@@ -438,24 +443,65 @@ function jsCesk(cc)
   
     function Stack(lkont, kont)
     {
-      return {lkont, kont, _id: -1}
+      this.lkont = lkont;
+      this.kont = kont;
+      this._id = -1;
     }
   
-    function Stack_equals(st1, st2)
-    {
-      if (st1 === st2)
-      {
-        return true;
-      }
-      return st1.lkont.equals(st2.lkont)
-          && st1.kont === st2.kont;
-    }
+    Stack.prototype.equals =
+        function (x)
+        {
+          if (this === x)
+          {
+            return true;
+          }
+          return this.lkont.equals(x.lkont)
+              && this.kont === x.kont;
+        }
+  
+    Stack.prototype.toString =
+        function ()
+        {
+          return "[" + this.lkont + ", " + this.kont + "]";
+        }
+        
+    Stack.prototype.unroll =
+        function ()
+        {
+            function unroll(stack, seen)
+            {
+      
+              if (seen[stack._id])
+              {
+                return [[stack, "*"]];
+              }
+              seen[stack._id] = true;
+      
+              if (stack.kont._stacks.size === 0)
+              {
+                return [[stack]];
+              }
+      
+              const result = [];
+              for (const stack2 of stack.kont._stacks)
+              {
+                const unrolled = unroll(stack2, seen.slice(0));
+                for (const ur of unrolled)
+                {
+                  result.push([stack].concat(ur))
+                }
+              }
+              return result;
+            }
+            return unroll(this, []);
+        }
+  
   
     function Stackget(st)
     {
       for (let i = 0; i < stacks.length; i++)
       {
-        if (Stack_equals(stacks[i], st))
+        if (stacks[i].equals(st))
         {
           return stacks[i];
         }
@@ -537,6 +583,27 @@ function jsCesk(cc)
       return obj;
     }
     
+    /// debug helpers
+    function printCallStacks(unrolledStacks)
+    {
+      for (const ur of unrolledStacks)
+      {
+        print("===== TOP =====");
+        //if (!ur[Symbol.iterator]) print(Object.keys(ur));
+        for (const stack of ur)
+        {
+          if (stack.kont && stack.kont.ex)
+          {
+            print(Ast.nodeToNiceString(stack.kont.ex), stack._id, stack.kont._id);
+          }
+          else
+          {
+            print(stack);
+          }
+        }
+        print("==== BOTTOM ====\n");
+      }
+    }
     
     /// semantic helpers
     function semanticAssert(x)
@@ -1756,7 +1823,6 @@ function jsCesk(cc)
         // TODO: subsumption checking
         
         keys = keys.addAll(obj.names());
-        print("keys", keys);
       }
       return cont(keys.values(), store);
     }
@@ -2200,7 +2266,7 @@ function jsCesk(cc)
       function (application, operandValues, thisValue, TODO_REMOVE, store, lkont, kont)
       {
         const userContext = kalloc(this, operandValues, store);
-        var previousStack = Stackget(Stack(lkont, kont));
+        var previousStack = Stackget(new Stack(lkont, kont));
         var stackAs = stackAddresses(lkont, kont).join(this.addresses());
         var ctx = createContext(application, thisValue, userContext, stackAs, previousStack);
         return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx)
@@ -2217,7 +2283,7 @@ function jsCesk(cc)
         store = store.allocAval(thisa, obj);
         const thisValue = l.abstRef(thisa);
         const stackAs = stackAddresses(lkont, kont).join(this.addresses());
-        const previousStack = Stackget(Stack(lkont, kont));
+        const previousStack = Stackget(new Stack(lkont, kont));
         const ctx = createContext(application, thisValue, userContext, stackAs, previousStack);
         return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx);
       }
@@ -2344,7 +2410,7 @@ function jsCesk(cc)
   KontState.prototype.nice =
       function ()
       {
-        return "#kont-" + this.lkont[0];
+        return "(kont value:" + this.value + " lkont[0]:" + (this.lkont[0] ? this.lkont[0].nice() : "") + ")";
       }
   KontState.prototype.next =
       function ()
@@ -2380,7 +2446,7 @@ function jsCesk(cc)
           }
           
           let result = [];
-          for (let stack of kont._stacks)
+          for (const stack of kont._stacks)
           {
             result.push({state: new KontState(value, store, stack.lkont, stack.kont)});
           }
@@ -2568,7 +2634,7 @@ function jsCesk(cc)
   
   ThrowState.prototype.stackPop = function (lkont, kont)
   {
-    var todo = [Stack(lkont, kont)];
+    var todo = [new Stack(lkont, kont)];
     var result = [];
     var G = ArraySet.empty();
     todo: while (todo.length > 0)
@@ -2581,7 +2647,7 @@ function jsCesk(cc)
       {
         if (lkont[i].applyThrow)
         {
-          result.push(Stack(lkont.slice(i), kont));
+          result.push(new Stack(lkont.slice(i), kont));
           continue todo;
         }
       }
@@ -2594,7 +2660,7 @@ function jsCesk(cc)
       kont._stacks.forEach(
           function (st)
           {
-            todo.push(Stack(st.lkont, st.kont));
+            todo.push(new Stack(st.lkont, st.kont));
           });
       G = G.add(kont);
     }
@@ -3905,7 +3971,7 @@ function jsCesk(cc)
   ForTestKont.prototype.nice =
       function ()
       {
-        return "fortest-" + this.node.tag;
+        return "fortest-" + Ast.nodeToNiceString(this.node);
       }
   ForTestKont.prototype.addresses =
       function ()

@@ -530,18 +530,6 @@ MutableSets.union = function(x, y) {
   }
 }
 
-String.prototype.startsWith =
-  function (s)
-  {
-    return this.lastIndexOf(s, 0) === 0;
-  }
-  
-String.prototype.endsWith = 
-  function (s)
-  {
-    return this.indexOf(s, this.length - s.length) !== -1;
-  }
-  
 String.prototype.equals =
   function (x)
   {
@@ -563,6 +551,21 @@ String.prototype.hashCode =
     }
     return result;
   }
+  
+const Strings = {};
+
+Strings.smartTrim =
+    function (s, l = 30)
+    {
+      const ss = String(s);
+      if (ss.length <= l)
+      {
+        return ss;
+      }
+      const cut1 = ss.length - l + 10;
+      const cut2 = ss.length - 10;
+      return ss.substring(0, cut1) + "..." + ss.substring(cut2);
+    }
 
 var Character = {};
 

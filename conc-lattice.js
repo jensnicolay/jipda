@@ -614,4 +614,3 @@ ConcLattice.prototype.not =
     {
       return new ConcValue(!x.value);
     }
-
