@@ -15,8 +15,8 @@
   <script type="text/javascript" src="../conc-lattice.js"></script>
   <script type="text/javascript" src="../conc-alloc.js"></script>
   <script type="text/javascript" src="../conc-kalloc.js"></script>
-  <script type="text/javascript" src="../type-lattice.js"></script>
-  <script type="text/javascript" src="../tag-alloc.js"></script>
+  <script type="text/javascript" src="../conc-type-lattice.js"></script>
+  <script type="text/javascript" src="../tag-ctx-alloc.js"></script>
   <script type="text/javascript" src="../aac-kalloc.js"></script>
   <script type="text/javascript" src="../benv.js"></script>
   <script type="text/javascript" src="../countingStore.js"></script>
@@ -240,7 +240,7 @@
 		</select>
     <span>
       <select id="config" title="value lattice">
-        <option value="(lat=new TypeLattice(),ag=tagAlloc,kalloc=aacKalloc)">abst</option>
+        <option value="(lat=new ConcTypeLattice(),ag=tagCtxAlloc,kalloc=aacKalloc)">abst</option>
         <option value="(lat=new ConcLattice(),ag=concAlloc,kalloc=concKalloc)">conc</option>
       </select>
     </span>

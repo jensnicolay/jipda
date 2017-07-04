@@ -1,8 +1,7 @@
 "use strict";
 
-const TypeLattice = (function ()
+const ConcTypeLattice = (function ()
 {
-  
   TypeValue.UND = 1 << 0;
   TypeValue.NULL = 1 << 1;
   TypeValue.STR = 1 << 2;
@@ -40,6 +39,7 @@ const TypeLattice = (function ()
         {
           return Object.is(this.prim, x.prim);
         }
+        return false;
       }
   
   Some.prototype.hashCode =
@@ -54,10 +54,6 @@ const TypeLattice = (function ()
         var prim = this.prim;
         if (typeof prim === "string")
         {
-          if (+prim === +prim && prim !== "")
-          {
-            return TypeValue._NUMSTR;
-          }
           return TypeValue._STR;
         }
         if (typeof prim === "number")
@@ -299,6 +295,176 @@ const TypeLattice = (function ()
         return this.prim;
       }
   
+  function ConcAddr(addr)
+  {
+    assertDefinedNotNull(addr);
+    this.addr = addr;
+  }
+  
+  ConcAddr.prototype.equals =
+      function (x)
+      {
+        if (this === x)
+        {
+          return true;
+        }
+        return (x instanceof ConcAddr)
+            && this.addr === x.addr
+      }
+  
+  ConcAddr.prototype.hashCode =
+      function ()
+      {
+        var prime = 11;
+        var result = 1;
+        result = prime * result + this.addr.hashCode();
+        return result;
+      }
+  
+  ConcAddr.prototype.addresses =
+      function ()
+      {
+        return ArraySet.from1(this.addr);
+      }
+  
+  ConcAddr.prototype.toString =
+      function ()
+      {
+        return String(this.addr);
+      }
+  
+  ConcAddr.prototype.join =
+      function (x)
+      {
+        if (x === BOT || this.equals(x))
+        {
+          return this;
+        }
+        const xx = this.abst();
+        const yy = x.abst();
+        return xx.join(yy);
+      }
+  
+  ConcAddr.prototype.subsumes =
+      function (x)
+      {
+        return this.equals(x)
+      }
+  
+  ConcAddr.prototype.isTruthy =
+      function ()
+      {
+        return true;
+      }
+  
+  ConcAddr.prototype.isFalsy =
+      function ()
+      {
+        return false;
+      }
+  
+  ConcAddr.prototype.isTrue =
+      function ()
+      {
+        return false;
+      }
+  
+  ConcAddr.prototype.isFalse =
+      function ()
+      {
+        return false;
+      }
+  
+  ConcAddr.prototype.isRef =
+      function ()
+      {
+        return true;
+      }
+  
+  ConcAddr.prototype.isNonRef =
+      function ()
+      {
+        return false;
+      }
+  
+  ConcAddr.prototype.isNull =
+      function ()
+      {
+        return false;
+      }
+  
+  ConcAddr.prototype.isNonNull =
+      function ()
+      {
+        return true;
+      }
+  
+  ConcAddr.prototype.isUndefined =
+      function ()
+      {
+        return false;
+      }
+  
+  ConcAddr.prototype.isNonUndefined =
+      function ()
+      {
+        return true;
+      }
+  
+  ConcAddr.prototype.projectString =
+      function ()
+      {
+        return BOT;
+      }
+  
+  ConcAddr.prototype.projectNumber =
+      function ()
+      {
+        return BOT;
+      }
+  
+  ConcAddr.prototype.projectBoolean =
+      function ()
+      {
+        return BOT;
+      }
+  
+  ConcAddr.prototype.projectObject =
+      function ()
+      {
+        return this;
+      }
+  
+  ConcAddr.prototype.projectUndefined =
+      function ()
+      {
+        return BOT;
+      }
+  
+  ConcAddr.prototype.projectNull =
+      function ()
+      {
+        return BOT;
+      }
+  
+  ConcAddr.prototype.hasSameNumberValue =
+      function (x)
+      {
+        return new Some(false);
+      }
+  
+  ConcAddr.prototype.hasSameStringValue =
+      function (x)
+      {
+        return new Some(false);
+      }
+      
+  ConcAddr.prototype.abst =
+      function ()
+      {
+        return new TypeValue(0, ArraySet.from1(this.addr));
+      }
+      
   function TypeValue(type, as)
   {
     this.type = type;
@@ -335,6 +501,12 @@ const TypeLattice = (function ()
       }
   
   TypeValue.prototype.isFalsy =
+      function ()
+      {
+        return (this.type & TypeValue.FALSY);
+      }
+  
+  TypeValue.prototype.isFalse =
       function ()
       {
         return (this.type & TypeValue.FALSY);
@@ -421,7 +593,7 @@ const TypeLattice = (function ()
   TypeValue.prototype.join =
       function (x)
       {
-        if (x === BOT)
+        if (x === BOT || this.equals(x))
         {
           return this;
         }
@@ -433,6 +605,10 @@ const TypeLattice = (function ()
       function (x)
       {
         if (x === BOT)
+        {
+          return BOT;
+        }
+        if (this.equals(x))
         {
           return BOT;
         }
@@ -603,34 +779,14 @@ const TypeLattice = (function ()
   TypeLattice.prototype.abstRef =
       function (addr)
       {
-        return new TypeValue(0, ArraySet.from1(addr));
+        return new ConcAddr(addr);
       }
   
   
   TypeLattice.prototype.abst1 =
       function (value)
       {
-        if (typeof value === "string")
-        {
-          return new Some(value);
-        }
-        if (typeof value === "number")
-        {
-          return TypeValue._NUM;
-        }
-        if (value === true || value === false)
-        {
-          return new Some(value);
-        }
-        if (value === undefined)
-        {
-          return new Some(value);
-        }
-        if (value === null)
-        {
-          return TypeValue._NULL;
-        }
-        throw new Error("cannot abstract value " + value);
+        return new Some(value);
       }
   
   TypeLattice.prototype.NUMBER = TypeValue._NUM;
@@ -643,10 +799,6 @@ const TypeLattice = (function ()
         if (x instanceof Some && y instanceof Some)
         {
           var result = x.prim + y.prim;
-          if (typeof result === "string" && result.length > 32)
-          {
-            return TypeValue._STR;
-          }
           return new Some(result);
         }
         var x = x.abst();
@@ -686,48 +838,96 @@ const TypeLattice = (function ()
   TypeLattice.prototype.lt =
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          var result = x.prim < y.prim;
+          return new Some(result);
+        }
+        
         return this.BOOL;
       }
   
   TypeLattice.prototype.lte =
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          var result = x.prim <= y.prim;
+          return new Some(result);
+        }
+
         return this.BOOL;
       }
   
   TypeLattice.prototype.gt =
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          var result = x.prim > y.prim;
+          return new Some(result);
+        }
+        
         return this.BOOL;
       }
   
   TypeLattice.prototype.gte =
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          var result = x.prim >= y.prim;
+          return new Some(result);
+        }
+        
         return this.BOOL;
       }
   
   TypeLattice.prototype.sub =
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          var result = x.prim - y.prim;
+          return new Some(result);
+        }
+  
         return this.NUMBER;
       }
   
   TypeLattice.prototype.mul =
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          var result = x.prim * y.prim;
+          return new Some(result);
+        }
+        
         return this.NUMBER;
       }
   
   TypeLattice.prototype.div =
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          var result = x.prim / y.prim;
+          return new Some(result);
+        }
+  
         return this.NUMBER;
       }
   
   TypeLattice.prototype.rem =
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          var result = x.prim % y.prim;
+          return new Some(result);
+        }
+  
         return this.NUMBER;
       }
   
@@ -739,12 +939,38 @@ const TypeLattice = (function ()
           return new Some(x.prim === y.prim);
         }
         
+        if (x instanceof ConcAddr && y instanceof ConcAddr)
+        {
+          return new Some(x.equals(y));
+        }
+  
+        if (x instanceof ConcAddr && y instanceof Some)
+        {
+          return new Some(false);
+        }
+  
+        if (x instanceof Some && y instanceof ConcAddr)
+        {
+          return new Some(false);
+        }
+  
         return this.BOOL;
       }
   
   TypeLattice.prototype.eq =
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          var result = x.prim == y.prim;
+          return new Some(result);
+        }
+  
+        if (x instanceof ConcAddr && y instanceof ConcAddr)
+        {
+          return new Some(x.equals(y));
+        }
+  
         return this.BOOL;
       }
   
@@ -755,7 +981,12 @@ const TypeLattice = (function ()
         {
           return new Some(x.prim != y.prim);
         }
-        
+  
+        if (x instanceof ConcAddr && y instanceof ConcAddr)
+        {
+          return new Some(!x.equals(y));
+        }
+  
         return this.BOOL;
       }
   
@@ -766,7 +997,22 @@ const TypeLattice = (function ()
         {
           return new Some(x.prim !== y.prim);
         }
-        
+  
+        if (x instanceof ConcAddr && y instanceof ConcAddr)
+        {
+          return new Some(!x.equals(y));
+        }
+  
+        if (x instanceof ConcAddr && y instanceof Some)
+        {
+          return new Some(true);
+        }
+  
+        if (x instanceof Some && y instanceof ConcAddr)
+        {
+          return new Some(true);
+        }
+  
         return this.BOOL;
       }
   
@@ -820,12 +1066,24 @@ const TypeLattice = (function ()
   TypeLattice.prototype.pos = // unary +
       function (x)
       {
+        if (x instanceof Some)
+        {
+          var result = +x.prim;
+          return new Some(result);
+        }
+        
         return this.NUMBER;
       }
   
   TypeLattice.prototype.neg = // unary -
       function (x)
       {
+        if (x instanceof Some)
+        {
+          var result = -x.prim;
+          return new Some(result);
+        }
+  
         return this.NUMBER;
       }
   

@@ -7,7 +7,7 @@ var suiteCopTests =
   const concLattice = new ConcLattice();
   const initialConcCeskState = computeInitialCeskState(concLattice);
   
-  const typeLattice = new TypeLattice();
+  const typeLattice = new ConcTypeLattice();
   const initialTypeCeskState = computeInitialCeskState(typeLattice);
   
   
@@ -35,16 +35,16 @@ var suiteCopTests =
   function runAbst(src, expected)
   {
     const ast = Ast.createAst(src);
-    const cesk = jsCesk({a:tagAlloc,  kalloc:aacLightKalloc, l:typeLattice, errors:true, gc:true});
+    const cesk = jsCesk({a:tagCtxAlloc, kalloc:aacKalloc, l:typeLattice, errors:true, gc:true});
     const system = cesk.explore(ast, initialTypeCeskState);
     const result = computeResultValue(system.result);
     const actual = result.value;
-    assert(actual.subsumes(expected));
+    assert(actual.subsumes(typeLattice.abst1(expected)));
   }
   
   
   
-  module.XXXtestMsVideoEncoderConc =
+  module.testMsVideoEncoderConc =
       function ()
       {
         var src = read("test/resources/ms-video-encoder.js");

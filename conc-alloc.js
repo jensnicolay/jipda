@@ -11,7 +11,7 @@ const concAlloc =
         return counter++;
       }
   
-      function object(node, benva, store, kont)
+      function object()
       {
         return counter++;
       }

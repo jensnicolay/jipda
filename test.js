@@ -5,12 +5,6 @@ function t()
 	Test.displayTestResults(result);
 }
 
-function to()
-{
-  b();
-  t(suiteObjectTests);
-}
-
 var Test = {};
 
 Test.displayTestResults =
@@ -87,12 +81,3 @@ TestSuite.prototype.run =
 		}
 		return { success: success, fail: fail, log: log };
 	}
-
-//function propertiesEntrySet(obj)
-//{
-//	return Object.keys(obj).map(
-//		function (key)
-//		{
-//			return [key, obj[key]];
-//		});
-//}

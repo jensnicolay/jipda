@@ -336,11 +336,11 @@ function jsCesk(cc)
           result.add(s);
           continue;
         }
-        // if (next.length > 1)
-        // {
-        //   print("branch", next.length, s.nice());
-        //   printCallStacks(Stackget(new Stack(s.lkont, s.kont)).unroll());
-        // }
+        if (next.length > 1)
+        {
+          print("branch", next.length, s.nice());
+          //printCallStacks(Stackget(new Stack(s.lkont, s.kont)).unroll());
+        }
         for (var i = 0; i < next.length; i++)
         {
           var t2 = next[i];
@@ -642,7 +642,7 @@ function jsCesk(cc)
       print(msg);
       assert(typeof msg === "string");
       const obj = createError(l.abst1(msg));
-      const addr = a.error("@"+msg);
+      const addr = a.error("@"+msg, kont);
       store = storeAlloc(store, addr, obj);
       const ref = l.abstRef(addr);
       return [{state: new ThrowState(ref, store, lkont, kont)}];
@@ -870,7 +870,7 @@ function jsCesk(cc)
       else
       {
         const obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
-        const objAddr = a.object(node);
+        const objAddr = a.object(node, kont);
         const objRef = l.abstRef(objAddr);
         store = storeAlloc(store, objAddr, obj);
         if (Desc.Value !== BOT)
@@ -1132,7 +1132,7 @@ function jsCesk(cc)
       {
         let obj = ObjectCreate(realm.Intrinsics.get("%StringPrototype%"));
         obj = obj.setInternal("[[StringData]]", sarg);
-        const addr = a.string(node);
+        const addr = a.string(node, kont);
         store = storeAlloc(store, addr, obj);
         const ref = l.abstRef(addr);
         result = result.concat(cont(ref, store));
@@ -1390,7 +1390,7 @@ function jsCesk(cc)
     }
     
     // 7.3.16
-    function CreateArrayFromList(elements, node, store, lkont, kont, cont)
+    function CreateArrayFromList(elements, node, store, lkont, kont)///, cont)
     {
       assert(Array.isArray(elements)); // TODO: this is a weaker assert than in spec
       // TODO: spec
@@ -1401,11 +1401,12 @@ function jsCesk(cc)
       }
       arr = arr.add(P_LENGTH, Property.fromValue(l.abst1(elements.length)));
   
-      const arrAddress = a.array(node, kont);
-      store = storeAlloc(store, arrAddress, arr);
+//      const arrAddress = a.array(node, kont);
+      //store = storeAlloc(store, arrAddress, arr);
   
-      const arrRef = l.abstRef(arrAddress);
-      return cont(arrRef, store);
+      //const arrRef = l.abstRef(arrAddress);
+      //return cont(arrRef, store);
+      return arr;
     }
     
     // 7.3.17
@@ -2005,7 +2006,11 @@ function jsCesk(cc)
                       nameList.push(nextKey);
                     }
                   }
-                  return CreateArrayFromList(nameList, node, store, lkont, kont, cont);
+                  const arr = CreateArrayFromList(nameList, node, store, lkont, kont, cont);
+                  const arrAddress = a.array(node, kont);
+                  store = storeAlloc(store, arrAddress, arr);
+                  const ref = l.abstRef(arrAddress);
+                  return cont(ref, store);
                 });
           });
     }
@@ -2220,7 +2225,7 @@ function jsCesk(cc)
       var nodeAddr = names.map(function (name)
       {
         var node = funScopeDecls[name];
-        var addr = a.vr(node.id || node, kont);
+        var addr = a.vr(node.id || node, ctx); // new ctx!
         extendedBenv = extendedBenv.add(name, addr);
         return [node, addr];
       });
@@ -2246,11 +2251,11 @@ function jsCesk(cc)
             }
             else if (Ast.isRestElement(node))
             {
-              CreateArrayFromList(operandValues.slice(node.i), node, store, lkont, kont,
-                  function (arrRef, updatedStore)
-                  {
-                    store = storeAlloc(updatedStore, addr, arrRef);
-                  });
+              const arr = CreateArrayFromList(operandValues.slice(node.i), node, store, lkont, kont);
+              const arrAddress = a.array(node, ctx);
+              store = storeAlloc(store, arrAddress, arr);
+              const arrRef = l.abstRef(arrAddress);
+              store = storeAlloc(store, addr, arrRef);
             }
             else
             {
@@ -2279,7 +2284,7 @@ function jsCesk(cc)
         const userContext = kalloc(this, operandValues, store);
         const funNode = this.node;
         const obj = ObjectCreate(protoRef);
-        const thisa = a.constructor(funNode, application);
+        const thisa = a.constructor(funNode, kont, application);
         store = store.allocAval(thisa, obj);
         const thisValue = l.abstRef(thisa);
         const stackAs = stackAddresses(lkont, kont).join(this.addresses());
@@ -2379,6 +2384,12 @@ function jsCesk(cc)
     this._successors = null;
     this._sstorei = -1;
     this._id = -1;
+    
+    // if (value.isNonRef && value.isNonRef() && value.constructor.name === "TypeValue")
+    // {
+    //   print("precision loss", value, lkont[0] ? lkont[0].node.toString() : "");
+    //   //printCallStacks(Stackget(new Stack(lkont,kont)).unroll());
+    // }
   }
   
   KontState.prototype.isKontState = true;
@@ -3728,7 +3739,7 @@ function jsCesk(cc)
         var extendedBenv = this.benv.extend();
         var param = handler.param;
         var name = param.name;
-        var addr = a.vr(param);
+        var addr = a.vr(param, kont);
         extendedBenv = extendedBenv.add(name, addr);
         store = storeAlloc(store, addr, throwValue);
         return evalStatementList(body, extendedBenv, store, lkont, kont, []);
@@ -4430,7 +4441,7 @@ function jsCesk(cc)
         if (properties.length === i)
         {
           const obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
-          const objectAddress = a.object(node, benv, store, lkont, kont);
+          const objectAddress = a.object(node, kont);
           store = storeAlloc(store, objectAddress, obj);
           const object = l.abstRef(objectAddress);
           let result = [];
@@ -4518,7 +4529,7 @@ function jsCesk(cc)
         if (elements.length === i)
         {
           var arr = createArray();
-          var arrAddress = a.array(node, benv, store, lkont, kont);
+          var arrAddress = a.array(node, kont);
           for (var j = 0; j < i; j++)
           {
             var indexName = l.abst1(String(j));
@@ -5357,10 +5368,10 @@ function jsCesk(cc)
   function allocateClosure(node, benv, store, lkont, kont)
   {
     var closure = createClosure(node, benv);
-    var closurea = a.closure(node, benv, store, lkont, kont);
+    var closurea = a.closure(node, kont);
     
     var prototype = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
-    var prototypea = a.closureProtoObject(node, benv, store, lkont, kont);
+    var prototypea = a.closureProtoObject(node, kont);
     var closureRef = l.abstRef(closurea);
     prototype = prototype.add(P_CONSTRUCTOR, Property.fromValue(closureRef));
     store = storeAlloc(store, prototypea, prototype);
@@ -5529,7 +5540,7 @@ function jsCesk(cc)
     if (properties.length === 0)
     {
       var obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
-      var objectAddress = a.object(node, benv, store, lkont, kont);
+      var objectAddress = a.object(node, kont);
       store = storeAlloc(store, objectAddress, obj);
       var objectRef = l.abstRef(objectAddress);
       return [{state: new KontState(objectRef, store, lkont, kont)}];
@@ -5545,7 +5556,7 @@ function jsCesk(cc)
     {
       var arr = createArray();
       arr = arr.add(P_LENGTH, Property.fromValue(L_0));
-      var arrAddress = a.array(node, benv, store, lkont, kont);
+      var arrAddress = a.array(node, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
       return [{state: new KontState(arrRef, store, lkont, kont)}];
@@ -5730,7 +5741,7 @@ function jsCesk(cc)
     function objectConstructor(application, operandValues, protoRef, benv, store, lkont, kont)
     {
       var obj = ObjectCreate(protoRef);
-      var objectAddress = a.object(application, benv, store, kont);
+      var objectAddress = a.object(application, kont);
       store = storeAlloc(store, objectAddress, obj);
       var objRef = l.abstRef(objectAddress);
       return [{state: new KontState(objRef, store, lkont, kont)}];
@@ -5752,7 +5763,7 @@ function jsCesk(cc)
     //   // step 4
     //   function objectCreateCont(obj, store)
     //   {
-    //     const objectAddress = a.object(application, benv, store, kont);
+    //     const objectAddress = a.object(application, kont);
     //     store = storeAlloc(store, objectAddress, obj);
     //     const objRef = l.abstRef(objectAddress);
     //     return [{state: new KontState(objRef, store, lkont, kont)}];
@@ -5853,7 +5864,7 @@ function jsCesk(cc)
     {
       const message = operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING;
       const obj = createError(message);
-      var errAddress = a.error(application, benv, store, kont);
+      var errAddress = a.error(application, kont);
       store = storeAlloc(store, errAddress, obj);
       var errRef = l.abstRef(errAddress);
       return [{state: new KontState(errRef, store, lkont, kont)}];
@@ -5952,7 +5963,7 @@ function jsCesk(cc)
       }
       arr = arr.add(P_LENGTH, Property.fromValue(length));
       
-      var arrAddress = a.array(application, benv, store, kont);
+      var arrAddress = a.array(application, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
       return [{state: new KontState(arrRef, store, lkont, kont)}];
@@ -5967,7 +5978,7 @@ function jsCesk(cc)
       }
       arr = arr.add(P_LENGTH, Property.fromValue(l.abst1(operandValues.length)));
       
-      var arrAddress = a.array(application, benv, store, kont);
+      var arrAddress = a.array(application, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
       return [{state: new KontState(arrRef, store, lkont, kont)}];
@@ -6024,7 +6035,7 @@ function jsCesk(cc)
                   }
                   resultArr = resultArr.add(P_LENGTH, Property.fromValue(l.add(thisLen, i)));
                 });
-            var arrAddress = a.array(application, benv, store, lkont, kont);
+            var arrAddress = a.array(application, kont);
             store = storeAlloc(store, arrAddress, resultArr);
             return {state: new KontState(l.abstRef(arrAddress), store, lkont, kont)};
           });
@@ -6213,7 +6224,7 @@ function jsCesk(cc)
     {
       const [value] = operandValues; // TODO pass prototype as second param
       const obj = StringCreate(value);
-      const obja = a.string(application);
+      const obja = a.string(application, kont);
       store = storeAlloc(store, obja, obj);
       const ref = l.abstRef(obja);
       return [{state: new KontState(ref, store, lkont, kont)}];
@@ -6223,7 +6234,7 @@ function jsCesk(cc)
     {
       const [proto, internalSlotsList] = operandValues;
       const obj = ObjectCreate(proto, internalSlotsList);
-      const objAddr = a.object(application);
+      const objAddr = a.object(application, kont);
       store = storeAlloc(store, objAddr, obj);
       const ref = l.abstRef(objAddr);
       return [{state: new KontState(ref, store, lkont, kont)}];

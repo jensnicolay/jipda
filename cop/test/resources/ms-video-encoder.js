@@ -404,8 +404,8 @@ var Trait = (function(){
   function create(proto, trait) {
     var self = Object.create(proto);
     var properties = {};
-  
-    Object.getOwnPropertyNames(trait).forEach(function (name) {
+    
+    forEach(Object.getOwnPropertyNames(trait), function (name) {
       var pd = trait[name];
       // check for remaining 'required' properties
       // Note: it's OK for the prototype to provide the properties
@@ -507,16 +507,12 @@ var cop = (function() {
     return this[this.length - 1];
   };
   
-  Context = function(name) {
-    var _ref1;
+  function Context(name) {
+    var _ref1 = contexts.Default;
     this.activationCount = 0;
     this.adaptations = [];
-    this.manager = ((_ref1 = contexts.Default) != null ? _ref1.manager : undefined) || new Manager();
-    if (name != null) {
-      this.name = (function() {
-        return name;
-      });
-    }
+    this.manager = ((_ref1 !== undefined ? _ref1.manager : undefined) || new Manager());
+    this.name = name;
     return this;
   };
   
@@ -618,7 +614,7 @@ var cop = (function() {
   Context.prototype.path =
       function(from) {
         var i, keys, p, subspace, values, _i, _len;
-        if (from == null) {
+        if (from === null) {
           from = contexts;
         }
         keys = _.keys(from);
@@ -642,20 +638,20 @@ var cop = (function() {
         }
       }
   
-  Context.prototype.name =
-      function() {
-        var path;
-        path = this.path();
-        if (path) {
-          return path.join('.');
-        } else {
-          return 'anonymous';
-        }
-      }
+  // Context.prototype.name =
+  //   function() {
+  //     var path;
+  //     path = this.path();
+  //     if (path) {
+  //       return path.join('.');
+  //     } else {
+  //       return 'anonymous';
+  //     }
+  //   }
   
   Context.prototype.toString =
       function() {
-        return this.name() + ' context';
+        return this.name + ' context';
       }
   
   Policy = function() {
@@ -681,13 +677,10 @@ var cop = (function() {
   
   Policy.prototype.toString =
       function() {
-        return this.name() + ' policy';
+        return this.name + ' policy';
       }
   
-  Policy.prototype.name =
-      function() {
-        return 'anonymous';
-      }
+  Policy.prototype.name = 'anonymous';
   
   
   ActivationAgePolicy = function() {
@@ -702,16 +695,10 @@ var cop = (function() {
         return adaptation1.context.activationAge() - adaptation2.context.activationAge();
       }
   
-  ActivationAgePolicy.prototype.name =
-      function() {
-        return 'activation age';
-      }
+  ActivationAgePolicy.prototype.name = 'activation age';
   
   
   Namespace = function(name, parent) {
-    if (parent == null) {
-      parent = null;
-    }
     if (!name) {
       throw new Error("Namespaces must have a name");
     }
@@ -934,9 +921,6 @@ var cop = (function() {
 
 
 
-
-
-
 print("base behavior definition");
 
 /*
@@ -951,14 +935,10 @@ CoreObject = Trait({
 /*
  * Context definitions
  */
-Encryption = new cop.Context({
-  name: "Encryption"
-});
+Encryption = new cop.Context("Encryption");
 
 
-Compression = new cop.Context({
-  name: "Compression"
-});
+Compression = new cop.Context("Compression");
 
 /*
  * Behavioral adaptations definition
@@ -970,10 +950,10 @@ EncryptionAdaptation = Trait({
 });
 
 /*
-CompressedEncryption = new cop.Context({
-  name: "CompressedEncryption"
-});
-*/
+ CompressedEncryption = new cop.Context({
+ name: "CompressedEncryption"
+ });
+ */
 
 CompressionAdaptation = Trait({
   send: function(message) {
@@ -982,12 +962,12 @@ CompressionAdaptation = Trait({
 });
 
 /*
-CompressedEncryptionRole = Trait({
-  send: function() {
-    return this.proceed();
-  }
-});
-*/
+ CompressedEncryptionRole = Trait({
+ send: function() {
+ return this.proceed();
+ }
+ });
+ */
 
 obj = Object.create(Object.prototype, CoreObject);
 
@@ -1017,5 +997,12 @@ Compression.deactivate();
 Encryption.deactivate();
 Compression.deactivate();
 //CompressedEncryption.deactivate();
+
+
+
+
+
+
+
 
 "yes"

@@ -177,7 +177,7 @@ Store.prototype.diff = // debug
       }
     }
     const xentries = x.map.entries();
-    for (i = 0; i < xentries.length; i++)
+    for (let i = 0; i < xentries.length; i++)
     {
       const xentry = xentries[i];
       const address = xentry[0];
