@@ -516,8 +516,9 @@ var cop = (function() {
     return this;
   };
   
+  
   Context.prototype.activate =
-      function() {
+      function __ACTIVATE__() {
         if (++this.activationCount === 1) {
           this.activationStamp = ++this.manager.totalActivations;
           this.activateAdaptations();
@@ -825,7 +826,8 @@ var cop = (function() {
   function extend(target, source)
   {
     for (var prop in source) {
-      target[prop] = source[prop];
+      var sourceMethod = source[prop];
+      target[prop] = sourceMethod;
     }
     return target;
   }
@@ -927,7 +929,7 @@ print("base behavior definition");
  * Base behavior definition
  */
 CoreObject = Trait({
-  send: function(message) {
+  send: function coreSend(message) {
     return message;
   }
 });
@@ -944,7 +946,7 @@ Compression = new cop.Context("Compression");
  * Behavioral adaptations definition
  */
 EncryptionAdaptation = Trait({
-  send: function(message) {
+  send: function encryptionSend(message) {
     return "<E>" + this.proceed() + "<E>";
   }
 });
@@ -956,7 +958,7 @@ EncryptionAdaptation = Trait({
  */
 
 CompressionAdaptation = Trait({
-  send: function(message) {
+  send: function compressionSend(message) {
     return "<C>" + this.proceed() + "<C>";
   }
 });

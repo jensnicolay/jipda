@@ -13,6 +13,7 @@ load("../lattice.js");
 load("../conc-lattice.js");
 load("../conc-alloc.js");
 load("../conc-kalloc.js");
+load("../aac-conc-kalloc.js");
 load("../conc-type-lattice.js");
 load("../tag-ctx-alloc.js");
 load("../aac-kalloc.js");

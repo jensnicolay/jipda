@@ -336,11 +336,11 @@ function jsCesk(cc)
           result.add(s);
           continue;
         }
-        if (next.length > 1)
-        {
-          print("branch", next.length, s.nice());
-          //printCallStacks(Stackget(new Stack(s.lkont, s.kont)).unroll());
-        }
+        // if (next.length > 1)
+        // {
+        //   print("branch", next.length, s.nice());
+        //   //printCallStacks(Stackget(new Stack(s.lkont, s.kont)).unroll());
+        // }
         for (var i = 0; i < next.length; i++)
         {
           var t2 = next[i];
@@ -359,7 +359,7 @@ function jsCesk(cc)
           }
         }
       }
-      return {initial, result, states, contexts, realm, time: performance.now() - startTime};
+      return {initial, result, states, contexts, realm, time: performance.now() - startTime, lattice:l};
     
       function  stateGet(s)
       {
@@ -584,25 +584,14 @@ function jsCesk(cc)
     }
     
     /// debug helpers
-    function printCallStacks(unrolledStacks)
+    function callStacks(lkont, kont)
     {
-      for (const ur of unrolledStacks)
-      {
-        print("===== TOP =====");
-        //if (!ur[Symbol.iterator]) print(Object.keys(ur));
-        for (const stack of ur)
-        {
-          if (stack.kont && stack.kont.ex)
-          {
-            print(Ast.nodeToNiceString(stack.kont.ex), stack._id, stack.kont._id);
-          }
-          else
-          {
-            print(stack);
-          }
-        }
-        print("==== BOTTOM ====\n");
-      }
+      const unrolledStacks = Stackget(new Stack(lkont,kont)).unroll();
+      return unrolledStacks.map(ur =>
+          ur.map(stack =>
+              (stack.kont && stack.kont.ex)
+                ? Ast.nodeToNiceString(stack.kont.ex) + " " + stack._id + " " + stack.kont._id
+                : String(stack)))
     }
     
     /// semantic helpers
@@ -2475,6 +2464,12 @@ function jsCesk(cc)
       function ()
       {
         return stackAddresses(lkont, kont).join(this.value.addresses());
+      }
+      
+  KontState.prototype.callStacks =
+      function ()
+      {
+        return callStacks(this.lkont, this.kont);
       }
   
   function ReturnState(value, store, lkont, kont)

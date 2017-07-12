@@ -4,29 +4,10 @@ var suiteCopTests =
 {
   var module = new TestSuite("suiteCopTests");
   
-  const concLattice = new ConcLattice();
-  const initialConcCeskState = computeInitialCeskState(concLattice);
-  
-  const typeLattice = new ConcTypeLattice();
-  const initialTypeCeskState = computeInitialCeskState(typeLattice);
-  
-  
-  function printGraph(states)
-  {
-    for (const state of states)
-    {
-        print(state._id, "[" + (state._successors ? [...state._successors].map(t => t.state._id) : "") + "]", state);
-    }
-  }
-  
-  
   function runConc(src, expected)
   {
-    const ast = Ast.createAst(src);
-    const cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: concLattice, errors:true, hardAsserts:true});
-    const system = cesk.explore(ast, initialConcCeskState);
+    const system = concFlow(src);
     const result = computeResultValue(system.result);
-    result.msgs.join("\n");
     //printGraph(system.states);
     const actual = result.value;
     assertEquals(concLattice.abst1(expected), actual);
@@ -34,9 +15,7 @@ var suiteCopTests =
   
   function runAbst(src, expected)
   {
-    const ast = Ast.createAst(src);
-    const cesk = jsCesk({a:tagCtxAlloc, kalloc:aacKalloc, l:typeLattice, errors:true, gc:true});
-    const system = cesk.explore(ast, initialTypeCeskState);
+    const system = abstFlow(src);
     const result = computeResultValue(system.result);
     const actual = result.value;
     assert(actual.subsumes(typeLattice.abst1(expected)));

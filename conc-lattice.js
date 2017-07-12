@@ -249,6 +249,10 @@ const ConcLattice = (function ()
   ConcAddr.prototype.join =
       function (x)
       {
+        if (x === BOT)
+        {
+          return this;
+        }
         throw new Error("cannot join concrete addresses " + this + " and " + x);
       }
   
