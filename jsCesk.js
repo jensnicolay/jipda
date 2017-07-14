@@ -185,13 +185,14 @@ function jsCesk(cc)
       }
   
   
-  function JipdaContext(ex, thisValue, userContext, as)
+  function JipdaContext(ex, thisValue, realm, userContext, as)
   {
     assert(thisValue);
-    assert(thisValue.addresses);
+    assert(realm);
     assert(as instanceof ArraySet);
     this.ex = ex;
     this.thisValue = thisValue;
+    this.realm = realm;
     this.userContext = userContext;
     this.as = as;
     this._stacks = null;
@@ -207,6 +208,7 @@ function jsCesk(cc)
         }
         return this.ex === ctx.ex
             && this.thisValue.equals(ctx.thisValue)
+            && this.realm.equals(ctx.realm)
             && this.userContext.equals(ctx.userContext)
             && this.as.equals(ctx.as)
       }
@@ -278,22 +280,18 @@ function jsCesk(cc)
     const contexts = []; // do not pre-alloc
     const stacks = []; // do not pre-alloc
   
-    let realm; // TODO thread through states
-  
     function inject(node, ceskState)
     {
       if (!ceskState)
       {
         ceskState = initialize(Store.empty());
       }
-      ceskState = initializeTraits(ceskState);
       const store = ceskState.store;
-      realm = ceskState.realm; // TODO setting global realm
-    
+      const realm = ceskState.realm
       assert(store);
       assert(realm);
     
-      const kont = createContext(node, realm.GlobalObject, "globalctx", ArraySet.empty(), null);
+      const kont = createContext(node, realm.GlobalObject, realm, "globalctx", ArraySet.empty(), null);
       return new EvalState(node, Benv.empty(), store, [], kont);
     }
   
@@ -359,7 +357,7 @@ function jsCesk(cc)
           }
         }
       }
-      return {initial, result, states, contexts, realm, time: performance.now() - startTime, lattice:l};
+      return {initial, result, states, contexts, time: performance.now() - startTime, lattice:l};
     
       function  stateGet(s)
       {
@@ -564,7 +562,7 @@ function jsCesk(cc)
       return result;
     }
     
-    function createArray()
+    function createArray(realm)
     {
       var obj = new Obj();
       obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ArrayPrototype%"));
@@ -630,7 +628,7 @@ function jsCesk(cc)
     {
       print(msg);
       assert(typeof msg === "string");
-      const obj = createError(l.abst1(msg));
+      const obj = createError(l.abst1(msg), kont.realm);
       const addr = a.error("@"+msg, kont);
       store = storeAlloc(store, addr, obj);
       const ref = l.abstRef(addr);
@@ -858,7 +856,7 @@ function jsCesk(cc)
       }
       else
       {
-        const obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
+        const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
         const objAddr = a.object(node, kont);
         const objRef = l.abstRef(objAddr);
         store = storeAlloc(store, objAddr, obj);
@@ -1119,7 +1117,7 @@ function jsCesk(cc)
       const sarg = argument.projectString();
       if (sarg !== BOT)
       {
-        let obj = ObjectCreate(realm.Intrinsics.get("%StringPrototype%"));
+        let obj = ObjectCreate(kont.realm.Intrinsics.get("%StringPrototype%"));
         obj = obj.setInternal("[[StringData]]", sarg);
         const addr = a.string(node, kont);
         store = storeAlloc(store, addr, obj);
@@ -1383,7 +1381,7 @@ function jsCesk(cc)
     {
       assert(Array.isArray(elements)); // TODO: this is a weaker assert than in spec
       // TODO: spec
-      let arr = createArray();
+      let arr = createArray(kont.realm);
       for (let i = L_0; i < elements.length; i++)
       {
         arr = arr.add(l.abst1(String(i)), Property.fromValue(elements[i]));
@@ -1506,6 +1504,17 @@ function jsCesk(cc)
       this.Intrinsics = undefined;
       this.GlobalObject = undefined;
     }
+    
+    Realm.prototype.equals =
+        function (x)
+        {
+          if (this === x)
+          {
+            return true;
+          }
+          
+          throw new Error("TODO: multi-realm");
+        }
   
     // // 8.2.1
     // function CreateRealm()
@@ -1848,9 +1857,9 @@ function jsCesk(cc)
     }
   
     // 9.1.13
-    function OrdinaryCreateFromConstructor(constructor, intrinsicDefaultProto, internalSlotsList, store)
+    function OrdinaryCreateFromConstructor(constructor, intrinsicDefaultProto, internalSlotsList, store, kont)
     {
-      assert(realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
+      assert(kont.realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
       const proto = GetPrototypeFromConstructor(constructor, intrinsicDefaultProto, store);
       return ObjectCreate(proto, internalSlotsList);
     }
@@ -1858,22 +1867,22 @@ function jsCesk(cc)
     // 9.1.14
     function GetPrototypeFromConstructor(constructor, intrinsicDefaultProto, store, lkont, kont)
     {
-      assert(realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
+      assert(kont.realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
       assert(IsCallable(constructor, store));
       let proto = Get(constructor, P_PROTOTYPE, store, lkont, kont);
       if (proto.isNonRef())
       {
         // TODO realms
-        proto = proto.join(realm.Intrinsics.get(intrinsicDefaultProto));
+        proto = proto.join(kont.realm.Intrinsics.get(intrinsicDefaultProto));
       }
       return proto;
     }
   
     // 9.4.3.3
-    function StringCreate(lprim)
+    function StringCreate(lprim, kont)
     {
       let obj = new Obj();
-      obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%StringPrototype%"));
+      obj = obj.setInternal("[[Prototype]]", kont.realm.Intrinsics.get("%StringPrototype%"));
       obj = obj.setInternal("[[StringData]]", lprim);
       obj = obj.add(P_LENGTH, Property.fromValue(lprim.stringLength()));
       return obj;
@@ -2059,19 +2068,19 @@ function jsCesk(cc)
   
   
   
-    function createClosure(node, scope)
+    function createClosure(node, scope, realm)
   {
-    var obj = createFunction(new ObjClosureCall(node, scope));
+    var obj = createFunction(new ObjClosureCall(node, scope), realm);
     return obj;
   }
   
-  function createPrimitive(applyFunction, applyConstructor)
+  function createPrimitive(applyFunction, applyConstructor, realm)
   {
-    var obj = createFunction(new ObjPrimitiveCall(applyFunction, applyConstructor));
+    var obj = createFunction(new ObjPrimitiveCall(applyFunction, applyConstructor), realm);
     return obj;
   }
   
-  function createFunction(Call)
+  function createFunction(Call, realm)
   {
     var obj = ObjectCreate(realm.Intrinsics.get("%FunctionPrototype%"));
     obj = obj.setInternal("[[Call]]", SetValue.from1(Call));
@@ -2170,9 +2179,9 @@ function jsCesk(cc)
         return result;
       }
   
-  function createContext(application, thisValue, userContext, stackAs, previousStack)
+  function createContext(application, thisValue, realm, userContext, stackAs, previousStack)
   {
-    var ctx0 = new JipdaContext(application, thisValue, userContext, stackAs);
+    var ctx0 = new JipdaContext(application, thisValue, realm, userContext, stackAs);
     var ctx = ctx0.intern(contexts);
     if (ctx === ctx0)
     {
@@ -2262,7 +2271,7 @@ function jsCesk(cc)
         const userContext = kalloc(this, operandValues, store);
         var previousStack = Stackget(new Stack(lkont, kont));
         var stackAs = stackAddresses(lkont, kont).join(this.addresses());
-        var ctx = createContext(application, thisValue, userContext, stackAs, previousStack);
+        var ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack);
         return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx)
       }
   
@@ -2278,7 +2287,7 @@ function jsCesk(cc)
         const thisValue = l.abstRef(thisa);
         const stackAs = stackAddresses(lkont, kont).join(this.addresses());
         const previousStack = Stackget(new Stack(lkont, kont));
-        const ctx = createContext(application, thisValue, userContext, stackAs, previousStack);
+        const ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack);
         return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx);
       }
   
@@ -2934,7 +2943,7 @@ function jsCesk(cc)
       {
         var id = this.node.id;
         var benv = this.benv;
-        store = doScopeSet(id, value, benv, store);
+        store = doScopeSet(id, value, benv, store, kont);
         return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
       }
   
@@ -3382,25 +3391,25 @@ function jsCesk(cc)
           }
           case "+=":
           {
-            var existingValue = doScopeLookup(node.left, benv, store);
+            var existingValue = doScopeLookup(node.left, benv, store, kont);
             newValue = l.add(existingValue, value);
             break;
           }
           case "-=":
           {
-            var existingValue = doScopeLookup(node.left, benv, store);
+            var existingValue = doScopeLookup(node.left, benv, store, kont);
             newValue = l.sub(existingValue, value);
             break;
           }
           case "*=":
           {
-            var existingValue = doScopeLookup(node.left, benv, store);
+            var existingValue = doScopeLookup(node.left, benv, store, kont);
             newValue = l.mul(existingValue, value);
             break;
           }
           case "|=":
           {
-            var existingValue = doScopeLookup(node.left, benv, store);
+            var existingValue = doScopeLookup(node.left, benv, store, kont);
             newValue = l.binor(existingValue, value);
             break;
           }
@@ -3415,7 +3424,7 @@ function jsCesk(cc)
         // {
         //   newValue = newValue.abst();
         // }
-        store = doScopeSet(node.left, newValue, benv, store);
+        store = doScopeSet(node.left, newValue, benv, store, kont);
         return [{state: new KontState(newValue, store, lkont, kont)}];
       }
   
@@ -3469,9 +3478,9 @@ function jsCesk(cc)
           {
             return applyCons(node, operatorValue, [], benv, store, lkont, kont, []);
           }
-          return applyProc(node, operatorValue, [], realm.GlobalObject, null, store, lkont, kont, []);
+          return applyProc(node, operatorValue, [], kont.realm.GlobalObject, null, store, lkont, kont, []);
         }
-        var frame = new OperandsKont(node, 1, benv, operatorValue, [], realm.GlobalObject);
+        var frame = new OperandsKont(node, 1, benv, operatorValue, [], kont.realm.GlobalObject);
         return [{state: new EvalState(operands[0], benv, store, [frame].concat(lkont), kont)}];
       }
   
@@ -4195,7 +4204,7 @@ function jsCesk(cc)
           {
             if (desc !== undefined && desc.Enumerable.isTrue())
             {
-              store = doScopeSet(nameNode, ownKey, benv, store);
+              store = doScopeSet(nameNode, ownKey, benv, store, kont);
               const frame = new ForInBodyKont(node, nameNode, ref, ownKeys, i, benv);
               return [{state: new EvalState(node.body, benv, store, [frame].concat(lkont), kont)}];
             }
@@ -4435,7 +4444,7 @@ function jsCesk(cc)
         
         if (properties.length === i)
         {
-          const obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
+          const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
           const objectAddress = a.object(node, kont);
           store = storeAlloc(store, objectAddress, obj);
           const object = l.abstRef(objectAddress);
@@ -4523,7 +4532,7 @@ function jsCesk(cc)
         
         if (elements.length === i)
         {
-          var arr = createArray();
+          var arr = createArray(kont.realm);
           var arrAddress = a.array(node, kont);
           for (var j = 0; j < i; j++)
           {
@@ -5001,14 +5010,14 @@ function jsCesk(cc)
       }
   
   
-  function doScopeLookup(nameNode, benv, store)
+  function doScopeLookup(nameNode, benv, store, kont)
   {
     var name = nameNode.name;
     var a = benv.lookup(name);
     if (a === BOT)
     {
       var aname = l.abst1(name);
-      const value = doProtoLookup(aname, realm.GlobalObject.addresses(), store);
+      const value = doProtoLookup(aname, kont.realm.GlobalObject.addresses(), store);
       if (value === BOT)
       {
         throw new Error("not found in scope: " + nameNode);
@@ -5137,14 +5146,14 @@ function jsCesk(cc)
       return result;
     }
     
-    function doScopeSet(nameNode, value, benv, store)
+    function doScopeSet(nameNode, value, benv, store, kont)
   {
     var name = nameNode.name;
     var a = benv.lookup(name);
     if (a === BOT)
     {
       var aname = l.abst1(name);
-      store = doProtoSet(aname, value, realm.GlobalObject, store);
+      store = doProtoSet(aname, value, kont.realm.GlobalObject, store);
     }
     else
     {
@@ -5193,7 +5202,7 @@ function jsCesk(cc)
   
   function evalIdentifier(node, benv, store, lkont, kont)
   {
-    var value = doScopeLookup(node, benv, store);
+    var value = doScopeLookup(node, benv, store, kont);
     return [{state: new KontState(value, store, lkont, kont)}];
   }
   
@@ -5216,11 +5225,11 @@ function jsCesk(cc)
             {
               var allocateResult = allocateClosure(node, benv, store, lkont, kont);
               var closureRef = allocateResult.ref;
-              store = doProtoSet(aname, closureRef, realm.GlobalObject, allocateResult.store);
+              store = doProtoSet(aname, closureRef, kont.realm.GlobalObject, allocateResult.store);
             }
             else if (Ast.isVariableDeclarator(node))
             {
-              store = doProtoSet(aname, L_UNDEFINED, realm.GlobalObject, store);
+              store = doProtoSet(aname, L_UNDEFINED, kont.realm.GlobalObject, store);
             }
             else
             {
@@ -5321,7 +5330,7 @@ function jsCesk(cc)
     {
       case "Identifier":
       {
-        var value = doScopeLookup(argument, benv, store);
+        var value = doScopeLookup(argument, benv, store, kont);
         var updatedValue;
         switch (node.operator)
         {
@@ -5342,7 +5351,7 @@ function jsCesk(cc)
         {
           return [];
         }
-        store = doScopeSet(argument, updatedValue, benv, store);
+        store = doScopeSet(argument, updatedValue, benv, store, kont);
         var resultingValue = node.prefix ? updatedValue : value;
         return [{state: new KontState(resultingValue, store, lkont, kont)}];
       }
@@ -5362,10 +5371,10 @@ function jsCesk(cc)
   
   function allocateClosure(node, benv, store, lkont, kont)
   {
-    var closure = createClosure(node, benv);
+    var closure = createClosure(node, benv, kont.realm);
     var closurea = a.closure(node, kont);
     
-    var prototype = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
+    var prototype = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
     var prototypea = a.closureProtoObject(node, kont);
     var closureRef = l.abstRef(closurea);
     prototype = prototype.add(P_CONSTRUCTOR, Property.fromValue(closureRef));
@@ -5534,7 +5543,7 @@ function jsCesk(cc)
     var properties = node.properties;
     if (properties.length === 0)
     {
-      var obj = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
+      var obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
       var objectAddress = a.object(node, kont);
       store = storeAlloc(store, objectAddress, obj);
       var objectRef = l.abstRef(objectAddress);
@@ -5549,7 +5558,7 @@ function jsCesk(cc)
     var elements = node.elements;
     if (elements.length === 0)
     {
-      var arr = createArray();
+      var arr = createArray(kont.realm);
       arr = arr.add(P_LENGTH, Property.fromValue(L_0));
       var arrAddress = a.array(node, kont);
       store = storeAlloc(store, arrAddress, arr);
@@ -5645,7 +5654,7 @@ function jsCesk(cc)
     }
   }
   
-  function createError(message)
+  function createError(message, realm)
   {
     //const O = OrdinaryCreateFromConstructor();
     let obj = new Obj();
@@ -5668,7 +5677,7 @@ function jsCesk(cc)
     }
     
     
-    realm = new Realm(); // TODO setting global realm
+    const realm = new Realm();
     const intrinsics = new Intrinsics();
     realm.Intrinsics = intrinsics;
   
@@ -5686,7 +5695,7 @@ function jsCesk(cc)
   
     function registerPrimitiveFunction(object, propertyName, applyFunction, applyConstructor)
     {
-      var primFunObject = createPrimitive(applyFunction, applyConstructor);
+      var primFunObject = createPrimitive(applyFunction, applyConstructor, realm);
       var primFunObjectAddress = allocNative();
       store = storeAlloc(store, primFunObjectAddress, primFunObject);
       return registerProperty(object, propertyName, l.abstRef(primFunObjectAddress));
@@ -5718,7 +5727,7 @@ function jsCesk(cc)
     var objecta = allocNative();
     objectP = registerProperty(objectP, "constructor", l.abstRef(objecta));
     
-    var object = createPrimitive(null, objectConstructor);
+    var object = createPrimitive(null, objectConstructor, realm);
     object = object.add(P_PROTOTYPE, Property.fromValue(objectProtoRef));//was objectProtoRef
     global = global.add(l.abst1("Object"), Property.fromValue(l.abstRef(objecta)));
     
@@ -5818,7 +5827,7 @@ function jsCesk(cc)
     
     var fun = createPrimitive(function ()
     {
-    }); // TODO
+    }, null, realm); // TODO
     fun = fun.add(P_PROTOTYPE, Property.fromValue(functionProtoRef));
     global = global.add(l.abst1("Function"), Property.fromValue(l.abstRef(functiona)));
     store = storeAlloc(store, functiona, fun);
@@ -5838,7 +5847,7 @@ function jsCesk(cc)
     var errorP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
     var errora = allocNative();
     var errorP = registerProperty(errorP, "constructor", l.abstRef(errora));
-    var error = createPrimitive(errorFunction, errorConstructor);
+    var error = createPrimitive(errorFunction, errorConstructor, realm);
     error = error.add(P_PROTOTYPE, Property.fromValue(errorProtoRef));
     global = global.add(l.abst1("Error"), Property.fromValue(l.abstRef(errora)));
     store = storeAlloc(store, errora, error);
@@ -5858,7 +5867,7 @@ function jsCesk(cc)
     function errorInitializer(application, operandValues, benv, store, lkont, kont)
     {
       const message = operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING;
-      const obj = createError(message);
+      const obj = createError(message, kont.realm);
       var errAddress = a.error(application, kont);
       store = storeAlloc(store, errAddress, obj);
       var errRef = l.abstRef(errAddress);
@@ -5876,7 +5885,7 @@ function jsCesk(cc)
     //  stringP.toString = function () { return "~String.prototype"; }; // debug
     var stringa = allocNative();
     var stringP = registerProperty(stringP, "constructor", l.abstRef(stringa));
-    var string = createPrimitive(stringFunction, null);
+    var string = createPrimitive(stringFunction, null, realm);
     string = string.add(P_PROTOTYPE, Property.fromValue(intrinsics.get("%StringPrototype%")));
     global = global.add(l.abst1("String"), Property.fromValue(l.abstRef(stringa)));
     store = storeAlloc(store, stringa, string);
@@ -5928,7 +5937,7 @@ function jsCesk(cc)
     var arrayP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
     var arraya = allocNative();
     var arrayP = registerProperty(arrayP, "constructor", l.abstRef(arraya));
-    var array = createPrimitive(arrayFunction, arrayConstructor);
+    var array = createPrimitive(arrayFunction, arrayConstructor, realm);
     array = array.add(P_PROTOTYPE, Property.fromValue(arrayProtoRef));
     global = global.add(l.abst1("Array"), Property.fromValue(l.abstRef(arraya)));
     store = storeAlloc(store, arraya, array);
@@ -5942,7 +5951,7 @@ function jsCesk(cc)
     
     function arrayConstructor(application, operandValues, protoRef, benv, store, lkont, kont)
     {
-      var arr = createArray();
+      var arr = createArray(kont.realm);
       var length;
       if (operandValues.length === 0)
       {
@@ -5966,7 +5975,7 @@ function jsCesk(cc)
     
     function arrayFunction(application, operandValues, thisValue, benv, store, lkont, kont)
     {
-      var arr = createArray();
+      var arr = createArray(kont.realm);
       for (var i = 0; i < operandValues.length; i++)
       {
         arr = arr.add(l.abst1(String(i)), Property.fromValue(operandValues[i]));
@@ -6002,7 +6011,7 @@ function jsCesk(cc)
             var thisArr = storeLookup(store, thisa);
             var thisLen = thisArr.lookup(P_LENGTH).value.Value;
             var argAddrs = operandValues[0].addresses();
-            var resultArr = createArray();
+            var resultArr = createArray(kont.realm);
             var i = L_0;
             var seen = ArraySet.empty();
             while ((!seen.contains(i)) && l.lt(i, thisLen).isTrue())
@@ -6218,7 +6227,7 @@ function jsCesk(cc)
     function baseStringCreate(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       const [value] = operandValues; // TODO pass prototype as second param
-      const obj = StringCreate(value);
+      const obj = StringCreate(value, kont);
       const obja = a.string(application, kont);
       store = storeAlloc(store, obja, obj);
       const ref = l.abstRef(obja);
@@ -6310,7 +6319,7 @@ function jsCesk(cc)
     function baseAddIntrinsic(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       const [Name, Value] = operandValues;
-      realm.Intrinsics.add(Name.conc1(), Value);
+      kont.realm.Intrinsics.add(Name.conc1(), Value);
       return [{state: new KontState(l.abst1(undefined), store, lkont, kont)}];
     }
     
@@ -6388,12 +6397,6 @@ function jsCesk(cc)
     
     return {store, realm};
   } // end initialize
-  
-  function initializeTraits(ceskState)
-  {
-    let store = ceskState.store;
-    return {store, realm:ceskState.realm};
-  }
   
   const initial = inject(ast, ceskState);
   const system = performExplore([initial]);

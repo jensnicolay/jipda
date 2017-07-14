@@ -9,7 +9,7 @@ function computeInitialCeskState(lat)
     throw new Error("wrong number of prelude results: " + prelResult.size);
   }
   const prelStore = [...prelResult][0].store;
-  const prelRealm = prelSystem.realm;//[...prelResult][0].realm;
+  const prelRealm = [...prelResult][0].kont.realm;
   return {store:prelStore, realm:prelRealm};
 }
 
