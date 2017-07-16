@@ -3,6 +3,26 @@
 const EMPTY_LKONT = [];
 const EMPTY_ADDRESS_SET = ArraySet.empty();
 
+function computeInitialCeskState(lat, alloc, kalloc, ...srcs)
+{
+  let ceskState = undefined;
+  for (const src of srcs)
+  {
+    const ast = Ast.createAst(src);
+    const prelCesk = jsCesk({a:alloc, kalloc: kalloc, l:lat, gc: true, errors:true});
+    const prelSystem = prelCesk.explore(ast, ceskState);
+    const prelResult = prelSystem.result;
+    if (prelResult.size !== 1)
+    {
+      throw new Error("wrong number of prelude results: " + prelResult.size);
+    }
+    const prelStore = [...prelResult][0].store;
+    const prelRealm = [...prelResult][0].kont.realm;
+    ceskState = {store:prelStore, realm:prelRealm};
+  }
+  return ceskState;
+}
+
 function jsCesk(cc)
 {
   // address allocator

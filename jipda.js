@@ -1,19 +1,3 @@
-function computeInitialCeskState(lat)
-{
-  const ast0 = Ast.createAst(ast0src);
-  const prelCesk = jsCesk({a:concAlloc, kalloc: concKalloc, l:lat, gc: true, errors:true});
-  const prelSystem = prelCesk.explore(ast0);
-  const prelResult = prelSystem.result;
-  if (prelResult.size !== 1)
-  {
-    throw new Error("wrong number of prelude results: " + prelResult.size);
-  }
-  const prelStore = [...prelResult][0].store;
-  const prelRealm = [...prelResult][0].kont.realm;
-  return {store:prelStore, realm:prelRealm};
-}
-
-
 function concEval(src)
 {
   var ast = Ast.createAst(src);

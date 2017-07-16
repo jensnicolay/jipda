@@ -5,7 +5,7 @@ var suiteConcreteTests =
   var module = new TestSuite("suiteConcreteTests");
   
   const concLattice = new ConcLattice();
-  const initialCeskState = computeInitialCeskState(concLattice);
+  const initialCeskState = computeInitialCeskState(concLattice, concAlloc, concKalloc, ast0src);
   
   function run(src, expected)
   {

@@ -44,22 +44,7 @@
 	var ast, astNodes;
 	var system, cesk, states, transitions, graph, initial, result, contexts;
 	var ag, lat, kalloc;
-  
-  function computeInitialCeskState(ast0src, lat)
-  {
-    const ast0 = Ast.createAst(ast0src);
-    const prelCesk = jsCesk({a:concAlloc, kalloc: concKalloc, l:lat, gc: true, errors:true});
-    const prelSystem = prelCesk.explore(ast0);
-    const prelResult = prelSystem.result;
-    if (prelResult.size !== 1)
-    {
-      throw new Error("wrong number of prelude results: " + prelResult.size);
-    }
-    const prelStore = [...prelResult][0].store;
-    const prelRealm = [...prelResult][0].kont.realm;
-    return {store:prelStore, realm:prelRealm};
-  }
-  
+	
   
   /* SHORTCUTS */
 	function purity()
@@ -122,7 +107,7 @@
     
     
     var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
-    const initialCeskState = computeInitialCeskState(ast0src, lat);
+    const initialCeskState = computeInitialCeskState(lat, concAlloc, concKalloc, ast0src);
 	  
 	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 	  

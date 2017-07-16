@@ -3,6 +3,7 @@
 load("../lib/esprima.js");
 
 const ast0src = read("../prelude.js");
+const ast1src = read("traits6.js");
 
 var console = {log:print}
 

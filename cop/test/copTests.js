@@ -2,6 +2,44 @@ var suiteCopTests =
 
 (function ()
 {
+
+///////////////  FLOW ANALYSIS
+  
+  const concLattice = new ConcLattice();
+  const initialConcCeskState = computeInitialCeskState(concLattice, concAlloc, concKalloc, ast0src, ast1src);
+  
+  const typeLattice = new ConcTypeLattice();
+  const initialTypeCeskState = computeInitialCeskState(typeLattice, concAlloc, concKalloc, ast0src, ast1src);
+  
+  
+  function printGraph(states)
+  {
+    for (const state of states)
+    {
+      print(state._id, "[" + (state._successors ? [...state._successors].map(t => t.state._id) : "") + "]", state);
+    }
+  }
+  
+  
+  function concFlow(src)
+  {
+    const ast = Ast.createAst(src);
+    const cesk = jsCesk({a:concAlloc, kalloc:aacConcKalloc, l: concLattice, errors:true, hardAsserts:true});
+    const system = cesk.explore(ast, initialConcCeskState);
+    return system;
+  }
+  
+  function abstFlow(src)
+  {
+    const ast = Ast.createAst(src);
+    const cesk = jsCesk({a:tagCtxAlloc, kalloc:aacKalloc, l:typeLattice, errors:true, gc:true});
+    const system = cesk.explore(ast, initialTypeCeskState);
+    return system;
+  }
+  
+  
+  
+  
   var module = new TestSuite("suiteCopTests");
   
   function runConc(src, expected)

@@ -5,7 +5,7 @@ var suiteJipdaTests =
   var module = new TestSuite("suiteJipdaTests");
   
   const typeLattice = new TypeLattice();
-  const initialCeskState = computeInitialCeskState(typeLattice);
+  const initialCeskState = computeInitialCeskState(typeLattice, concAlloc, concKalloc, ast0src);
   
   
   typeLattice.sanity();

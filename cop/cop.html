@@ -5,7 +5,8 @@
 	<link rel="stylesheet" href="cop.css" type="text/css" media="all"/>
 	<link rel="stylesheet" href="../lib/web/jquery-ui-1.11.1/jquery-ui.min.css" type="text/css" media="all"/>  
 	<link rel="stylesheet" href="../lib/web/codemirror/codemirror.css" type="text/css" media="all"/>
-  <link rel="import" href="../prelude.js"/>
+	<link rel="import" id="ast0src" href="../prelude.js"/>
+	<link rel="import" id="ast1src" href="traits6.js"/>
 	<title>COP - JIPDA</title>
 	<script type="text/javascript" src="../lib/esprima.js"></script>
 	<script type="text/javascript" src="../common.js"></script>
@@ -30,45 +31,87 @@
 	<script type="text/javascript" src="../lib/web/codemirror/hint/show-hint.js"></script>
 	<script type="text/javascript" src="../lib/web/codemirror/hint/anyword-hint.js"></script>
 	<script type="text/javascript" src="../lib/web/codemirror/mode/javascript/javascript.js"></script>
-	<script type="text/javascript" src="../lib/web/d3.min.js"></script>
-	<script type="text/javascript" src="../lib/web/dagre-d3.min.js"></script>
-	<script type="text/javascript" src="../lib/web/dagregraphs.js"></script>
+	<script type="text/javascript" src="cytoscape.min.js"></script>
+	<script type="text/javascript" src="dagre.min.js"></script>
+	<script type="text/javascript" src="cytoscape-dagre.js"></script>
 	<script type="text/javascript">
 	
 	"use strict";
-	
+  
+  function getUrlParameter(sParam)
+  {
+    var sPageURL = window.location.search.substring(1);
+    var sURLVariables = sPageURL.split('&');
+    for (var i = 0; i < sURLVariables.length; i++)
+    {
+      var sParameterName = sURLVariables[i].split('=');
+      if (sParameterName[0] == sParam)
+      {
+        return sParameterName[1];
+      }
+    }
+  }
+  
+  var Editors = {};
+  
+  Editors.metaConfig =  function () {return {
+    mode: "javascript",
+    value: getUrlParameter("meta") || "",
+    lineWrapping: true,
+    extraKeys: { "Ctrl-Space": function (cm) {
+      var word = /[\w$]+/;
+      var cur = cm.getCursor(), curLine = cm.getLine(cur.line);
+      var start = cur.ch, end = start;
+      while (end < curLine.length && word.test(curLine.charAt(end))) ++end;
+      while (start && word.test(curLine.charAt(start - 1))) --start;
+      var curWord = start != end && curLine.slice(start, end);
+      var startPos = CodeMirror.Pos(cur.line, start);
+      var endPos = CodeMirror.Pos(cur.line, end);
+      console.log(curWord);
+      $.ajax({
+        url : "test/resources/fun-" + curWord + ".js",
+        dataType: "text",
+        success : function (data) {
+          console.log(data);
+          cm.setValue(data) }
+      })
+    },
+      "Ctrl-Enter": function(cm) {
+        var code = $("#meta #input div.CodeMirror-code").clone().addClass("cm-s-default");
+        cm.setValue("");
+        cm.clearHistory();
+        var out = $("#output");
+        out.append(code);
+        try
+        {
+          var txt = sanitize(code.text());
+          var result = window.eval(txt);
+          logOutput("result", result, function () {unhighlight(); highlight(result)});
+        }
+        catch (e)
+        {
+          logOutput("error", e + "\n" + e.stack);
+        }
+        var met = $("#meta");
+        met.scrollTop(met[0].scrollHeight);
+      }}
+  }}
+  
+  function logOutput(clazz, msg, clickEvent)
+  {
+    var out = $("#output");
+    out.append(function () {return $("<pre class='" + clazz + "'>" + msg + "</pre>").click(clickEvent)});
+    out.scrollTop(out[0].scrollHeight);
+  }
+  
+  
+  
   var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }
 	var editor, meta;
 	var ast, astNodes;
 	var system, cesk, states, transitions, graph, initial, result, contexts;
 	var ag, lat, kalloc;
-  
-  function computeInitialCeskState(ast0src, lat)
-  {
-    const ast0 = Ast.createAst(ast0src);
-    const prelCesk = jsCesk({a:concAlloc, kalloc: concKalloc, l:lat, gc: true, errors:true});
-    const prelSystem = prelCesk.explore(ast0);
-    const prelResult = prelSystem.result;
-    if (prelResult.size !== 1)
-    {
-      throw new Error("wrong number of prelude results: " + prelResult.size);
-    }
-    const prelStore = [...prelResult][0].store;
-    const prelRealm = [...prelResult][0].kont.realm;
-    return {store:prelStore, realm:prelRealm};
-  }
-  
-  
-  /* SHORTCUTS */
-	function purity()
-	{
-	  //console.profile();
-	  var pmap = computePurity(ast, initial);
-	  displayPurity(ast, pmap);
-	  //console.profileEnd();
-	  return result;
-	}
-	/* END SHORTCUTS*/
+	
 	
 	  function postComputeGraph(initial)
     {
@@ -89,7 +132,7 @@
             }
             t._id = transitions.push(t) - 1;
             todo.push(t.state);
-          });  
+          });
         }
       }
 	
@@ -115,12 +158,13 @@
     Ast.nodes(ast).forEach(function (n) {astNodes[n.tag] = n});
 	  print(astNodes.length, "nodes in ast");
     eval($("#config").val());
-    var errors = $("#errors").is(":checked"); 
+    var errors = $("#errors").is(":checked");
     var gc = true;
     
     
-    var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
-    const initialCeskState = computeInitialCeskState(ast0src, lat);
+    var ast0src = document.querySelector('link[id="ast0src"]').import.body.textContent;
+    var ast1src = document.querySelector('link[id="ast1src"]').import.body.textContent;
+    const initialCeskState = computeInitialCeskState(lat, concAlloc, concKalloc, ast0src, ast1src);
 	  
 	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 	  
@@ -130,8 +174,8 @@
     
 		const cesk = jsCesk({a:ag, kalloc, l:lat, gc, errors});
 		system = cesk.explore(ast, initialCeskState);
-    
-    
+
+
     var time = Date.now() - start;
 //    console.profileEnd(profileName);
     initial = system.initial;
@@ -147,23 +191,82 @@
       console.log(result.msgs.join("\n"));
       result.msgs.forEach(function (msg) {logOutput("error", msg)});
     }
-    
-    //purity();
 
-    if (system.states.length > 2048)
+    states = system.states;
+    print("computing...");
+    const copResult = computeContextMethods(system);
+    print("done computing");
+
+
+    logOutput("analysis", states.length + " time " + time);
+    logOutput("result", resultValue);
+
+    
+    function methodToString(m)
     {
-      console.log("no graph (too many states)");
-      return;
+      return m.node.id.name;
     }
     
-    postComputeGraph(initial);
-    console.log(transitions.length + " transitions");
-    logOutput("analysis", states.length + "/" + transitions.length + " " + time);
-    logOutput("result", resultValue);
+    function contextToString(contextObj)
+    {
+      return contextObj.lookup(lat.abst1("name")).value.Value.toString();
+    }
     
-    var g = createDagreGraph(states);
-    drawDagreGraph(g, states, transitions);
- 	}		
+		const methodNames = new Set();
+  
+		const edges = copResult.map(
+		    function (r)
+        {
+          const targetName = methodToString(r.targetMethod); // 'old" method
+          const sourceName = methodToString(r.sourceMethod); // 'new' method
+          methodNames.add(targetName);
+          methodNames.add(sourceName);
+          return {data: {source: targetName, target: sourceName, label: contextToString(r.context) === "default" ? "" : contextToString(r.context)}, classes: 'bezier'}// therefore flipped
+        });
+    const nodes = [...methodNames].map(name => {return {data: {id:name}}});
+		
+    console.log("nodes", nodes);
+    console.log("edges", edges);
+    
+    var cy = window.cy = cytoscape({
+      container: document.getElementById('right'),
+      
+      boxSelectionEnabled: false,
+      autounselectify: true,
+      
+      layout: {
+        name: 'dagre'
+      },
+      
+      style: [
+        {
+          selector: 'node',
+          style: {
+            'content': 'data(id)',
+            'text-opacity': 0.5,
+            'text-valign': 'center',
+            'text-halign': 'right',
+            'background-color': '#11479e'
+          }
+        },
+        
+        {
+          selector: 'edge',
+          style: {
+            'width': 4,
+            'target-arrow-shape': 'triangle',
+            'line-color': '#9dbaea',
+            'target-arrow-color': '#9dbaea',
+            'label': 'data(label)'
+          }
+        }
+      ],
+      
+      elements: {
+        nodes,
+        edges}
+    });
+ 	}
 	
 	
 	 $(function ()
@@ -185,13 +288,13 @@
 	       }
 	       editor = CodeMirror(document.getElementById("editor"),
 	           {
-	             value: localStorage.protopuritySrc || "", 
+	             value: localStorage.protopuritySrc || "",
 	             mode: "javascript",
-	             lineNumbers: true 
+	             lineNumbers: true
 	           });
 	       meta = CodeMirror(document.getElementById("input"), Editors.metaConfig());
 	       //meta.on("beforeChange", function (e, o) {if (e.getCursor().line < metaLine) {o.cancel()}}, false);
-	       editor.on("dblclick", function (cm, e) 
+	       editor.on("dblclick", function (cm, e)
 	           {
 	             e.stopPropagation();
 	             var pos = {left: e.pageX, top: e.pageY};
@@ -223,7 +326,7 @@
 						});
 	       
 	       if (getUrlParameter("eval"))
-	       {               
+	       {
 	         console.log("doing it");
 	         setTimeout(doIt, 200);
 	       }
@@ -253,14 +356,6 @@
 	</div>
 	<div id="right">
 		<div id="graph">
-			<svg>
-				<defs>
-					<marker id="highlightarrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="5" orient="auto">
-						<path d="M 0 0 L 10 5 L 0 10 z"></path>
-					</marker>
-				</defs>	
-	    	<g transform="translate(20,20)"/>
-			</svg>
 		</div>
 	</div>
 </body>
