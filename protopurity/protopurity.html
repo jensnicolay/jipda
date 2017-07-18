@@ -42,7 +42,7 @@
   var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }
 	var editor, meta;
 	var ast, astNodes;
-	var system, cesk, states, transitions, graph, initial, result, contexts;
+	var system, cesk, states, graph, initial, result, contexts;
 	var ag, lat, kalloc;
 	
   
@@ -56,31 +56,8 @@
 	  return result;
 	}
 	/* END SHORTCUTS*/
-	
-	  function postComputeGraph(initial)
-    {
-	    states = [];
-      transitions = [];
-      var todo = [initial];
-      while (todo.length > 0)
-      {
-        var s = todo.pop();
-        states[s._id] = s;
-        s._successors = s._successors || [];
-        s._successors.forEach(
-         function (t)
-          {
-            if (isFinite(t._id))
-            {
-              return;
-            }
-            t._id = transitions.push(t) - 1;
-            todo.push(t.state);
-          });  
-        }
-      }
-	
-	function selectErrors()
+  
+  function selectErrors()
 	{
 	  print("here");
 	  alert($('#errors'));
@@ -125,7 +102,8 @@
     result = system.result;
     contexts = system.contexts;
     console.log("analysis took " + time + " ms");
-    console.log(system.states.length + " states; " + result.size + " results; " + contexts.length + " contexts");
+    states = system.states;
+    console.log(states.length + " states; " + result.size + " results; " + contexts.length + " contexts");
     var result = computeResultValue(system.result);
     var resultValue = result.value;
     console.log("result value " + resultValue);
@@ -143,13 +121,12 @@
       return;
     }
     
-    postComputeGraph(initial);
-    console.log(transitions.length + " transitions");
-    logOutput("analysis", states.length + "/" + transitions.length + " " + time);
+    //console.log(transitions.length + " transitions");
+    logOutput("analysis", states.length + /*"/" + transitions.length +*/ " " + time);
     logOutput("result", resultValue);
     
     var g = createDagreGraph(states);
-    drawDagreGraph(g, states, transitions);
+    drawDagreGraph(g);
  	}		
 	
 	

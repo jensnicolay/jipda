@@ -1,5 +1,25 @@
 "use strict";
 
+
+// function installBackEdges(states)
+// {
+//   states.forEach(
+//       function (state)
+//       {
+//         if (state._successors)
+//         {
+//           for (const succ of state._successors)
+//           {
+//             if (!s)
+//           }
+//         }
+//       })
+// }
+
+const Q = {};
+
+//Q.findCreation(addr, )
+
 ///////////////  COP ANALYSIS
 function computeContextMethods(system)
 {

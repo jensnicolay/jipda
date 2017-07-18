@@ -212,21 +212,43 @@
       return contextObj.lookup(lat.abst1("name")).value.Value.toString();
     }
     
-		const methodNames = new Set();
+    function GraphNode(id, name, type, object)
+    {
+      this.id = id;
+      this.name = name;
+      this.type = type;
+      this.object = object;
+    }
+    GraphNode.nodes = [];
+    GraphNode.create =
+        function (name, type, object)
+        {
+          const existing = GraphNode.nodes.find(
+              function (x)
+              {
+                return name === x.name
+                    && type === x.type
+                    && object.equals(x.object)
+              });
+          if (existing)
+          {
+            return existing;
+          }
+          const fresh = new GraphNode(GraphNode.nodes.length, name, type, object);
+          GraphNode.nodes.push(fresh);
+          return fresh;
+        }
   
-		const edges = copResult.map(
+		const edges = copResult.flatMap(
 		    function (r)
         {
-          const targetName = methodToString(r.targetMethod); // 'old" method
-          const sourceName = methodToString(r.sourceMethod); // 'new' method
-          methodNames.add(targetName);
-          methodNames.add(sourceName);
-          return {data: {source: targetName, target: sourceName, label: contextToString(r.context) === "default" ? "" : contextToString(r.context)}, classes: 'bezier'}// therefore flipped
+          const contextName = contextToString(r.context);
+          const contextNode = GraphNode.create(contextName, "context", r.context);
+          const sourceName = methodToString(r.sourceMethod);
+          const methodNode = GraphNode.create(sourceName, "method", r.sourceMethod);
+          return [{data: {source: contextNode.id, target: methodNode.id}}]
         });
-    const nodes = [...methodNames].map(name => {return {data: {id:name}}});
-		
-    console.log("nodes", nodes);
-    console.log("edges", edges);
+    const nodes = GraphNode.nodes.map(node => {return {data: {id:node.id, label:node.name}}});
     
     var cy = window.cy = cytoscape({
       container: document.getElementById('right'),
@@ -242,7 +264,7 @@
         {
           selector: 'node',
           style: {
-            'content': 'data(id)',
+            'content': 'data(label)',
             'text-opacity': 0.5,
             'text-valign': 'center',
             'text-halign': 'right',
@@ -265,6 +287,10 @@
       elements: {
         nodes,
         edges}
+    });
+    
+    cy.on('tap', function(evt){
+      console.log( 'tap ' + evt.target.id() );
     });
  	}
 	

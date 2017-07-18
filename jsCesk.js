@@ -30,7 +30,7 @@ function jsCesk(cc)
   {
     throw new Error("no a specified"); // TODO names
   }
-  var a = cc.a;
+  const a = cc.a;
   
   // stack allocator
   if (!cc.kalloc)
@@ -339,10 +339,8 @@ function jsCesk(cc)
         var next = s._successors;
         if (next && s.isEvalState)
         {
-          for (var i = 0; i < next.length; i++)
+          for (const s2 of next)
           {
-            var t2 = next[i];
-            var s2 = t2.state;
             todo.push(s2);
           }
           continue;
@@ -361,12 +359,11 @@ function jsCesk(cc)
         // }
         for (var i = 0; i < next.length; i++)
         {
-          var t2 = next[i];
-          var s2 = t2.state;
+          var s2 = next[i];
           var ss2 = stateGet(s2);
           if (ss2 !== s2)
           {
-            t2.state = ss2;
+            next[i] = ss2;
             todo.push(ss2);
             continue;
           }
@@ -652,7 +649,7 @@ function jsCesk(cc)
       const addr = a.error("@"+msg, kont);
       store = storeAlloc(store, addr, obj);
       const ref = l.abstRef(addr);
-      return [{state: new ThrowState(ref, store, lkont, kont)}];
+      return [new ThrowState(ref, store, lkont, kont)];
     }
     ///
     
@@ -1118,11 +1115,11 @@ function jsCesk(cc)
       let result = [];
       if (argument.isUndefined())
       {
-        result.push({state: new ThrowState(l.abst1("7.1.13 - Undefined"), store, lkont, kont)});
+        result.push(new ThrowState(l.abst1("7.1.13 - Undefined"), store, lkont, kont));
       }
       if (argument.isNull())
       {
-        result.push({state: new ThrowState(l.abst1("7.1.13 - Null"), store, lkont, kont)});
+        result.push(new ThrowState(l.abst1("7.1.13 - Null"), store, lkont, kont));
       }
       const barg = argument.projectBoolean();
       if (barg !== BOT)
@@ -1993,7 +1990,7 @@ function jsCesk(cc)
     {
       const [O] = operandValues;
       // TODO
-      return [{state: new KontState(O, store, lkont, kont)}];
+      return [new KontState(O, store, lkont, kont)];
     }
     
     // 19.1.2.9
@@ -2003,7 +2000,7 @@ function jsCesk(cc)
       return GetOwnPropertyKeys(O, Sets.of(Types.String), application, store, lkont, kont,
           function (arrRef, store)
           {
-            return [{state: new KontState(arrRef, store, lkont, kont)}];
+            return [new KontState(arrRef, store, lkont, kont)];
           });
     }
     
@@ -2231,7 +2228,7 @@ function jsCesk(cc)
     var nodes = bodyNode.body;
     if (nodes.length === 0)
     {
-      return [{state: new KontState(L_UNDEFINED, store, [], ctx)}];
+      return [new KontState(L_UNDEFINED, store, [], ctx)];
     }
     
     var extendedBenv = scope.extend();
@@ -2281,7 +2278,7 @@ function jsCesk(cc)
             }
           });
     }
-    return [{state: new EvalState(bodyNode, extendedBenv, store, [], ctx)}];
+    return [new EvalState(bodyNode, extendedBenv, store, [], ctx)];
   }
   
   
@@ -2477,7 +2474,7 @@ function jsCesk(cc)
           let result = [];
           for (const stack of kont._stacks)
           {
-            result.push({state: new KontState(value, store, stack.lkont, stack.kont)});
+            result.push(new KontState(value, store, stack.lkont, stack.kont));
           }
           return result;
         }
@@ -2577,7 +2574,7 @@ function jsCesk(cc)
         var result = [];
         for (let stack of kont._stacks)
         {
-          result.push({state: new KontState(value, store, stack.lkont, stack.kont)});
+          result.push(new KontState(value, store, stack.lkont, stack.kont));
         }
         
         return result;
@@ -2847,7 +2844,7 @@ function jsCesk(cc)
   // HaltKont.prototype.apply =
   //   function (value, store, lkont, kont)
   //   {
-  //     return [{state:new ResultState(value, store, lkont, kont)}];
+  //     return [new ResultState(value, store, lkont, kont)];
   //   }
   // HaltKont.prototype.hashCode =
   //   function ()
@@ -2915,10 +2912,10 @@ function jsCesk(cc)
         var nodes = node.declarations;
         if (i === nodes.length)
         {
-          return [{state: new KontState(value, store, lkont, kont)}];
+          return [new KontState(value, store, lkont, kont)];
         }
         var frame = new VariableDeclarationKont(node, i + 1, benv);
-        return [{state: new EvalState(nodes[i], benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(nodes[i], benv, store, [frame].concat(lkont), kont)];
       }
   
   function VariableDeclaratorKont(node, benv)
@@ -2964,7 +2961,7 @@ function jsCesk(cc)
         var id = this.node.id;
         var benv = this.benv;
         store = doScopeSet(id, value, benv, store, kont);
-        return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
+        return [new KontState(L_UNDEFINED, store, lkont, kont)];
       }
   
   function LeftKont(node, benv)
@@ -3010,7 +3007,7 @@ function jsCesk(cc)
         var node = this.node;
         var benv = this.benv;
         var frame = new RightKont(node, leftValue);
-        return [{state: new EvalState(node.right, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(node.right, benv, store, [frame].concat(lkont), kont)];
       }
   
   function LogicalLeftKont(node, benv)
@@ -3064,11 +3061,11 @@ function jsCesk(cc)
             
             if (leftValue.isTruthy())
             {
-              result = result.concat([{state: new EvalState(node.right, benv, store, lkont, kont)}]);
+              result = result.concat([new EvalState(node.right, benv, store, lkont, kont)]);
             }
             if (leftValue.isFalsy())
             {
-              result = result.concat([{state: new KontState(leftValue, store, lkont, kont)}]);
+              result = result.concat([new KontState(leftValue, store, lkont, kont)]);
             }
             break;
           }
@@ -3076,11 +3073,11 @@ function jsCesk(cc)
           {
             if (leftValue.isTruthy())
             {
-              result = result.concat([{state: new KontState(leftValue, store, lkont, kont)}]);
+              result = result.concat([new KontState(leftValue, store, lkont, kont)]);
             }
             if (leftValue.isFalsy())
             {
-              result = result.concat([{state: new EvalState(node.right, benv, store, lkont, kont)}]);
+              result = result.concat([new EvalState(node.right, benv, store, lkont, kont)]);
             }
             break;
           }
@@ -3194,7 +3191,7 @@ function jsCesk(cc)
           default:
             throw new Error("cannot handle unary operator " + node.operator);
         }
-        return [{state: new KontState(resultValue, store, lkont, kont)}];
+        return [new KontState(resultValue, store, lkont, kont)];
       }
   
   function RightKont(node, leftValue)
@@ -3249,86 +3246,86 @@ function jsCesk(cc)
     {
       case "+":
       {
-        return [{state: new KontState(l.add(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.add(leftValue, rightValue), store, lkont, kont)];
       }
       case "*":
       {
-        return [{state: new KontState(l.mul(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.mul(leftValue, rightValue), store, lkont, kont)];
       }
       case "-":
       {
-        return [{state: new KontState(l.sub(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.sub(leftValue, rightValue), store, lkont, kont)];
       }
       case "/":
       {
-        return [{state: new KontState(l.div(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.div(leftValue, rightValue), store, lkont, kont)];
       }
       case "%":
       {
-        return [{state: new KontState(l.rem(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.rem(leftValue, rightValue), store, lkont, kont)];
       }
       case "===":
       {
-        return [{state: new KontState(l.eqq(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.eqq(leftValue, rightValue), store, lkont, kont)];
       }
       case "!==":
       {
-        return [{state: new KontState(l.neqq(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.neqq(leftValue, rightValue), store, lkont, kont)];
       }
       case "==":
       {
-        return [{state: new KontState(l.eq(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.eq(leftValue, rightValue), store, lkont, kont)];
       }
       case "!=":
       {
-        return [{state: new KontState(l.neq(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.neq(leftValue, rightValue), store, lkont, kont)];
       }
       case "<":
       {
-        return [{state: new KontState(l.lt(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.lt(leftValue, rightValue), store, lkont, kont)];
       }
       case "<=":
       {
-        return [{state: new KontState(l.lte(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.lte(leftValue, rightValue), store, lkont, kont)];
       }
       case ">":
       {
-        return [{state: new KontState(l.gt(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.gt(leftValue, rightValue), store, lkont, kont)];
       }
       case ">=":
       {
-        return [{state: new KontState(l.gte(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.gte(leftValue, rightValue), store, lkont, kont)];
       }
       case "&":
       {
-        return [{state: new KontState(l.binand(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.binand(leftValue, rightValue), store, lkont, kont)];
       }
       case "|":
       {
-        return [{state: new KontState(l.binor(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.binor(leftValue, rightValue), store, lkont, kont)];
       }
       case "^":
       {
-        return [{state: new KontState(l.binxor(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.binxor(leftValue, rightValue), store, lkont, kont)];
       }
       case "<<":
       {
-        return [{state: new KontState(l.shl(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.shl(leftValue, rightValue), store, lkont, kont)];
       }
       case ">>":
       {
-        return [{state: new KontState(l.shr(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.shr(leftValue, rightValue), store, lkont, kont)];
       }
       case ">>>":
       {
-        return [{state: new KontState(l.shrr(leftValue, rightValue), store, lkont, kont)}];
+        return [new KontState(l.shrr(leftValue, rightValue), store, lkont, kont)];
       }
       case "instanceof":
       {
         return InstanceofOperator(leftValue, rightValue, store, lkont, kont,
             function (value)
             {
-              return [{state: new KontState(value, store, lkont, kont)}];
+              return [new KontState(value, store, lkont, kont)];
             });
       }
       case "in":
@@ -3346,7 +3343,7 @@ function jsCesk(cc)
                 return HasProperty(rightValue, P, store, lkont, kont,
                     function (result, store)
                     {
-                      return [{state: new KontState(result, store, lkont, kont)}];
+                      return [new KontState(result, store, lkont, kont)];
                     });
               });
           result = result.concat(r1);
@@ -3445,7 +3442,7 @@ function jsCesk(cc)
         //   newValue = newValue.abst();
         // }
         store = doScopeSet(node.left, newValue, benv, store, kont);
-        return [{state: new KontState(newValue, store, lkont, kont)}];
+        return [new KontState(newValue, store, lkont, kont)];
       }
   
   function OperatorKont(node, benv)
@@ -3501,7 +3498,7 @@ function jsCesk(cc)
           return applyProc(node, operatorValue, [], kont.realm.GlobalObject, null, store, lkont, kont, []);
         }
         var frame = new OperandsKont(node, 1, benv, operatorValue, [], kont.realm.GlobalObject);
-        return [{state: new EvalState(operands[0], benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(operands[0], benv, store, [frame].concat(lkont), kont)];
       }
   
   function OperandsKont(node, i, benv, operatorValue, operandValues, thisValue)
@@ -3581,7 +3578,7 @@ function jsCesk(cc)
           return applyProc(node, operatorValue, operandValues.addLast(operandValue), thisValue, null, store, lkont, kont, []);
         }
         var frame = new OperandsKont(node, i + 1, benv, operatorValue, operandValues.addLast(operandValue), thisValue);
-        return [{state: new EvalState(operands[i], benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(operands[i], benv, store, [frame].concat(lkont), kont)];
       }
   
   function BodyKont(node, i, benv)
@@ -3634,10 +3631,10 @@ function jsCesk(cc)
         var nodes = node.body;
         if (i === nodes.length - 1)
         {
-          return [{state: new EvalState(nodes[i], benv, store, lkont, kont)}];
+          return [new EvalState(nodes[i], benv, store, lkont, kont)];
         }
         var frame = new BodyKont(node, i + 1, benv);
-        return [{state: new EvalState(nodes[i], benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(nodes[i], benv, store, [frame].concat(lkont), kont)];
       }
   
   function ReturnKont(node)
@@ -3678,7 +3675,7 @@ function jsCesk(cc)
       function (value, store, lkont, kont)
       {
         var node = this.node;
-        return [{state: new ReturnState(value, store, lkont, kont)}];
+        return [new ReturnState(value, store, lkont, kont)];
       }
   
   function TryKont(node, benv)
@@ -3726,13 +3723,13 @@ function jsCesk(cc)
           const finalizerBody = finalizer.body;
           if (finalizerBody.length === 0)
           {
-            return [{state: new KontState(tryValue, store, lkont, kont)}];
+            return [new KontState(tryValue, store, lkont, kont)];
           }
           const benv = this.benv;
           const frame = new FinalizerKont(node, tryValue, false);
           return evalStatementList(finalizer, benv, store, [frame].concat(lkont), kont);
         }
-        return [{state: new KontState(tryValue, store, lkont, kont)}];
+        return [new KontState(tryValue, store, lkont, kont)];
       }
   TryKont.prototype.applyThrow =
       function (throwValue, store, lkont, kont)
@@ -3747,7 +3744,7 @@ function jsCesk(cc)
           const finalizerBody = finalizer.body;
           if (finalizerBody.length === 0)
           {
-            return [{state: new ThrowState(throwValue, store, lkont, kont)}];
+            return [new ThrowState(throwValue, store, lkont, kont)];
           }
           const frame = new FinalizerKont(node, throwValue, true);
           return evalStatementList(finalizer, benv, store, [frame].concat(lkont), kont);
@@ -3757,7 +3754,7 @@ function jsCesk(cc)
         var nodes = body.body;
         if (nodes.length === 0)
         {
-          return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
+          return [new KontState(L_UNDEFINED, store, lkont, kont)];
         }
         
         var extendedBenv = this.benv.extend();
@@ -3816,9 +3813,9 @@ function jsCesk(cc)
           const thrw = this.thrw;
           if (thrw)
           {
-            return [{state: new ThrowState(value, store, lkont, kont)}];
+            return [new ThrowState(value, store, lkont, kont)];
           }
-          return [{state: new KontState(value, store, lkont, kont)}];
+          return [new KontState(value, store, lkont, kont)];
         }
   
     function ThrowKont(node)
@@ -3860,7 +3857,7 @@ function jsCesk(cc)
         {
           assertFalse(throwValue instanceof Obj)
           var node = this.node;
-          return [{state: new ThrowState(throwValue, store, lkont, kont)}];
+          return [new ThrowState(throwValue, store, lkont, kont)];
         }
   
     function IfKont(node, benv)
@@ -3910,17 +3907,17 @@ function jsCesk(cc)
         var result = [];
         if (conditionValue.isTruthy())
         {
-          result = result.concat([{state: new EvalState(consequent, benv, store, lkont, kont)}]);
+          result = result.concat([new EvalState(consequent, benv, store, lkont, kont)]);
         }
         if (conditionValue.isFalsy())
         {
           if (alternate === null)
           {
-            result = result.concat([{state: new KontState(L_UNDEFINED, store, lkont, kont)}]);
+            result = result.concat([new KontState(L_UNDEFINED, store, lkont, kont)]);
           }
           else
           {
-            result = result.concat([{state: new EvalState(alternate, benv, store, lkont, kont)}]);
+            result = result.concat([new EvalState(alternate, benv, store, lkont, kont)]);
           }
         }
         return result;
@@ -3970,7 +3967,7 @@ function jsCesk(cc)
         var benv = this.benv;
         var test = node.test;
         var frame = new ForTestKont(node, L_UNDEFINED, benv);
-        return [{state: new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(test, benv, store, [frame].concat(lkont), kont)];
       }
   
   function ForTestKont(node, bodyValue, benv)
@@ -4023,11 +4020,11 @@ function jsCesk(cc)
         {
           var body = node.body;
           var frame = new ForBodyKont(node, benv);
-          result = result.concat([{state: new EvalState(body, benv, store, [frame].concat(lkont), kont)}]);
+          result = result.concat([new EvalState(body, benv, store, [frame].concat(lkont), kont)]);
         }
         if (testValue.isFalsy())
         {
-          result = result.concat([{state: new KontState(this.bodyValue, store, lkont, kont)}]);
+          result = result.concat([new KontState(this.bodyValue, store, lkont, kont)]);
         }
         return result;
       }
@@ -4076,12 +4073,12 @@ function jsCesk(cc)
         var benv = this.benv;
         var update = node.update;
         var frame = new ForUpdateKont(node, bodyValue, benv);
-        return [{state: new EvalState(update, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(update, benv, store, [frame].concat(lkont), kont)];
       }
   ForBodyKont.prototype.applyBreak =
       function (store, lkont, kont)
       {
-        return [{state: new KontState(L_UNDEFINED, store, lkont.slice(1), kont)}];
+        return [new KontState(L_UNDEFINED, store, lkont.slice(1), kont)];
       }
   
   function ForUpdateKont(node, bodyValue, benv)
@@ -4132,7 +4129,7 @@ function jsCesk(cc)
         var benv = this.benv;
         var test = node.test;
         var frame = new ForTestKont(node, this.bodyValue, benv);
-        return [{state: new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(test, benv, store, [frame].concat(lkont), kont)];
       }
   
     function ForInRightKont(node, benv)
@@ -4204,7 +4201,7 @@ function jsCesk(cc)
               let result = [];
               if (protoRef.isNull())
               {
-                result.push({state: new KontState(L_UNDEFINED, store, lkont, kont)});
+                result.push(new KontState(L_UNDEFINED, store, lkont, kont));
               }
               if (protoRef.isNonNull()) // TODO: check for non-null ref/non-ref?
               {
@@ -4226,7 +4223,7 @@ function jsCesk(cc)
             {
               store = doScopeSet(nameNode, ownKey, benv, store, kont);
               const frame = new ForInBodyKont(node, nameNode, ref, ownKeys, i, benv);
-              return [{state: new EvalState(node.body, benv, store, [frame].concat(lkont), kont)}];
+              return [new EvalState(node.body, benv, store, [frame].concat(lkont), kont)];
             }
             else
             {
@@ -4344,11 +4341,11 @@ function jsCesk(cc)
         if (testValue.isTruthy())
         {
           var frame = new WhileBodyKont(node, benv);
-          result = result.concat([{state: new EvalState(body, benv, store, [frame].concat(lkont), kont)}]);
+          result = result.concat([new EvalState(body, benv, store, [frame].concat(lkont), kont)]);
         }
         if (testValue.isFalsy())
         {
-          result = result.concat([{state: new KontState(L_UNDEFINED, store, lkont, kont)}]);
+          result = result.concat([new KontState(L_UNDEFINED, store, lkont, kont)]);
         }
         return result;
       }
@@ -4397,12 +4394,12 @@ function jsCesk(cc)
         var benv = this.benv;
         var test = node.test;
         var frame = new WhileTestKont(node, benv);
-        return [{state: new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(test, benv, store, [frame].concat(lkont), kont)];
       }
   WhileBodyKont.prototype.applyBreak =
       function (store, lkont, kont)
       {
-        return [{state: new KontState(L_UNDEFINED, store, lkont.slice(1), kont)}];
+        return [new KontState(L_UNDEFINED, store, lkont.slice(1), kont)];
       }
   
   function ObjectKont(node, i, benv, initValues)
@@ -4485,12 +4482,12 @@ function jsCesk(cc)
           }
           if (overallSuccess)
           {
-            result.push({state: new KontState(object, store, lkont, kont)});
+            result.push(new KontState(object, store, lkont, kont));
           }
           return result;
         }
         var frame = new ObjectKont(node, i + 1, benv, initValues);
-        return [{state: new EvalState(properties[i].value, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(properties[i].value, benv, store, [frame].concat(lkont), kont)];
       }
   
   function ArrayKont(node, i, benv, initValues)
@@ -4561,10 +4558,10 @@ function jsCesk(cc)
           }
           arr = arr.add(P_LENGTH, Property.fromValue(l.abst1(i)));
           store = storeAlloc(store, arrAddress, arr);
-          return [{state: new KontState(l.abstRef(arrAddress), store, lkont, kont)}];
+          return [new KontState(l.abstRef(arrAddress), store, lkont, kont)];
         }
         var frame = new ArrayKont(node, i + 1, benv, initValues);
-        return [{state: new EvalState(elements[i], benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(elements[i], benv, store, [frame].concat(lkont), kont)];
       }
   
   function MemberKont(node, benv)
@@ -4617,10 +4614,10 @@ function jsCesk(cc)
               if (node.computed)
               {
                 var frame = new MemberPropertyKont(node, benv, objectRef);
-                return [{state: new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
+                return [new EvalState(property, benv, store, [frame].concat(lkont), kont)];
               }
               var value = doProtoLookup(l.abst1(property.name), objectRef.addresses(), store);
-              return [{state: new KontState(value, store, lkont, kont)}];
+              return [new KontState(value, store, lkont, kont)];
             });
       }
   
@@ -4675,7 +4672,7 @@ function jsCesk(cc)
         var objectRef = this.objectRef;
         var nameValue = propertyValue.ToString();
         var value = doProtoLookup(nameValue, objectRef.addresses(), store);
-        return [{state: new KontState(value, store, lkont, kont)}];
+        return [new KontState(value, store, lkont, kont)];
       }
   
   
@@ -4748,7 +4745,7 @@ function jsCesk(cc)
       return applyProc(application, operatorValue, [], thisValue, null, store, lkont, kont);
     }
     var frame = new OperandsKont(application, 1, benv, operatorValue, [], thisValue);
-    return [{state: new EvalState(operands[0], benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(operands[0], benv, store, [frame].concat(lkont), kont)];
   }
   
   function AssignMemberKont(node, benv)
@@ -4798,12 +4795,12 @@ function jsCesk(cc)
         if (left.computed)
         {
           var frame = new AssignMemberPropertyKont(node, benv, objectRef);
-          return [{state: new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
+          return [new EvalState(property, benv, store, [frame].concat(lkont), kont)];
         }
         var right = node.right;
         var nameValue = l.abst1(property.name);
         var frame = new MemberAssignmentValueKont(node, benv, objectRef, nameValue);
-        return [{state: new EvalState(right, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(right, benv, store, [frame].concat(lkont), kont)];
       }
   
   function UpdateMemberKont(node, benv)
@@ -4853,7 +4850,7 @@ function jsCesk(cc)
         if (argument.computed)
         {
           var frame = new UpdateMemberPropertyKont(node, benv, objectRef); // TODO
-          return [{state: new EvalState(property, benv, store, [frame].concat(lkont), kont)}];
+          return [new EvalState(property, benv, store, [frame].concat(lkont), kont)];
         }
         var name = l.abst1(property.name);
         var value = doProtoLookup(name, objectRef.addresses(), store);
@@ -4883,7 +4880,7 @@ function jsCesk(cc)
         }
         store = doProtoSet(name, updatedValue, objectRef, store);
         var resultingValue = node.prefix ? updatedValue : value;
-        return [{state: new KontState(resultingValue, store, lkont, kont)}];
+        return [new KontState(resultingValue, store, lkont, kont)];
       }
   
   function AssignMemberPropertyKont(node, benv, objectRef)
@@ -4939,7 +4936,7 @@ function jsCesk(cc)
         var objectRef = this.objectRef;
         var nameValue = propertyValue.ToString();
         var frame = new MemberAssignmentValueKont(node, benv, objectRef, nameValue);
-        return [{state: new EvalState(right, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(right, benv, store, [frame].concat(lkont), kont)];
       }
   
   function MemberAssignmentValueKont(node, benv, objectRef, nameValue)
@@ -5026,7 +5023,7 @@ function jsCesk(cc)
           return [];
         }
         store = doProtoSet(nameValue, newValue, objectRef, store);
-        return [{state: new KontState(newValue, store, lkont, kont)}];
+        return [new KontState(newValue, store, lkont, kont)];
       }
   
   
@@ -5211,25 +5208,25 @@ function jsCesk(cc)
   
   function evalEmptyStatement(node, benv, store, lkont, kont)
   {
-    return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
+    return [new KontState(L_UNDEFINED, store, lkont, kont)];
   }
   
   function evalLiteral(node, benv, store, lkont, kont)
   {
     var value = l.abst1(node.value);
-    return [{state: new KontState(value, store, lkont, kont)}];
+    return [new KontState(value, store, lkont, kont)];
   }
   
   function evalIdentifier(node, benv, store, lkont, kont)
   {
     var value = doScopeLookup(node, benv, store, kont);
-    return [{state: new KontState(value, store, lkont, kont)}];
+    return [new KontState(value, store, lkont, kont)];
   }
   
   function evalThisExpression(node, benv, store, lkont, kont)
   {
     const value = kont.thisValue;
-    return [{state: new KontState(value, store, lkont, kont)}];
+    return [new KontState(value, store, lkont, kont)];
   }
   
   function evalProgram(node, benv, store, lkont, kont)
@@ -5264,7 +5261,7 @@ function jsCesk(cc)
     var nodes = node.body;
     if (nodes.length === 0)
     {
-      return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
+      return [new KontState(L_UNDEFINED, store, lkont, kont)];
     }
     if (nodes.length === 1)
     {
@@ -5272,7 +5269,7 @@ function jsCesk(cc)
       return evalNode(nodes[0], benv, store, lkont, kont);
     }
     var frame = new BodyKont(node, 1, benv);
-    return [{state: new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalVariableDeclaration(node, benv, store, lkont, kont)
@@ -5287,7 +5284,7 @@ function jsCesk(cc)
       return evalVariableDeclarator(nodes[0], benv, store, lkont, kont);
     }
     var frame = new VariableDeclarationKont(node, 1, benv);
-    return [{state: new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalVariableDeclarator(node, benv, store, lkont, kont)
@@ -5295,28 +5292,28 @@ function jsCesk(cc)
     var init = node.init;
     if (init === null)
     {
-      return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
+      return [new KontState(L_UNDEFINED, store, lkont, kont)];
     }
     var frame = new VariableDeclaratorKont(node, benv);
-    return [{state: new EvalState(init, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(init, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalUnaryExpression(node, benv, store, lkont, kont)
   {
     var frame = new UnaryKont(node);
-    return [{state: new EvalState(node.argument, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(node.argument, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalBinaryExpression(node, benv, store, lkont, kont)
   {
     var frame = new LeftKont(node, benv);
-    return [{state: new EvalState(node.left, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(node.left, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalLogicalExpression(node, benv, store, lkont, kont)
   {
     var frame = new LogicalLeftKont(node, benv);
-    return [{state: new EvalState(node.left, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(node.left, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalAssignmentExpression(node, benv, store, lkont, kont)
@@ -5328,13 +5325,13 @@ function jsCesk(cc)
       {
         var right = node.right;
         var frame = new AssignIdentifierKont(node, benv);
-        return [{state: new EvalState(right, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(right, benv, store, [frame].concat(lkont), kont)];
       }
       case "MemberExpression":
       {
         var object = left.object;
         var frame = new AssignMemberKont(node, benv);
-        return [{state: new EvalState(object, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(object, benv, store, [frame].concat(lkont), kont)];
       }
       default:
       {
@@ -5373,13 +5370,13 @@ function jsCesk(cc)
         }
         store = doScopeSet(argument, updatedValue, benv, store, kont);
         var resultingValue = node.prefix ? updatedValue : value;
-        return [{state: new KontState(resultingValue, store, lkont, kont)}];
+        return [new KontState(resultingValue, store, lkont, kont)];
       }
       case "MemberExpression":
       {
         var object = argument.object;
         var frame = new UpdateMemberKont(node, benv);
-        return [{state: new EvalState(object, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(object, benv, store, [frame].concat(lkont), kont)];
       }
       default:
       {
@@ -5410,12 +5407,12 @@ function jsCesk(cc)
     var allocateResult = allocateClosure(node, benv, store, lkont, kont);
     var closureRef = allocateResult.ref;
     store = allocateResult.store;
-    return [{state: new KontState(closureRef, store, lkont, kont)}];
+    return [new KontState(closureRef, store, lkont, kont)];
   }
   
   function evalFunctionDeclaration(node, benv, store, lkont, kont)
   {
-    return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
+    return [new KontState(L_UNDEFINED, store, lkont, kont)];
   }
   
   function evalCallExpression(node, benv, store, lkont, kont)
@@ -5426,11 +5423,11 @@ function jsCesk(cc)
     {
       var object = calleeNode.object;
       var frame = new CallMemberKont(node, benv);
-      return [{state: new EvalState(object, benv, store, [frame].concat(lkont), kont)}];
+      return [new EvalState(object, benv, store, [frame].concat(lkont), kont)];
     }
     
     var frame = new OperatorKont(node, benv);
-    return [{state: new EvalState(calleeNode, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(calleeNode, benv, store, [frame].concat(lkont), kont)];
   }
   
   
@@ -5483,23 +5480,23 @@ function jsCesk(cc)
     var argumentNode = node.argument;
     if (argumentNode === null)
     {
-      return [{state: new ReturnState(L_UNDEFINED, store, lkont, kont)}];
+      return [new ReturnState(L_UNDEFINED, store, lkont, kont)];
     }
     
     var frame = new ReturnKont(node);
-    return [{state: new EvalState(argumentNode, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(argumentNode, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalBreakStatement(node, benv, store, lkont, kont)
   {
-    return [{state: new BreakState(store, lkont, kont)}];
+    return [new BreakState(store, lkont, kont)];
   }
   
   function evalTryStatement(node, benv, store, lkont, kont)
   {
     var block = node.block;
     var frame = new TryKont(node, benv);
-    return [{state: new EvalState(block, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(block, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalThrowStatement(node, benv, store, lkont, kont)
@@ -5507,21 +5504,21 @@ function jsCesk(cc)
     var argumentNode = node.argument;
     
     var frame = new ThrowKont(node);
-    return [{state: new EvalState(argumentNode, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(argumentNode, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalIfStatement(node, benv, store, lkont, kont)
   {
     var testNode = node.test;
     var frame = new IfKont(node, benv);
-    return [{state: new EvalState(testNode, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(testNode, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalConditionalExpression(node, benv, store, lkont, kont)
   {
     var testNode = node.test;
     var frame = new IfKont(node, benv);
-    return [{state: new EvalState(testNode, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(testNode, benv, store, [frame].concat(lkont), kont)];
   }
   
     function evalForStatement(node, benv, store, lkont, kont)
@@ -5530,32 +5527,32 @@ function jsCesk(cc)
       if (init)
       {
         var frame = new ForInitKont(node, benv);
-        return [{state: new EvalState(init, benv, store, [frame].concat(lkont), kont)}];
+        return [new EvalState(init, benv, store, [frame].concat(lkont), kont)];
       }
       var test = node.test;
       var frame = new ForTestKont(node, L_UNDEFINED, benv);
-      return [{state: new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
+      return [new EvalState(test, benv, store, [frame].concat(lkont), kont)];
     }
   
     function evalForInStatement(node, benv, store, lkont, kont)
     {
       var right = node.right;
       var frame = new ForInRightKont(node, benv);
-      return [{state: new EvalState(right, benv, store, [frame].concat(lkont), kont)}];
+      return [new EvalState(right, benv, store, [frame].concat(lkont), kont)];
     }
   
     function evalWhileStatement(node, benv, store, lkont, kont)
   {
     var test = node.test;
     var frame = new WhileTestKont(node, benv);
-    return [{state: new EvalState(test, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(test, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalDoWhileStatement(node, benv, store, lkont, kont)
   {
     var body = node.body;
     var frame = new WhileBodyKont(node, benv);
-    return [{state: new EvalState(body, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(body, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalObjectExpression(node, benv, store, lkont, kont)
@@ -5567,10 +5564,10 @@ function jsCesk(cc)
       var objectAddress = a.object(node, kont);
       store = storeAlloc(store, objectAddress, obj);
       var objectRef = l.abstRef(objectAddress);
-      return [{state: new KontState(objectRef, store, lkont, kont)}];
+      return [new KontState(objectRef, store, lkont, kont)];
     }
     var frame = new ObjectKont(node, 1, benv, []);
-    return [{state: new EvalState(properties[0].value, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(properties[0].value, benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalArrayExpression(node, benv, store, lkont, kont)
@@ -5583,17 +5580,17 @@ function jsCesk(cc)
       var arrAddress = a.array(node, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
-      return [{state: new KontState(arrRef, store, lkont, kont)}];
+      return [new KontState(arrRef, store, lkont, kont)];
     }
     var frame = new ArrayKont(node, 1, benv, []);
-    return [{state: new EvalState(elements[0], benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(elements[0], benv, store, [frame].concat(lkont), kont)];
   }
   
   function evalMemberExpression(node, benv, store, lkont, kont)
   {
     var object = node.object;
     var frame = new MemberKont(node, benv);
-    return [{state: new EvalState(object, benv, store, [frame].concat(lkont), kont)}];
+    return [new EvalState(object, benv, store, [frame].concat(lkont), kont)];
   }
   
   
@@ -5768,7 +5765,7 @@ function jsCesk(cc)
       var objectAddress = a.object(application, kont);
       store = storeAlloc(store, objectAddress, obj);
       var objRef = l.abstRef(objectAddress);
-      return [{state: new KontState(objRef, store, lkont, kont)}];
+      return [new KontState(objRef, store, lkont, kont)];
     }
     
     // // 19.1.2.2
@@ -5828,7 +5825,7 @@ function jsCesk(cc)
                   return HasOwnProperty(O, P, store, lkont, kont,
                       function (hasOwn, store)
                       {
-                        return [{state: new KontState(hasOwn, store, lkont, kont)}];
+                        return [new KontState(hasOwn, store, lkont, kont)];
                       });
                 });
           });
@@ -5891,7 +5888,7 @@ function jsCesk(cc)
       var errAddress = a.error(application, kont);
       store = storeAlloc(store, errAddress, obj);
       var errRef = l.abstRef(errAddress);
-      return [{state: new KontState(errRef, store, lkont, kont)}];
+      return [new KontState(errRef, store, lkont, kont)];
     }
     
     // END ERROR
@@ -5920,30 +5917,30 @@ function jsCesk(cc)
     {
       if (operandValues.length === 0)
       {
-        return [{state: new KontState(L_EMPTY_STRING, store, lkont, kont)}];
+        return [new KontState(L_EMPTY_STRING, store, lkont, kont)];
       }
-      return [{state: new KontState(operandValues[0].ToString(), store, lkont, kont)}];
+      return [new KontState(operandValues[0].ToString(), store, lkont, kont)];
     }
     
     function stringCharAt(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var lprim = getInternal(thisValue, "[[StringData]]", store);
       var value = lprim.charAt(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     function stringCharCodeAt(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var lprim = getInternal(thisValue, "[[StringData]]", store);
       var value = lprim.charCodeAt(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     function stringStartsWith(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var lprim = getInternal(thisValue, "[[StringData]]", store);
       var value = lprim.startsWith(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     // END STRING
@@ -5990,7 +5987,7 @@ function jsCesk(cc)
       var arrAddress = a.array(application, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
-      return [{state: new KontState(arrRef, store, lkont, kont)}];
+      return [new KontState(arrRef, store, lkont, kont)];
     }
     
     function arrayFunction(application, operandValues, thisValue, benv, store, lkont, kont)
@@ -6005,7 +6002,7 @@ function jsCesk(cc)
       var arrAddress = a.array(application, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = l.abstRef(arrAddress);
-      return [{state: new KontState(arrRef, store, lkont, kont)}];
+      return [new KontState(arrRef, store, lkont, kont)];
     }
     
     function arrayToString(application, operandValues, thisValue, benv, store, lkont, kont)
@@ -6014,7 +6011,7 @@ function jsCesk(cc)
       return CreateListFromArrayLike(thisValue, undefined, store, lkont, kont,
           function (list, store)
           {
-            return [{state: new KontState(l.abst1(list.join()), store, lkont, kont)}];
+            return [new KontState(l.abst1(list.join()), store, lkont, kont)];
           });
     }
     
@@ -6061,7 +6058,7 @@ function jsCesk(cc)
                 });
             var arrAddress = a.array(application, kont);
             store = storeAlloc(store, arrAddress, resultArr);
-            return {state: new KontState(l.abstRef(arrAddress), store, lkont, kont)};
+            return new KontState(l.abstRef(arrAddress), store, lkont, kont);
           });
     }
     
@@ -6078,7 +6075,7 @@ function jsCesk(cc)
             var len1 = l.add(len, L_1);
             arr = arr.add(P_LENGTH, Property.fromValue(len1));
             store = storeUpdate(store, thisa, arr);
-            return {state: new KontState(len1, store, lkont, kont)};
+            return new KontState(len1, store, lkont, kont);
           });
     }
     
@@ -6104,37 +6101,37 @@ function jsCesk(cc)
     function mathSqrt(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var value = l.sqrt(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     function mathAbs(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var value = l.abs(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     function mathRound(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var value = l.round(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     function mathFloor(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var value = l.floor(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     function mathCos(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var value = l.cos(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     function mathSin(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var value = l.sin(operandValues[0]);
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     var random = (function ()
@@ -6156,7 +6153,7 @@ function jsCesk(cc)
     function mathRandom(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var value = l.abst1(random());
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     // END MATH
@@ -6194,7 +6191,7 @@ function jsCesk(cc)
       return DefinePropertyOrThrow(O, key, desc, store, lkont, kont,
           function (success, store)
           {
-            return [{state: new KontState(O, store, lkont, kont)}];
+            return [new KontState(O, store, lkont, kont)];
           });
     }
   
@@ -6204,14 +6201,14 @@ function jsCesk(cc)
       return ObjectDefineProperties(O, Properties, application, store, lkont, kont,
           function (O, store)
           {
-            return [{state: new KontState(O, store, lkont, kont)}];
+            return [new KontState(O, store, lkont, kont)];
           });
     }
   
     function baseNewPropertyDescriptor(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       const property = Property.fromValue(BOT);
-      return [{state: new KontState(property, store, lkont, kont)}];
+      return [new KontState(property, store, lkont, kont)];
     }
   
     function baseToPropertyKey(application, operandValues, thisValue, benv, store, lkont, kont)
@@ -6220,7 +6217,7 @@ function jsCesk(cc)
       return ToPropertyKey(argument, store, lkont, kont,
           function (value, store)
           {
-            return [{state: new KontState(value, store, lkont, kont)}];
+            return [new KontState(value, store, lkont, kont)];
           });
     }
   
@@ -6230,7 +6227,7 @@ function jsCesk(cc)
       return ToPropertyDescriptor(Attributes, store, lkont, kont,
           function (desc, store)
           {
-            return [{state: new KontState(desc, store, lkont, kont)}];
+            return [new KontState(desc, store, lkont, kont)];
           });
     }
   
@@ -6240,7 +6237,7 @@ function jsCesk(cc)
       return FromPropertyDescriptor(Desc, application, store, lkont, kont,
           function (ref, store)
           {
-            return [{state: new KontState(ref, store, lkont, kont)}];
+            return [new KontState(ref, store, lkont, kont)];
           });
     }
   
@@ -6251,7 +6248,7 @@ function jsCesk(cc)
       const obja = a.string(application, kont);
       store = storeAlloc(store, obja, obj);
       const ref = l.abstRef(obja);
-      return [{state: new KontState(ref, store, lkont, kont)}];
+      return [new KontState(ref, store, lkont, kont)];
     }
   
     function baseObjectCreate(application, operandValues, thisValue, benv, store, lkont, kont)
@@ -6261,7 +6258,7 @@ function jsCesk(cc)
       const objAddr = a.object(application, kont);
       store = storeAlloc(store, objAddr, obj);
       const ref = l.abstRef(objAddr);
-      return [{state: new KontState(ref, store, lkont, kont)}];
+      return [new KontState(ref, store, lkont, kont)];
     }
   
     function baseToObject(application, operandValues, thisValue, benv, store, lkont, kont)
@@ -6270,14 +6267,14 @@ function jsCesk(cc)
       return ToObject(O, application, store, lkont, kont,
         function (objectRef, store)
         {
-          return [{state: new KontState(objectRef, store, lkont, kont)}];
+          return [new KontState(objectRef, store, lkont, kont)];
         });
     }
   
     function baseSameNumberValue(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       const [x, y] = operandValues;
-      return [{state: new KontState(x.hasSameNumberValue(y), store, lkont, kont)}];
+      return [new KontState(x.hasSameNumberValue(y), store, lkont, kont)];
     }
   
     function baseSameBooleanValue(application, operandValues, thisValue, benv, store, lkont, kont)
@@ -6299,13 +6296,13 @@ function jsCesk(cc)
       {
         result = result.join(L_FALSE);
       }
-      return [{state: new KontState(result, store, lkont, kont)}];
+      return [new KontState(result, store, lkont, kont)];
     }
     
     function baseSameStringValue(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       const [x, y] = operandValues;
-      return [{state: new KontState(x.hasSameStringValue(y), store, lkont, kont)}];
+      return [new KontState(x.hasSameStringValue(y), store, lkont, kont)];
     }
     
     function baseSameObjectValue(application, operandValues, thisValue, benv, store, lkont, kont)
@@ -6333,28 +6330,28 @@ function jsCesk(cc)
       {
         result = result.join(L_FALSE);
       }
-      return [{state: new KontState(result, store, lkont, kont)}];
+      return [new KontState(result, store, lkont, kont)];
     }
     
     function baseAddIntrinsic(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       const [Name, Value] = operandValues;
       kont.realm.Intrinsics.add(Name.conc1(), Value);
-      return [{state: new KontState(l.abst1(undefined), store, lkont, kont)}];
+      return [new KontState(l.abst1(undefined), store, lkont, kont)];
     }
     
     function baseHasInternal(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       const [O, Name] = operandValues;
       const result = hasInternal(O, Name.conc1(), store);
-      return [{state: new KontState(result, store, lkont, kont)}];
+      return [new KontState(result, store, lkont, kont)];
     }
     
     function baseLookupInternal(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       const [O, Name] = operandValues;
       const result = lookupInternal(O, Name.conc1(), store);
-      return [{state: new KontState(result, store, lkont, kont)}];
+      return [new KontState(result, store, lkont, kont)];
     }
     
     function baseCallInternal(application, operandValues, thisValue, benv, store, lkont, kont)
@@ -6365,7 +6362,7 @@ function jsCesk(cc)
           {
             assertDefinedNotNull(value);
             assertDefinedNotNull(store);
-            return [{state: new KontState(value, store, lkont, kont)}];
+            return [new KontState(value, store, lkont, kont)];
           });
     }
     
@@ -6373,7 +6370,7 @@ function jsCesk(cc)
     {
       const [O, Name, Value] = operandValues;
       store = assignInternal(O, Name.conc1(), Value, store);
-      return [{state: new KontState(l.abst1(undefined), store, lkont, kont)}];
+      return [new KontState(l.abst1(undefined), store, lkont, kont)];
     }
     
     // BEGIN PERFORMANCE
@@ -6386,7 +6383,7 @@ function jsCesk(cc)
     function performanceNow(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var value = l.abst1(performance.now());
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     // END PERFORMANCE
@@ -6395,19 +6392,19 @@ function jsCesk(cc)
     function $join(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var value = operandValues.reduce(Lattice.join, BOT);
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     function _print(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       print(operandValues);
-      return [{state: new KontState(L_UNDEFINED, store, lkont, kont)}];
+      return [new KontState(L_UNDEFINED, store, lkont, kont)];
     }
     
     function globalParseInt(application, operandValues, thisValue, benv, store, lkont, kont)
     {
       var value = operandValues[0].parseInt(); // TODO: 2nd (base) arg
-      return [{state: new KontState(value, store, lkont, kont)}];
+      return [new KontState(value, store, lkont, kont)];
     }
     
     global = registerPrimitiveFunction(global, "parseInt", globalParseInt);
