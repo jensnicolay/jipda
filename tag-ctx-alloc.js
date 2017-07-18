@@ -1,50 +1,93 @@
 "use strict";
 
-
 const tagCtxAlloc =
     (function ()
     {
-
-
-    function object(node, kont)
+      function Addr(node, type, ctx, ex)
       {
-        return "obj-" + node.tag + "-" + kont._id;
+        this.node = node;
+        this.type = type;
+        this.ctx = ctx;
+        this.ex = ex;
       }
-  
-    function closure(node, kont)
-      {
-        return "clo-" + node.tag + "-" + kont._id;
-      }
-  
-    function closureProtoObject(node, kont)
-      {
-        return "proto-" + node.tag + "-" + kont._id;
-      }
-    
-    function array(node, kont)
-        {
-          return "arr-" + node.tag + "-" + kont._id;
-        }
       
-    function error(node, kont)
-        {
-          return "err-" + node.tag + "-" + kont._id;
-        }
-    
-    function string(node, kont)
+      Addr.prototype.equals =
+          function (x)
+          {
+            if (this === x)
+            {
+              return true;
+            }
+            return this.node === x.node
+                && this.type === x.type
+                && this.ctx === x.ctx
+                && this.ex === x.ex
+          }
+          
+      Addr.prototype.hashCode =
+          function ()
+          {
+            var prime = 31;
+            var result = 1;
+            result = prime * result + this.node.tag;
+            result = prime * result + HashCode.hashCode(this.type);
+            result = prime * result + this.ctx._id;
+            result = prime * result + HashCode.hashCode(this.ex);
+            return result;
+          }
+          
+      Addr.prototype.toString =
+          function ()
+          {
+            return "@" + this.node.tag + "-" + this.ctx._id + (this.ex ? "-" + this.ex.tag : "")
+          }
+      
+      // native allocator interface
+      // function native(node, ctx)
+      // {
+      //   return new Addr(node, ctx);
+      // }
+      
+      function object(node, ctx)
       {
-        return "str-" + node.tag + "-" + kont._id;
+        return new Addr(node, "obj", ctx);
       }
-  
-    function constructor(node, kont, ex)
+      
+      function closure(node, ctx)
       {
-        return "ctr-" + node.tag + "-" + kont._id + "-" + ex.tag;
+        return new Addr(node, "clo", ctx);
       }
-    
-    function vr(node, kont)
+      
+      function closureProtoObject(node, ctx)
       {
-        return "var-" + node.tag + "-" + kont._id;
+        return new Addr(node, "proto", ctx);
+      }
+      
+      function array(node, ctx)
+      {
+        return new Addr(node, "arr", ctx);
+      }
+      
+      function error(node, ctx)
+      {
+        return new Addr(node, "err", ctx);
+      }
+      
+      function string(node, ctx)
+      {
+        return new Addr(node, "str", ctx);
+      }
+      
+      function constructor(node, ctx, ex)
+      {
+        return new Addr(node, "crt", ctx, ex);
+      }
+      
+      function vr(node, ctx)
+      {
+        return new Addr(node, "var", ctx);
       }
       
       return {object, closure, closureProtoObject, array, error, string, constructor, vr};
-})()
+    })();
+

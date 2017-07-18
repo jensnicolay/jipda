@@ -14,7 +14,7 @@
 	<script type="text/javascript" src="../agc.js"></script>
 	<script type="text/javascript" src="../lattice.js"></script>
   <script type="text/javascript" src="../conc-lattice.js"></script>
-  <script type="text/javascript" src="../conc-alloc.js"></script>
+  <script type="text/javascript" src="../conc-tag-ctx-alloc.js"></script>
   <script type="text/javascript" src="../conc-kalloc.js"></script>
   <script type="text/javascript" src="../conc-type-lattice.js"></script>
   <script type="text/javascript" src="../tag-ctx-alloc.js"></script>
@@ -164,7 +164,7 @@
     
     var ast0src = document.querySelector('link[id="ast0src"]').import.body.textContent;
     var ast1src = document.querySelector('link[id="ast1src"]').import.body.textContent;
-    const initialCeskState = computeInitialCeskState(lat, concAlloc, concKalloc, ast0src, ast1src);
+    const initialCeskState = computeInitialCeskState(lat, concTagCtxAlloc, concKalloc, ast0src, ast1src);
 	  
 	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 	  
@@ -370,7 +370,7 @@
     <span>
       <select id="config" title="value lattice">
         <option value="(lat=new ConcTypeLattice(),ag=tagCtxAlloc,kalloc=aacKalloc)">abst</option>
-        <option value="(lat=new ConcLattice(),ag=concAlloc,kalloc=concKalloc)">conc</option>
+        <option value="(lat=new ConcLattice(),ag=concTagCtxAlloc,kalloc=concKalloc)">conc</option>
       </select>
     </span>
     <input id="errors" type="checkbox" checked="true">errors</input>

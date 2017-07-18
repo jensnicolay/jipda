@@ -2305,7 +2305,7 @@ function jsCesk(cc)
         const stackAs = stackAddresses(lkont, kont).join(this.addresses());
         const previousStack = Stackget(new Stack(lkont, kont));
         const ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack);
-        return performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx);
+        return performApply(operandValues, funNode, this.scope, store, lkont, kont, ctx);
       }
   
   ObjClosureCall.prototype.addresses =
