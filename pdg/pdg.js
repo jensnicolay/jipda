@@ -21,7 +21,7 @@ Pdg._explore =
     var result = ast._system;
     if (!result)
     {
-      var cesk = jsCesk({a:createTagAg(), l: new JipdaLattice()});
+      var cesk = jsCesk({a:createTagAg(), l: new TypeLattice(), lenient: true});
       result = cesk.explore(ast);
       ast._system = result;
       var states = [];

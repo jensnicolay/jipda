@@ -19,7 +19,7 @@ var Visitor = {};
 Visitor.accept = function (visitor) {return function (x) {return x.accept ? x.accept(visitor) : String(x)}};
   
 //Boolean.prototype.equals =
-//  function (x)
+//  function (x)g
 //  {
 //    return this.valueOf() === x;
 //  }
@@ -192,7 +192,7 @@ Array.prototype.subsumes =
     return true;
   };
     
-var Arrays = {};
+const Arrays = {};
 
 Arrays.indexOf =
   function (x, arr)
@@ -386,18 +386,150 @@ Arrays.get =
     return undefined;      
   }
 
-String.prototype.startsWith =
-  function (s)
-  {
-    return this.lastIndexOf(s, 0) === 0;
+const Sets = {};
+
+Sets.from1 =
+    function (x)
+    {
+      const set = new Set();
+      set.add(x);
+      return set;
+    }
+
+Sets.of =
+    function (...x)
+    {
+      return new Set(x);
+    }
+
+Sets.add =
+    function (x, y)
+    {
+      const added = new Set(x);
+      added.add(y);
+      return added;
+    }
+
+Sets.subsumes = function(x, y) {
+  for (const elem of y) {
+    if (!x.has(elem)) {
+      return false;
+    }
   }
-  
-String.prototype.endsWith = 
-  function (s)
-  {
-    return this.indexOf(s, this.length - s.length) !== -1;
+  return true;
+}
+
+Sets.union = function(x, y) {
+  const union = new Set(x);
+  for (const elem of y) {
+    union.add(elem);
   }
-  
+  return union;
+}
+
+Sets.intersection = function(x, y) {
+  const intersection = new Set();
+  for (const elem of y) {
+    if (x.has(elem)) {
+      intersection.add(elem);
+    }
+  }
+  return intersection;
+}
+
+Sets.difference = function(x, y) {
+  const difference = new Set(x);
+  for (const elem of y) {
+    difference.delete(elem);
+  }
+  return difference;
+}
+
+Sets.equals =
+    function (x, y)
+    {
+      if (x === y)
+      {
+        return true;
+      }
+      if (x.size !== y.size)
+      {
+        return false;
+      }
+      for (const xvalue of x)
+      {
+        if (!y.has(xvalue))
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+
+const Maps = {};
+Maps.join =
+    function (x, y, join, bot)
+    {
+      const result = new Map();
+      for (const [key, xvalue] of x)
+      {
+        const yvalue = y.get(key) || bot;
+        const value = join(xvalue, yvalue);
+        result.set(key, value);
+      }
+      return result;
+    }
+Maps.subsumes =
+    function (x, y, subsumes, bot)
+    {
+      for (const [key, yvalue] of y)
+      {
+        const xvalue = x.get(key) || bot;
+        if (!subsumes(xvalue,yvalue))
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+Maps.equals =
+    function (x, y, equals)
+    {
+      if (x === y)
+      {
+        return true;
+      }
+      if (x.size !== y.size)
+      {
+        return false;
+      }
+      if (x[Symbol.iterator] === undefined)
+      {
+        print(x, x.constructor.name, Object.keys(x));
+      }
+      for (const [key, xvalue] of x)
+      {
+        if (!y.has(key))
+        {
+          return false;
+        }
+        const yvalue = y.get(key);
+        if (!equals(xvalue,yvalue))
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+
+
+const MutableSets = {};
+MutableSets.union = function(x, y) {
+  for (const elem of y) {
+    x.add(elem);
+  }
+}
+
 String.prototype.equals =
   function (x)
   {
@@ -419,6 +551,21 @@ String.prototype.hashCode =
     }
     return result;
   }
+  
+const Strings = {};
+
+Strings.smartTrim =
+    function (s, l = 30)
+    {
+      const ss = String(s);
+      if (ss.length <= l)
+      {
+        return ss;
+      }
+      const cut1 = ss.length - l + 10;
+      const cut2 = ss.length - 10;
+      return ss.substring(0, cut1) + "..." + ss.substring(cut2);
+    }
 
 var Character = {};
 
@@ -1052,7 +1199,7 @@ HashMap.prototype.clear =
 HashMap.prototype.toString =
   function ()
   {
-    return this.entries().map(function (entry) {return entry[0] + " -> " + entry[1]}).toString();
+    return this.entries().toString();
   }
 
 HashMap.prototype.nice =
@@ -1282,11 +1429,11 @@ MutableHashMap.prototype.nice =
  * size
  *  
  */
-function Set()
+function Set_()
 {
 }
 
-Set.prototype.subsumes =
+Set_.prototype.subsumes =
   function (x)
   {
     if (this === x)
@@ -1308,7 +1455,7 @@ Set.prototype.subsumes =
     return true;
   }
 
-Set.prototype.equals =
+Set_.prototype.equals =
   function (x)
   {
     if (this === x)
@@ -1335,7 +1482,7 @@ Set.prototype.equals =
 //    return true;
   }
 
-Set.prototype.hashCode =
+Set_.prototype.hashCode =
   function ()
   {
     if (this._hashCode !== undefined)
@@ -1347,7 +1494,7 @@ Set.prototype.hashCode =
     return result;
   }
 
-Set.prototype.compareTo =
+Set_.prototype.compareTo =
   function (x)
   {
     var s1 = this.subsumes(x);
@@ -1355,19 +1502,19 @@ Set.prototype.compareTo =
     return s1 ? (s2 ? 0 : 1) : (s2 ? -1 : undefined);
   }
 
-Set.prototype.join =
+Set_.prototype.join =
   function (x)
   {
     return x.values().reduce(function (result, value) {return result.add(value)}, this);
   } 
 
-Set.prototype.meet =
+Set_.prototype.meet =
   function (x)
   {
     return this.values().reduce(function (result, value) {return x.contains(value) ? result.add(value) : result}, this.clear());
   } 
 
-Set.prototype.subtract =
+Set_.prototype.subtract =
   function (x)
   {
     return this.values().reduce(function (result, value) {return x.contains(value) ? result : result.add(value)}, this.clear());
@@ -1377,7 +1524,7 @@ function ArraySet(arr)
 {
   this._arr = arr;
 }
-ArraySet.prototype = Object.create(Set.prototype);
+ArraySet.prototype = Object.create(Set_.prototype);
 
 ArraySet.empty =
   function ()

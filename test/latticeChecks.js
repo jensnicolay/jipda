@@ -5,7 +5,7 @@
 
 
   var c = [0,1,2,"","hey","ho","0","3","4",true,false,undefined,null];
-  var l = new JipdaLattice();
+  var l = new TypeLattice();
   var a = c.map(function (c) {return l.abst1(c)});
   
   function randomIntFromInterval(min,max) {

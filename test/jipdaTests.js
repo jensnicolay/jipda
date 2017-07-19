@@ -3,91 +3,76 @@ var suiteJipdaTests =
 (function () 
 {
   var module = new TestSuite("suiteJipdaTests");
-
-  function run(src, cesk, expected)
+  
+  const typeLattice = new TypeLattice();
+  const initialCeskState = computeInitialCeskState(typeLattice, concAlloc, concKalloc, ast0src);
+  
+  
+  typeLattice.sanity();
+  
+  function run(src, expected)
   {
-    var ast = Ast.createAst(src);
-    var system = cesk.explore(ast);
-    var result = computeResultValue(system.result);
-    result.msgs.join("\n");
-    var actual = result.value;
+    const ast = Ast.createAst(src);
+    const cesk = jsCesk({a:tagAlloc,  kalloc:aacKalloc, l:typeLattice, errors:true, gc:true});
+    const system = cesk.explore(ast, initialCeskState);
+    const result = computeResultValue(system.result);
+    const actual = result.value;
     assert(actual.subsumes(expected));
   }
-  
-  function createCesk(cc)
-  {
-    cc = cc || {};
-    return jsCesk({a:cc.a || createTagAg(), l:new JipdaLattice(), errors:true});
-  }
-  
-  module.testSanity =
-    function ()
-    {
-      var cesk = createCesk();
-      cesk.l.sanity();
-    }
   
   module.test1a =
     function ()
     {
-      var cesk = createCesk();
-      run("42", cesk, cesk.l.abst1(42));
+      run("42", typeLattice.abst1(42));
     }
   
   module.test2 =
     function ()
     {
       var src = "function f(){}; f()";
-      var cesk = createCesk();
-      run(src, cesk, cesk.l.abst1(undefined));
+      run(src, typeLattice.abst1(undefined));
     }
     
   module.test12a =
     function ()
     {
       var src = "var sq = function (x) {return x * x;}; sq(5); sq(6)";
-      var cesk = createCesk();
-      run(src, cesk, cesk.l.abst1(36));
+      run(src, typeLattice.abst1(36));
     }
 
   module.test12b =
     function ()
     {
       var src = "function sq(x) {return x * x;}; sq(5); sq(6)";
-      var cesk = createCesk();
-      run(src, cesk, cesk.l.abst1(36));
+      run(src, typeLattice.abst1(36));
     }
 
    module.test19a =
   	function ()
   	{
   		var src = "var count = function (n) {if (n===0) {return 'done'} else {return count(n-1)}}; count(200)";
-      var cesk = createCesk();
-      run(src, cesk, cesk.l.abst1("done"));
+      run(src, typeLattice.abst1("done"));
   	}
   	
   module.test19b =
   	function ()
   	{
   		var src = "var count = function (n) {if (n===0) {return 'done';} else {return count(n-1);}}; count(200)";
-      var cesk = createCesk();
-      run(src, cesk, cesk.l.abst1("done"));
+      run(src, typeLattice.abst1("done"));
   	};
   	
  module.test20a =
    function ()
    {
      var src = "function f() {f()}; f()";
-     var cesk = createCesk();
-     run(src, cesk, BOT);
+     run(src, BOT);
    }
  
  module.test20b =
    function ()
    {
      var src = "var t = function (x) {return t(x+1)}; t(0)";
-     var cesk = createCesk();
-     run(src, cesk, BOT);
+     run(src, BOT);
    }
    
   	
@@ -95,24 +80,21 @@ var suiteJipdaTests =
   	function ()
   	{
   		var src = "var z=0; var f=function (i) { if (i<4) {z=z+1;f(i+1);}}; f(0); z";
-      var cesk = createCesk();
-      run(src, cesk, cesk.l.abst1(4));
+      run(src, typeLattice.abst1(4));
   	}
   	
   module.test27a =
   	function ()
   	{
   		var src = "var z=0; var s=0; var f=function (i) {if (z === 7) {s=s+1} if (i<10) {z=z+1;f(i+1);}}; f(0); s";
-      var cesk = createCesk();
-      run(src, cesk, cesk.l.abst1(1));
+      run(src, typeLattice.abst1(1));
   	}
   	
   module.test27b =
   	function ()
   	{
   		var src = "var z=0; var c=false; var f=function (i) {if (z === 7) {c=true} if (i<10) {z=z+1;f(i+1);}}; f(0); c";
-      var cesk = createCesk();
-      run(src, cesk, cesk.l.abst1(true));
+      run(src, typeLattice.abst1(true));
   	}
 
 //  module.test61a = TODO: `for` always returns undefined (pass bodyValue to ForTestKont?)
@@ -120,15 +102,14 @@ var suiteJipdaTests =
 //  	{
 //  		var src = "for (var i=0; i<3; i++) i;";
 //      var cesk = createCesk();
-//      run(src, cesk, cesk.l.abst1(2));
+//      run(src, typeLattice.abst1(2));
 //  	}	
 
   module.test61b =
   	function ()
   	{
   		var src = "for (var i=0; i<3; i++) i; i;";
-      var cesk = createCesk();
-      run(src, cesk, cesk.l.abst1(3));
+      run(src, typeLattice.abst1(3));
   	}	
   
 //  module.test64 =
@@ -303,112 +284,98 @@ var suiteJipdaTests =
        function ()
        {
          var src = read("test/resources/gcIpdExample.js");
-         var cesk = createCesk()
-         run(src, cesk, cesk.l.abst1(36));
+         run(src, typeLattice.abst1(36));
        }   
      
      module.testLoopy1 =
        function ()
        {
          var src = read("test/resources/loopy1.js");
-         var cesk = createCesk()
-         run(src, cesk, cesk.l.abst1(true));
+         run(src, typeLattice.abst1(true));
        }   
      
      module.testLoopy2 =
        function ()
        {
          var src = read("test/resources/loopy2.js");
-         var cesk = createCesk()
-         run(src, cesk, cesk.l.abst1(true));
+         run(src, typeLattice.abst1(true));
        }   
      
      module.testNssetup =
        function ()
        {
          var src = read("test/resources/nssetup.js");
-         var cesk = createCesk()
-         run(src, cesk, cesk.l.abst1(true));
+         run(src, typeLattice.abst1(true));
        }   
      
      module.testTajs2009 =
        function ()
        {
          var src = read("test/resources/tajs2009.js");
-         var cesk = createCesk()
-         run(src, cesk, cesk.l.abst1("jens"));
+         run(src, typeLattice.abst1("jens"));
        }   
      
     module.testRotate =
       function ()
       {
         var src = read("test/resources/rotate.js");
-        var cesk = createCesk();
-        run(src, cesk, cesk.l.abst1(5).join(cesk.l.abst1(true)).join(cesk.l.abst1("hallo")));
+        run(src, typeLattice.abst([5, true, "hallo"]));
       }
     
     module.testFac =
       function ()
       {
         var src = "function f(n) {if (n === 0) {return 1} else {return n*f(n-1)}}; f(10)";
-        var cesk = createCesk();
-        run(src, cesk, cesk.l.abst1(3628800));
+        run(src, typeLattice.abst1(3628800));
       }
     
     module.testFib =
       function ()
       {
         var src = "var fib = function (n) {if (n<2) {return n} return fib(n-1)+fib(n-2)}; fib(4)";
-        var cesk = createCesk();
-        run(src, cesk, cesk.l.abst1(3));
+        run(src, typeLattice.abst1(3));
       }
           
     module.test100 = 
       function ()
       {
         var src = "var z=false; function f(n) {if (n===10) {g()}; if (n>0) {f(n-1)}}; function g() {z=true}; f(20); z"
-        var cesk = createCesk();
-        run(src, cesk, cesk.l.abst1(true));
+        run(src, typeLattice.abst1(true));
       }
     
     module.test101 =
       function ()
       {
         var src = "function g(){return 1}; function f(n){if (n === 0){return 0} else return f(n-1)+g()}; f(10)";
-        var cesk = createCesk();
-        run(src, cesk, cesk.l.abst1(10));
+        run(src, typeLattice.abst1(10));
       }
     
     module.test102 = // bug in call member with arg: this pointer passed was always global this
       function ()
       {
         var src = "function Scheduler() {this.queueCount=0}; Scheduler.prototype.addIdleTask=function (x) {return this.addRunningTask};Scheduler.prototype.addRunningTask=999;function runRichards() {var scheduler=new Scheduler();return scheduler.addIdleTask(123)};runRichards()";
-        var cesk = createCesk();
-        run(src, cesk, cesk.l.abst1(999));        
+        run(src, typeLattice.abst1(999));        
       }
     
     module.test103 = // bug in call member with arg: this pointer passed was always global this
       function ()
       {
         var src = "function Scheduler() {this.queueCount=0}; Scheduler.prototype.addIdleTask=function (x) {return this.addRunningTask};Scheduler.prototype.addRunningTask=999;function runRichards() {var scheduler=new Scheduler();return scheduler.addIdleTask(123)};runRichards()";
-        var cesk = createCesk();
-        run(src, cesk, cesk.l.abst1(999));        
+        run(src, typeLattice.abst1(999));        
       }
     
     module.test104a =
       function ()
       {
         var src = "var x = 'hela'; for (var i=0; i<4; i++) {x += x}; x";
-        var cesk = createCesk();
-        run(src, cesk, cesk.l.abst1("helahelahelahelahelahelahelahelahelahelahelahelahelahelahelahela"));                
+        run(src, typeLattice.abst1("helahelahelahelahelahelahelahelahelahelahelahelahelahelahelahela"));                
       }
     
     module.test104b =
       function ()
       {
         var src = "var x = 'hela'; while (true) {x += x}";
-        var cesk = createCesk();
-        run(src, cesk, BOT);                
+        run(src, BOT);
       }
     
     module.test105 =
@@ -421,8 +388,7 @@ var suiteJipdaTests =
       function ()
       {
         var src = read("test/resources/coen1.js")
-        var cesk = createCesk();
-        run(src, cesk, cesk.l.abst1(20));                
+        run(src, typeLattice.abst1(20));                
       }    
     
 //    module.testChurchNums =
@@ -430,7 +396,7 @@ var suiteJipdaTests =
 //    {
 //      var src = read("test/resources/churchNums.js");
 //      var cesk = createCesk();
-//      run(src, cesk, cesk.l.abst([true, false]));
+//      run(src, typeLattice.abst([true, false]));
 //    }    
     
     

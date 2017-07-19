@@ -42,38 +42,41 @@
   var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }
 	var editor, meta;
 	var ast, astNodes;
-	var system, cesk, states, graph, initial, result, contexts;
+	var system, cesk, states, transitions, graph, initial, result, contexts;
 	var ag, lat, kalloc;
-	
   
-  /* SHORTCUTS */
-	function purity()
-	{
-	  //console.profile();
-	  var pmap = computePurity(ast, initial);
-	  displayPurity(ast, pmap);
-	  //console.profileEnd();
-	  return result;
-	}
-	/* END SHORTCUTS*/
   
-  function selectErrors()
-	{
-	  print("here");
-	  alert($('#errors'));
-	  $('#errors').prop('checked', true);
-	}
+	  function postComputeGraph(initial)
+    {
+	    states = [];
+      transitions = [];
+      var todo = [initial];
+      while (todo.length > 0)
+      {
+        var s = todo.pop();
+        states[s._id] = s;
+        s._successors = s._successors || [];
+        s._successors.forEach(
+         function (t)
+          {
+            if (isFinite(t._id))
+            {
+              return;
+            }
+            t._id = transitions.push(t) - 1;
+            todo.push(t.state);
+          });  
+        }
+      }
 	
 	function doIt()
 	{
 	  $("#eval").attr("disabled", true);
 	  editor.setOption("readOnly", true);
-		$("#snippet").attr("disabled", true);
 		$("#config").attr("disabled", true);
     $("#errors").attr("readOnly", true);
 		$("#sg").empty();
 	  var src = editor.getValue();
-    localStorage.protopuritySrc = src;
 	  ast = Ast.createAst(src, {loc:true});
     astNodes = [];
     Ast.nodes(ast).forEach(function (n) {astNodes[n.tag] = n});
@@ -84,7 +87,7 @@
     
     
     var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
-    const initialCeskState = computeInitialCeskState(lat, concAlloc, concKalloc, ast0src);
+    const initialCeskState = null;//computeInitialCeskState(ast0src, lat);
 	  
 	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 	  
@@ -92,7 +95,7 @@
 //    console.profile(profileName);
     var start = Date.now();
     
-		const cesk = jsCesk({a:ag, kalloc, l:lat, gc, errors});
+		const cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l:lat, gc, errors});
 		system = cesk.explore(ast, initialCeskState);
     
     
@@ -102,8 +105,7 @@
     result = system.result;
     contexts = system.contexts;
     console.log("analysis took " + time + " ms");
-    states = system.states;
-    console.log(states.length + " states; " + result.size + " results; " + contexts.length + " contexts");
+    console.log(system.states.length + " states; " + result.size + " results; " + contexts.length + " contexts");
     var result = computeResultValue(system.result);
     var resultValue = result.value;
     console.log("result value " + resultValue);
@@ -121,12 +123,13 @@
       return;
     }
     
-    //console.log(transitions.length + " transitions");
-    logOutput("analysis", states.length + /*"/" + transitions.length +*/ " " + time);
+    postComputeGraph(initial);
+    console.log(transitions.length + " transitions");
+    logOutput("analysis", states.length + "/" + transitions.length + " " + time);
     logOutput("result", resultValue);
     
     var g = createDagreGraph(states);
-    drawDagreGraph(g);
+    drawDagreGraph(g, states, transitions);
  	}		
 	
 	
@@ -143,6 +146,16 @@
 	           }
 	       });
 	       }
+	       else
+				 {
+           const srcParam = "../prelude.js";
+           $.ajax({
+             url : srcParam,
+             dataType: "text",
+             success : function (data) {
+               editor.setValue(data);
+             }})
+				 }
 	       
 	       CodeMirror.commands.autocomplete = function(cm) {
 	         cm.showHint({hint: CodeMirror.hint.anyword});
@@ -174,18 +187,6 @@
 	         alert(valueSelected);
 	            }) */
 
-				 $("#snippet").change(
-				 		function ()
-						{
-							const srcParam = this.value;
-							$.ajax({
-								url : srcParam,
-								dataType: "text",
-								success : function (data) {
-									editor.setValue(data);
-								}})
-						});
-	       
 	       if (getUrlParameter("eval"))
 	       {               
 	         console.log("doing it");
@@ -198,21 +199,6 @@
 <body>
 	<div id="left">
 		<div id="editor"></div>
-		<select id="snippet" title="snippet">
-			<option value="">(cached)</option>
-			<option value="../test/resources/fib.js">fib</option>
-			<option value="../test/resources/rotate.js">rotate</option>
-			<option value="../test/resources/books.js">books</option>
-			<option value="../test/resources/gcIpdExample.js">gcipd</option>
-			<option value="../test/resources/tajs2009.js">tajs</option>
-			<option value="../test/resources/loopy1.js">loopy</option>
-			<option value="../test/resources/jolden/tree-add.js">treeadd</option>
-			<option value="../test/resources/nssetup.js">nssetup</option>
-			<option value="../test/resources/1.js">f-g-h</option>
-			<option value="../test/resources/3.js">foobar</option>
-			<option value="../test/resources/7.js">toplevelvar</option>
-			<option value="../test/resources/coen1.js">coen1</option>
-		</select>
     <span>
       <select id="config" title="value lattice">
         <option value="(lat=new TypeLattice(),ag=tagAlloc,kalloc=aacKalloc)">abst</option>

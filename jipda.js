@@ -10,7 +10,7 @@ function concEval(src)
 function typeEval(src)
 {
   var ast = Ast.createAst(src);
-  var cesk = jsCesk({a:createTagAg(), l: new JipdaLattice()});
+  var cesk = jsCesk({a:createTagAg(), l: new TypeLattice(), ast0src});
   var system = cesk.explore(ast);
   var result = computeResultValue(system.result); 
   print(result.value);
@@ -59,7 +59,7 @@ function serverTest()
     {
       var src = read(bprefix + benchmark);
       var ast = Ast.createAst(src);
-      var cesk = jsCesk({a:createTagAg(), l:new JipdaLattice(), errors:true});
+      var cesk = jsCesk({a:createTagAg(), l:new TypeLattice(), errors:true});
       var system = cesk.explore(ast);
       var result = computeResultValue(system.result);
       var resultValue = result.value;

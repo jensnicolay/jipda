@@ -1,16 +1,16 @@
 function f()
 {
-  g()
+  return g()
 }
 
 function g()
 {
-  h()
+  return h()
 }
 
 function h()
 {
-  "here";
+  return "result"
 }
 
 f()

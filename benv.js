@@ -21,10 +21,16 @@ Benv.prototype.extend =
   }
 
 Benv.prototype.toString =
-  function ()
-  {
-    return this._map.nice();
-  }
+    function ()
+    {
+      return this._map.toString();
+    }
+
+Benv.prototype.nice =
+    function ()
+    {
+      return this._map.nice();
+    }
 
 Benv.prototype.equals =
   function (x)

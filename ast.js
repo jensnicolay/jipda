@@ -1,3 +1,5 @@
+"use strict";
+
 var Ast = {}
   
   function nodeToString(node)
@@ -85,10 +87,14 @@ var Ast = {}
         return "do " + nodeToString(node.body) + " while (" + nodeToString(node.test) + ")";
       case "ForStatement":
         return "for (" + nodeToString(node.init) + ";" + nodeToString(node.test) + ";" + nodeToString(node.update) + ") " + nodeToString(node.body) + ";";
-      case "FunctionDeclaration": 
+      case "ForInStatement":
+        return "for (" + nodeToString(node.left) + " in " + nodeToString(node.right) + ") " + nodeToString(node.body) + ";";
+      case "ForOfStatement":
+        return "for (" + nodeToString(node.left) + " of " + nodeToString(node.right) + ") " + nodeToString(node.body) + ";";
+      case "FunctionDeclaration":
         return "function " + nodeToString(node.id) + "(" + node.params.map(nodeToString).join() + ") " + nodeToString(node.body) + ";";
       case "VariableDeclaration": 
-        return node.kind + " " + node.declarations.map(nodeToString).join() + ";";
+        return node.kind + " " + node.declarations.map(nodeToString).join();
       case "VariableDeclarator": 
         return nodeToString(node.id) + (node.init ? "=" + nodeToString(node.init) : "");
       case "Property": 
@@ -98,17 +104,25 @@ var Ast = {}
       case "BlockStatement": 
         return "{" + node.body.map(nodeToString).join(" ") + "}";
       case "TryStatement":
-        return "try " + nodeToString(node.block) + " " + node.handlers.map(nodeToString).join(" ");
+        return "try " + nodeToString(node.block) + " " + node.handler ? nodeToString(node.handler) : "" + node.finalizer ? nodeToString(node.finalizer) : "";
       case "CatchClause":
         return "catch (" + nodeToString(node.param) + ") " + nodeToString(node.body);
       case "ThrowStatement":
         return "throw " + nodeToString(node.argument);
+      case "RestElement":
+        return "..." + nodeToString(node.argument);
       case "EmptyStatement":
         return ";";
       default:
-        throw new Error("nodeToString: cannot handle " + node.type); 
+        throw new Error("cannot handle " + node.type);
       }
   }
+  
+Ast.nodeToNiceString =
+    function (node, l = 30)
+    {
+      return nodeToString(node).substring(0, l) + " (" + node.loc.start.line + ":" + node.loc.start.column + ")";
+    }
   
 Ast.isIdentifier =
   function (n)
@@ -158,14 +172,21 @@ Ast.isIdentifier =
   {
     return n.type === "VariableDeclaration";
   }
-  
+
 Ast.isVariableDeclarator =
-  function (n)
-  {
-    return n.type === "VariableDeclarator";
-  }
-  
-  function isAssignmentExpression(n)
+    function (n)
+    {
+      return n.type === "VariableDeclarator";
+    }
+
+    Ast.isRestElement =
+    function (n)
+    {
+      return n.type === "RestElement";
+    }
+
+
+function isAssignmentExpression(n)
   {
     return n.type === "AssignmentExpression";
   }
@@ -257,7 +278,37 @@ Ast.isFunctionDeclaration =
   {
     return n.type === "SwitchStatement";
   }
-  
+
+  Ast.visit =
+      function (ast, visitor, parent, prop, index)
+      {
+        const type = ast.type;
+        if (!type)
+        {
+          return;
+        }
+        const visitChildren = (visitor[type] || visitor.Node)(ast, parent, prop, index);
+        if (visitChildren)
+        {
+          for (const prop in ast)
+          {
+            const child = ast[prop];
+            if (Array.isArray(child))
+            {
+              for (let i = 0; i < child.length; i++)
+              {
+                const childd = child[i];
+                Ast.visit(childd, visitor, ast, prop, i);
+              }
+            }
+            else
+            {
+              Ast.visit(child, visitor, ast, prop, false);
+            }
+          }
+        }
+      }
+
   Ast.children =
   function (node)
   {
@@ -333,6 +384,10 @@ Ast.isFunctionDeclaration =
         return [node.body, node.test];
       case "ForStatement":
         return [node.init, node.test, node.update, node.body].filter(function (n) { return n !== null});
+      case "ForInStatement":
+        return [node.left, node.right, node.body];
+      case "ForOfStatement":
+        return [node.left, node.right, node.body];
       case "FunctionDeclaration":
         return [node.id].concat(node.params).concat([node.body]);
       case "VariableDeclaration": 
@@ -349,10 +404,21 @@ Ast.isFunctionDeclaration =
       case "BlockStatement": 
         return node.body;
       case "TryStatement": 
-        return [node.block].concat(node.handlers);
+        const result = [node.block];
+        if (node.handler)
+        {
+          result.push(node.handler);
+        }
+        if (node.finalizer)
+        {
+          result.push(node.finalizer);
+        }
+        return result;
       case "CatchClause":
         return [node.param, node.body];
       case "ThrowStatement":
+        return [node.argument];
+      case "RestElement":
         return [node.argument];
       case "EmptyStatement":
         return [];
@@ -455,7 +521,7 @@ Ast.augmentAst =
       }
       nodify(node);
       var cs = Ast.children(node);
-      cs.forEach(function (child) { doVisit(child, node);});
+      cs.forEach(function (child) {doVisit(child, node)});
     }   
     doVisit(node);
   }
@@ -680,7 +746,14 @@ Ast.functionScopeDeclarations =
       nodeWithBody.params.forEach(
         function (param, i)
         {
-          result[param.name] = param;
+          if (Ast.isIdentifier(param))
+          {
+            result[param.name] = param;
+          }
+          else // rest param
+          {
+            result[param.argument.name] = param;
+          }
           param.i = i;
         });
       helper(nodeWithBody.body);

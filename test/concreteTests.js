@@ -4,17 +4,18 @@ var suiteConcreteTests =
 {
   var module = new TestSuite("suiteConcreteTests");
   
+  const concLattice = new ConcLattice();
+  const initialCeskState = computeInitialCeskState(concLattice, concAlloc, concKalloc, ast0src);
+  
   function run(src, expected)
   {
     var ast = Ast.createAst(src);
-    var cesk = jsCesk({a:createConcAg(), l: new ConcLattice(), errors:true});
-    var system = cesk.explore(ast);
+    var cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: concLattice, errors:true, hardAsserts:true});
+    var system = cesk.explore(ast, initialCeskState);
     var result = computeResultValue(system.result);
     result.msgs.join("\n");
     var actual = result.value;
-//    assertEquals(1, endStates.length);
-    //var actual = endStates[0].value;
-    assertEquals(cesk.l.abst1(expected), actual);
+    assertEquals(concLattice.abst1(expected), actual);
   }
 
   module.test1 =
@@ -114,13 +115,13 @@ var suiteConcreteTests =
     }  
     
 
-//  module.test23 =
-//    function ()
-//    {
-//      runStr("var appender=function (h, a, b) {return h(a).concat(h(b))}; var lister=function (g) {return function (x) { return [g(x)]; };}; var square=function (y) { return y*y;}; appender(lister(square), 42, 43);", "[1764,1849]");
-//    };  
+   module.test23 =
+     function ()
+     {
+       run("var appender=function (h, a, b) {return h(a).concat(h(b))}; var lister=function (g) {return function (x) { return [g(x)]; };}; var square=function (y) { return y*y;}; appender(lister(square), 42, 43).toString();", "1764,1849");
+     };
+  
 //
-//    
 //  module.test24 =
 //    function ()
 //    {
@@ -155,13 +156,13 @@ var suiteConcreteTests =
       run("var o = {x:3}; var p = {y:o}; p.y.x;", 3);
       run("var o = {x:3}; var p = o; p.x;", 3);
     }
-//    
-//  module.test36 =
-//    function ()
-//    {
-//      runStr("var o={z:[]}; var appender=function (h, a, b) {return h(a).concat(h(b))}; var lister=function (g) {return function (x) { return [g(x)]; };}; var conser=function (y) { o.z = [y, o.z]; return o.z;}; appender(lister(conser), 42, 43);", "[[42,[]],[43,[42,[]]]]");
-//    }  
-//    
+
+ // module.test36 = // TODO: needs correct Array.proto.toString
+ //   function ()
+ //   {
+ //     run("var o={z:[]}; var appender=function (h, a, b) {return h(a).concat(h(b))}; var lister=function (g) {return function (x) { return [g(x)]; };}; var conser=function (y) { o.z = [y, o.z]; return o.z;}; appender(lister(conser), 42, 43).toString()", "42,,43,42,");
+ //   }
+
   module.test37 =
     function ()
     {
@@ -296,12 +297,12 @@ var suiteConcreteTests =
       run("var o = {x:3}; ++o.x + o.x;", 8);
     }
 
-//  module.test60a =
-//    function ()
-//    {
-//      run("var o={x:3}; var f=function() {return o}; f()['x']++ + o.x;", 7);
-//      run("var o={x:3}; var f=function() {return o}; ++f()['x'] + o.x;", 8);
-//    } 
+ // module.test60a =
+ //   function ()
+ //   {
+ //     run("var o={x:3}; var f=function() {return o}; f()['x']++ + o.x;", 7);
+ //     run("var o={x:3}; var f=function() {return o}; ++f()['x'] + o.x;", 8);
+ //   }
 
   module.test61a =
     function ()
@@ -394,6 +395,13 @@ var suiteConcreteTests =
       run("try { throw 42 } catch (e) { e }", 42);
       run("try { 123 } catch (e) { e }", 123);
     }
+    
+  module.test75b =
+      function ()
+      {
+        run("var glob=[]; try { try {throw new Error('oops')} finally {glob.push(1)}} catch (ex) {glob.push(ex.message)};glob.toString()", "1,oops");
+        run("try {123} finally {456}", 123);
+      }
 
   module.test76a =
     function ()
@@ -439,77 +447,119 @@ var suiteConcreteTests =
       var src = read("test/resources/nssetup.js");
       run(src, true);
     }
+    
+    module.test81a =
+        function ()
+        {
+          run("undefined === undefined", true);
+          run("undefined === null", false);
+          run("undefined === true", false);
+          run("undefined === false", false);
+          run("undefined === 'abc'", false);
+          run("undefined === +0", false);
+          run("undefined === -0", false);
+          run("undefined === NaN", false);
+          run("undefined === +Infinity", false);
+          run("undefined === -Infinity", false);
+          
+          run("null === undefined", false);
+          run("null === null", true);
+          run("null === true", false);
+          run("null === false", false);
+          run("null === 'abc'", false);
+          run("null === +0", false);
+          run("null === -0", false);
+          run("null === NaN", false);
+          run("null === +Infinity", false);
+          run("null === -Infinity", false);
+          
+          run("true === undefined", false);
+          run("true === null", false);
+          run("true === true", true);
+          run("true === false", false);
+          run("true === 'abc'", false);
+          run("true === +0", false);
+          run("true === -0", false);
+          run("true === NaN", false);
+          run("true === +Infinity", false);
+          run("true === -Infinity", false);
+          
+          run("false === undefined", false);
+          run("false === null", false);
+          run("false === true", false);
+          run("false === false", true);
+          run("false === 'abc'", false);
+          run("false === +0", false);
+          run("false === -0", false);
+          run("false === NaN", false);
+          run("false === +Infinity", false);
+          run("false === -Infinity", false);
+          
+          run("'abc' === undefined", false);
+          run("'abc' === null", false);
+          run("'abc' === true", false);
+          run("'abc' === false", false);
+          run("'abc' === 'abc'", true);
+          run("'abc' === +0", false);
+          run("'abc' === -0", false);
+          run("'abc' === NaN", false);
+          run("'abc' === +Infinity", false);
+          run("'abc' === -Infinity", false);
+          
+          run("+0 === undefined", false);
+          run("+0 === null", false);
+          run("+0 === true", false);
+          run("+0 === false", false);
+          run("+0 === 'abc'", false);
+          run("+0 === +0", true);
+          run("+0 === -0", true);
+          run("+0 === NaN", false);
+          run("+0 === +Infinity", false);
+          run("+0 === -Infinity", false);
+          
+          run("-0 === undefined", false);
+          run("-0 === null", false);
+          run("-0 === true", false);
+          run("-0 === false", false);
+          run("-0 === 'abc'", false);
+          run("-0 === +0", true);
+          run("-0 === -0", true);
+          run("-0 === NaN", false);
+          run("-0 === +Infinity", false);
+          run("-0 === -Infinity", false);
+          
+          run("NaN === undefined", false);
+          run("NaN === null", false);
+          run("NaN === true", false);
+          run("NaN === false", false);
+          run("NaN === 'abc'", false);
+          run("NaN === +0", false);
+          run("NaN === -0", false);
+          run("NaN === NaN", false);
+          run("NaN === +Infinity", false);
+          run("NaN === -Infinity", false);
+          
+          run("+Infinity === undefined", false);
+          run("+Infinity === null", false);
+          run("+Infinity === true", false);
+          run("+Infinity === false", false);
+          run("+Infinity === 'abc'", false);
+          run("+Infinity === +0", false);
+          run("+Infinity === -0", false);
+          run("+Infinity === +Infinity", true);
+          run("+Infinity === -Infinity", false);
+          
+          run("-Infinity === undefined", false);
+          run("-Infinity === null", false);
+          run("-Infinity === true", false);
+          run("-Infinity === false", false);
+          run("-Infinity === 'abc'", false);
+          run("-Infinity === +0", false);
+          run("-Infinity === -0", false);
+          run("-Infinity === +Infinity", false);
+          run("-Infinity === -Infinity", true);
+        }
 
-//  module.test81a =
-//    function ()
-//    {
-//      var arrayStr = "var x = {x:1, valueOf: function () { return 3 }, toString: function () { return '3'}}; var y = {y:1, valueOf: function () { return 4 }}; var z = {y:1, toString: function () { return '5' }}; " + 
-//        "[undefined==undefined,null==null,NaN==3,4==NaN,NaN==NaN,3==3,+0==-0,-0==+0,3==4,3==3.0,3==3.01," +
-//        "'abc'=='abc',''=='','abc'=='ab',true==true,false==false,true==false,false==true," +
-//        "x==x,x==y,null==undefined,undefined==null,3=='3','3'==3,3=='4','4'==3," +
-//        "true==0,true==1,false==0,false==1,0==true,0==false,1==true,1==false," + 
-//        "x==3,x==4,y==3,y==4,z==4,z==5,3==x,4==x,3==y,4==y,4==z,5==z,x==null,y==undefined,z==NaN,null==z,undefined==y,NaN==x," +
-//        "x==x,x==y]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
-//  module.test81b =
-//    function ()
-//    {
-//      var arrayStr = "var x = {x:1, valueOf: function () { return 3 }, toString: function () { return '3'}}; var y = {y:1, valueOf: function () { return 4 }}; var z = {y:1, toString: function () { return '5' }}; " + 
-//        "[undefined!=undefined,null!=null,NaN!=3,4!=NaN,NaN!=NaN,3!=3,+0!=-0,-0!=+0,3!=4,3!=3.0,3!=3.01," +
-//        "'abc'!='abc',''!='','abc'!='ab',true!=true,false!=false,true!=false,false!=true," +
-//        "x!=x,x!=y,null!=undefined,undefined!=null,3!='3','3'!=3,3!='4','4'!=3," +
-//        "true!=0,true!=1,false!=0,false!=1,0!=true,0!=false,1!=true,1!=false," + 
-//        "x!=3,x!=4,y!=3,y!=4,z!=4,z!=5,3!=x,4!=x,3!=y,4!=y,4!=z,5!=z,x!=null,y!=undefined,z!=NaN,null!=z,undefined!=y,NaN!=x," +
-//        "x!=x,x!=y]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
-//  module.test81c =
-//    function ()
-//    {
-//      var arrayStr = "var x = {x:1, valueOf: function () { return 3 }, toString: function () { return '3'}}; var y = {y:1, valueOf: function () { return 4 }}; var z = {y:1, toString: function () { return '5' }}; " + 
-//        "[undefined===undefined,null===null,NaN===3,4===NaN,NaN===NaN,3===3,+0===-0,-0===+0,3===4,3===3.0,3===3.01," +
-//        "'abc'==='abc',''==='','abc'==='ab',true===true,false===false,true===false,false===true," +
-//        "x===x,x===y,null===undefined,undefined===null,3==='3','3'===3,3==='4','4'===3," +
-//        "true===0,true===1,false===0,false===1,0===true,0===false,1===true,1===false," + 
-//        "x===3,x===4,y===3,y===4,z===4,z===5,3===x,4===x,3===y,4===y,4===z,5===z,x===null,y===undefined,z===NaN,null===z,undefined===y,NaN===x," +
-//        "x===x,x===y]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
-//  module.test81d =
-//    function ()
-//    {
-//      var arrayStr = "var x = {x:1, valueOf: function () { return 3 }, toString: function () { return '3'}}; var y = {y:1, valueOf: function () { return 4 }}; var z = {y:1, toString: function () { return '5' }}; " + 
-//      "[undefined!==undefined,null!==null,NaN!==3,4!==NaN,NaN!==NaN,3!==3,+0!==-0,-0!==+0,3!==4,3!==3.0,3!==3.01," +
-//      "'abc'!=='abc',''!=='','abc'!=='ab',true!==true,false!==false,true!==false,false!==true," +
-//      "x!==x,x!==y,null!==undefined,undefined!==null,3!=='3','3'!==3,3!=='4','4'!==3," +
-//      "true!==0,true!==1,false!==0,false!==1,0!==true,0!==false,1!==true,1!==false," + 
-//      "x!==3,x!==4,y!==3,y!==4,z!==4,z!==5,3!==x,4!==x,3!==y,4!==y,4!==z,5!==z,x!==null,y!==undefined,z!==NaN,null!==z,undefined!==y,NaN!==x," +
-//      "x!==x,x!==y]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
-//  module.test81e =
-//    function ()
-//    {
-//      var arrayStr = "var x = {x:1, valueOf: function () { return 3 }, toString: function () { return '3'}}; var y = {y:1, valueOf: function () { return 4 }}; var z = {y:1, toString: function () { return '5' }}; " + 
-//      "[undefined+undefined,null+null,NaN+3,4+NaN,NaN+NaN,3+3,+0+-0,-0+(+0),3+4,3+3.0,3+3.01," +
-//      "'abc'+'abc',''+'','abc'+'ab',true+true,false+false,true+false,false+true," +
-//      "null+undefined,undefined+null,3+'3','3'+3,3+'4','4'+3," +
-//      "true+0,true+1,false+0,false+1,0+true,0+false,1+true,1+false," + 
-//      "x+3,x+4,y+3,y+4,z+4,z+5,3+x,4+x,3+y,4+y,4+z,5+z,x+null,y+undefined,z+NaN,null+z,undefined+y,NaN+x," +
-//      "x+x,x+y,x+z,y+x,z+x,y+z,z+y]";
-//      var expected = String(eval(arrayStr));
-//      runStr(arrayStr, expected);
-//    }
-//
   module.test82a =
     function ()
     {
@@ -538,6 +588,13 @@ var suiteConcreteTests =
       run("var o = {}; var oo = Object.create(o); Object.getPrototypeOf(oo) === o;", true);
       run("function S() {}; S.prototype.x = 123; function F() {};  F.prototype = Object.create(S.prototype); var f = new F(); f.x", 123);
     }
+    
+  module.test82e =
+      function ()
+      {
+        run("var o = Object.create(null); Object.getPrototypeOf(o) === null", true);
+        run("var o = {}; Object.getPrototypeOf(o) === Object.prototype", true);
+      }
 
   module.test83 =
     function ()
@@ -580,7 +637,7 @@ var suiteConcreteTests =
 //      run("{42; 43;}", 43);
 //      run("ll:{42; break ll; 43;}", 42);
 //    }
-//
+
   module.test88a =
     function ()
     {
@@ -591,63 +648,63 @@ var suiteConcreteTests =
       run("var a = 1; function b() { a = 10; return; function a() {}}; b(); a;", 1);
     }
   
-//  module.test89 =
-//    function ()
-//    { 
-//      run("[].map(function () {}).length", 0);
-//      run("[3].map(function (x) {return x*x}).length", 1);
-//      run("[3].map(function (x) {return x*x})[0]", 9);
-//      run("[3,4].map(function (x) {return x*x}).length", 2);
-//      run("[3,4].map(function (x) {return x*x}).length", 2);
-//      run("[3,4].map(function (x) {return x*x})[1]", 16);
-//      run("var arr=new Array(10); arr.map(function () {return 123}).length", 10);
-//      run("var arr=new Array(3); arr.map(function () {return 123})[1]", undefined);
-//      run("var x=1; function f() { var x=2; return [9,9,9].map(function () {return this.x})}; f()[0];", 1);
-//      run("var x=1; function f() { var x=2; return [9,9,9].map(function () {return this.x}, {x:3})}; f()[0];", 3);
-//      run("var ar=[1,2,3].map(function (x) { return x*x*x }); ar[1]", 8);
-//      runStr("var arr = [1,2,3,4,5,6,7,8,9,10]; function f(x,y) {return x+y}; arr.map(f)", "[1,3,5,7,9,11,13,15,17,19]");
-//    }
-//  
-//  module.test90 =
-//    function ()
-//    { 
-//      runExc("[].reduce(function () {})");
-//      run("[].reduce(function () {}, 123)", 123);
-//      run("[3].reduce(function (x,y) {return x+y})", 3);
-//      run("[3].reduce(function (x,y) {return x+y}, 4)", 7);
-//      run("[3,4].reduce(function (x,y) {return x+y})", 7);
-//      run("[3,4].reduce(function (x,y) {return x+y}, 5)", 12);
-//    }
-//
-//  module.test91 =
-//    function ()
-//    { 
-//      run("function Circle(x,y,r){this.x=x;this.y=y;this.r=r};function area(s){return 3*s.r*s.r};var circles=[[10,100,4],[-10,-10,3],[0,50,5]].map(function (xyr){return new Circle(xyr[0], xyr[1], xyr[2])});var totalArea = circles.map(area).reduce(function (x,y) {return x+y});totalArea",150);
-//    }
-//  
-//  module.test92 =
-//    function ()
-//    {
-//      run("[].filter(function() {return true}).length", 0);
-//      run("[].filter(function() {return false}).length", 0);
-//      runStr("[1,2,3].filter(function() {return true})", "[1,2,3]");
-//      run("[1,2,3].filter(function() {return false}).length", 0);
-//      runStr("[1,2,3,4,5].filter(function(arg) {return arg%2})", "[1,3,5]");
-//    }
-//  
-//  module.test93 =
-//    function ()
-//    {
-//      run(read("test/resources/books.js"), 2);
-//    }
-//  
-//  module.test94 =
-//    function ()
-//    {
-//      run("for (var i = 0; i < 2000; i++) { 123 }", 123); // bug: throws JS stack overflow
-//      run("var a = [1,2,3]; for (var i = 0; i < 900; i++) { a[2] = 123 }", 123); // bug: throws JS stack overflow
-//    }
-//  
+ module.test89 =
+   function ()
+   {
+     run("[].map(function () {}).length", 0);
+     run("[3].map(function (x) {return x*x}).length", 1);
+     run("[3].map(function (x) {return x*x})[0]", 9);
+     run("[3,4].map(function (x) {return x*x}).length", 2);
+     run("[3,4].map(function (x) {return x*x}).length", 2);
+     run("[3,4].map(function (x) {return x*x})[1]", 16);
+     run("var arr=new Array(10); arr.map(function () {return 123}).length", 10);
+     run("var arr=new Array(3); arr.map(function () {return 123})[1]", undefined);
+     //run("var x=1; function f() { var x=2; return [9,9,9].map(function () {return this.x})}; f()[0];", 1); // non-strict only
+     run("var x=1; function f() { var x=2; return [9,9,9].map(function () {return this.x}, {x:3})}; f()[0];", 3);
+     run("var ar=[1,2,3].map(function (x) { return x*x*x }); ar[1]", 8);
+     run("var arr = [1,2,3,4,5,6,7,8,9,10]; function f(x,y) {return x+y}; arr.map(f).toString()", "1,3,5,7,9,11,13,15,17,19");
+   }
+
+   module.test90 =
+     function ()
+     {
+       run("var glob=false; try {[].reduce(function () {})} catch (ex) {glob=true};glob", true);
+       run("[].reduce(function () {}, 123)", 123);
+       run("[3].reduce(function (x,y) {return x+y})", 3);
+       run("[3].reduce(function (x,y) {return x+y}, 4)", 7);
+       run("[3,4].reduce(function (x,y) {return x+y})", 7);
+       run("[3,4].reduce(function (x,y) {return x+y}, 5)", 12);
+     }
+  
+   module.test91 =
+     function ()
+     {
+       run("function Circle(x,y,r){this.x=x;this.y=y;this.r=r};function area(s){return 3*s.r*s.r};var circles=[[10,100,4],[-10,-10,3],[0,50,5]].map(function (xyr){return new Circle(xyr[0], xyr[1], xyr[2])});var totalArea = circles.map(area).reduce(function (x,y) {return x+y});totalArea",150);
+     }
+  
+   module.test92 =
+     function ()
+     {
+       run("[].filter(function() {return true}).length", 0);
+       run("[].filter(function() {return false}).length", 0);
+       run("[1,2,3].filter(function() {return true}).toString()", "1,2,3");
+       run("[1,2,3].filter(function() {return false}).length", 0);
+       run("[1,2,3,4,5].filter(function(arg) {return arg%2}).toString()", "1,3,5");
+     }
+  
+   module.test93 =
+     function ()
+     {
+       run(read("test/resources/books.js"), 2);
+     }
+  
+   // module.test94 =
+   //   function ()
+   //   {
+   //     run("for (var i = 0; i < 2000; i++) { 123 }", 123); // bug: throws JS stack overflow
+   //     run("var a = [1,2,3]; for (var i = 0; i < 900; i++) { a[2] = 123 }", 123); // bug: throws JS stack overflow
+   //   }
+
   module.test95 =
     function ()
     {
@@ -669,11 +726,11 @@ var suiteConcreteTests =
 //    }
 //  
   
-//    module.testChurchNums =
-//      function ()
-//      {
-//        run(read("test/resources/churchNums.js"), true);    
-//      }
+   module.testChurchNums =
+     function ()
+     {
+       run(read("test/resources/churchNums.js"), true);
+     }
     
     module.testGcIpd =
       function ()
@@ -756,8 +813,174 @@ var suiteConcreteTests =
       {
         var src = read("test/resources/coen1.js");
         run(src, 20);
-      }    
+      }
+  
+  module.test106a =
+      function ()
+      {
+        run("var o={}; Object.defineProperty(o, 'x', {value:42}); o.x", 42);
+        run("var o={}; Object.defineProperty(o, 'x', {value:42}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", false);
+        run("var o={}; Object.defineProperty(o, 'x', {value:42}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);
+        run("var o={}; Object.defineProperty(o, 'x', {value:42}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", false);
+      }
+  
+  module.test106b =
+      function ()
+      {
+        run("var o=Object.create({}, {x:{value:42}}); o.x", 42);
+        run("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", false);
+        run("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);
+        run("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", false);
+      }
+  
+  module.test106c =
+      function ()
+      {
+        run("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", true);
+        run("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", true);
+        run("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", true);
+      }
+  
+  module.test106d =
+      function ()
+      {
+        run("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); typeof p.get", "function");
+        run("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", undefined);
+        run("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);
+        run("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", false);
+        run("var o = Object.defineProperty({}, 'x',{set:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); typeof p.set", "function");
+        run("var o = Object.defineProperty({}, 'x',{set:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", undefined);
+        run("var o = Object.defineProperty({}, 'x',{set:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);
+        run("var o = Object.defineProperty({}, 'x',{set:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", false);
+      }
+  
+  
+  module.test107 =
+        function ()
+        {
+          run("TypeError.prototype instanceof Error", true);
+          run("TypeError.prototype === Error", false);
+          run("TypeError.prototype === Error.prototype", false);
+        }
+    module.test108 =
+        function ()
+        {
+          run("new TypeError('123').toString()", "TypeError: 123");
+        }
         
+    module.test109 =
+        function ()
+        {
+          run("'123'.toString()", "123");
+        }
+        
+    module.test110 =
+        function ()
+        {
+          run("typeof 'abc'", "string");
+          run("typeof 123", "number");
+          run("typeof {}", "object");
+          run("typeof true", "boolean");
+          run("typeof false", "boolean");
+          run("typeof undefined", "undefined");
+          run("typeof null", "object");
+          run("typeof function () {}", "function");
+        }
+  
+    module.test111 =
+        function ()
+        {
+          run("var o = {x:123};o.hasOwnProperty('x')", true);
+          run("var o = {x:123};o.hasOwnProperty('y')", false);
+        }
+        
+    module.test112 =
+        function ()
+        {
+          run("var o = {}; o instanceof Object", true);
+        }
+  
+  module.test113 =
+      function ()
+      {
+        run("var glob = []; for (var p in {x:42}) {glob.push(p)}; glob.length===1 && glob[0]==='x'", true);
+        run("var glob = []; for (var p in {x:42, y:43}) {glob.push(p)}; glob.length===2 && glob.indexOf('x') > -1 && glob.indexOf('y') > -1", true);
+        run("var x={a:1}; function Y() {this.b=2};Y.prototype=x;var obj=new Y();var glob=[];for (var prop in obj) {glob.push(prop)};glob.length===2 && glob.indexOf('a')>-1 && glob.indexOf('b')>-1", true);
+      }
+  
+  module.test114 =
+      function ()
+      {
+        run("function sq(x) {return x*x}; sq.call(null, 4)", 16);
+        run("function sq(x) {return this}; sq.call(42, 4)", 42);
+        run("var glob=null;function sq(x) {glob=42}; sq.call(null);glob", 42);
+      }
+  
+  module.test115 =
+      function ()
+      {
+        run("function sq(x) {return x*x}; sq.apply(null, [4])", 16);
+        run("function sq(x) {return this}; sq.apply(42, [4])", 42);
+        run("var glob=null;function sq(x) {glob=42}; sq.apply(null);glob", 42);
+      }
+  
+  module.test116 =
+      function ()
+      {
+        run("function hh(...args) {return args[1]}; hh(41,42,43)", 42);
+        run("function hh(x, ...args) {return args[1]}; hh(41,42,43)", 43);
+      }
+      
+  module.test117 =
+      function ()
+      {
+        run("Object.getOwnPropertyNames({x:42}).toString()", "x");
+        run("Object.getOwnPropertyNames({}).length", 0);
+        run("var ps = Object.getOwnPropertyNames({x:42,y:43});ps.length===2 && ps.indexOf('x')>-1 && ps.indexOf('y')>-1", true);
+      }
+      
+  module.test118 =
+      function ()
+      {
+        // run("var trees=['redwood','bay','cedar','oak','maple'];0 in trees", true); // TODO: ToPropertyKey
+        // run("var trees=['redwood','bay','cedar','oak','maple'];3 in trees", true);
+        // run("var trees=['redwood','bay','cedar','oak','maple'];6 in trees", false);
+        run("var trees=['redwood','bay','cedar','oak','maple'];'bay' in trees", false);
+        run("var trees=['redwood','bay','cedar','oak','maple'];'length' in trees", true);
+        // run("'PI' in Math", true);
+        run("var mycar = {make: 'Honda', model: 'Accord', year: 1998};'make' in mycar", true);
+        run("var mycar = {make: 'Honda', model: 'Accord', year: 1998};'model' in mycar", true);
+        run("var mycar = {make: 'Honda', model: 'Accord', year: 1998};'floeper' in mycar", false);
+        // run("var color1 = new String('green');'length' in color1", true);
+        // run("var glob=false;var color2 = 'coral';try{'length' in color1} catch (ex) {glob=true};glob", true);
+      }
+      
+  // module.test119 = TODO: NYI
+  //     function ()
+  //     {
+  //       run("var o = Object.defineProperty({}, 'a',{get:function(){return 42}});o.a", 42);
+  //       run("var o={};var bValue=38;Object.defineProperty(o,'b',{get:function() {return bValue},set:function(newValue) {bValue=newValue},enumerable:true,configurable:true});o.b=42;o.b===bValue", true)
+  //     }
+  
+  module.test120 =
+      function()
+      {
+        run("var inventory = [{name: 'apples', quantity: 2},{name: 'bananas', quantity: 0},{name: 'cherries', quantity: 5}];function findCherries(fruit) {return fruit.name === 'cherries'};inventory.find(findCherries).quantity", 5);
+      }
+  
+  module.test121 =
+      function()
+      {
+        run("var numbers=[4,2,5,1,3];numbers.sort(function (a, b) {return a - b});numbers.toString()", "1,2,3,4,5");
+      }
+  
+      module.test122 =
+      function()
+      {
+        run("var myFish = ['angel', 'clown', 'mandarin', 'sturgeon']; myFish.splice(2, 1);myFish.toString()", "angel,clown,sturgeon");
+      }
+  
+  
   return module;
   
 })()

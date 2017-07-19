@@ -39,7 +39,8 @@
  * The Richards benchmark simulates the task dispatcher of an
  * operating system.
  **/
-function runRichards() {
+function runRichards()
+{
   var scheduler = new Scheduler();
   scheduler.addIdleTask(ID_IDLE, 0, null, COUNT);
 
