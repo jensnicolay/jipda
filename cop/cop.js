@@ -64,6 +64,7 @@ function computeContextMethods(system)
           function (contextA)
           {
             const contextObj = state.store.lookupAval(contextA);
+            const contextName = contextObj.lookup(lat.abst1("name")).value.Value.toString();
             
             sourceMethodRef.addresses().forEach(
                 function (sourceMethodA)
@@ -81,12 +82,12 @@ function computeContextMethods(system)
         
                           for (const targetMethodCallable of tcallables)
                           {
-                            result.push({context:contextObj, prop, sourceMethod:sourceMethodCallable, targetMethod:targetMethodCallable});
+                            result.push({contextA, contextName, prop, sourceMethod:sourceMethodCallable.node, targetMethod:targetMethodCallable.node});
   
-                            print("context", getContextName(contextObj));
+                            print("context", contextName, contextA.ex);
                             print("prop", prop);
-                            print("source", sourceMethodCallable.node.id.name);
-                            print("target", targetMethodCallable.node.id.name);
+                            print("source", sourceMethodCallable.node.id.name, "line", sourceMethodCallable.node.loc.start.line);
+                            print("target", targetMethodCallable.node.id.name, "line", targetMethodCallable.node.loc.start.line);
                             print("--------------------\n");
                           }
                         })

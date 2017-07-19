@@ -104,6 +104,12 @@
     out.scrollTop(out[0].scrollHeight);
   }
   
+  function highlightAstNodeInSource(node)
+  {
+    var loc = node.loc;
+    editor.setSelection(CodeMirror.Pos(loc.start.line - 1, loc.start.column), CodeMirror.Pos(loc.end.line - 1, loc.end.column));
+  }
+  
   
   
   var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }
@@ -204,14 +210,14 @@
     
     function methodToString(m)
     {
-      return m.node.id.name;
+      return m.id.name;
     }
     
-    function contextToString(contextObj)
-    {
-      return contextObj.lookup(lat.abst1("name")).value.Value.toString();
-    }
-    
+//    function contextToString(contextObj)
+//    {
+//      return contextObj.lookup(lat.abst1("name")).value.Value.toString();
+//    }
+//
     function GraphNode(id, name, type, object)
     {
       this.id = id;
@@ -242,13 +248,14 @@
 		const edges = copResult.flatMap(
 		    function (r)
         {
-          const contextName = contextToString(r.context);
-          const contextNode = GraphNode.create(contextName, "context", r.context);
+          const contextA = r.contextA;
+          const contextName = r.contextName;
+          const contextNode = GraphNode.create(contextName, "context", r.contextA.ex);
           const sourceName = methodToString(r.sourceMethod);
           const methodNode = GraphNode.create(sourceName, "method", r.sourceMethod);
           return [{data: {source: contextNode.id, target: methodNode.id}}]
         });
-    const nodes = GraphNode.nodes.map(node => {return {data: {id:node.id, label:node.name}}});
+    const nodes = GraphNode.nodes.map(node => {return {data: node}});
     
     var cy = window.cy = cytoscape({
       container: document.getElementById('right'),
@@ -264,7 +271,7 @@
         {
           selector: 'node',
           style: {
-            'content': 'data(label)',
+            'content': 'data(name)',
             'text-opacity': 0.5,
             'text-valign': 'center',
             'text-halign': 'right',
@@ -289,9 +296,13 @@
         edges}
     });
     
-    cy.on('tap', function(evt){
-      console.log( 'tap ' + evt.target.id() );
-    });
+    cy.on('tap',
+        function(evt)
+        {
+          const node = evt.target.data();
+          const astNode = node.object;
+          highlightAstNodeInSource(astNode);
+        });
  	}
 	
 	
