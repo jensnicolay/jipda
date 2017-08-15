@@ -13,7 +13,7 @@ var suiteJipdaTests =
   function run(src, expected)
   {
     const ast = Ast.createAst(src);
-    const cesk = jsCesk({a:tagAlloc,  kalloc:aacKalloc, l:typeLattice, errors:true, gc:true});
+    const cesk = jsCesk(typeLattice, tagAlloc,  aacKalloc, {errors:true, gc:true});
     const system = cesk.explore(ast, initialCeskState);
     const result = computeResultValue(system.result);
     const actual = result.value;

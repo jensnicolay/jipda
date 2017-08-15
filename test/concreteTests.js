@@ -10,7 +10,7 @@ var suiteConcreteTests =
   function run(src, expected)
   {
     var ast = Ast.createAst(src);
-    var cesk = jsCesk({a:concAlloc, kalloc:concKalloc, l: concLattice, errors:true, hardAsserts:true});
+    var cesk = jsCesk(concLattice, concAlloc, concKalloc, {errors:true, hardAsserts:true});
     var system = cesk.explore(ast, initialCeskState);
     var result = computeResultValue(system.result);
     result.msgs.join("\n");
