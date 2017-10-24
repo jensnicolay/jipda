@@ -1,6 +1,6 @@
 "use strict";
 
-const tagCtxAlloc =
+var tagCtxAlloc =
     (function ()
     {
       function Addr(node, type, ctx, ex)

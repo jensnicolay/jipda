@@ -1,0 +1,19 @@
+{
+  "name": "jipda-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "protopurity.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.18.2",
+    "esprima": "^4.0.0",
+    "express": "^4.16.2"
+  }
+}

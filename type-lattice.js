@@ -1,6 +1,6 @@
 "use strict";
 
-const TypeLattice = (function ()
+var TypeLattice = (function ()
 {
   
   TypeValue.UND = 1 << 0;

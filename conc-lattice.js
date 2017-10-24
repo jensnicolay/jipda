@@ -1,7 +1,7 @@
 "use strict";
 
 
-const ConcLattice = (function ()
+var ConcLattice = (function ()
 {
 // TODO: non-domain retval functions on lattice, all else on values
   function ConcValue(value)
