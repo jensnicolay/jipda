@@ -1,6 +1,6 @@
 "use strict";
 
-const concKalloc =
+var concKalloc =
     (function ()
     {
       let counter = 0;

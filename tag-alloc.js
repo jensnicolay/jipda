@@ -1,7 +1,7 @@
 "use strict";
 
 
-const tagAlloc =
+var tagAlloc =
     (function ()
     {
 

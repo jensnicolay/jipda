@@ -24,7 +24,6 @@
   <script type="text/javascript" src="../jsCesk.js"></script>
   <script type="text/javascript" src="../graph.js"></script>
   <script type="text/javascript" src="purityAnalysis.js"></script>
-	<script type="text/javascript" src="../pdg/pdg.js"></script> <!-- TEMPORARY, for hacking purposes -->
 	<script type="text/javascript" src="../lib/web/jquery-2.1.1.min.js"></script>
 	<script type="text/javascript" src="../lib/web/jquery-ui-1.11.1/jquery-ui.min.js"></script>
 	<script type="text/javascript" src="../lib/web/codemirror/codemirror.js"></script>
@@ -63,133 +62,59 @@
 	  $('#errors').prop('checked', true);
 	}
 	
-	function doIt()
-	{
-	  $("#eval").attr("disabled", true);
-	  editor.setOption("readOnly", true);
-		$("#snippet").attr("disabled", true);
-		$("#config").attr("disabled", true);
-    $("#errors").attr("readOnly", true);
-		$("#sg").empty();
-	  var src = editor.getValue();
-    localStorage.protopuritySrc = src;
-	  ast = Ast.createAst(src, {loc:true});
-    astNodes = [];
-    Ast.nodes(ast).forEach(function (n) {astNodes[n.tag] = n});
-	  print(astNodes.length, "nodes in ast");
-    eval($("#config").val());
-    var errors = $("#errors").is(":checked");
-    var gc = true;
-    
-    
-    var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
-    const initialCeskState = computeInitialCeskState(lat, concAlloc, concKalloc, ast0src);
-	  
-	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
-	  
-//    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date());
-//    console.profile(profileName);
-    var start = Date.now();
-    
-		const cesk = jsCesk({a:ag, kalloc, l:lat, gc, errors});
-		system = cesk.explore(ast, initialCeskState);
-    
-    
-    var time = Date.now() - start;
-//    console.profileEnd(profileName);
-    initial = system.initial;
-    result = system.result;
-    contexts = system.contexts;
-    console.log("analysis took " + time + " ms");
-    states = system.states;
-    console.log(states.length + " states; " + result.size + " results; " + contexts.length + " contexts");
-    var result = computeResultValue(system.result);
-    var resultValue = result.value;
-    console.log("result value " + resultValue);
-    if (errors && result.msgs.length > 0)
-    {
-      console.log(result.msgs.join("\n"));
-      result.msgs.forEach(function (msg) {logOutput("error", msg)});
-    }
-    
-    //purity();
-
-    if (system.states.length > 2048)
-    {
-      console.log("no graph (too many states)");
-      return;
-    }
-    
-    //console.log(transitions.length + " transitions");
-    logOutput("analysis", states.length + /*"/" + transitions.length +*/ " " + time);
-    logOutput("result", resultValue);
-    
-    var g = createDagreGraph(states);
-    drawDagreGraph(g);
- 	}
-	
-	
 	 $(function ()
 	     {
-	       var srcParam = getUrlParameter("src");
-	       if (srcParam)
-	       {
-	         $.ajax({
-	           url : srcParam,
-	           dataType: "text",
-	           success : function (data) {
-	               editor.setValue(data);
-	           }
-	       });
-	       }
-	       
-	       CodeMirror.commands.autocomplete = function(cm) {
-	         cm.showHint({hint: CodeMirror.hint.anyword});
-	       }
-	       editor = CodeMirror(document.getElementById("editor"),
-	           {
-	             value: localStorage.protopuritySrc || "",
-	             mode: "javascript",
-	             lineNumbers: true
-	           });
-	       meta = CodeMirror(document.getElementById("input"), Editors.metaConfig());
-	       //meta.on("beforeChange", function (e, o) {if (e.getCursor().line < metaLine) {o.cancel()}}, false);
-	       editor.on("dblclick", function (cm, e)
-	           {
-	             e.stopPropagation();
-	             var pos = {left: e.pageX, top: e.pageY};
-	             var editorPos = cm.coordsChar(pos, "page");
-	             var astNode = editorPosToAstNode(editorPos);
-	             logInput("astNodes[" + astNode.tag + "]");
-	             highlightAstNodeInSource(astNode);
-	             highlightAstNodeInGraph(astNode);
-	           });
-	       
-	       $('#left').resizable({handles: 'e'});
-	       
-/* 	       $('#config').on('change', function (e) {
-	         var optionSelected = $("option:selected", this);
-	         var valueSelected = this.value;
-	         alert(valueSelected);
-	            }) */
+	       var src = getUrlParameter("src");
+         ast = Ast.createAst(src, {loc:true});
+         astNodes = [];
+         Ast.nodes(ast).forEach(function (n) {astNodes[n.tag] = n});
+         print(astNodes.length, "nodes in ast");
+         eval($("#config").val());
+         var errors = $("#errors").is(":checked");
+         var gc = true;
+    
+    
+         var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
+         const initialCeskState = computeInitialCeskState(lat, concAlloc, concKalloc, ast0src);
+    
+         logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
 
-				 $("#snippet").change(
-				 		function ()
-						{
-							const srcParam = this.value;
-							$.ajax({
-								url : srcParam,
-								dataType: "text",
-								success : function (data) {
-									editor.setValue(data);
-								}})
-						});
-	       
-	       if (getUrlParameter("eval"))
-	       {
-	         console.log("doing it");
-	         setTimeout(doIt, 200);
-	       }
+		//    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date());
+		//    console.profile(profileName);
+				 var start = Date.now();
+				
+				 const cesk = jsCesk({a:ag, kalloc, l:lat, gc, errors});
+				 system = cesk.explore(ast, initialCeskState);
+				
+				
+				 var time = Date.now() - start;
+		//    console.profileEnd(profileName);
+				 initial = system.initial;
+				 result = system.result;
+				 contexts = system.contexts;
+				 console.log("analysis took " + time + " ms");
+				 states = system.states;
+				 console.log(states.length + " states; " + result.size + " results; " + contexts.length + " contexts");
+				 var result = computeResultValue(system.result);
+				 var resultValue = result.value;
+				 console.log("result value " + resultValue);
+				 if (errors && result.msgs.length > 0)
+				 {
+					 console.log(result.msgs.join("\n"));
+					 result.msgs.forEach(function (msg) {logOutput("error", msg)});
+				 }
+				
+				 logOutput("analysis", states.length + /*"/" + transitions.length +*/ " " + time);
+				 logOutput("result", resultValue);
+				
+				 states.forEach(function (state)
+				 {
+					 state.store = null;
+					 state.kont = null;
+					 state._successors = state._successors.map(s => s._id);
+				 })
+				
+				 document.write(JSON.stringify(states));
 	     })
 	</script>
 </head>

@@ -14,7 +14,7 @@ Lattice.join =
     return x.join(y);
   }
 
-const BOT = Object.create(null); // should be 'const', but gives problems with rebuilding
+var BOT = Object.create(null); // should be 'const', but gives problems with rebuilding
 BOT.join = function (other) { return other };
 BOT.meet = function (other) { return BOT };
 BOT.hashCode = function () { return 0 };
