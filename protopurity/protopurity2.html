@@ -64,7 +64,8 @@
 	
 	 $(function ()
 	     {
-	       var src = getUrlParameter("src");
+	       var src = decodeURIComponent(getUrlParameter("src"));
+	       console.log("SRC: "+ src);
          ast = Ast.createAst(src, {loc:true});
          astNodes = [];
          Ast.nodes(ast).forEach(function (n) {astNodes[n.tag] = n});
