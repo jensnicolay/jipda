@@ -40,4 +40,4 @@ Array.prototype.toString =
   
   load("test/purityTests.js");
 
-// ~/git/v8/out/native/d8 --use_strict --max_old_space_size=4096 --shell build.js
+// ~/git/v8/v8/out.gn/x64.release/d8 --harmony --max_old_space_size=8192 --shell build.js

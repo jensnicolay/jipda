@@ -72,7 +72,7 @@
 		$("#config").attr("disabled", true);
     $("#errors").attr("readOnly", true);
 		$("#sg").empty();
-	  var src = editor.getValue();
+	  const src = editor.getValue();
     localStorage.protopuritySrc = src;
 	  ast = Ast.createAst(src, {loc:true});
     astNodes = [];
@@ -91,16 +91,17 @@
 //    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date());
 //    console.profile(profileName);
     var start = Date.now();
-    
-		const cesk = jsCesk({a:ag, kalloc, l:lat, gc, errors});
-		system = cesk.explore(ast, initialCeskState);
+		
+    initial = jsCesk(lat, ag, kalloc, {errors:true, gc:true, initialState: initialCeskState});
+		initial = initial.enqJobs("ScriptJobs", [new ScriptEvaluationJob(src)]);
+		system = performExplore([initial]);
     
     
     var time = Date.now() - start;
 //    console.profileEnd(profileName);
-    initial = system.initial;
+    //assert(initial === system.initial);
     result = system.result;
-    contexts = system.contexts;
+    contexts = "system.contexts"; // unavailable!
     console.log("analysis took " + time + " ms");
     states = system.states;
     console.log(states.length + " states; " + result.size + " results; " + contexts.length + " contexts");

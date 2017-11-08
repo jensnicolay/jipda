@@ -12,11 +12,13 @@ var suiteJipdaTests =
   
   function run(src, expected)
   {
-    const ast = Ast.createAst(src);
-    const cesk = jsCesk(typeLattice, tagAlloc,  aacKalloc, {errors:true, gc:true});
-    const system = cesk.explore(ast, initialCeskState);
-    const result = computeResultValue(system.result);
-    const actual = result.value;
+    var ast = Ast.createAst(src);
+    var initialState = jsCesk(typeLattice, tagAlloc, aacKalloc, {errors:true, gc:true, initialState: initialCeskState});
+    initialState = initialState.enqJobs("ScriptJobs", [new ScriptEvaluationJob(src)]);
+    var system = performExplore([initialState]);
+    var result = computeResultValue(system.result);
+    result.msgs.join("\n");
+    var actual = result.value;
     assert(actual.subsumes(expected));
   }
   

@@ -10,8 +10,9 @@ var suiteConcreteTests =
   function run(src, expected)
   {
     var ast = Ast.createAst(src);
-    var cesk = jsCesk(concLattice, concAlloc, concKalloc, {errors:true, hardAsserts:true});
-    var system = cesk.explore(ast, initialCeskState);
+    var initialState = jsCesk(concLattice, concAlloc, concKalloc, {errors:true, hardAsserts:true, initialState: initialCeskState});
+    initialState = initialState.enqJobs("ScriptJobs", [new ScriptEvaluationJob(src)]);
+    var system = performExplore([initialState]);
     var result = computeResultValue(system.result);
     result.msgs.join("\n");
     var actual = result.value;
