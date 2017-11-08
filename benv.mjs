@@ -1,105 +1,112 @@
-import {Maps} from './common';
+import {HashMap, ArraySet} from './common';
+import {BOT} from './lattice';
 
-export default function Benv(map)
+export default function Benv(map, global)
 {
-  this.map = map;
+  this._map = map;
+  this._global = global;
 }
 
+Benv.EMPTY_FRAME = HashMap.empty();
 
-function Benv(map = new Map())
-{
-  this.map = map;
-}
-
-Benv.prototype.get =
-  function (name)
-  {
-    const address = this.map.get(address);
-    if (entry)
-    {
-      return entry.value;
-    }
-    throw new Error("address not found:" + address);
-  };
-  
-Store.prototype.alloc =
-  function (address, value)
-  {
-    const existingEntry = this.map.get(address);
-    if (existingEntry)
-    {
-      const existingValue = existingEntry.value;
-      if (existingEntry.fresh)
-      {
-        const updatedMap = new Map(this.map);
-        if (existingValue.equals(value))
-        {
-          const updatedEntry = {fresh:false, value}
-          updatedMap.set(address, updatedEntry);
-          return new Store(updatedMap);
-        }
-        const updatedEntry = {fresh:false, value:existingEntry.value.join(value)}
-        updatedMap.set(address, updatedEntry);
-        return new Store(updatedMap);
-      }
-      else
-      {
-        if (existingValue.equals(value))
-        {
-          return this;
-        }
-        const updatedMap = new Map(this.map);
-        const updatedEntry = {fresh:false, value:existingEntry.value.join(value)}
-        updatedMap.set(address, updatedEntry);
-        return new Store(updatedMap);
-      }
-    }
-    const updatedMap = new Map(this.map);
-    const entry = {fresh:true, value};
-    updatedMap.set(address, entry);
-    return new Store(updatedMap);
-  };
-      
-  
-Store.prototype.update =
-  function (address, aval)
-  {
-    const existingEntry = this.map.get(address);
-    if (existingEntry)
-    {
-      const existingValue = existingEntry.value;
-      if (existingValue.equals(value))
-      {
-        return this;
-      }
-      const updatedMap = new Map(this.map);
-      if (existingEntry.fresh)
-      {
-        const updatedEntry = {fresh:true, value}
-        updatedMap.set(address, updatedEntry);
-        return new Store(updatedMap);
-      }
-      const updatedEntry = {fresh:false, value:existingEntry.value.join(value)}
-      updatedMap.set(address, updatedEntry);
-      return new Store(updatedMap);
-    }
-    throw new Error("no value at address " + address);
-  };
-  
-Store.prototype.join =
-  function (store)
-  {
-    return new Store(Maps.join(this.map, store.map, (x, y) => ({fresh: false, value: x.value.join(y.value)}))); // "lazy" join
-  }
-
-Store.prototype.narrow =
-  function (addresses)
-  {
-    return new Store(Maps.narrow(this.map, addresses));
-  }
-
-Store.prototype.keys =
+Benv.empty =
   function ()
   {
-    return this.map.keys();
+    return new Benv(Benv.EMPTY_FRAME, true);
+  }
+
+Benv.prototype.extend =
+  function ()
+  {
+    return new Benv(this._map, false);
+  }
+
+Benv.prototype.toString =
+    function ()
+    {
+      return this._map.toString();
+    }
+
+Benv.prototype.nice =
+    function ()
+    {
+      return this._map.nice();
+    }
+
+Benv.prototype.equals =
+  function (x)
+  {
+    return (x instanceof Benv)
+      && this._global === x._global
+      && this._map.equals(x._map)
+  }
+
+Benv.prototype.hashCode =
+  function ()
+  {
+    var prime = 17;
+    var result = 1;
+    result = prime * result + this._map.hashCode();
+    result = prime * result + this._global.hashCode();
+    return result;
+  }
+
+
+Benv.prototype.diff = //DEBUG
+  function (x)
+  {
+    var diff = [];
+    var thisNames = this._map.keys();
+    var xNames = x._map.keys();
+    for (var i = 0; i < thisNames.length; i++)
+    {
+      var thisName = thisNames[i];
+      var thisValue = this.lookup(thisName);
+      var xValue = x.lookup(thisName);
+      if (!thisValue.equals(xValue))
+      {
+        diff.push(thisName + "\t" + thisValue + " -- " + xValue);
+      }
+    }
+    for (var i = 0; i < xNames.length; i++)
+    {
+      var xName = xNames[i];
+      var xValue = x.lookup(xName);
+      var thisValue = this.lookup(xName);
+      if (thisValue === BOT)
+      {
+        diff.push(xName + "\t" + thisValue + " -- " + xValue);
+      }
+    }
+    if (!this._parents.equals(x._parents))
+    {
+      diff.push("<parents> " + this._parents + " -- " + x._parents);
+    }
+    return ">>>BENV\n" + diff.join("\n") + "<<<";
+  }
+
+
+Benv.prototype.add =
+  function (name, value)
+  {
+    var map = this._map.put(name, value);
+    return new Benv(map, this._global);
+  }
+
+Benv.prototype.lookup =
+  function (name)
+  {
+    return this._map.get(name) || BOT;
+  }
+
+Benv.prototype.addresses =
+  function ()
+  {
+    return ArraySet.from(this._map.values());
+  }
+
+Benv.prototype.narrow =
+  function (names)
+  {
+    return new Benv(this._map.narrow(names), this.global);
   }

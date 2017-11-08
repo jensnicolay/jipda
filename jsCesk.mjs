@@ -1,9 +1,19 @@
-"use strict";
+import {ArraySet, HashMap, HashCode, MutableHashSet, Sets, Formatter, assert, assertDefinedNotNull, assertFalse} from './common';
+import Ast from './ast';
+import {BOT} from './lattice';
+import Benv from './benv';
+import Store from './countingStore';
+import {Obj} from './object';
+
+if (!global['performance'])
+{
+  global['performance'] = Date;
+}
 
 const EMPTY_LKONT = [];
 const EMPTY_ADDRESS_SET = ArraySet.empty();
 
-function computeInitialCeskState(lat, alloc, kalloc, ...srcs)
+export function computeInitialCeskState(lat, alloc, kalloc, ...srcs)
 {
   let s0 = jsCesk(lat, alloc, kalloc, {errors:true, hardAsserts:true});
   let s1 = s0.enqJobs("ScriptJobs", srcs.map(src => new ScriptEvaluationJob(src)));
@@ -22,7 +32,7 @@ function computeInitialCeskState(lat, alloc, kalloc, ...srcs)
   return ceskState;
 }
 
-function jsCesk(lat, alloc, kalloc, cc)
+export function jsCesk(lat, alloc, kalloc, cc)
 {
   assert(alloc);
   assert(kalloc);
@@ -555,7 +565,7 @@ function jsCesk(lat, alloc, kalloc, cc)
         {
           throw new Error(msg);
         }
-        print(msg);
+        console.log(msg);
       }
     }
     
@@ -579,7 +589,7 @@ function jsCesk(lat, alloc, kalloc, cc)
     
     function throwTypeError(msg, store, lkont, kont)
     {
-      print(msg);
+      console.log(msg);
       assert(typeof msg === "string");
       const obj = createError(lat.abst1(msg), kont.realm);
       const addr = alloc.error("@" + msg, kont);
@@ -2638,7 +2648,7 @@ function jsCesk(lat, alloc, kalloc, cc)
                 var lkont2 = lkont.slice(1);
                 if (!frame.applyThrow)
                 {
-                  print("!!", frame);
+                  console.log("!!", frame);
                 }
                 result = result.concat(frame.applyThrow(value, store, lkont2, kont));
               });
@@ -5991,7 +6001,7 @@ function jsCesk(lat, alloc, kalloc, cc)
       {
         if (operandValues.length !== 1)
         {
-          print("warning: array.concat");
+          console.log("warning: array.concat");
           return [];
         }
         return thisValue.addresses().values().map(
@@ -6369,7 +6379,7 @@ function jsCesk(lat, alloc, kalloc, cc)
       
       function _print(application, operandValues, thisValue, benv, store, lkont, kont)
       {
-        print(operandValues);
+        console.log(operandValues);
         return [new KontState(L_UNDEFINED, store, lkont, kont)];
       }
       
@@ -6428,7 +6438,7 @@ function retrieveEndStates(initial) // not used for the moment
   return result;
 }
 
-function computeResultValue(endStates)
+export function computeResultValue(endStates)
 {
   var result = BOT;
   var msgs = [];
@@ -6455,7 +6465,7 @@ function computeResultValue(endStates)
   return {value:result, msgs:msgs};
 }
 
-function performExplore(initialStates)
+export function performExplore(initialStates)
 {
   function stateGet(s)
   {
@@ -6542,7 +6552,7 @@ function performExplore(initialStates)
   {
     if (states.length > 100000)
     {
-      print("STATE SIZE LIMIT", states.length);
+      console.log("STATE SIZE LIMIT", states.length);
       break;
     }
     var s = todo.pop();
@@ -6586,7 +6596,7 @@ function performExplore(initialStates)
       todo.push(ss2);
       if (states.length % 10000 === 0)
       {
-        print(Formatter.displayTime(performance.now() - startTime), "states", states.length, "todo", todo.length, "ctxs", "contexts.length", "sstorei", sstorei);
+        console.log(Formatter.displayTime(performance.now() - startTime), "states", states.length, "todo", todo.length, "ctxs", "contexts.length", "sstorei", sstorei);
       }
     }
   }
@@ -6606,7 +6616,7 @@ function concExplore(ast)
     id++;
     if (id % 10000 === 0)
     {
-      print(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
+      console.log(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
     }
     var l = next.length;
     if (l === 1)
@@ -6624,7 +6634,7 @@ function concExplore(ast)
   }
 }
 
-function ScriptEvaluationJob(src)
+export function ScriptEvaluationJob(src)
 {
   this.src = src;
 }
@@ -6646,3 +6656,47 @@ ScriptEvaluationJob.prototype.hashCode =
           return result;
         }
 
+const Agc = {};
+
+Agc.collect =
+    function (store, rootSet)
+    {
+      const reachable = MutableHashSet.empty();
+      Agc.addressesReachable(rootSet, store, reachable);
+      
+      // const cleanup = Arrays.removeAll(reachable.values(), store.map.keys())
+      // if (cleanup.length > 0)
+      // {
+      //   console.debug("cleaning up", cleanup);
+      // }
+      
+      if (reachable.count() === store.map.count()) // we can do this since we have subsumption
+      {
+        return store;
+      }
+      const store2 = store.narrow(reachable);
+      return store2;
+    }
+
+Agc.addressesReachable =
+    function (addresses, store, reachable)
+    {
+      addresses.forEach(
+          function (address)
+          {
+            Agc.addressReachable(address, store, reachable)
+          });
+    }
+
+Agc.addressReachable =
+    function (address, store, reachable)
+    {
+      if (reachable.contains(address))
+      {
+        return;
+      }
+      const aval = store.lookupAval(address);
+      const addresses = aval.addresses();
+      reachable.add(address);
+      Agc.addressesReachable(addresses, store, reachable);
+    }

@@ -1,6 +1,7 @@
-"use strict";
+import esprima from 'esprima';
 
-var Ast = {}
+const Ast = {};
+export default Ast;
   
   function nodeToString(node)
   {

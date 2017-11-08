@@ -1,4 +1,5 @@
-"use strict";
+import {HashMap, ArraySet, assertDefinedNotNull, assert} from './common';
+import {BOT} from './lattice';
 
 function Prop(value, must)
 {
@@ -119,7 +120,7 @@ Record.prototype.addresses =
       return addresses;
     }
 
-function Obj()
+export function Obj()
   {
     this.frame = Obj.EMPTY_FRAME;
     this.internals = Record.empty();

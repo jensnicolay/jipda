@@ -1,5 +1,4 @@
-
-function t()
+export function t()
 {
 	var result = TestSuite.runSuites(arguments.length === 0 ? undefined : arguments);
 	Test.displayTestResults(result);
@@ -14,19 +13,19 @@ Test.displayTestResults =
   	log.forEach(
   		function (entry)
   		{
-  			print ("===== " + entry.name + " =====");
-  			print(entry.e);
+  			console.log("===== " + entry.name + " =====");
+  			console.log(entry.e);
   			if (entry.e.stack)
   			{
-  				print(entry.e.stack);
+  				console.log(entry.e.stack);
   			}
   		});
-  	print("SUCCESS: " + result.success);
-  	print("FAIL   : " + result.fail + " " + log.map(function (entry) { return entry.name; }));
-  	print((result.time/1000) + " seconds");
+  	console.log("SUCCESS: " + result.success);
+  	console.log("FAIL   : " + result.fail + " " + log.map(function (entry) { return entry.name; }));
+  	console.log((result.time/1000) + " seconds");
   }
 
-function TestSuite(name)
+export function TestSuite(name)
 {
 	this.name = name;
 	TestSuite.registrations.push(this);
@@ -65,7 +64,7 @@ TestSuite.prototype.run =
 			{
 				if (name.startsWith("test"))
 				{
-				  print(this.name, name);
+				  console.log(this.name, name);
 					try
 					{
 						this[name].call(this);

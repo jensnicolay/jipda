@@ -1,11 +1,20 @@
-var suiteConcreteTests = 
+import fs from 'fs';
+
+import {assertEquals} from '../common';
+import Ast from '../ast';
+import concLattice from '../conc-lattice';
+import concAlloc from '../conc-alloc';
+import concKalloc from '../conc-kalloc';
+import {TestSuite} from '../test';
+import {computeInitialCeskState, jsCesk, performExplore, computeResultValue, ScriptEvaluationJob} from '../jsCesk';
+
+const read = name => fs.readFileSync(name).toString();
+
+const ast0src = read("../prelude.js");
+
+const module = new TestSuite("suiteConcreteTests");
   
-(function () 
-{
-  var module = new TestSuite("suiteConcreteTests");
-  
-  const concLattice = new ConcLattice();
-  const initialCeskState = computeInitialCeskState(concLattice, concAlloc, concKalloc, ast0src);
+const initialCeskState = computeInitialCeskState(concLattice, concAlloc, concKalloc, ast0src);
   
   function run(src, expected)
   {
@@ -346,7 +355,7 @@ var suiteConcreteTests =
   module.test69 =
     function ()
     {
-      var src = read("test/resources/tajs2009.js");
+      var src = read("resources/tajs2009.js");
       run(src, "jens");
     }
 
@@ -431,21 +440,21 @@ var suiteConcreteTests =
   module.test79a =
     function ()
     {
-      var src = read("test/resources/loopy1.js");
+      var src = read("resources/loopy1.js");
       run(src, true);
     }
 
   module.test79b =
     function ()
     {
-      var src = read("test/resources/loopy2.js");
+      var src = read("resources/loopy2.js");
       run(src, true);
     }
 
   module.test80 =
     function ()
     {
-      var src = read("test/resources/nssetup.js");
+      var src = read("resources/nssetup.js");
       run(src, true);
     }
     
@@ -696,7 +705,7 @@ var suiteConcreteTests =
    module.test93 =
      function ()
      {
-       run(read("test/resources/books.js"), 2);
+       run(read("resources/books.js"), 2);
      }
   
    // module.test94 =
@@ -730,19 +739,19 @@ var suiteConcreteTests =
    module.testChurchNums =
      function ()
      {
-       run(read("test/resources/churchNums.js"), true);
+       run(read("resources/churchNums.js"), true);
      }
     
     module.testGcIpd =
       function ()
       {
-        run(read("test/resources/gcIpdExample.js"), 36);    
+        run(read("resources/gcIpdExample.js"), 36);
       }
     
     module.testRotate =
       function ()
       {
-        run(read("test/resources/rotate.js"), "hallo");    
+        run(read("resources/rotate.js"), "hallo");
       }
     
     module.testFib =
@@ -805,14 +814,14 @@ var suiteConcreteTests =
     module.testReturn1 =
       function ()
       {
-        var src = read("test/resources/return1.js");
+        var src = read("resources/return1.js");
         run(src, 123);
       }
     
     module.testCoen1 =
       function ()
       {
-        var src = read("test/resources/coen1.js");
+        var src = read("resources/coen1.js");
         run(src, 20);
       }
   
@@ -980,8 +989,6 @@ var suiteConcreteTests =
       {
         run("var myFish = ['angel', 'clown', 'mandarin', 'sturgeon']; myFish.splice(2, 1);myFish.toString()", "angel,clown,sturgeon");
       }
-  
-  
-  return module;
-  
-})()
+
+
+export default module;

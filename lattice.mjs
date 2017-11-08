@@ -1,20 +1,6 @@
-"use strict";
+import {ArraySet} from './common';
 
-function Lattice()
-{
-}
-
-Lattice.join =
-  function (x, y)
-  {
-    if (x === BOT)
-    {
-      return y;
-    }
-    return x.join(y);
-  }
-
-const BOT = Object.create(null); // should be 'const', but gives problems with rebuilding
+export const BOT = Object.create(null); // should be 'const', but gives problems with rebuilding
 BOT.join = function (other) { return other };
 BOT.meet = function (other) { return BOT };
 BOT.hashCode = function () { return 0 };
