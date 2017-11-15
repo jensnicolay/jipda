@@ -585,33 +585,21 @@ export function performExplore(initialStates)
   return {result, states, time: performance.now() - startTime};
 }
 
-
-function concExplore(ast)
+export function computeInitialCeskState(semantics, ...srcs)
 {
-  var startTime = performance.now();
-  var initial = this.inject(ast);
-  var s = initial;
-  var id = 0;
-  while (true)
+  let s0 = createMachine(semantics, {errors:true, hardAsserts:true});
+  let s1 = srcs.reduce((state, src) => state.enqueueScriptEvaluation(src), s0);
+  const prelSystem = performExplore([s1]);
+  console.log("prelude time: " + prelSystem.time + " states " + prelSystem.states.length);
+  const prelResult = prelSystem.result;
+  if (prelResult.size !== 1) // maybe check this in a dedicated concExplore?
   {
-    var next = s.next();
-    id++;
-    if (id % 10000 === 0)
-    {
-      console.log(Formatter.displayTime(performance.now()-startTime), "states", id, "ctxs", sstore.count(), "sstorei", sstorei);
-    }
-    var l = next.length;
-    if (l === 1)
-    {
-      s = next[0].state;
-    }
-    else if (l === 0)
-    {
-      return {initial:initial, result: ArraySet.from1(s), sstore:sstore, numStates:id, time:performance.now()-startTime};
-    }
-    else
-    {
-      throw new Error("more than one next state");
-    }
+    throw new Error("wrong number of prelude results: " + prelResult.size);
   }
+  const prelState = [...prelResult][0];
+  const store = [...prelResult][0].store;
+  const realm = [...prelResult][0].kont.realm;
+  
+  const ceskState = {store, realm};
+  return ceskState;
 }

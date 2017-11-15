@@ -8,8 +8,8 @@ import concKalloc from '../conc-kalloc';
 import typeLattice from '../type-lattice';
 import tagAlloc from '../tag-alloc';
 import aacKalloc from '../aac-kalloc';
-import {createMachine, performExplore, computeResultValue} from '../abstract-machine';
-import {computeInitialCeskState} from '../jipda';
+import {createMachine, performExplore, computeResultValue, computeInitialCeskState} from '../abstract-machine';
+import {} from '../jipda';
 import createSemantics from '../js-semantics';
 import {TestSuite} from '../test';
 

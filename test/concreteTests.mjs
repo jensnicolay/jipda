@@ -6,8 +6,8 @@ import concLattice from '../conc-lattice';
 import concAlloc from '../conc-alloc';
 import concKalloc from '../conc-kalloc';
 import createSemantics from '../js-semantics';
-import {createMachine, performExplore, computeResultValue} from '../abstract-machine';
-import {computeInitialCeskState} from '../jipda';
+import {createMachine, performExplore, computeResultValue, computeInitialCeskState} from '../abstract-machine';
+import {} from '../jipda';
 import {TestSuite} from '../test';
 
 const read = name => fs.readFileSync(name).toString();
