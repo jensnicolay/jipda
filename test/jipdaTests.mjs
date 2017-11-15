@@ -8,7 +8,7 @@ import concKalloc from '../conc-kalloc';
 import typeLattice from '../type-lattice';
 import tagAlloc from '../tag-alloc';
 import aacKalloc from '../aac-kalloc';
-import {jsCesk, performExplore, computeResultValue} from '../jsCesk';
+import {createMachine, performExplore, computeResultValue} from '../abstract-machine';
 import {computeInitialCeskState} from '../jipda';
 import createSemantics from '../js-semantics';
 import {TestSuite} from '../test';
@@ -29,7 +29,7 @@ const typeJsSemantics = createSemantics(typeLattice, tagAlloc, aacKalloc, {error
 function run(src, expected)
 {
   var ast = Ast.createAst(src);
-  var initialState = jsCesk(typeJsSemantics, {gc:true, initialState: initialCeskState});
+  var initialState = createMachine(typeJsSemantics, {gc:true, initialState: initialCeskState});
   initialState = initialState.enqueueScriptEvaluation(src);
   var system = performExplore([initialState]);
   var result = computeResultValue(system.result, typeLattice.bot());

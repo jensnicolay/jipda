@@ -17,7 +17,7 @@
     import concKalloc from '../conc-kalloc.mjs';
     import aacKalloc from '../aac-kalloc.mjs';
     import createSemantics from '../js-semantics.mjs';
-    import {jsCesk, performExplore, computeResultValue} from '../jsCesk.mjs';
+    import {createMachine, performExplore, computeResultValue} from '../abstract-machine.mjs';
     import {computeInitialCeskState} from '../jipda.mjs';
 
     const ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
@@ -63,7 +63,7 @@
   
       const jsSemantics = createSemantics(lat, ag, kalloc, {errors: true});
       var ast = Ast.createAst(src);
-      var initialState = jsCesk(jsSemantics, {initialState: initialCeskState});
+      var initialState = createMachine(jsSemantics, {initialState: initialCeskState});
       initialState = initialState.enqueueScriptEvaluation(src);
       system = performExplore([initialState]);
       var time = Date.now() - start;

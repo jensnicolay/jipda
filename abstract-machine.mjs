@@ -1,18 +1,10 @@
-import {ArraySet, HashMap, HashCode, MutableHashSet, Sets, Formatter, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
+import {ArraySet, HashMap, HashCode, Sets, Formatter, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
 
-export function jsCesk(semantics, cc)
+export function createMachine(semantics, cc)
 {
-  // gc
   const gcFlag = cc.gc === undefined ? true : cc.gc;
-  //
-  // const lenient = cc.lenient === undefined ? false : cc.lenient;
-  
   const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
-  
-
   const hardSemanticAsserts = cc.hardAsserts === undefined ? false : cc.hardAsserts;
-  
-  //const helpers = cc.helpers;
   
   const machine =
       {
@@ -72,11 +64,11 @@ export function jsCesk(semantics, cc)
   EvalState.prototype.next =
       function ()
       {
-        var store;
+        let store;
         if (gcFlag)
         {
           const as = this.addresses();
-          store = Agc.collect(this.store, as);
+          store = semantics.gc(this.store, as);
         }
         else
         {
@@ -96,12 +88,6 @@ export function jsCesk(semantics, cc)
         return as;
       }
   
-  // EvalState.prototype.currentStackStore =
-  //     function ()
-  //     {
-  //       return sstorei;
-  //     }
-  
   function KontState(value, store, lkont, kont)
   {
     assertDefinedNotNull(value);
@@ -113,12 +99,6 @@ export function jsCesk(semantics, cc)
     this._successors = null;
     this._sstorei = -1;
     this._id = -1;
-    
-    // if (value.isNonRef && value.isNonRef() && value.constructor.name === "TypeValue")
-    // {
-    //   print("precision loss", value, lkont[0] ? lkont[0].node.toString() : "");
-    //   //printCallStacks(Stackget(new Stack(lkont,kont)).unroll());
-    // }
   }
   
   KontState.prototype.isKontState = true;
@@ -180,24 +160,6 @@ export function jsCesk(semantics, cc)
       {
         return callStacks(this.lkont, this.kont);
       }
-  // KontState.prototype.currentStackStore =
-  //     function ()
-  //     {
-  //       return sstorei;
-  //     }
-  //
-  // KontState.prototype.queues =
-  //     function ()
-  //     {
-  //       return queues;
-  //     }
-  //
-  // KontState.prototype.contexts =
-  //     function ()
-  //     {
-  //       return contexts;
-  //     }
-  
   
   function ReturnState(value, store, lkont, kont)
   {
@@ -258,13 +220,6 @@ export function jsCesk(semantics, cc)
         return kont.addresses().join(this.value.addresses());
       }
   
-  // ReturnState.prototype.currentStackStore =
-  //     function ()
-  //     {
-  //       return sstorei;
-  //     }
-  
-  
   function ThrowState(value, store, lkont, kont)
   {
     this.value = value;
@@ -323,13 +278,6 @@ export function jsCesk(semantics, cc)
       {
         return kont.stackAddresses(lkont).join(this.value.addresses());
       }
-  
-  // ThrowState.prototype.currentStackStore =
-  //     function ()
-  //     {
-  //       return sstorei;
-  //     }
-  
   
   function BreakState(store, lkont, kont)
   {
@@ -438,12 +386,6 @@ export function jsCesk(semantics, cc)
       {
         return EMPTY_ADDRESS_SET;
       }
-  
-  // ErrorState.prototype.currentStackStore =
-  //     function ()
-  //     {
-  //       return sstorei;
-  //     }
   
   return semantics.initialize(cc.initialState, machine);
 }
@@ -673,48 +615,3 @@ function concExplore(ast)
     }
   }
 }
-
-const Agc = {};
-
-Agc.collect =
-    function (store, rootSet)
-    {
-      const reachable = MutableHashSet.empty();
-      Agc.addressesReachable(rootSet, store, reachable);
-      
-      // const cleanup = Arrays.removeAll(reachable.values(), store.map.keys())
-      // if (cleanup.length > 0)
-      // {
-      //   console.debug("cleaning up", cleanup);
-      // }
-      
-      if (reachable.count() === store.map.count()) // we can do this since we have subsumption
-      {
-        return store;
-      }
-      const store2 = store.narrow(reachable);
-      return store2;
-    }
-
-Agc.addressesReachable =
-    function (addresses, store, reachable)
-    {
-      addresses.forEach(
-          function (address)
-          {
-            Agc.addressReachable(address, store, reachable)
-          });
-    }
-
-Agc.addressReachable =
-    function (address, store, reachable)
-    {
-      if (reachable.contains(address))
-      {
-        return;
-      }
-      const aval = store.lookupAval(address);
-      const addresses = aval.addresses();
-      reachable.add(address);
-      Agc.addressesReachable(addresses, store, reachable);
-    }

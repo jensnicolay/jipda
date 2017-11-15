@@ -1,4 +1,4 @@
-import {HashCode, Strings, Sets, ArraySet, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
+import {HashCode, Strings, Sets, MutableHashSet, ArraySet, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
 import Ast from './ast.mjs';
 import {BOT} from './lattice.mjs';
 import Benv from './benv.mjs';
@@ -14,8 +14,6 @@ const EMPTY_ADDRESS_SET = ArraySet.empty();
 
 function createSemantics(lat, alloc, kalloc, cc)
 {
-  
-  
   const errors = cc.errors === undefined ? false : cc.errors;
   
   const fastPath = true;
@@ -35,6 +33,12 @@ function createSemantics(lat, alloc, kalloc, cc)
   const P_LENGTH = lat.abst1("length");
   const P_MESSAGE = lat.abst1("message");
   
+  
+  function gc_(store, rootSet)
+  {
+    store = Agc.collect(store, rootSet);
+    return store;
+  }
   
   function evaluate_(node, benv, store, lkont, kont, machine)
   {
@@ -5847,7 +5851,7 @@ function createSemantics(lat, alloc, kalloc, cc)
   return {
     initialize,
     evaluate: evaluate_, continue:continue_, return:return_, throw: throw_, break: break_,
-    enqueueScriptEvaluation};
+    gc: gc_, enqueueScriptEvaluation};
 }
 
 function SetValue(set)
@@ -5970,3 +5974,50 @@ Intrinsics.prototype.has =
     {
       return this.map.has(name);
     }
+
+
+const Agc = {};
+
+Agc.collect =
+    function (store, rootSet)
+    {
+      const reachable = MutableHashSet.empty();
+      Agc.addressesReachable(rootSet, store, reachable);
+      
+      // const cleanup = Arrays.removeAll(reachable.values(), store.map.keys())
+      // if (cleanup.length > 0)
+      // {
+      //   console.debug("cleaning up", cleanup);
+      // }
+      
+      if (reachable.count() === store.map.count()) // we can do this since we have subsumption
+      {
+        return store;
+      }
+      const store2 = store.narrow(reachable);
+      return store2;
+    }
+
+Agc.addressesReachable =
+    function (addresses, store, reachable)
+    {
+      addresses.forEach(
+          function (address)
+          {
+            Agc.addressReachable(address, store, reachable)
+          });
+    }
+
+Agc.addressReachable =
+    function (address, store, reachable)
+    {
+      if (reachable.contains(address))
+      {
+        return;
+      }
+      const aval = store.lookupAval(address);
+      const addresses = aval.addresses();
+      reachable.add(address);
+      Agc.addressesReachable(addresses, store, reachable);
+    }
+    

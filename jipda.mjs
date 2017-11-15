@@ -1,4 +1,4 @@
-import {jsCesk, performExplore} from './jsCesk.mjs';
+import {createMachine, performExplore} from './abstract-machine.mjs';
 
 // https://github.com/tc39/proposal-global
 function getGlobal()
@@ -21,7 +21,7 @@ if (!glob['performance'])
 
 export function computeInitialCeskState(semantics, ...srcs)
 {
-  let s0 = jsCesk(semantics, {errors:true, hardAsserts:true});
+  let s0 = createMachine(semantics, {errors:true, hardAsserts:true});
   let s1 = srcs.reduce((state, src) => state.enqueueScriptEvaluation(src), s0);
   const prelSystem = performExplore([s1]);
   console.log("prelude time: " + prelSystem.time + " states " + prelSystem.states.length);
