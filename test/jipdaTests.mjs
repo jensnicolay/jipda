@@ -3,35 +3,39 @@ import fs from 'fs';
 import {assert} from '../common';
 import Ast from '../ast';
 import {BOT} from '../lattice';
-import typeLattice from '../type-lattice';
 import concAlloc from '../conc-alloc';
-import tagAlloc from '../tag-alloc';
 import concKalloc from '../conc-kalloc';
+import typeLattice from '../type-lattice';
+import tagAlloc from '../tag-alloc';
 import aacKalloc from '../aac-kalloc';
+import {jsCesk, performExplore, computeResultValue} from '../jsCesk';
+import {computeInitialCeskState} from '../jipda';
+import createSemantics from '../js-semantics';
 import {TestSuite} from '../test';
-import {computeInitialCeskState, jsCesk, performExplore, computeResultValue, ScriptEvaluationJob} from '../jsCesk';
+
+typeLattice.sanity();
+
 
 const read = name => fs.readFileSync(name).toString();
 
 const ast0src = read("../prelude.js");
 
 var module = new TestSuite("suiteJipdaTests");
-  
-const initialCeskState = computeInitialCeskState(typeLattice, concAlloc, concKalloc, ast0src);
 
-
-typeLattice.sanity();
+const preludeJsSemantics = createSemantics(typeLattice, concAlloc, concKalloc, {errors:true});
+const initialCeskState = computeInitialCeskState(preludeJsSemantics, ast0src);
+const typeJsSemantics = createSemantics(typeLattice, tagAlloc, aacKalloc, {errors:true});
 
 function run(src, expected)
 {
-var ast = Ast.createAst(src);
-var initialState = jsCesk(typeLattice, tagAlloc, aacKalloc, {errors:true, gc:true, initialState: initialCeskState});
-initialState = initialState.enqJobs("ScriptJobs", [new ScriptEvaluationJob(src)]);
-var system = performExplore([initialState]);
-var result = computeResultValue(system.result);
-result.msgs.join("\n");
-var actual = result.value;
-assert(actual.subsumes(expected));
+  var ast = Ast.createAst(src);
+  var initialState = jsCesk(typeJsSemantics, {gc:true, initialState: initialCeskState});
+  initialState = initialState.enqueueScriptEvaluation(src);
+  var system = performExplore([initialState]);
+  var result = computeResultValue(system.result, typeLattice.bot());
+  result.msgs.join("\n");
+  var actual = result.value;
+  assert(actual.subsumes(expected));
 }
 
 module.test1a =

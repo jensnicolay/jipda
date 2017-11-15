@@ -1,4 +1,4 @@
-import esprima from 'esprima';
+import {parseScript} from './lib/esprima/esprima.mjs';
 
 const Ast = {};
 export default Ast;
@@ -532,7 +532,7 @@ Ast.createAst =
   function (source, config)
   {
     config = config || {loc:true, keepTagCounter:false};
-    var ast = esprima.parse(source, {loc:config.loc});
+    var ast = parseScript(source, {loc:config.loc});
     if (!config.keepTagCounter)
     {
       __nodeCounter__ = 0;

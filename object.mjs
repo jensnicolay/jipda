@@ -1,5 +1,5 @@
-import {HashMap, ArraySet, assertDefinedNotNull, assert} from './common';
-import {BOT} from './lattice';
+import {HashMap, ArraySet, assertDefinedNotNull, assert} from './common.mjs';
+import {BOT} from './lattice.mjs';
 
 function Prop(value, must)
 {

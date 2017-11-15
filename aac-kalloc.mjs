@@ -1,4 +1,4 @@
-import {assertDefinedNotNull} from './common';
+import {assertDefinedNotNull} from './common.mjs';
 
 export default function (callable, operandValues, store)
 {

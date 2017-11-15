@@ -1,5 +1,5 @@
-import {HashMap, ArraySet} from './common';
-import {BOT} from './lattice';
+import {HashMap, ArraySet} from './common.mjs';
+import {BOT} from './lattice.mjs';
 
 export default function Benv(map, global)
 {

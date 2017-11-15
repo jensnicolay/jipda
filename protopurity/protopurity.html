@@ -7,25 +7,160 @@
 	<link rel="stylesheet" href="../lib/web/codemirror/codemirror.css" type="text/css" media="all"/>
   <link rel="import" href="../prelude.js"/>
 	<title>JIPDA</title>
-	<script type="text/javascript" src="../lib/esprima.js"></script>
-	<script type="text/javascript" src="../common.js"></script>
-	<script type="text/javascript" src="../ast.js"></script>
-	<script type="text/javascript" src="../agc.js"></script>
-	<script type="text/javascript" src="../lattice.js"></script>
-  <script type="text/javascript" src="../conc-lattice.js"></script>
-  <script type="text/javascript" src="../conc-alloc.js"></script>
-  <script type="text/javascript" src="../conc-kalloc.js"></script>
-  <script type="text/javascript" src="../type-lattice.js"></script>
-  <script type="text/javascript" src="../tag-alloc.js"></script>
-  <script type="text/javascript" src="../aac-kalloc.js"></script>
-  <script type="text/javascript" src="../benv.js"></script>
-  <script type="text/javascript" src="../countingStore.js"></script>
-  <script type="text/javascript" src="../object.js"></script>
-  <script type="text/javascript" src="../jsCesk.js"></script>
-  <script type="text/javascript" src="../graph.js"></script>
-  <script type="text/javascript" src="purityAnalysis.js"></script>
-	<script type="text/javascript" src="protopurity.js"></script>
-	<script type="text/javascript" src="../pdg/pdg.js"></script> <!-- TEMPORARY, for hacking purposes -->
+	<script type="module">
+    import {assertEquals} from '../common.mjs';
+    import Ast from '../ast.mjs';
+    import concLattice from '../conc-lattice.mjs';
+    import typeLattice from '../type-lattice.mjs';
+    import concAlloc from '../conc-alloc.mjs';
+    import tagAlloc from '../tag-alloc.mjs';
+    import concKalloc from '../conc-kalloc.mjs';
+    import aacKalloc from '../aac-kalloc.mjs';
+    import createSemantics from '../js-semantics.mjs';
+    import {jsCesk, performExplore, computeResultValue} from '../jsCesk.mjs';
+    import {computeInitialCeskState} from '../jipda.mjs';
+
+    const ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
+
+    var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }
+    var editor, meta;
+    var ast, astNodes;
+    var system, cesk, states, graph, initial, result, contexts;
+    var ag, lat, kalloc;
+
+    function selectErrors()
+    {
+      print("here");
+      alert($('#errors'));
+      $('#errors').prop('checked', true);
+    }
+
+    function doIt()
+    {
+      $("#eval").attr("disabled", true);
+      editor.setOption("readOnly", true);
+      $("#snippet").attr("disabled", true);
+      $("#config").attr("disabled", true);
+      $("#errors").attr("readOnly", true);
+      $("#sg").empty();
+      const src = editor.getValue();
+      localStorage.protopuritySrc = src;
+      ast = Ast.createAst(src, {loc:true});
+      astNodes = [];
+      Ast.nodes(ast).forEach(function (n) {astNodes[n.tag] = n});
+      print(astNodes.length, "nodes in ast");
+      eval($("#config").val());
+      var errors = $("#errors").is(":checked");
+      var gc = true;
+  
+  
+      const preludeSemantics = createSemantics(lat, concAlloc, concKalloc, {errors: true});
+      const initialCeskState = computeInitialCeskState(preludeSemantics, ast0src);
+
+//    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date());
+//    console.profile(profileName);
+      var start = Date.now();
+  
+      const jsSemantics = createSemantics(lat, ag, kalloc, {errors: true});
+      var ast = Ast.createAst(src);
+      var initialState = jsCesk(jsSemantics, {initialState: initialCeskState});
+      initialState = initialState.enqueueScriptEvaluation(src);
+      system = performExplore([initialState]);
+      var time = Date.now() - start;
+  
+      result = system.result;
+      var actual = result.value;
+      console.log("analysis took " + time + " ms");
+      states = system.states;
+      console.log(states.length + " states; " + result.size + " results; ");// + contexts.length + " contexts");
+      const resultValue = computeResultValue(result, lat.bot());
+      console.log("result value " + resultValue.value);
+      if (errors && resultValue.msgs.length > 0)
+      {
+        console.log(resultValue.msgs.join("\n"));
+        resultValue.msgs.forEach(function (msg) {logOutput("error", msg)});
+      }
+  
+      if (system.states.length > 2048)
+      {
+        console.log("no graph (too many states)");
+        return;
+      }
+      //console.log(transitions.length + " transitions");
+      logOutput("analysis", states.length + /*"/" + transitions.length +*/ " " + time);
+      logOutput("result", resultValue.value);
+  
+      var g = createDagreGraph(states);
+      drawDagreGraph(g, states);
+    }
+
+    $(function ()
+    {
+      var srcParam = getUrlParameter("src");
+      if (srcParam)
+      {
+        $.ajax({
+          url : srcParam,
+          dataType: "text",
+          success : function (data) {
+            editor.setValue(data);
+          }
+        });
+      }
+  
+      CodeMirror.commands.autocomplete = function(cm) {
+        cm.showHint({hint: CodeMirror.hint.anyword});
+      }
+      editor = CodeMirror(document.getElementById("editor"),
+          {
+            value: localStorage.protopuritySrc || "",
+            mode: "javascript",
+            lineNumbers: true
+          });
+      meta = CodeMirror(document.getElementById("input"), Editors.metaConfig());
+      //meta.on("beforeChange", function (e, o) {if (e.getCursor().line < metaLine) {o.cancel()}}, false);
+      editor.on("dblclick", function (cm, e)
+      {
+        e.stopPropagation();
+        var pos = {left: e.pageX, top: e.pageY};
+        var editorPos = cm.coordsChar(pos, "page");
+        var astNode = editorPosToAstNode(editorPos);
+        logInput("astNodes[" + astNode.tag + "]");
+        highlightAstNodeInSource(astNode);
+        highlightAstNodeInGraph(astNode);
+      });
+  
+      $('#left').resizable({handles: 'e'});
+  
+      /* 	       $('#config').on('change', function (e) {
+                 var optionSelected = $("option:selected", this);
+                 var valueSelected = this.value;
+                 alert(valueSelected);
+                    }) */
+  
+      $("#snippet").change(
+          function ()
+          {
+            const srcParam = this.value;
+            $.ajax({
+              url : srcParam,
+              dataType: "text",
+              success : function (data) {
+                editor.setValue(data);
+              }})
+          });
+  
+      if (getUrlParameter("eval"))
+      {
+        console.log("doing it");
+        setTimeout(doIt, 200);
+      }
+      else
+      {
+        $("#eval").click(doIt);
+      }
+    })
+  </script>
 	<script type="text/javascript" src="../lib/web/jquery-2.1.1.min.js"></script>
 	<script type="text/javascript" src="../lib/web/jquery-ui-1.11.1/jquery-ui.min.js"></script>
 	<script type="text/javascript" src="../lib/web/codemirror/codemirror.js"></script>
@@ -35,165 +170,6 @@
 	<script type="text/javascript" src="../lib/web/d3.min.js"></script>
 	<script type="text/javascript" src="../lib/web/dagre-d3.min.js"></script>
 	<script type="text/javascript" src="../lib/web/dagregraphs.js"></script>
-	<script type="text/javascript">
-	
-	"use strict";
-	
-  var print = function () { console.log(Array.prototype.slice.call(arguments).join(" ")) }
-	var editor, meta;
-	var ast, astNodes;
-	var system, cesk, states, graph, initial, result, contexts;
-	var ag, lat, kalloc;
-	
-  
-  /* SHORTCUTS */
-	function purity()
-	{
-	  //console.profile();
-	  var pmap = computePurity(ast, initial);
-	  displayPurity(ast, pmap);
-	  //console.profileEnd();
-	  return result;
-	}
-	/* END SHORTCUTS*/
-  
-  function selectErrors()
-	{
-	  print("here");
-	  alert($('#errors'));
-	  $('#errors').prop('checked', true);
-	}
-	
-	function doIt()
-	{
-	  $("#eval").attr("disabled", true);
-	  editor.setOption("readOnly", true);
-		$("#snippet").attr("disabled", true);
-		$("#config").attr("disabled", true);
-    $("#errors").attr("readOnly", true);
-		$("#sg").empty();
-	  const src = editor.getValue();
-    localStorage.protopuritySrc = src;
-	  ast = Ast.createAst(src, {loc:true});
-    astNodes = [];
-    Ast.nodes(ast).forEach(function (n) {astNodes[n.tag] = n});
-	  print(astNodes.length, "nodes in ast");
-    eval($("#config").val());
-    var errors = $("#errors").is(":checked"); 
-    var gc = true;
-    
-    
-    var ast0src = document.querySelector('link[rel="import"]').import.body.textContent;
-    const initialCeskState = computeInitialCeskState(lat, concAlloc, concKalloc, ast0src);
-	  
-	  logOutput("analysis", "a " + ag + ", l " + lat + ", gc " + gc + ", errors " + errors);
-	  
-//    var profileName = (function (date) {return date.getHours() + ":" + date.getMinutes()})(new Date());
-//    console.profile(profileName);
-    var start = Date.now();
-		
-    initial = jsCesk(lat, ag, kalloc, {errors:true, gc:true, initialState: initialCeskState});
-		initial = initial.enqJobs("ScriptJobs", [new ScriptEvaluationJob(src)]);
-		system = performExplore([initial]);
-    
-    
-    var time = Date.now() - start;
-//    console.profileEnd(profileName);
-    //assert(initial === system.initial);
-    result = system.result;
-    contexts = "system.contexts"; // unavailable!
-    console.log("analysis took " + time + " ms");
-    states = system.states;
-    console.log(states.length + " states; " + result.size + " results; " + contexts.length + " contexts");
-    var result = computeResultValue(system.result);
-    var resultValue = result.value;
-    console.log("result value " + resultValue);
-    if (errors && result.msgs.length > 0)
-    {
-      console.log(result.msgs.join("\n"));
-      result.msgs.forEach(function (msg) {logOutput("error", msg)});
-    }
-    
-    //purity();
-
-    if (system.states.length > 2048)
-    {
-      console.log("no graph (too many states)");
-      return;
-    }
-    
-    //console.log(transitions.length + " transitions");
-    logOutput("analysis", states.length + /*"/" + transitions.length +*/ " " + time);
-    logOutput("result", resultValue);
-    
-    var g = createDagreGraph(states);
-    drawDagreGraph(g);
- 	}		
-	
-	
-	 $(function ()
-	     {
-	       var srcParam = getUrlParameter("src");
-	       if (srcParam)
-	       {
-	         $.ajax({
-	           url : srcParam,
-	           dataType: "text",
-	           success : function (data) {
-	               editor.setValue(data);
-	           }
-	       });
-	       }
-	       
-	       CodeMirror.commands.autocomplete = function(cm) {
-	         cm.showHint({hint: CodeMirror.hint.anyword});
-	       }
-	       editor = CodeMirror(document.getElementById("editor"),
-	           {
-	             value: localStorage.protopuritySrc || "", 
-	             mode: "javascript",
-	             lineNumbers: true 
-	           });
-	       meta = CodeMirror(document.getElementById("input"), Editors.metaConfig());
-	       //meta.on("beforeChange", function (e, o) {if (e.getCursor().line < metaLine) {o.cancel()}}, false);
-	       editor.on("dblclick", function (cm, e) 
-	           {
-	             e.stopPropagation();
-	             var pos = {left: e.pageX, top: e.pageY};
-	             var editorPos = cm.coordsChar(pos, "page");
-	             var astNode = editorPosToAstNode(editorPos);
-	             logInput("astNodes[" + astNode.tag + "]");
-	             highlightAstNodeInSource(astNode);
-	             highlightAstNodeInGraph(astNode);
-	           });
-	       
-	       $('#left').resizable({handles: 'e'});
-	       
-/* 	       $('#config').on('change', function (e) {
-	         var optionSelected = $("option:selected", this);
-	         var valueSelected = this.value;
-	         alert(valueSelected);
-	            }) */
-
-				 $("#snippet").change(
-				 		function ()
-						{
-							const srcParam = this.value;
-							$.ajax({
-								url : srcParam,
-								dataType: "text",
-								success : function (data) {
-									editor.setValue(data);
-								}})
-						});
-	       
-	       if (getUrlParameter("eval"))
-	       {               
-	         console.log("doing it");
-	         setTimeout(doIt, 200);
-	       }
-	     })
-	</script>
 </head>
 
 <body>
@@ -216,12 +192,12 @@
 		</select>
     <span>
       <select id="config" title="value lattice">
-        <option value="(lat=new TypeLattice(),ag=tagAlloc,kalloc=aacKalloc)">abst</option>
-        <option value="(lat=new ConcLattice(),ag=concAlloc,kalloc=concKalloc)">conc</option>
+        <option value="(lat=typeLattice,ag=tagAlloc,kalloc=aacKalloc)">abst</option>
+        <option value="(lat=concLattice,ag=concAlloc,kalloc=concKalloc)">conc</option>
       </select>
     </span>
     <input id="errors" type="checkbox" checked="true">errors</input>
-		<button id="eval" name="eval" onClick="doIt()">Eval</button>
+		<button id="eval" name="eval">Eval</button>
 		<div id="meta">
 			<div id="output"></div>
 			<div id="input"></div>

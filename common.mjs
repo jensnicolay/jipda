@@ -535,22 +535,28 @@ String.prototype.equals =
   }
   
 String.prototype.hashCode =
-  function()
+  function ()
   {
-    var l = this.length;
-    if (l === 0)
-    {
-      return 0;
-    }
-    var result = 1;
-    for (var i = 0; i < l; i++)
-    {
-      result = (31 * result + this.charCodeAt(i)) >> 0;
-    }
-    return result;
+    return Strings.hashCode(this);
   }
   
 export const Strings = {};
+
+Strings.hashCode =
+    function (x)
+    {
+      var l = x.length;
+      if (l === 0)
+      {
+        return 0;
+      }
+      var result = 1;
+      for (var i = 0; i < l; i++)
+      {
+        result = (31 * result + x.charCodeAt(i)) >> 0;
+      }
+      return result;
+    }
 
 Strings.smartTrim =
     function (s, l = 30)

@@ -1,5 +1,5 @@
-import {HashCode, ArraySet, assert} from './common';
-import {BOT} from './lattice';
+import {HashCode, ArraySet, assert} from './common.mjs';
+import {BOT} from './lattice.mjs';
 
 TypeValue.UND = 1 << 0;
 TypeValue.NULL = 1 << 1;
@@ -48,7 +48,11 @@ function abst1(value)
 }
 
 export default {
-  
+  bot:
+      function ()
+      {
+        return BOT;
+      },
   abst:
     function (cvalues)
     {

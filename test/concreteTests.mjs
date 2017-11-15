@@ -5,24 +5,28 @@ import Ast from '../ast';
 import concLattice from '../conc-lattice';
 import concAlloc from '../conc-alloc';
 import concKalloc from '../conc-kalloc';
+import createSemantics from '../js-semantics';
+import {jsCesk, performExplore, computeResultValue} from '../jsCesk';
+import {computeInitialCeskState} from '../jipda';
 import {TestSuite} from '../test';
-import {computeInitialCeskState, jsCesk, performExplore, computeResultValue, ScriptEvaluationJob} from '../jsCesk';
 
 const read = name => fs.readFileSync(name).toString();
 
 const ast0src = read("../prelude.js");
 
 const module = new TestSuite("suiteConcreteTests");
+
+const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
   
-const initialCeskState = computeInitialCeskState(concLattice, concAlloc, concKalloc, ast0src);
+const initialCeskState = computeInitialCeskState(jsSemantics, ast0src);
   
   function run(src, expected)
   {
     var ast = Ast.createAst(src);
-    var initialState = jsCesk(concLattice, concAlloc, concKalloc, {errors:true, hardAsserts:true, initialState: initialCeskState});
-    initialState = initialState.enqJobs("ScriptJobs", [new ScriptEvaluationJob(src)]);
+    var initialState = jsCesk(jsSemantics, {hardAsserts:true, initialState: initialCeskState});
+    initialState = initialState.enqueueScriptEvaluation(src);
     var system = performExplore([initialState]);
-    var result = computeResultValue(system.result);
+    var result = computeResultValue(system.result, concLattice.bot());
     result.msgs.join("\n");
     var actual = result.value;
     assertEquals(concLattice.abst1(expected), actual);

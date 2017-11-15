@@ -1,4 +1,4 @@
-import {TrieMap} from './common';
+import {TrieMap} from './common.mjs';
 
 function StoreValue(aval, fresh)
 {

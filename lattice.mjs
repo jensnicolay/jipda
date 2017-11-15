@@ -1,4 +1,4 @@
-import {ArraySet} from './common';
+import {ArraySet} from './common.mjs';
 
 export const BOT = Object.create(null); // should be 'const', but gives problems with rebuilding
 BOT.join = function (other) { return other };

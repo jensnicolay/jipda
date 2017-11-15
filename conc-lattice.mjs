@@ -1,7 +1,12 @@
-import {HashCode, ArraySet} from './common';
-import {BOT} from './lattice';
+import {HashCode, ArraySet} from './common.mjs';
+import {BOT} from './lattice.mjs';
 
 export default {
+  bot:
+    function ()
+    {
+      return BOT;
+    },
   toString:
     function ()
     {
