@@ -8,7 +8,7 @@ import concKalloc from '../conc-kalloc';
 import typeLattice from '../type-lattice';
 import tagAlloc from '../tag-alloc';
 import aacKalloc from '../aac-kalloc';
-import {createMachine, performExplore, computeResultValue, computeInitialCeskState} from '../abstract-machine';
+import {createMachine, explore, computeResultValue, computeInitialCeskState} from '../abstract-machine';
 import {} from '../jipda';
 import createSemantics from '../js-semantics';
 import {TestSuite} from '../test';
@@ -31,7 +31,7 @@ function run(src, expected)
   var ast = Ast.createAst(src);
   var initialState = createMachine(typeJsSemantics, {gc:true, initialState: initialCeskState});
   initialState = initialState.enqueueScriptEvaluation(src);
-  var system = performExplore([initialState]);
+  var system = explore([initialState]);
   var result = computeResultValue(system.result, typeLattice.bot());
   result.msgs.join("\n");
   var actual = result.value;

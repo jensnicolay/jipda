@@ -6,7 +6,7 @@ import concLattice from '../conc-lattice';
 import concAlloc from '../conc-alloc';
 import concKalloc from '../conc-kalloc';
 import createSemantics from '../js-semantics';
-import {createMachine, performExplore, computeResultValue, computeInitialCeskState} from '../abstract-machine';
+import {createMachine, explore, computeResultValue, computeInitialCeskState} from '../abstract-machine';
 import {} from '../jipda';
 import {TestSuite} from '../test';
 
@@ -25,7 +25,7 @@ const initialCeskState = computeInitialCeskState(jsSemantics, ast0src);
     var ast = Ast.createAst(src);
     var initialState = createMachine(jsSemantics, {hardAsserts:true, initialState: initialCeskState});
     initialState = initialState.enqueueScriptEvaluation(src);
-    var system = performExplore([initialState]);
+    var system = explore([initialState]);
     var result = computeResultValue(system.result, concLattice.bot());
     result.msgs.join("\n");
     var actual = result.value;

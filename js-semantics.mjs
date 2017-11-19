@@ -40,6 +40,12 @@ function createSemantics(lat, alloc, kalloc, cc)
     return store;
   }
   
+  // function pushKont_(applyFun, lkont)
+  // {
+  //   const frame = new GenericKont(applyFun);
+  //   [frame].concat(lkont)
+  // }
+  
   function evaluate_(node, benv, store, lkont, kont, machine)
   {
     switch (node.type)
@@ -3145,6 +3151,48 @@ function createSemantics(lat, alloc, kalloc, cc)
         store = doProtoSet(nameValue, newValue, objectRef, store);
         return [machine.continue(newValue, store, lkont, kont)];
       }
+  
+  // let genericCounter = 0;
+  // function GenericKont(f)
+  // {
+  //   this.f = f;
+  //   this.counter = genericCounter++;
+  // }
+  //
+  // GenericKont.prototype.equals =
+  //     function (x)
+  //     {
+  //       return x instanceof GenericKont
+  //           && this.counter === x.counter
+  //     }
+  // GenericKont.prototype.hashCode =
+  //     function ()
+  //     {
+  //       var prime = 31;
+  //       var result = 1;
+  //       result = prime * result + this.genericCounter;
+  //       return result;
+  //     }
+  // GenericKont.prototype.toString =
+  //     function ()
+  //     {
+  //       return "generic-" + this.counter;
+  //     }
+  // GenericKont.prototype.nice =
+  //     function ()
+  //     {
+  //       return "generic-" + this.counter;
+  //     }
+  // GenericKont.prototype.addresses =
+  //     function ()
+  //     {
+  //       return EMPTY_ADDRESS_SET;
+  //     }
+  // GenericKont.prototype.apply =
+  //     function (value, store, lkont, kont, machine)
+  //     {
+  //       return f(value, store, lkont, kont, machine);
+  //     }
   
   
   function doScopeLookup(nameNode, benv, store, kont)

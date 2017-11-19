@@ -442,7 +442,7 @@ export function computeResultValue(endStates, bot)
   return {value:result, msgs:msgs};
 }
 
-export function performExplore(initialStates)
+export function explore(initialStates)
 {
   
   function stateGet(s)
@@ -585,12 +585,34 @@ export function performExplore(initialStates)
   return {result, states, time: performance.now() - startTime};
 }
 
+export function run(initialStates)
+{
+  const startTime = performance.now();
+  const todo = initialStates;
+  const result = new Set();
+  while (todo.length > 0)
+  {
+    const s = todo.pop();
+    const next = s.next();
+    if (next.length === 0)
+    {
+      result.add(s);
+      continue;
+    }
+    for (const s2 of next)
+    {
+      todo.push(s2);
+    }
+  }
+  return {result, time: performance.now() - startTime};
+}
+
 export function computeInitialCeskState(semantics, ...srcs)
 {
   let s0 = createMachine(semantics, {errors:true, hardAsserts:true});
   let s1 = srcs.reduce((state, src) => state.enqueueScriptEvaluation(src), s0);
-  const prelSystem = performExplore([s1]);
-  console.log("prelude time: " + prelSystem.time + " states " + prelSystem.states.length);
+  const prelSystem = run([s1]);
+  console.log("prelude time: " + prelSystem.time);
   const prelResult = prelSystem.result;
   if (prelResult.size !== 1) // maybe check this in a dedicated concExplore?
   {
