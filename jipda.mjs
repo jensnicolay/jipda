@@ -1,5 +1,5 @@
 // https://github.com/tc39/proposal-global
-function getGlobal()
+export function getGlobal()
 {
   if (typeof self !== 'undefined') { return self; }
   if (typeof window !== 'undefined') { return window; }

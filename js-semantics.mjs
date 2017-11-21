@@ -48,6 +48,7 @@ function createSemantics(lat, alloc, kalloc, cc)
   
   function evaluate_(node, benv, store, lkont, kont, machine)
   {
+    //print(node.toString());
     switch (node.type)
     {
       case "Literal":
@@ -5841,7 +5842,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       
       function _print(application, operandValues, thisValue, benv, store, lkont, kont, machine)
       {
-        console.log(operandValues);
+        console.log.apply(null, operandValues);
         return [machine.continue(L_UNDEFINED, store, lkont, kont)];
       }
       
