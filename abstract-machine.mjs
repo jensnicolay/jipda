@@ -442,7 +442,10 @@ export function computeResultValue(endStates, bot)
   return {value:result, msgs:msgs};
 }
 
-export function explore(initialStates)
+export function explore(initialStates,
+                        endState = (s) => {}, // callbacks
+                        newState = (s) => {},
+                        newTransition = (s0, s1) => {})
 {
   
   function stateGet(s)
@@ -524,7 +527,7 @@ export function explore(initialStates)
   const states = []; // do not pre-alloc
   var startTime = performance.now();
   var id = 0;
-  const todo = initialStates.map(stateGet);
+  const todo = initialStates.map(stateGet); // invariant: all to-do states are interned
   var result = new Set();
   let sstorei = -1;
   while (todo.length > 0)
@@ -544,45 +547,49 @@ export function explore(initialStates)
       continue;
     }
     s._sstorei = sstorei;
-    var next = s._successors;
-    if (next && s.isEvalState)
+    const knownSuccessors = s._successors;
+    if (knownSuccessors && s.isEvalState)
     {
-      for (const s2 of next)
+      for (const knownSuccessor of knownSuccessors)
       {
-        todo.push(s2);
+        todo.push(knownSuccessor);
       }
       continue;
     }
-    next = s.next();
+    const next = s.next();
     s._successors = next;
     if (next.length === 0)
     {
-      result.add(s);
+      endState(s);
       continue;
     }
-    // if (next.length > 1)
-    // {
-    //   print("branch", next.length, s.nice());
-    //   //printCallStacks(Stackget(new Stack(s.lkont, s.kont)).unroll());
-    // }
-    for (var i = 0; i < next.length; i++)
+    for (let i = 0; i < next.length; i++)
     {
-      var s2 = next[i];
-      var ss2 = stateGet(s2);
-      if (ss2 !== s2)
+      const successor = next[i];
+      const successorInterned = stateGet(successor);
+      if (successor !== successorInterned) // existing state
       {
-        next[i] = ss2;
-        todo.push(ss2);
+        if (!knownSuccessors || !knownSuccessors.includes(successorInterned)) // new transition
+        {
+          newTransition(s, successorInterned);
+        }
+        next[i] = successorInterned;
+        todo.push(successorInterned);
         continue;
       }
-      todo.push(ss2);
+      else // new state, so new transition
+      {
+        newState(successorInterned);
+        newTransition(s, successorInterned);
+      }
+      todo.push(successorInterned);
       if (states.length % 10000 === 0)
       {
         console.log(Formatter.displayTime(performance.now() - startTime), "states", states.length, "todo", todo.length, "ctxs", "contexts.length", "sstorei", sstorei);
       }
     }
   }
-  return {result, states, time: performance.now() - startTime};
+  return {time: performance.now() - startTime, states};
 }
 
 export function run(initialStates)
