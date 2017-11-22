@@ -442,7 +442,10 @@ export function computeResultValue(endStates, bot)
   return {value:result, msgs:msgs};
 }
 
-export function explore(initialStates)
+export function explore(initialStates,
+                        endState = s => undefined, // callbacks
+                        newState = s => undefined,
+                        newTransition = (s0, s1) => undefined)
 {
   
   function stateGet(s)
@@ -524,7 +527,7 @@ export function explore(initialStates)
   const states = []; // do not pre-alloc
   var startTime = performance.now();
   var id = 0;
-  const todo = initialStates.map(stateGet);
+  const todo = initialStates.map(stateGet); // invariant: all to-do states are interned
   var result = new Set();
   let sstorei = -1;
   while (todo.length > 0)
@@ -544,59 +547,63 @@ export function explore(initialStates)
       continue;
     }
     s._sstorei = sstorei;
-    var next = s._successors;
-    if (next && s.isEvalState)
+    const knownSuccessors = s._successors;
+    if (knownSuccessors && s.isEvalState)
     {
-      for (const s2 of next)
+      for (const knownSuccessor of knownSuccessors)
       {
-        todo.push(s2);
+        todo.push(knownSuccessor);
       }
       continue;
     }
-    next = s.next();
+    const next = s.next();
     s._successors = next;
     if (next.length === 0)
     {
-      result.add(s);
+      endState(s);
       continue;
     }
-    // if (next.length > 1)
-    // {
-    //   print("branch", next.length, s.nice());
-    //   //printCallStacks(Stackget(new Stack(s.lkont, s.kont)).unroll());
-    // }
-    for (var i = 0; i < next.length; i++)
+    for (let i = 0; i < next.length; i++)
     {
-      var s2 = next[i];
-      var ss2 = stateGet(s2);
-      if (ss2 !== s2)
+      const successor = next[i];
+      const successorInterned = stateGet(successor);
+      if (successor !== successorInterned) // existing state
       {
-        next[i] = ss2;
-        todo.push(ss2);
+        if (!knownSuccessors || !knownSuccessors.includes(successorInterned)) // new transition
+        {
+          newTransition(s, successorInterned);
+        }
+        next[i] = successorInterned;
+        todo.push(successorInterned);
         continue;
       }
-      todo.push(ss2);
+      else // new state, so new transition
+      {
+        newState(successorInterned);
+        newTransition(s, successorInterned);
+      }
+      todo.push(successorInterned);
       if (states.length % 10000 === 0)
       {
         console.log(Formatter.displayTime(performance.now() - startTime), "states", states.length, "todo", todo.length, "ctxs", "contexts.length", "sstorei", sstorei);
       }
     }
   }
-  return {result, states, time: performance.now() - startTime};
+  return {time: performance.now() - startTime, states};
 }
 
-export function run(initialStates)
+export function run(initialStates,
+                    endState = s => undefined)
 {
   const startTime = performance.now();
   const todo = initialStates;
-  const result = new Set();
   while (todo.length > 0)
   {
     const s = todo.pop();
     const next = s.next();
     if (next.length === 0)
     {
-      result.add(s);
+      endState(s);
       continue;
     }
     for (const s2 of next)
@@ -604,23 +611,23 @@ export function run(initialStates)
       todo.push(s2);
     }
   }
-  return {result, time: performance.now() - startTime};
+  return {time: performance.now() - startTime};
 }
 
 export function computeInitialCeskState(semantics, ...srcs)
 {
   let s0 = createMachine(semantics, {errors:true, hardAsserts:true});
   let s1 = srcs.reduce((state, src) => state.enqueueScriptEvaluation(src), s0);
-  const prelSystem = run([s1]);
-  console.log("prelude time: " + prelSystem.time);
-  const prelResult = prelSystem.result;
-  if (prelResult.size !== 1) // maybe check this in a dedicated concExplore?
+  const resultStates = new Set();
+  const prelSystem = run([s1], s => resultStates.add(s));
+  //console.log("prelude time: " + prelSystem.time);
+  if (resultStates.size !== 1) // maybe check this in a dedicated concExplore?
   {
-    throw new Error("wrong number of prelude results: " + prelResult.size);
+    throw new Error("wrong number of prelude results: " + resultStates.size);
   }
-  const prelState = [...prelResult][0];
-  const store = [...prelResult][0].store;
-  const realm = [...prelResult][0].kont.realm;
+  const prelState = [...resultStates][0];
+  const store = prelState.store;
+  const realm = prelState.kont.realm;
   
   const ceskState = {store, realm};
   return ceskState;
