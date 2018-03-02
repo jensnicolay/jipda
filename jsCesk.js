@@ -5265,6 +5265,7 @@ function jsCesk(cc)
     }
     if (nodes.length === 1)
     {
+      console.log("!" + nodes.length + " " + nodes[0]);
       return [new EvalState(nodes[0], benv, store, lkont, kont)];
     }
     var frame = new BodyKont(node, 1, benv);
