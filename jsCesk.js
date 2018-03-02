@@ -5265,8 +5265,7 @@ function jsCesk(cc)
     }
     if (nodes.length === 1)
     {
-//      return kont.unch(new EvalState(nodes[0], benv, store));
-      return evalNode(nodes[0], benv, store, lkont, kont);
+      return [new EvalState(nodes[0], benv, store, lkont, kont)];
     }
     var frame = new BodyKont(node, 1, benv);
     return [new EvalState(nodes[0], benv, store, [frame].concat(lkont), kont)];
