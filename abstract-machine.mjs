@@ -92,6 +92,7 @@ export function createMachine(semantics, cc)
   {
     assertDefinedNotNull(value);
     assertDefinedNotNull(store);
+    assertDefinedNotNull(kont);
     this.value = value;
     this.store = store;
     this.lkont = lkont;
@@ -556,7 +557,7 @@ export function explore(initialStates,
       }
       continue;
     }
-    const next = s.next();
+    const next = [...s.next()];
     s._successors = next;
     if (next.length === 0)
     {
@@ -566,6 +567,25 @@ export function explore(initialStates,
     for (let i = 0; i < next.length; i++)
     {
       const successor = next[i];
+
+      ///
+      // if (successor.next instanceof Function &&
+      //   (successor.isEvalState
+      //   || successor.isKontState
+      //   || successor.isReturnState
+      //   || successor.isThrowState
+      //   || successor.isBreakState
+      //   || successor.isErrorState))
+      // {}
+      // else
+      // {
+      //   console.log(s);
+      //   console.log("===>");
+      //   console.log(successor);
+      //   throw new Error(s);
+      // }
+      ///
+
       const successorInterned = stateGet(successor);
       if (successor !== successorInterned) // existing state
       {
@@ -601,14 +621,31 @@ export function run(initialStates,
   {
     const s = todo.pop();
     const next = s.next();
-    if (next.length === 0)
-    {
-      endState(s);
-      continue;
-    }
+    let length = 0;
     for (const s2 of next)
     {
+      length++;
+      // ///
+      // if (s2.next instanceof Function &&
+      //   (s2.isEvalState
+      //   || s2.isKontState
+      //   || s2.isReturnState
+      //   || s2.isThrowState
+      //   || s2.isBreakState
+      //   || s2.isErrorState))
+      // {}
+      // else
+      // {
+      //   console.log(s);
+      //   throw new Error(s);
+      // }
+      // ///
+
       todo.push(s2);
+    }
+    if (length === 0)
+    {
+      endState(s);
     }
   }
   return {time: performance.now() - startTime};

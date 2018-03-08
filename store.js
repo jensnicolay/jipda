@@ -1,5 +1,4 @@
 "use strict";
-"use strong";
 
 function Store(map)
 {
