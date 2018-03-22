@@ -35,7 +35,7 @@ export function createEvaluator(semantics)
 }
 
 
-export function computeInitialCeskState(semantics, ...srcs)
+function computeInitialCeskState(semantics, ...srcs)
 {
   const result = semantics.initialize(null,
       {
@@ -60,9 +60,9 @@ export function computeInitialCeskState(semantics, ...srcs)
   }
   const prelState = [...prelResult][0];
   const store = [...prelResult][0].store;
-  const realm = [...prelResult][0].kont.realm;
+  const kont = [...prelResult][0].kont;
   
-  const ceskState = {store, realm};
+  const ceskState = {store, kont};
   return ceskState;
 }
 

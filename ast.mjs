@@ -479,6 +479,8 @@ Ast.isFunctionDeclaration =
   {
     node.tag = __nodeCounter__++; 
   }
+
+Ast.tagNode = tagNode;
   
   //var __symCounter__ = 0;
   //function gensym(prefix)

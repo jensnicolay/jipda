@@ -23,16 +23,16 @@ const ast0src = read("../prelude.js");
 var module = new TestSuite("suiteJipdaTests");
 
 const preludeJsSemantics = createSemantics(typeLattice, concAlloc, concKalloc, {errors:true});
-const initialCeskState = computeInitialCeskState(preludeJsSemantics, ast0src);
+const s0 = computeInitialCeskState(preludeJsSemantics, ast0src);
 const typeJsSemantics = createSemantics(typeLattice, tagAlloc, aacKalloc, {errors:true});
 
 function run(src, expected)
 {
   var ast = Ast.createAst(src);
-  var initialState = createMachine(typeJsSemantics, {gc:true, initialState: initialCeskState});
-  initialState = initialState.enqueueScriptEvaluation(src);
+  const s1 = s0.switchMachine(typeJsSemantics, {gc:true});
+  const s2 = s1.enqueueScriptEvaluation(src);
   const resultStates = new Set();
-  var system = explore([initialState], s => resultStates.add(s));
+  var system = explore([s2], s => resultStates.add(s));
   var result = computeResultValue(resultStates, typeLattice.bot());
   result.msgs.join("\n");
   var actual = result.value;

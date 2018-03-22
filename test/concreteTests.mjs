@@ -13,25 +13,24 @@ import {TestSuite} from '../test';
 const read = name => fs.readFileSync(name).toString();
 
 const ast0src = read("../prelude.js");
-
-const module = new TestSuite("suiteConcreteTests");
-
 const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-  
-const initialCeskState = computeInitialCeskState(jsSemantics, ast0src);
+const s0 = computeInitialCeskState(jsSemantics, ast0src);
   
   function run(src, expected)
   {
     var ast = Ast.createAst(src);
-    var initialState = createMachine(jsSemantics, {hardAsserts:true, initialState: initialCeskState});
-    initialState = initialState.enqueueScriptEvaluation(src);
+    const s1 = s0.switchMachine(jsSemantics, {hardAsserts:true});
+    const s2 = s1.enqueueScriptEvaluation(src);
     const resultStates = new Set();
-    var system = explore([initialState], s => resultStates.add(s));
+    var system = explore([s2], s => resultStates.add(s));
     var result = computeResultValue(resultStates, concLattice.bot());
-    result.msgs.join("\n");
+    //console.log(result.msgs.join("\n"));
     var actual = result.value;
     assertEquals(concLattice.abst1(expected), actual);
   }
+
+const module = new TestSuite("suiteConcreteTests");
+
 
   module.test1 =
     function ()

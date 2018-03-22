@@ -3,16 +3,19 @@ import {ArraySet, HashMap, HashCode, Sets, Formatter, assert, assertDefinedNotNu
 export function createMachine(semantics, cc)
 {
   const gcFlag = cc.gc === undefined ? true : cc.gc;
-  const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
-  const hardSemanticAsserts = cc.hardAsserts === undefined ? false : cc.hardAsserts;
-  
+  //const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
+  //const hardSemanticAsserts = cc.hardAsserts === undefined ? false : cc.hardAsserts;
+
+  const rootSet = cc.rootSet || ArraySet.empty();
   const machine =
       {
         evaluate: (exp, benv, store, lkont, kont) => new EvalState(exp, benv, store, lkont, kont),
         continue: (value, store, lkont, kont) => new KontState(value, store, lkont, kont),
         return: (value, store, lkont, kont) => new ReturnState(value, store, lkont, kont),
         throw: (value, store, lkont, kont) => new ThrowState(value, store, lkont, kont),
-        break: (store, lkont, kont) => new BreakState(store, lkont, kont)
+        break: (store, lkont, kont) => new BreakState(store, lkont, kont),
+
+        //initialize: initialState => semantics.initialize(initialState, this)
       }
   
   function EvalState(node, benv, store, lkont, kont)
@@ -67,8 +70,10 @@ export function createMachine(semantics, cc)
         let store;
         if (gcFlag)
         {
-          const as = this.addresses();
+          const as = this.addresses().join(rootSet);
           store = semantics.gc(this.store, as);
+          // console.log("gc " + rootSet);
+          // console.log(store.diff(this.store));
         }
         else
         {
@@ -146,7 +151,7 @@ export function createMachine(semantics, cc)
   KontState.prototype.addresses =
       function ()
       {
-        return kont.stackAddresses(lkont).join(this.value.addresses());
+        return this.kont.stackAddresses(this.lkont).join(this.value.addresses());
       }
   KontState.prototype.enqueueScriptEvaluation =
       function (src)
@@ -155,7 +160,21 @@ export function createMachine(semantics, cc)
         store = semantics.enqueueScriptEvaluation(src, store);
         return new KontState(this.value, store, this.lkont, this.kont);
       }
-  
+    KontState.prototype.enqueueJob =
+      function (job)
+      {
+        let store = this.store;
+        store = semantics.enqueueJob("ScriptJobs", job, store);
+        return new KontState(this.value, store, this.lkont, this.kont);
+      }
+
+  KontState.prototype.switchMachine =
+      function (semantics, cc)
+      {
+        const machine = createMachine(semantics, cc);
+        return machine.continue(this.value, this.store, this.lkont, this.kont);
+      }
+
   KontState.prototype.callStacks =
       function ()
       {
@@ -388,7 +407,8 @@ export function createMachine(semantics, cc)
         return EMPTY_ADDRESS_SET;
       }
   
-  return semantics.initialize(cc.initialState, machine);
+  //return semantics.initialize(cc.initialState, machine);
+  return machine;
 }
 
 function retrieveEndStates(initial) // not used for the moment
@@ -653,8 +673,9 @@ export function run(initialStates,
 
 export function computeInitialCeskState(semantics, ...srcs)
 {
-  let s0 = createMachine(semantics, {errors:true, hardAsserts:true});
-  let s1 = srcs.reduce((state, src) => state.enqueueScriptEvaluation(src), s0);
+  const machine = createMachine(semantics, {errors:true, hardAsserts:true});
+  const s0 = semantics.initialize(machine);
+  const s1 = srcs.reduce((state, src) => state.enqueueScriptEvaluation(src), s0);
   const resultStates = new Set();
   const prelSystem = run([s1], s => resultStates.add(s));
   //console.log("prelude time: " + prelSystem.time);
@@ -663,9 +684,10 @@ export function computeInitialCeskState(semantics, ...srcs)
     throw new Error("wrong number of prelude results: " + resultStates.size);
   }
   const prelState = [...resultStates][0];
-  const store = prelState.store;
-  const realm = prelState.kont.realm;
-  
-  const ceskState = {store, realm};
-  return ceskState;
+  // const store = prelState.store;
+  // const kont = prelState.kont;
+  //
+  // const ceskState = {store, kont};
+  // return ceskState;
+  return prelState;
 }

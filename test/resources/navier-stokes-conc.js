@@ -95,7 +95,11 @@ function prepareFrame(field)
 function FluidField(canvas) {
   function addFields(x, s, dt)
   {
-    for (var i=0; i<size ; i++ ) x[i] += dt*s[i];
+    for (var i=0; i<size ; i++ )
+    {
+      print("add_fields", i);
+      x[i] += dt*s[i];
+    }
   }
   
   function set_bnd(b, x)
@@ -145,6 +149,7 @@ function FluidField(canvas) {
         var currentRow = j * rowSize;
         ++currentRow;
         for (var i = 0; i < width; i++) {
+          print("lin_solve", j , i);
           x[currentRow] = x0[currentRow];
           ++currentRow;
         }
@@ -223,6 +228,7 @@ function FluidField(canvas) {
     for (var j = 1; j<= height; j++) {
       var pos = j * rowSize;
       for (var i = 1; i <= width; i++) {
+        print("advect", j, i);
         var x = i - Wdt0 * u[++pos];
         var y = j - Hdt0 * v[pos];
         if (x < 0.5)
@@ -290,6 +296,7 @@ function FluidField(canvas) {
   function dens_step(x, x0, u, v, dt)
   {
     addFields(x, x0, dt);
+    print("starting diffuse");
     diffuse(0, x0, x, dt );
     advect(0, x, x0, u, v, dt );
   }
@@ -382,7 +389,9 @@ function FluidField(canvas) {
     v = new Array(size);
     v_prev = new Array(size);
     for (var i = 0; i < size; i++)
+    {
       dens_prev[i] = u_prev[i] = v_prev[i] = dens[i] = u[i] = v[i] = 0;
+    }
   }
   this.reset = reset;
   this.getDens = function()
@@ -400,7 +409,7 @@ function FluidField(canvas) {
     }
     return false;
   }
-  this.setResolution(16, 16);
+  this.setResolution(2, 2);
 }
 
 setupNavierStokes();

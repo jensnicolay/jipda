@@ -415,6 +415,17 @@ function createSemantics(lat, alloc, kalloc, cc)
     }
   }
 
+  function $call(operatorValue, thisValue, operandValues, benv, store, lkont, kont, machine)
+  {
+    const states = new States(machine);
+    const syntheticApplication = {type: "CallExpression"};
+    Ast.tagNode(syntheticApplication);
+    applyProc(syntheticApplication, operatorValue, operandValues, thisValue, benv, store, lkont, kont, states);
+    return states;
+  }
+
+
+
   // function checkStates(ss)
   // {
   //   for (const s of ss)
@@ -441,6 +452,15 @@ function createSemantics(lat, alloc, kalloc, cc)
         callable.applyConstructor(application, operandValues, protoRef, benv, store, lkont, kont, states);
       }
     }
+  }
+
+  function $construct(operatorValue, operandValues, benv, store, lkont, kont, machine)
+  {
+    const states = new States(machine);
+    const syntheticApplication = {type: "NewExpression"};
+    Ast.tagNode(syntheticApplication);
+    applyCons(syntheticApplication, operatorValue, operandValues, benv, store, lkont, kont, states);
+    return states;
   }
   
   function evalReturnStatement(node, benv, store, lkont, kont, machine)
@@ -2896,9 +2916,14 @@ function createSemantics(lat, alloc, kalloc, cc)
         }
         var objectRef = this.objectRef;
         var nameValue = propertyValue.ToString();
-        var value = doProtoLookup(nameValue, objectRef.addresses(), store);
-        return [machine.continue(value, store, lkont, kont)];
+        return $getProperty(objectRef, nameValue, store, lkont, kont, machine);
       }
+
+  function $getProperty(obj, name, store, lkont, kont, machine)
+  {
+    const value = doProtoLookup(name, obj.addresses(), store);
+    return [machine.continue(value, store, lkont, kont)];
+  }
   
   
   function CallMemberKont(node, benv)
@@ -3255,9 +3280,14 @@ function createSemantics(lat, alloc, kalloc, cc)
         {
           return [];
         }
-        store = doProtoSet(nameValue, newValue, objectRef, store);
-        return [machine.continue(newValue, store, lkont, kont)];
+        return $assignProperty(objectRef, nameValue, newValue, store, lkont, kont, machine);
       }
+
+   function $assignProperty(obj, name, value, store, lkont, kont, machine)
+   {
+     store = doProtoSet(name, value, obj, store);
+     return [machine.continue(value, store, lkont, kont)];
+   }
   
   // let genericCounter = 0;
   // function GenericKont(f)
@@ -5335,7 +5365,7 @@ function createSemantics(lat, alloc, kalloc, cc)
   }
   
   
-  function initialize(initialState, machine)
+  function initialize(machine)
   {
     
     function allocNative()
@@ -6065,15 +6095,15 @@ function createSemantics(lat, alloc, kalloc, cc)
       
       store = storeAlloc(store, globala, global);
       // END GLOBAL
-      
-      return {store, realm};
+
+      const kont = createContext(null, realm.GlobalObject, realm, "globalctx", ArraySet.empty().add("ScriptJobs"), null);
+      return {store, kont};
     } // end initialize2
     
     
-    initialState = initialState || initialize2(Benv.empty(), Store.empty());
+    const initialState = initialize2(Benv.empty(), Store.empty());
     const store = initialState.store;
-    const realm = initialState.realm;
-    const kont = createContext(null, realm.GlobalObject, realm, "globalctx", ArraySet.empty().add("ScriptJobs"), null);
+    const kont = initialState.kont;
     const koState = machine.continue(L_UNDEFINED, store, [], kont);
     return koState;
   }
@@ -6105,11 +6135,12 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         return ArraySet.empty();
       }
-  
+
   return {
     initialize,
     evaluate: evaluate_, continue:continue_, return:return_, throw: throw_, break: break_,
-    gc: gc_, enqueueScriptEvaluation};
+    gc: gc_, enqueueScriptEvaluation, enqueueJob,
+    $getProperty, $assignProperty, $call, $construct, lat};
 }
 
 function SetValue(set)
