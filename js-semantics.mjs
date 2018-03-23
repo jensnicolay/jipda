@@ -924,7 +924,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         return EMPTY_ADDRESS_SET;
       }
-  
+
   function ObjClosureCall(node, scope)
   {
     assertDefinedNotNull(node);
@@ -5164,6 +5164,15 @@ function createSemantics(lat, alloc, kalloc, cc)
     obj = obj.setInternal("[[Call]]", SetValue.from1(Call));
     return obj;
   }
+
+  // function $createFunction(Call, store, kont, lkont, machine)
+  // {
+  //   const obj = createFunction(Call, kont.realm);
+  //   const addr = alloc.native();
+  //   store = storeAlloc(store, addr, obj);
+  //   const value = lat.abstRef(addr);
+  //   return [machine.continue(value, store, lkont, kont)];
+  // }
   
   const contexts = [];
   const stacks = [];
@@ -5400,7 +5409,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         var primFunObject = createPrimitive(applyFunction, applyConstructor, realm);
         var primFunObjectAddress = allocNative();
-        store = storeAlloc(store, primFunObjectAddress, primFunObject);
+        store = storeAlloc(store, primFunObjectAddress, primFunObject); // TODO: danger, relies on 'init store'
         return registerProperty(object, propertyName, lat.abstRef(primFunObjectAddress));
       }
       
@@ -6090,9 +6099,51 @@ function createSemantics(lat, alloc, kalloc, cc)
         var value = operandValues[0].parseInt(); // TODO: 2nd (base) arg
         states.continue(value, store, lkont, kont);
       }
-      
       global = registerPrimitiveFunction(global, "parseInt", globalParseInt);
-      
+
+      function globalWrapService(application, operandValues, thisValue, benv, store, lkont, kont, states)
+      {
+        const [Obj, Name] = operandValues;
+        const serviceName = Name.conc1();
+        const model = new Map();
+        for (const {name, operation, arguments: args, result} of cc.interactionModel)
+        {
+          if (name === serviceName)
+          {
+            let ops = model.get(operation);
+            if (!ops)
+            {
+              ops = [];
+              model.set(operation, ops);
+            }
+            ops.push({args:args.map(lat.abst1), result:lat.abst1(result)});
+          }
+        }
+        let service = ObjectCreate(lat.abst1(null));
+        const servicea = alloc.object(application, kont);
+        for (const [operationName, ops] of model)
+        {
+          const applyFunction = function (application, operandValues, thisValue, benv, store, lkont, kont, states)
+          {
+            for (const {args, result} of ops)
+            {
+              if (args.equals(operandValues))
+              {
+                states.continue(result, store, lkont, kont);
+              }
+            }
+          };
+          var primFunObject = createPrimitive(applyFunction, null, kont.realm);
+          var primFunObjectAddress = allocNative();
+          store = storeAlloc(store, primFunObjectAddress, primFunObject);
+          service = registerProperty(service, operationName, lat.abstRef(primFunObjectAddress));
+        }
+        store = storeAlloc(store, servicea, service);
+        states.continue(lat.abstRef(servicea), store, lkont, kont);
+      }
+      global = registerPrimitiveFunction(global, "wrapService", globalWrapService);
+
+
       store = storeAlloc(store, globala, global);
       // END GLOBAL
 
@@ -6140,7 +6191,8 @@ function createSemantics(lat, alloc, kalloc, cc)
     initialize,
     evaluate: evaluate_, continue:continue_, return:return_, throw: throw_, break: break_,
     gc: gc_, enqueueScriptEvaluation, enqueueJob,
-    $getProperty, $assignProperty, $call, $construct, lat};
+    $getProperty, $assignProperty, $call, $construct, //$createFunction
+      lat};
 }
 
 function SetValue(set)

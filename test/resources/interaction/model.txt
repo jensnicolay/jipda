@@ -1,0 +1,4 @@
+[
+{"name":"example","operation":"f","arguments":["abc"],"result":"abc123"},
+{"name":"example","operation":"f","arguments":[456],"result":579}
+]

@@ -44,6 +44,25 @@ JsContext.prototype.createArray =
       return this.evaluateScript("[]");
     }
 
+// JsContext.prototype.createFunction =
+//     function (f)
+//     {
+//       // Call, store, kont, lkont, machine
+// //      ObjClosureCall.prototype.applyFunction =
+//   //        function (application, operandValues, thisValue, TODO_REMOVE, store, lkont, kont, states)
+//
+// //      ObjClosureCall.prototype.applyConstructor =
+//   //        function (application, operandValues, protoRef, TODO_REMOVE, store, lkont, kont, states)
+//       const semantics = this.semantics;
+//       const machine = this.createMachine();
+//       const applyFunction = function (application, operandValues, thisValue, TODO_REMOVE, store, lkont, kont, states)
+//       {
+//
+//       };
+//       const S = semantics.createFunction(ast, benv, store, lkont, kont, machine);
+//       return this.explore(S);
+//     }
+
 JsContext.prototype.evaluateScript =
     function (src)
     {
