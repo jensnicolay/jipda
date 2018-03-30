@@ -20,31 +20,28 @@ Browser.prototype.parse =
     }
 
 Browser.prototype.parseChildren =
-    function (node)
+    function (node, jsNode)
     {
-      const jsChildren = this.jsContext.createArray();
+      const jsChildren = jsNode.getProperty('children');
       for (const c of node.children)
       {
         const jsChild = this.parseNode(c);
         jsChildren.push(jsChild);
       }
-      return jsChildren;
     }
 
 Browser.prototype.parseWindow =
     function (window)
     {
-      const jsDoc = this.parseDocument(window.document);
+      const jsDoc = this.jsContext.globalObject().getProperty("HTMLDocument").construct([]);
       this.jsContext.globalObject().assignProperty("document", jsDoc);
+      this.parseDocument(window.document, jsDoc);
     }
 
 Browser.prototype.parseDocument =
-    function (doc)
+    function (doc, jsDoc)
     {
-      const jsDoc = this.jsContext.globalObject().getProperty("HTMLDocument").construct([]);
-      const jsChildren = this.parseChildren(doc);
-      jsDoc.assignProperty("children", jsChildren);
-      return jsDoc;
+      this.parseChildren(doc, jsDoc);
     }
 
 Browser.prototype.parseNode =
@@ -74,21 +71,24 @@ Browser.prototype.parseHtml =
     function (html)
     {
       const jsHtml = this.jsContext.globalObject().getProperty("HTMLHtmlElement").construct([]);
-      const jsChildren = this.parseChildren(html);
-      jsHtml.assignProperty("children", jsChildren);
+      this.parseChildren(html, jsHtml);
       return jsHtml;
     }
 
 Browser.prototype.parseHead =
     function (head)
     {
-      return this.parseChildren(head);
+      const jsHead = this.jsContext.globalObject().getProperty("HTMLHeadElement").construct([]);
+      this.parseChildren(head, jsHead);
+      return jsHead;
     }
 
 Browser.prototype.parseBody =
     function (body)
     {
-      return this.parseChildren(body);
+      const jsBody = this.jsContext.globalObject().getProperty("HTMLBodyElement").construct([]);
+      this.parseChildren(body, jsBody);
+      return jsBody;
     }
 
 Browser.prototype.parseScript =

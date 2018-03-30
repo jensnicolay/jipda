@@ -1,7 +1,7 @@
 import Ast from "./ast.mjs";
 import {ArraySet, assert} from "./common.mjs";
 import concLattice from "./conc-lattice.mjs";
-import {createMachine, computeResultValue, explore} from "./abstract-machine.mjs";
+import {createMachine, explore} from "./abstract-machine.mjs";
 
 export function JsContext(semantics, store, kont)
 {
@@ -19,8 +19,7 @@ JsContext.prototype.explore =
       assert(initialStates.length > 0);
       explore(initialStates, s => resultStates.add(s));
       //console.log("resultStates: " + [...S] + "->" + resultStates.size);
-      assert(resultStates.size === 1);
-      const s = [...resultStates][0];
+      const s = [...resultStates].reduce((s, s2) => s.join(s2));
       assert(s.value);
       assert(s.store);
       assert(s.kont);

@@ -88,6 +88,33 @@
         return $BASE$.callInternal(obj, "[[GetPrototypeOf]]");
       }
 
+  // 19.1.3.3
+  Object.defineProperty(Object.prototype, "isPrototypeOf",
+      {
+        value:
+            function (V)
+            {
+              if (typeof V !== "object")
+              {
+                return false;
+              }
+              var O = $BASE$.ToObject(this);
+              while (true)
+              {
+                V = $BASE$.callInternal(V, "[[GetPrototypeOf]]");
+                if (V === null)
+                {
+                  return false;
+                }
+                if ($BASE$.SameValue(O, V))
+                {
+                  return true;
+                }
+              }
+            },
+        writable:true, enumerable:false, configurable: true
+      })
+
   // 19.5.3.4
   Error.prototype.toString =
       function ()

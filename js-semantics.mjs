@@ -3582,13 +3582,39 @@ function createSemantics(lat, alloc, kalloc, cc)
       console.log(msg);
     }
   }
-  
-  
+
+  function isObject(O)
+  {
+    return O.isRef();
+  }
+
+  function isNull(O)
+  {
+    return O.isNull();
+  }
+
+  function isNeitherObjectNorNull(O)
+  {
+    for (const t of Type(O))
+    {
+      if (t !== Types.Object && t !== Types.Null)
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function assertIsObject(O)
   {
-    semanticAssert(O.isRef());
+    semanticAssert(isObject(O));
   }
-  
+
+  function assertIsObjectOrNull(O)
+  {
+    semanticAssert(isObject(O) || isNull(O));
+  }
+
   function assertIsPropertyKey(P)
   {
     const result = IsPropertyKey(P);
@@ -4194,6 +4220,25 @@ function createSemantics(lat, alloc, kalloc, cc)
     // TODO
     return [{value:argument, store}];
   }
+
+  // 7.2.1
+  function RequireObjectCoercible(arg, store, lkont, kont, states)
+  {
+    if (arg.isUndefined() || arg.isNull())
+    {
+      states.throwTypeError("7.2.1");
+    }
+    const result = [];
+    if (arg.projectBoolean() !== BOT
+        || arg.projectNumber() !== BOT
+        || arg.projectString() !== BOT
+        //|| arg.projectSymbol() TODO
+        || arg.isRef())
+    {
+      result.push({value:arg, store});
+    }
+    return result;
+  }
   
   // 7.2.3
   function IsCallable(argument, store)
@@ -4589,6 +4634,34 @@ function createSemantics(lat, alloc, kalloc, cc)
     const P = getInternal(O, "[[Prototype]]", store);
     return [{value:P, store}];
   }
+
+  // 9.1.2.1
+  function OrdinarySetPrototypeOf(O, V, store, lkont, kont, states)
+  {
+    assertIsObjectOrNull(V);
+    const extensible = getInternal(O, "[[Extensible]]", store);
+    const current = getInternal(O, "[[Prototype]]", store);
+    const sv = SameValue(V, current);
+    const result = [];
+    if (sv.isTrue())
+    {
+      result.push({value: L_TRUE, store});
+    }
+    if (sv.isFalse())
+    {
+      if (extensible.isFalse())
+      {
+        result.push({value: L_FALSE, store});
+      }
+      if (extensible.isTrue())
+      {
+        // TODO: steps 6,7,8 (loop)
+        const store2 = assignInternal(O, "[[Prototype]]", V, store);
+        result.push({value: L_TRUE, store:store2});
+      }
+    }
+    return result;
+  }
   
   // 9.1.5.1
   function OrdinaryGetOwnProperty(O, P, store, lkont, kont, states)
@@ -4898,6 +4971,8 @@ function createSemantics(lat, alloc, kalloc, cc)
     // step 3
     // 9.1.1
     obj = obj.setInternal("[[GetPrototypeOf]]", SetValueNoAddresses.from1(OrdinaryGetPrototypeOf));
+    // 9.1.2
+    obj = obj.setInternal("[[SetPrototypeOf]]", SetValueNoAddresses.from1(OrdinarySetPrototypeOf));
     // 9.1.5
     obj = obj.setInternal("[[GetOwnProperty]]", SetValueNoAddresses.from1(OrdinaryGetOwnProperty));
     // 9.1.6
@@ -5097,7 +5172,48 @@ function createSemantics(lat, alloc, kalloc, cc)
     }
     return result;
   }
-  
+
+  // 19.1.2.20
+  function objectSetPrototypeOf(application, operandValues, thisValue, benv, store, lkont, kont, states)
+  {
+    const [O, Proto] = operandValues;
+    const roc = RequireObjectCoercible(O, store, lkont, kont, states);
+    for (const {value: O, store} of roc)
+    {
+      // const typeProto = Type(proto);
+      // const typeObjectNull = Sets.intersection(typeProto, new Set([Types.Object, Types.Null]))
+      // const neitherObjectNorNull = typeProto.size > typeObjectNull.size;
+      // const objectOrNull = typeObjectNull.size > 0;
+      if (isNeitherObjectNorNull(Proto))
+      {
+        states.throwTypeError("19.1.2.20-1", store, lkont, kont);
+      }
+      if (isObject(Proto) || isNull(Proto))
+      {
+        if (O.isNonRef())
+        {
+          states.continue(O, store, lkont, kont);
+        }
+        if (O.isRef())
+        {
+          const spo = callInternal(O, "[[SetPrototypeOf]]", [Proto], store, lkont, kont, states);
+          for (const {value, store} of spo)
+          {
+            if (value.isFalse())
+            {
+              states.throwTypeError("19.1.2.20-2", store, lkont, kont);
+            }
+            if (value.isTrue())
+            {
+              states.continue(O, store, lkont, kont);
+            }
+          }
+        }
+      }
+    }
+  }
+
+
   // 19.2.3.1
   function functionApply(application, operandValues, thisValue, benv, store, lkont, kont, states)
   {
@@ -5438,6 +5554,7 @@ function createSemantics(lat, alloc, kalloc, cc)
 //  objectP.toString = function () { return "~Object.prototype"; }; // debug
       var objecta = allocNative();
       objectP = registerProperty(objectP, "constructor", lat.abstRef(objecta));
+      //objectP = registerPrimitiveFunction(objectP, "isPrototypeOf", objectPIsPrototypeOf);
       
       var object = createPrimitive(null, objectConstructor, realm);
       object = object.add(P_PROTOTYPE, Property.fromValue(objectProtoRef));//was objectProtoRef
@@ -5447,6 +5564,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       //object = registerPrimitiveFunction(object, "create", objectCreate);
       //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
       //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
+      object = registerPrimitiveFunction(object, "setPrototypeOf", objectSetPrototypeOf);
       store = storeAlloc(store, objecta, object);
       
       objectP = registerPrimitiveFunction(objectP, "hasOwnProperty", objectHasOwnProperty);
@@ -5862,6 +5980,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       base = registerPrimitiveFunction(base, "hasInternal", baseHasInternal);
       base = registerPrimitiveFunction(base, "lookupInternal", baseLookupInternal);
       base = registerPrimitiveFunction(base, "newPropertyDescriptor", baseNewPropertyDescriptor);
+      base = registerPrimitiveFunction(base, "SameValue", baseSameValue);
       base = registerPrimitiveFunction(base, "sameBooleanValue", baseSameBooleanValue);
       base = registerPrimitiveFunction(base, "sameNumberValue", baseSameNumberValue);
       base = registerPrimitiveFunction(base, "sameObjectValue", baseSameObjectValue);
@@ -5963,13 +6082,20 @@ function createSemantics(lat, alloc, kalloc, cc)
           states.continue(objectRef, store, lkont, kont);
         }
       }
-      
+
+      function baseSameValue(application, operandValues, thisValue, benv, store, lkont, kont, states)
+      {
+        const [x, y] = operandValues;
+        const value = SameValue(x,y);
+        states.continue(value, store, lkont, kont);
+      }
+
       function baseSameNumberValue(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         const [x, y] = operandValues;
         states.continue(x.hasSameNumberValue(y), store, lkont, kont);
       }
-      
+
       function baseSameBooleanValue(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         const [x, y] = operandValues;

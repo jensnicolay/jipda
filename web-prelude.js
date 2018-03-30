@@ -9,8 +9,31 @@
   }
 
   global.window = global;
-  global.HTMLDocument = function () {};
-  global.HTMLHtmlElement = function () {};
+
+  function Element()
+  {
+    this.children = [];
+  }
+
+  function HTMLDocument()
+  {
+  }
+  HTMLDocument.prototype = new Element();
+
+
+  global.HTMLDocument = function ()
+  {
+    this.children = [];
+  };
+  global.HTMLHtmlElement = function ()
+  {
+    this.children = [];
+  };
+  global.HTMLHeadElement = function ()
+  {
+
+  };
+  global.HTMLBodyElement = function () {};
   global.HTMLScriptElement = function () {};
 
 

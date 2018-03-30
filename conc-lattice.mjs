@@ -254,6 +254,10 @@ export default {
   not:
     function (x)
     {
+      if (x instanceof ConcAddr)
+      {
+        return new ConcValue(false);
+      }
       return new ConcValue(!x.value);
     }
 }
@@ -497,7 +501,7 @@ ConcAddr.prototype.addresses =
 ConcAddr.prototype.toString =
     function ()
     {
-      return String(this.addr);
+      return "<addr " + this.addr + ">";
     }
 
 ConcAddr.prototype.join =

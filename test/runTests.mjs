@@ -1,6 +1,4 @@
-import concreteTests from './concreteTests';
-import jipdaTests from './jipdaTests';
+import {} from './concreteTests';
+import {} from './jipdaTests';
 
-import {t} from '../test';
 
-t();

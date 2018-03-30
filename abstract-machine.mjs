@@ -436,31 +436,9 @@ function retrieveEndStates(initial) // not used for the moment
   return result;
 }
 
-export function computeResultValue(endStates, bot)
+export function isSuccessState(s)
 {
-  var result = bot;
-  var msgs = [];
-  endStates.forEach(
-    function (s)
-    {
-      if (s.value && s.lkont.length === 0 && s.kont._stacks.size === 0)
-      {
-        result = result.join(s.value);
-      }
-      else if (s.constructor.name  === "ThrowState") // TODO coupling to impl
-      {
-        msgs.push("Unhandled exception " + s.value);
-      }
-      else if (s.constructor.name  === "ErrorState") // TODO coupling to impl
-      {
-        msgs.push("line " + s.node.loc.start.line + ": " + s.msg);
-      }
-      else
-      {
-        msgs.push("WARNING: no successors for " + s + " (" + (s.node) + ")");
-      }
-    });
-  return {value:result, msgs:msgs};
+  return s.value && s.lkont.length === 0 && s.kont._stacks.size === 0;
 }
 
 export function explore(initialStates,
