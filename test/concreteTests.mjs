@@ -1,13 +1,11 @@
 import fs from 'fs';
 
 import {assertEquals} from '../common';
-import Ast from '../ast';
 import concLattice from '../conc-lattice';
 import concAlloc from '../conc-alloc';
 import concKalloc from '../conc-kalloc';
 import createSemantics from '../js-semantics';
 import {computeInitialCeskState, explore, isSuccessState} from '../abstract-machine';
-import typeLattice from "../type-lattice";
 
 const read = name => fs.readFileSync(name).toString();
 
@@ -35,6 +33,10 @@ function run(src, expected)
     else if (s.isErrorState)
     {
       throw new Error(s.node.loc.start.line + ": " + s.msg);
+    }
+    else
+    {
+      throw new Error("no progress: " + s);
     }
   });
   assertEquals(concLattice.abst1(expected), actual);

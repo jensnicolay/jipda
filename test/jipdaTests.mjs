@@ -46,6 +46,10 @@ function run(src, expected)
     {
       throw new Error(s.node.loc.start.line + ": " + s.msg);
     }
+    else
+    {
+      throw new Error("no progress: " + s);
+    }
   });
   assert(actual.equals(expected));
 }
@@ -53,6 +57,7 @@ function run(src, expected)
 run("function f() {f()}; f()", BOT);
 run("var t = function (x) {return t(x+1)}; t(0)", BOT);
 run("var x = 'hela'; while (true) {x += x}", BOT);
+run("for (var x=0;true;x++);", BOT);
 
 // simplest of GC tests
 //    

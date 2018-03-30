@@ -527,6 +527,7 @@ export function explore(initialStates,
   var startTime = performance.now();
   var id = 0;
   const todo = initialStates.map(stateGet); // invariant: all to-do states are interned
+  todo.forEach(newState);
   var result = new Set();
   let sstorei = -1;
   while (todo.length > 0)
