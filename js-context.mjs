@@ -3,9 +3,10 @@ import {ArraySet, assert} from "./common.mjs";
 import concLattice from "./conc-lattice.mjs";
 import {createMachine, explore} from "./abstract-machine.mjs";
 
-export function JsContext(semantics, store, kont)
+export function JsContext(semantics, explorer, store, kont)
 {
   this.semantics = semantics;
+  this.explorer = explorer;
   this.store = store;
   this.kont = kont;
   this.managedValues = ArraySet.empty();
@@ -17,7 +18,8 @@ JsContext.prototype.explore =
       const resultStates = new Set();
       const initialStates = [...S];
       assert(initialStates.length > 0);
-      explore(initialStates, s => resultStates.add(s));
+      this.explorer.onEndState = (s => resultStates.add(s));
+      this.explorer.explore(initialStates);
       //console.log("resultStates: " + [...S] + "->" + resultStates.size);
       const s = [...resultStates].reduce((s, s2) => s.join(s2));
       assert(s.value);

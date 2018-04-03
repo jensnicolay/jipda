@@ -359,6 +359,9 @@ export function createMachine(semantics, cc)
     this.node = node;
     this.msg = msg;
     this.kont = kont;
+    this._successors = null;
+    this._sstorei = -1;
+    this._id = -1;
   }
   
   ErrorState.prototype.isErrorState = true;
@@ -441,98 +444,115 @@ export function isSuccessState(s)
   return s.value && s.lkont.length === 0 && s.kont._stacks.size === 0;
 }
 
+function StateRegistry()
+{
+  this.kont2states = new Array(2048);
+  this.states = []; // do not pre-alloc
+}
+
+StateRegistry.prototype.getState =
+    function (s)
+    {
+      let statesReg = this.kont2states[s.kont._id];
+      if (!statesReg)
+      {
+        statesReg = new Array(7);
+        this.kont2states[s.kont._id] = statesReg;
+      }
+      let stateReg = null;
+      if (s.isEvalState)
+      {
+        stateReg = statesReg[0];
+        if (!stateReg)
+        {
+          stateReg = [];
+          statesReg[0] = stateReg;
+        }
+      }
+      else if (s.isKontState)
+      {
+        stateReg = statesReg[1];
+        if (!stateReg)
+        {
+          stateReg = [];
+          statesReg[1] = stateReg;
+        }
+      }
+      else if (s.isReturnState)
+      {
+        stateReg = statesReg[2];
+        if (!stateReg)
+        {
+          stateReg = [];
+          statesReg[2] = stateReg;
+        }
+      }
+      else if (s.isThrowState)
+      {
+        stateReg = statesReg[3];
+        if (!stateReg)
+        {
+          stateReg = [];
+          statesReg[3] = stateReg;
+        }
+      }
+      else if (s.isBreakState)
+      {
+        stateReg = statesReg[4];
+        if (!stateReg)
+        {
+          stateReg = [];
+          statesReg[4] = stateReg;
+        }
+      }
+      else if (s.isErrorState)
+      {
+        stateReg = statesReg[5];
+        if (!stateReg)
+        {
+          stateReg = [];
+          statesReg[5] = stateReg;
+        }
+      }
+      for (let i = 0; i < stateReg.length; i++)
+      {
+        if (stateReg[i].equals(s))
+        {
+          return stateReg[i];
+        }
+      }
+      s._id = this.states.push(s) - 1;
+      stateReg.push(s);
+      return s;
+    }
+
+export function Explorer()
+{
+  this.stateRegistry = new StateRegistry();
+}
+
+Explorer.prototype.explore =
+    function (states)
+    {
+      return explore(states, this.onEndState, this.onNewState, this.onNewTransition, this.stateRegistry);
+    }
+
 export function explore(initialStates,
                         endState = s => undefined, // callbacks
                         newState = s => undefined,
-                        newTransition = (s0, s1) => undefined)
+                        newTransition = (s0, s1) => undefined,
+                        stateReg)
 {
-  
-  function stateGet(s)
-  {
-    let statesReg = kont2states[s.kont._id];
-    if (!statesReg)
-    {
-      statesReg = new Array(7);
-      kont2states[s.kont._id] = statesReg;
-    }
-    let stateReg = null;
-    if (s.isEvalState)
-    {
-      stateReg = statesReg[0];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[0] = stateReg;
-      }
-    }
-    else if (s.isKontState)
-    {
-      stateReg = statesReg[1];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[1] = stateReg;
-      }
-    }
-    else if (s.isReturnState)
-    {
-      stateReg = statesReg[2];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[2] = stateReg;
-      }
-    }
-    else if (s.isThrowState)
-    {
-      stateReg = statesReg[3];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[3] = stateReg;
-      }
-    }
-    else if (s.isBreakState)
-    {
-      stateReg = statesReg[4];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[4] = stateReg;
-      }
-    }
-    else if (s.isErrorState)
-    {
-      stateReg = statesReg[5];
-      if (!stateReg)
-      {
-        stateReg = [];
-        statesReg[5] = stateReg;
-      }
-    }
-    for (let i = 0; i < stateReg.length; i++)
-    {
-      if (stateReg[i].equals(s))
-      {
-        return stateReg[i];
-      }
-    }
-    s._id = states.push(s) - 1;
-    stateReg.push(s);
-    return s;
-  }
-  
-  const kont2states = new Array(2048);
-  const states = []; // do not pre-alloc
+  const stateRegistry = stateReg || new StateRegistry();
   var startTime = performance.now();
   var id = 0;
-  const todo = initialStates.map(stateGet); // invariant: all to-do states are interned
-  todo.forEach(newState);
+  const todo = initialStates.map(s => stateRegistry.getState(s)); // invariant: all to-do states are interned
+  todo.forEach(newState); // TODO not with existing registry!
   var result = new Set();
   let sstorei = -1;
   while (todo.length > 0)
   {
-    if (states.length > 100000)
+    if (stateRegistry.states.length > 100000)
     {
       console.log("STATE SIZE LIMIT", states.length);
       break;
@@ -585,7 +605,7 @@ export function explore(initialStates,
       // }
       ///
 
-      const successorInterned = stateGet(successor);
+      const successorInterned = stateRegistry.getState(successor);
       if (successor !== successorInterned) // existing state
       {
         if (!knownSuccessors || !knownSuccessors.includes(successorInterned)) // new transition
@@ -602,13 +622,13 @@ export function explore(initialStates,
         newTransition(s, successorInterned);
       }
       todo.push(successorInterned);
-      if (states.length % 10000 === 0)
+      if (stateRegistry.states.length % 10000 === 0)
       {
-        console.log(Formatter.displayTime(performance.now() - startTime), "states", states.length, "todo", todo.length, "ctxs", "contexts.length", "sstorei", sstorei);
+        console.log(Formatter.displayTime(performance.now() - startTime), "states", stateRegistry.states.length, "todo", todo.length, "ctxs", "contexts.length", "sstorei", sstorei);
       }
     }
   }
-  return {time: performance.now() - startTime, states};
+  return {time: performance.now() - startTime, states:stateRegistry.states};
 }
 
 export function run(initialStates,
@@ -663,10 +683,5 @@ export function computeInitialCeskState(semantics, ...srcs)
     throw new Error("wrong number of prelude results: " + resultStates.size);
   }
   const prelState = [...resultStates][0];
-  // const store = prelState.store;
-  // const kont = prelState.kont;
-  //
-  // const ceskState = {store, kont};
-  // return ceskState;
   return prelState;
 }
