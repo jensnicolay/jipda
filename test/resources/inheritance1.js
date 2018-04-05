@@ -36,4 +36,9 @@ Dog.isDog = function(obj)
 }
 
 var sparkie = new Dog("Sparkie", "Border Collie");
-[sparkie.name, sparkie.breed, sparkie.bark(), sparkie.print(), Dog.isDog(sparkie)].toString();
+
+sparkie.name==="Sparkie"
+  && sparkie.breed === "Border Collie"
+  && sparkie.bark() === "ruff, ruff"
+  && sparkie.print() === "The dog Sparkie is a Border Collie"
+  && Dog.isDog(sparkie)

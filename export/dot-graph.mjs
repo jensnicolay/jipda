@@ -25,7 +25,8 @@ function stateToLabel(s)
   }
   else if (s.isThrowState)
   {
-    return s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsSemantics.lat.abst1("message")).value.Value).join() + kontLabel(s);
+//    return s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsSemantics.lat.abst1("message")).value.Value).join() + kontLabel(s);
+    return s.value + " " + s.value.addresses().map(addr => s.store.lookupAval(addr).nice()).join() + kontLabel(s);
   }
   else if (s.isErrorState)
   {

@@ -538,16 +538,15 @@ Explorer.prototype.explore =
     }
 
 export function explore(initialStates,
-                        endState = s => undefined, // callbacks
-                        newState = s => undefined,
-                        newTransition = (s0, s1) => undefined,
-                        stateReg)
+                        onEndState = s => undefined,
+                        onNewState = s => undefined,
+                        onNewTransition = (s0, s1) => undefined,
+                        stateReg) // optional
 {
   const stateRegistry = stateReg || new StateRegistry();
   var startTime = performance.now();
-  var id = 0;
   const todo = initialStates.map(s => stateRegistry.getState(s)); // invariant: all to-do states are interned
-  todo.forEach(newState); // TODO not with existing registry!
+  todo.forEach(onNewState); // TODO not with existing registry!
   var result = new Set();
   let sstorei = -1;
   while (todo.length > 0)
@@ -580,37 +579,18 @@ export function explore(initialStates,
     s._successors = next;
     if (next.length === 0)
     {
-      endState(s);
+      onEndState(s);
       continue;
     }
     for (let i = 0; i < next.length; i++)
     {
       const successor = next[i];
-
-      ///
-      // if (successor.next instanceof Function &&
-      //   (successor.isEvalState
-      //   || successor.isKontState
-      //   || successor.isReturnState
-      //   || successor.isThrowState
-      //   || successor.isBreakState
-      //   || successor.isErrorState))
-      // {}
-      // else
-      // {
-      //   console.log(s);
-      //   console.log("===>");
-      //   console.log(successor);
-      //   throw new Error(s);
-      // }
-      ///
-
       const successorInterned = stateRegistry.getState(successor);
       if (successor !== successorInterned) // existing state
       {
         if (!knownSuccessors || !knownSuccessors.includes(successorInterned)) // new transition
         {
-          newTransition(s, successorInterned);
+          onNewTransition(s, successorInterned);
         }
         next[i] = successorInterned;
         todo.push(successorInterned);
@@ -618,8 +598,8 @@ export function explore(initialStates,
       }
       else // new state, so new transition
       {
-        newState(successorInterned);
-        newTransition(s, successorInterned);
+        onNewState(successorInterned);
+        onNewTransition(s, successorInterned);
       }
       todo.push(successorInterned);
       if (stateRegistry.states.length % 10000 === 0)
@@ -644,22 +624,6 @@ export function run(initialStates,
     for (const s2 of next)
     {
       length++;
-      // ///
-      // if (s2.next instanceof Function &&
-      //   (s2.isEvalState
-      //   || s2.isKontState
-      //   || s2.isReturnState
-      //   || s2.isThrowState
-      //   || s2.isBreakState
-      //   || s2.isErrorState))
-      // {}
-      // else
-      // {
-      //   console.log(s);
-      //   throw new Error(s);
-      // }
-      // ///
-
       todo.push(s2);
     }
     if (length === 0)

@@ -1,4 +1,5 @@
-import {TrieMap} from './common.mjs';
+import {TrieMap} from './common';
+import {BOT} from './lattice';
 
 function StoreValue(aval, fresh)
 {

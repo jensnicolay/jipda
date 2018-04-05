@@ -4152,7 +4152,16 @@ function createSemantics(lat, alloc, kalloc, cc)
       methodNames = ["valueOf", "toString"];
     }
     // TODO ... requires "Call"
-    throw new Error("NYI");
+    throw new Error("NYI!");
+  }
+
+  // 7.1.3
+  function ToNumber(argument, node, store, lkont, kont, states)
+  {
+    const result = [];
+    // TODO
+    result.push({value:argument.ToNumber(), store});
+    return result;
   }
   
   // 7.1.13
@@ -4180,7 +4189,12 @@ function createSemantics(lat, alloc, kalloc, cc)
     const narg = argument.projectNumber();
     if (narg !== BOT)
     {
-      throw new Error("TODO");
+      let obj = ObjectCreate(kont.realm.Intrinsics.get("%NumberPrototype%"));
+      obj = obj.setInternal("[[NumberData]]", narg);
+      const addr = alloc.object(node, kont); // no number-specific alloc?
+      store = storeAlloc(store, addr, obj);
+      const ref = lat.abstRef(addr);
+      result.push({value:ref, store});
     }
     const sarg = argument.projectString();
     if (sarg !== BOT)
@@ -4473,7 +4487,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     assert(Array.isArray(elements)); // TODO: this is a weaker assert than in spec
     // TODO: spec
     let arr = createArray(kont.realm);
-    for (let i = L_0; i < elements.length; i++)
+    for (let i = 0; i < elements.length; i++)
     {
       arr = arr.add(lat.abst1(String(i)), Property.fromValue(elements[i]));
     }
@@ -5652,7 +5666,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       var functiona = allocNative();
       var functionP = registerProperty(functionP, "constructor", lat.abstRef(functiona));
       
-      
+
       var fun = createPrimitive(function ()
       {
       }, null, realm); // TODO
@@ -5703,8 +5717,8 @@ function createSemantics(lat, alloc, kalloc, cc)
       }
       
       // END ERROR
-      
-      
+
+
       // BEGIN STRING
       const stringPa = allocNative();
       const stringProtoRef = lat.abstRef(stringPa);
@@ -5717,13 +5731,13 @@ function createSemantics(lat, alloc, kalloc, cc)
       string = string.add(P_PROTOTYPE, Property.fromValue(intrinsics.get("%StringPrototype%")));
       global = global.add(lat.abst1("String"), Property.fromValue(lat.abstRef(stringa)));
       store = storeAlloc(store, stringa, string);
-      
+
       stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
       stringP = registerPrimitiveFunction(stringP, "charCodeAt", stringCharCodeAt);
       stringP = registerPrimitiveFunction(stringP, "startsWith", stringStartsWith);
-      
+
       store = storeAlloc(store, stringPa, stringP);
-      
+
       function stringFunction(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         if (operandValues.length === 0)
@@ -5735,31 +5749,90 @@ function createSemantics(lat, alloc, kalloc, cc)
           states.continue(operandValues[0].ToString(), store, lkont, kont);
         }
       }
-      
+
       function stringCharAt(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         var lprim = getInternal(thisValue, "[[StringData]]", store);
         var value = lprim.charAt(operandValues[0]);
         states.continue(value, store, lkont, kont);
       }
-      
+
       function stringCharCodeAt(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         var lprim = getInternal(thisValue, "[[StringData]]", store);
         var value = lprim.charCodeAt(operandValues[0]);
         states.continue(value, store, lkont, kont);
       }
-      
+
       function stringStartsWith(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         var lprim = getInternal(thisValue, "[[StringData]]", store);
         var value = lprim.startsWith(operandValues[0]);
         states.continue(value, store, lkont, kont);
       }
-      
+
       // END STRING
-      
-      
+
+      // BEGIN NUMBER
+      const numberPa = allocNative();
+      const numberProtoRef = lat.abstRef(numberPa);
+      intrinsics.add("%NumberPrototype%", numberProtoRef);
+      var numberP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
+      var numbera = allocNative();
+      numberP = registerProperty(numberP, "constructor", lat.abstRef(numbera));
+      var number = createPrimitive(numberFunction, numberConstructor, realm);
+      number = number.add(P_PROTOTYPE, Property.fromValue(intrinsics.get("%NumberPrototype%")));
+      global = global.add(lat.abst1("Number"), Property.fromValue(lat.abstRef(numbera)));
+      store = storeAlloc(store, numbera, number);
+
+      // stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
+
+      store = storeAlloc(store, numberPa, numberP);
+
+      // 20.1.1.1
+      function numberFunction(application, operandValues, thisValue, benv, store, lkont, kont, states)
+      {
+        if (operandValues.length === 0)
+        {
+          return states.continue(L_0, store, lkont, kont);
+        }
+        else
+        {
+          const tn = ToNumber(operandValues[0], application, store, lkont, kont, states);
+          for (const {value, store} of tn)
+          {
+            states.continue(value, store, lkont, kont);
+          }
+        }
+      }
+
+      // 20.1.1.1
+      function numberConstructor(application, operandValues, protoRef, benv, store, lkont, kont, states)
+      {
+
+        let tn;
+        if (operandValues.length === 0)
+        {
+          tn = [{value:L_0, store}];
+        }
+        else
+        {
+          tn = ToNumber(operandValues[0], application, store, lkont, kont, states);
+        }
+        for (const {value, store} of tn)
+        {
+          let obj = ObjectCreate(kont.realm.Intrinsics.get("%NumberPrototype%")); // TODO OrdinaryCreateFromConstructor
+          obj = obj.setInternal("[[NumberData]]", value);
+          const addr = alloc.object(application, kont); // no number-specific alloc?
+          const store2 = storeAlloc(store, addr, obj);
+          const ref = lat.abstRef(addr);
+          states.continue(ref, store2, lkont, kont);
+        }
+      }
+      // END NUMBER
+
+
+
       // BEGIN ARRAY
       const arrayPa = allocNative();
       const arrayProtoRef = lat.abstRef(arrayPa);

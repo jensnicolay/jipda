@@ -485,18 +485,18 @@ Sets.equals =
     }
 
 export const Maps = {};
-// Maps.join =  WRONG!!!
-//     function (x, y, join, bot)
-//     {
-//       const result = new Map();
-//       for (const [key, xvalue] of x)
-//       {
-//         const yvalue = y.get(key) || bot;
-//         const value = join(xvalue, yvalue);
-//         result.set(key, value);
-//       }
-//       return result;
-//     }
+Maps.join =
+    function (x, y, join, bot)
+    {
+      const result = new Map(x);
+      for (const [key, yvalue] of y)
+      {
+        const xvalue = x.get(key) || bot;
+        const value = join(xvalue, yvalue);
+        result.set(key, value);
+      }
+      return result;
+    }
 Maps.subsumes =
     function (x, y, subsumes, bot)
     {

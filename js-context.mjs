@@ -2,6 +2,7 @@ import Ast from "./ast.mjs";
 import {ArraySet, assert} from "./common.mjs";
 import concLattice from "./conc-lattice.mjs";
 import {createMachine, explore} from "./abstract-machine.mjs";
+import {isSuccessState} from "./abstract-machine";
 
 export function JsContext(semantics, explorer, store, kont)
 {
@@ -21,16 +22,38 @@ JsContext.prototype.explore =
       this.explorer.onEndState = (s => resultStates.add(s));
       this.explorer.explore(initialStates);
       //console.log("resultStates: " + [...S] + "->" + resultStates.size);
-      const s = [...resultStates].reduce((s, s2) => s.join(s2));
-      assert(s.value);
-      assert(s.store);
-      assert(s.kont);
-      this.store = s.store;
-      this.kont = s.kont;
-      this.managedValues = this.managedValues.add(s.value);
-      assert(typeof s.value.addresses === 'function');
+      let value = this.semantics.lat.bot();
+      let store = this.semantics.lat.bot();
+      let kont = null;
+      for (const s of resultStates)
+      {
+        if (isSuccessState(s))
+        {
+          value = value.join(s.value);
+          store = store.join(s.store);
+          if (kont)
+          {
+            if (s.kont !== kont)
+            {
+              throw new Error("?");
+            }
+          }
+          else
+          {
+            kont = s.kont;
+          }
+        }
+        else
+        {
+          console.warn("warning: ignoring non-success state " + s)
+        }
+      }
+      this.store = store;
+      this.kont = kont;
+      this.managedValues = this.managedValues.add(value);
+      assert(typeof value.addresses === 'function');
       //console.log("managing " + s.value.addresses());
-      return new JsValue(s.value, this);
+      return new JsValue(value, this);
     }
 
 JsContext.prototype.globalObject =

@@ -282,7 +282,7 @@
         {
           if (this.length === 0)
           {
-            throw new TypeError("22.1.3.19");
+            throw new TypeError("Reduce of empty array with no initial value");
           }
           result = this[0];
           start = 1;
@@ -322,7 +322,7 @@
       {
         if (f === undefined)
         {
-          throw new Error("NYI");
+          throw new Error("22.1.3.25 - NYI");
         }
         return insertionSort(this, f);
       }
