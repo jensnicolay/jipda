@@ -4,6 +4,7 @@ import {BOT} from './lattice.mjs';
 import Benv from './benv.mjs';
 import Store from './countingStore.mjs';
 import {Obj} from './object.mjs';
+import {Arrays} from "./common";
 
 export default createSemantics;
 
@@ -79,7 +80,7 @@ function createSemantics(lat, alloc, kalloc, cc)
   States.prototype.throwTypeError =
     function (msg, store, lkont, kont)
     {
-      console.log(msg);
+      console.debug("throwTypeError: " + msg);
       assert(typeof msg === "string");
       const obj = createError(lat.abst1(msg), kont.realm);
       const addr = alloc.error("@" + msg, kont);
@@ -6524,11 +6525,11 @@ Agc.collect =
       const reachable = MutableHashSet.empty();
       Agc.addressesReachable(rootSet, store, reachable);
       
-      // const cleanup = Arrays.removeAll(reachable.values(), store.map.keys())
-      // if (cleanup.length > 0)
-      // {
-      //   console.debug("cleaning up", cleanup);
-      // }
+      const cleanup = Arrays.removeAll(reachable.values(), store.map.keys())
+      if (cleanup.length > 0)
+      {
+        console.debug("cleaning up", cleanup);
+      }
       
       if (reachable.count() === store.map.count()) // we can do this since we have subsumption
       {

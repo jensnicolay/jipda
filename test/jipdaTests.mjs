@@ -522,6 +522,7 @@ run("var o={};!!o", true);
 run("var o = {}; Object.prototype.isPrototypeOf(o);", true);
 run("var p = {}; var o = Object.create(p); p.isPrototypeOf(o)", true);
 run(read("resources/inheritance1.js"), true);
+run("aBRaCADabrA".toLowerCase(), "abracadabra");
 
 // 20.1.3
 run("Object.getPrototypeOf(Number.prototype) === Object.prototype", true);

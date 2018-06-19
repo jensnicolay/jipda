@@ -1,5 +1,6 @@
 import {assert} from './common';
 import jsdom  from "jsdom";
+import {explore} from "./abstract-machine";
 
 
 const { JSDOM } = jsdom;
@@ -25,76 +26,76 @@ Browser.prototype.parseChildren =
       const jsChildren = jsNode.getProperty('children');
       for (const c of node.children)
       {
-        const jsChild = this.parseNode(c);
-        jsChildren.push(jsChild);
+        this.parseNode(c, jsChildren);
       }
     }
 
 Browser.prototype.parseWindow =
     function (window)
     {
-      const jsDoc = this.jsContext.globalObject().getProperty("HTMLDocument").construct([]);
-      this.jsContext.globalObject().assignProperty("document", jsDoc);
-      this.parseDocument(window.document, jsDoc);
+      this.parseDocument(window.document);
     }
 
 Browser.prototype.parseDocument =
-    function (doc, jsDoc)
+    function (doc)
     {
+      const jsDoc = this.jsContext.globalObject().getProperty("HTMLDocument").construct([]);
+      this.jsContext.globalObject().assignProperty("document", jsDoc);
       this.parseChildren(doc, jsDoc);
     }
 
 Browser.prototype.parseNode =
-    function (node)
+    function (node, jsChildren)
     {
       switch (node.nodeType)
       {
-        case 1: return this.parseElement(node);
+        case 1: return this.parseElement(node, jsChildren);
         default: throw new Error("cannot handle node type " + node.nodeType);
       }
     }
 
 Browser.prototype.parseElement =
-    function (element)
+    function (element, jsChildren)
     {
       switch (element.nodeName)
       {
-        case 'HTML': return this.parseHtml(element);
-        case 'HEAD': return this.parseHead(element);
-        case 'BODY': return this.parseBody(element);
-        case 'SCRIPT': return this.parseScript(element);
+        case 'HTML': return this.parseHtml(element, jsChildren);
+        case 'HEAD': return this.parseHead(element, jsChildren);
+        case 'BODY': return this.parseBody(element, jsChildren);
+        case 'SCRIPT': return this.parseScript(element, jsChildren);
         default: throw new Error("cannot handle element name " + element.nodeName);
       }
     }
 
 Browser.prototype.parseHtml =
-    function (html)
+    function (html, jsChildren)
     {
       const jsHtml = this.jsContext.globalObject().getProperty("HTMLHtmlElement").construct([]);
+      jsChildren.push(jsHtml);
       this.parseChildren(html, jsHtml);
-      return jsHtml;
     }
 
 Browser.prototype.parseHead =
-    function (head)
+    function (head, jsChildren)
     {
       const jsHead = this.jsContext.globalObject().getProperty("HTMLHeadElement").construct([]);
+      jsChildren.push(jsHead);
       this.parseChildren(head, jsHead);
-      return jsHead;
     }
 
 Browser.prototype.parseBody =
-    function (body)
+    function (body, jsChildren)
     {
       const jsBody = this.jsContext.globalObject().getProperty("HTMLBodyElement").construct([]);
+      jsChildren.push(jsBody);
       this.parseChildren(body, jsBody);
-      return jsBody;
     }
 
 Browser.prototype.parseScript =
-    function (script)
+    function (script, jsChildren)
     {
       const jsScript = this.jsContext.globalObject().getProperty("HTMLScriptElement").construct([]);
+      jsChildren.push(jsScript);
       const src = script.text;
       this.jsContext.evaluateScript(src);
       return jsScript;

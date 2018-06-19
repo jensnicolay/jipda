@@ -1,0 +1,34 @@
+{
+  "name": "jipda",
+  "version": "2018.1.0",
+  "description": "Generic static analysis framework",
+  "main": "jipda.mjs",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "dependencies": {
+    "jsdom": "^11.6.2",
+    "minimist": "^1.2.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jensnicolay/jipda.git"
+  },
+  "keywords": [
+    "interpreter",
+    "javascript",
+    "static analysis",
+    "abstract interpretation"
+  ],
+  "author": "Jens Nicolay",
+  "license": "SEE LICENSE IN CRAPL-LICENSE.txt",
+  "bugs": {
+    "url": "https://github.com/jensnicolay/jipda/issues"
+  },
+  "homepage": "https://github.com/jensnicolay/jipda#readme"
+}

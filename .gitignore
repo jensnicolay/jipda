@@ -3,3 +3,7 @@
 node_modules/**
 .vscode/**
 .idea/**
+/deploy.sh
+/jipda.dot
+/test/resources/prog.js
+/test/resources/prog.js.dot

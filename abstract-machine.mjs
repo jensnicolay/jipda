@@ -237,7 +237,7 @@ export function createMachine(semantics, cc)
   ReturnState.prototype.addresses =
       function ()
       {
-        return kont.addresses().join(this.value.addresses());
+        return this.kont.addresses().join(this.value.addresses());
       }
   
   function ThrowState(value, store, lkont, kont)
@@ -296,7 +296,7 @@ export function createMachine(semantics, cc)
   ThrowState.prototype.addresses =
       function ()
       {
-        return kont.stackAddresses(lkont).join(this.value.addresses());
+        return this.kont.stackAddresses(this.lkont).join(this.value.addresses());
       }
   
   function BreakState(store, lkont, kont)
@@ -351,7 +351,7 @@ export function createMachine(semantics, cc)
   BreakState.prototype.addresses =
       function ()
       {
-        return kont.stackAddresses(lkont);
+        return this.kont.stackAddresses(this.lkont);
       }
   
   function ErrorState(node, msg, kont)
@@ -441,10 +441,10 @@ function retrieveEndStates(initial) // not used for the moment
 
 export function isSuccessState(s)
 {
-  return s.value && s.lkont.length === 0 && s.kont._stacks.size === 0;
+  return s.isKontState && s.value && s.lkont.length === 0 && s.kont._stacks.size === 0;
 }
 
-function StateRegistry()
+export function StateRegistry()
 {
   this.kont2states = new Array(2048);
   this.states = []; // do not pre-alloc
@@ -526,17 +526,6 @@ StateRegistry.prototype.getState =
       return s;
     }
 
-export function Explorer()
-{
-  this.stateRegistry = new StateRegistry();
-}
-
-Explorer.prototype.explore =
-    function (states)
-    {
-      return explore(states, this.onEndState, this.onNewState, this.onNewTransition, this.stateRegistry);
-    }
-
 export function explore(initialStates,
                         onEndState = s => undefined,
                         onNewState = s => undefined,
@@ -545,8 +534,15 @@ export function explore(initialStates,
 {
   const stateRegistry = stateReg || new StateRegistry();
   var startTime = performance.now();
-  const todo = initialStates.map(s => stateRegistry.getState(s)); // invariant: all to-do states are interned
-  todo.forEach(onNewState); // TODO not with existing registry!
+  const todo = initialStates.map(function (s)   // invariant: all to-do states are interned
+  {
+    const s2 = stateRegistry.getState(s);
+    if (s2 === s) // new state
+    {
+      onNewState(s2);
+    }
+    return s2;
+  });
   var result = new Set();
   let sstorei = -1;
   while (todo.length > 0)

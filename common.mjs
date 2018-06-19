@@ -1626,6 +1626,12 @@ ArraySet.prototype.values =
     return this._arr.slice(0);
   }
 
+ArraySet.prototype[Symbol.iterator] =
+    function* ()
+    {
+      yield* this._arr;
+    }
+
 ArraySet.prototype.map =
   function (f, th)
   {

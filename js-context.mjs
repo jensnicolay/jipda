@@ -4,11 +4,13 @@ import concLattice from "./conc-lattice.mjs";
 import {createMachine, explore} from "./abstract-machine.mjs";
 import {isSuccessState} from "./abstract-machine";
 
+
 export function JsContext(semantics, explorer, store, kont)
 {
   this.semantics = semantics;
   this.explorer = explorer;
   this.store = store;
+  assert(kont);
   this.kont = kont;
   this.managedValues = ArraySet.empty();
 }
@@ -19,12 +21,14 @@ JsContext.prototype.explore =
       const resultStates = new Set();
       const initialStates = [...S];
       assert(initialStates.length > 0);
-      this.explorer.onEndState = (s => resultStates.add(s));
-      this.explorer.explore(initialStates);
-      //console.log("resultStates: " + [...S] + "->" + resultStates.size);
+      this.explorer.explore(initialStates, s => resultStates.add(s));
       let value = this.semantics.lat.bot();
       let store = this.semantics.lat.bot();
       let kont = null;
+      if (resultStates.size === 0)
+      {
+        throw new Error("TODO: no result states");
+      }
       for (const s of resultStates)
       {
         if (isSuccessState(s))
@@ -43,11 +47,30 @@ JsContext.prototype.explore =
             kont = s.kont;
           }
         }
+        else if (s.isThrowState)
+        {
+          this.managedValues = this.managedValues.add(s.value);
+          store = store.join(s.store);
+          if (kont)
+          {
+            if (s.kont !== kont)
+            {
+              throw new Error("?");
+            }
+          }
+          else
+          {
+            kont = s.kont;
+          }
+          console.warn("warning: ignoring throw state " + s);
+        }
         else
         {
           console.warn("warning: ignoring non-success state " + s)
         }
       }
+      assert(store);
+      assert(kont);
       this.store = store;
       this.kont = kont;
       this.managedValues = this.managedValues.add(value);
@@ -178,3 +201,54 @@ JsValue.prototype.push =
     const S2 = semantics.$call(pushMethod.d, obj, operandValues, benv, this.context.store, lkont, this.context.kont, machine);
     return this.context.explore(S2);
   }
+
+JsValue.prototype.call =
+  function (thisArg, ...args)
+  {
+    const benv = this.context.kont.realm.GlobalEnv;
+    const lkont = [];
+    const machine = this.context.createMachine();
+    const S = semantics.$call(this.d, thisArg.d, operandValues.map(x => x.d), benv, this.context.store, lkont, this.context.kont, machine);
+    return this.context.explore(S);
+  }
+
+JsValue.prototype.toString =
+    function ()
+    {
+      const BOT = this.context.semantics.lat.bot();
+      let str = [];
+      const d = this.d;
+      if (d.projectObject() !== BOT)
+      {
+        const store = this.context.store;
+        for (const a of d.addresses())
+        {
+          str.push(a + ":" + new JsValue(store.lookupAval(a), this));
+        }
+      }
+      if (d.projectUndefined() !== BOT)
+      {
+        str.push("undefined");
+      }
+      if (d.projectNull() !== BOT)
+      {
+        str.push("null");
+      }
+      if (d.isTrue())
+      {
+        str.push("true");
+      }
+      if (d.isFalse())
+      {
+        str.push("true");
+      }
+      if (d.projectNumber() !== BOT)
+      {
+        str.push(d.isProjectNumber());
+      }
+      if (d.projectString() !== BOT)
+      {
+        str.push(d.isProjectString());
+      }
+      return "<" + str.join(",") + ">";
+    }

@@ -50,7 +50,7 @@ function stateToColor(s)
   }
   else if (s.isKontState)
   {
-    return "lightgreen";
+    return "palegreen";
   }
   else if (s.isReturnState)
   {
