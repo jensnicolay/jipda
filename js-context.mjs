@@ -142,6 +142,18 @@ function JsValue(d, context)
   this.context = context;
 }
 
+JsValue.prototype.isNonUndefined =
+    function ()
+    {
+      return this.d.isNonUndefined();
+    }
+
+JsValue.prototype.isNonNull =
+    function ()
+    {
+      return this.d.isNonNull();
+    }
+
 JsValue.prototype.getProperty =
     function (name)
     {
@@ -160,13 +172,14 @@ JsValue.prototype.assignProperty =
     function (name, value)
     {
       const semantics = this.context.semantics;
-      const nameValue = typeof name === "string" ? semantics.lat.abst1(name) : name.d;
+      const dName = name instanceof JsValue ? name.d : semantics.lat.abst1(name);
+      const dValue = value instanceof JsValue ? value.d : semantics.lat.abst1(value);
       const obj = this.d;
       const store = this.context.store;
       const lkont = [];
       const kont = this.context.kont;
       const machine = this.context.createMachine();
-      const S = semantics.$assignProperty(obj, nameValue, value.d, store, lkont, kont, machine);
+      const S = semantics.$assignProperty(obj, dName, dValue, store, lkont, kont, machine);
       return this.context.explore(S);
     }
 
@@ -202,13 +215,27 @@ JsValue.prototype.push =
     return this.context.explore(S2);
   }
 
+// JsValue.prototype[Symbol.iterator] =
+//     function* ()
+//     {
+//       const semantics = this.context.semantics;
+//       const obj = this.d;
+//       const store = this.context.store;
+//       const benv = this.context.kont.realm.GlobalEnv;
+//       const lkont = [];
+//       const kont = this.context.kont;
+//       const machine = this.context.createMachine();
+//     }
+
+
 JsValue.prototype.call =
   function (thisArg, ...args)
   {
+    const semantics = this.context.semantics;
     const benv = this.context.kont.realm.GlobalEnv;
     const lkont = [];
     const machine = this.context.createMachine();
-    const S = semantics.$call(this.d, thisArg.d, operandValues.map(x => x.d), benv, this.context.store, lkont, this.context.kont, machine);
+    const S = semantics.$call(this.d, thisArg.d, args.map(x => x.d), benv, this.context.store, lkont, this.context.kont, machine);
     return this.context.explore(S);
   }
 

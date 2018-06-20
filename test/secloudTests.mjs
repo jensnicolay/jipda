@@ -40,12 +40,7 @@ function run(name, expected)
   const jsContext = new JsContext(jsSemantics, explorer, store0, kont0);
   const browser = new Browser(jsContext);
   //const html1 = fs.readFileSync("resources/secloud/" + name + ".js");
-  const html =
-      "<html>\n" +
-      "<body>\n" +
-      "</body>\n" +
-      "<script src=\"resources/secloud/" + name + ".js\"></script>\n" +
-      "</html>"
+  const html = read("resources/secloud/" + name + ".html");
   const actual = browser.parse(html);
   const states = explorer.stateRegistry.states;
   const dot = dotGraph(states);

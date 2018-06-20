@@ -24,16 +24,24 @@ Browser.prototype.parseChildren =
     function (node, jsNode)
     {
       const jsChildren = jsNode.getProperty('children');
+      const children = [];
       for (const c of node.children)
       {
-        this.parseNode(c, jsChildren);
+        children.push(this.parseNode(c, jsChildren));
       }
+      return children;
     }
 
 Browser.prototype.parseWindow =
     function (window)
     {
-      this.parseDocument(window.document);
+      const jsDoc = this.parseDocument(window.document);
+      const jsWindow = this.jsContext.globalObject();
+      const onload = jsWindow.getProperty("document").getProperty("body").getProperty("onload");
+      if (onload.isNonUndefined())
+      {
+        onload.call(jsWindow);
+      }
     }
 
 Browser.prototype.parseDocument =
@@ -42,6 +50,7 @@ Browser.prototype.parseDocument =
       const jsDoc = this.jsContext.globalObject().getProperty("HTMLDocument").construct([]);
       this.jsContext.globalObject().assignProperty("document", jsDoc);
       this.parseChildren(doc, jsDoc);
+      return jsDoc;
     }
 
 Browser.prototype.parseNode =
@@ -63,6 +72,7 @@ Browser.prototype.parseElement =
         case 'HEAD': return this.parseHead(element, jsChildren);
         case 'BODY': return this.parseBody(element, jsChildren);
         case 'SCRIPT': return this.parseScript(element, jsChildren);
+        case 'DIV': return this.parseDiv(element, jsChildren);
         default: throw new Error("cannot handle element name " + element.nodeName);
       }
     }
@@ -73,6 +83,7 @@ Browser.prototype.parseHtml =
       const jsHtml = this.jsContext.globalObject().getProperty("HTMLHtmlElement").construct([]);
       jsChildren.push(jsHtml);
       this.parseChildren(html, jsHtml);
+      return jsHtml;
     }
 
 Browser.prototype.parseHead =
@@ -80,7 +91,9 @@ Browser.prototype.parseHead =
     {
       const jsHead = this.jsContext.globalObject().getProperty("HTMLHeadElement").construct([]);
       jsChildren.push(jsHead);
+      this.jsContext.globalObject().getProperty("document").assignProperty("head", jsHead);
       this.parseChildren(head, jsHead);
+      return jsHead;
     }
 
 Browser.prototype.parseBody =
@@ -88,7 +101,9 @@ Browser.prototype.parseBody =
     {
       const jsBody = this.jsContext.globalObject().getProperty("HTMLBodyElement").construct([]);
       jsChildren.push(jsBody);
+      this.jsContext.globalObject().getProperty("document").assignProperty("body", jsBody);
       this.parseChildren(body, jsBody);
+      return jsBody;
     }
 
 Browser.prototype.parseScript =
@@ -96,9 +111,24 @@ Browser.prototype.parseScript =
     {
       const jsScript = this.jsContext.globalObject().getProperty("HTMLScriptElement").construct([]);
       jsChildren.push(jsScript);
+      //const src =‌ ‌script.getAttribute("src");
       const src = script.text;
       this.jsContext.evaluateScript(src);
       return jsScript;
+    }
+
+Browser.prototype.parseDiv =
+    function (div, jsChildren)
+    {
+      const jsDiv = this.jsContext.globalObject().getProperty("HTMLDivElement").construct([]);
+      jsChildren.push(jsDiv);
+      const id = div.getAttribute("id");
+      if (id)
+      {
+        jsDiv.assignProperty("id", id);
+      }
+      this.parseChildren(div, jsDiv);
+      return jsDiv;
     }
 
 

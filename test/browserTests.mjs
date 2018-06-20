@@ -48,4 +48,14 @@ run("<script>$result$ = !!document</script>", true);
 run("<script>$result$ = document instanceof Node && document instanceof Document && document instanceof HTMLDocument</script>", true);
 run("<script>$result$ = !!document.children</script>", true); //TODO see https://stackoverflow.com/questions/7935689/what-is-the-difference-between-children-and-childnodes-in-javascript
 run("<script>$result$ = document.children.length</script>", 1);
+run("<script>$result$ = document.children[0].tagName</script>", "HTML");
+run("<script>$result$ = document.children[0].children.length</script>", 1);
+run("<script>$result$ = document.children[0].children[0].tagName</script>", "HEAD");
 run("<script>var div=document.createElement('div'); $result$=div instanceof Node && div instanceof Element && div instanceof HTMLElement && div instanceof HTMLDivElement</script>", true);
+run("<script>var txt=document.createTextNode('hello'); $result$=txt instanceof CharacterData && txt instanceof Text && txt instanceof Node</script>", true);
+run("<script>$result$ = !!document.head", true);
+run("<script>$result$ = document.body", undefined);
+run("<html><body><script>$result$ = !!document.body</script></body></html>", true);
+run("<body><script>document.body.onload = function () {$result$ = true}</script></body>", true);
+run("<body><div id='hopla'></div><script>$result$ = document.body.children[0].id</script></body>", "hopla");
+run("<body><div id='hopla'></div><script>$result$ = document.getElementById('hopla').id</script></body>", "hopla");
