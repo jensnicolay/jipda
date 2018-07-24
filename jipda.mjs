@@ -7,13 +7,14 @@ import typeLattice from "./type-lattice";
 import createSemantics from "./js-semantics.mjs";
 import concAlloc from "./conc-alloc.mjs";
 import concKalloc from "./conc-kalloc.mjs";
-import {computeInitialCeskState, Explorer} from "./abstract-machine.mjs";
+import {computeInitialCeskState, explore} from "./abstract-machine.mjs";
 import {JsContext} from "./js-context.mjs";
 import readline from 'readline';
 import {Browser} from './browser.mjs';
 import dotGraph from './export/dot-graph.mjs';
 import tagAlloc from "./tag-alloc";
 import aacKalloc from "./aac-kalloc";
+import {StateRegistry} from "./abstract-machine";
 
 /*
 
@@ -26,6 +27,8 @@ g   graph
 const read = name => fs.readFileSync(name).toString();
 
 const argv = argvf(process.argv.slice(2));
+
+//console.log("::" + JSON.stringify(argv));
 
 const nodeRepl = argv.R;
 
@@ -75,6 +78,19 @@ const ast1src = browser ? read("web-prelude.js") : "";
 
 const jsPreludeSemantics = createSemantics(lattice, concAlloc, concKalloc, {errors: true});
 const {store:store0, kont:kont0} = computeInitialCeskState(jsPreludeSemantics, ast0src, ast1src);
+
+function Explorer()
+{
+  this.stateRegistry = new StateRegistry();
+}
+
+Explorer.prototype.explore =
+    function (initialStates, onEndState)
+    {
+      return explore(initialStates, onEndState, undefined, undefined, this.stateRegistry);
+    }
+
+
 
 const jsSemantics = createSemantics(lattice, alloc, kalloc, {errors:true});
 jsContext = new JsContext(jsSemantics, new Explorer(), store0, kont0);

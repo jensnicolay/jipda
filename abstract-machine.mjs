@@ -630,11 +630,11 @@ export function run(initialStates,
   return {time: performance.now() - startTime};
 }
 
-export function computeInitialCeskState(semantics, ...srcs)
+export function computeInitialCeskState(semantics, ...resources)
 {
   const machine = createMachine(semantics, {errors:true, hardAsserts:true});
   const s0 = semantics.initialize(machine);
-  const s1 = srcs.reduce((state, src) => state.enqueueScriptEvaluation(src), s0);
+  const s1 = resources.reduce((state, resource) => state.enqueueScriptEvaluation(resource), s0);
   const resultStates = new Set();
   const prelSystem = run([s1], s => resultStates.add(s));
   //console.log("prelude time: " + prelSystem.time);

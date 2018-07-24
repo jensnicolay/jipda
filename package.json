@@ -1,6 +1,6 @@
 {
   "name": "jipda",
-  "version": "2018.1.0",
+  "version": "2018.2.1",
   "description": "Generic static analysis framework",
   "main": "jipda.mjs",
   "directories": {

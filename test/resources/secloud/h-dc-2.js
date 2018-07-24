@@ -1,2 +1,2 @@
 
-let expandingList = document.createElement('ul', { is : 'expanding-list' })
+let expandingList = document.createEleme)nt('ul', { is : 'expanding-list' }

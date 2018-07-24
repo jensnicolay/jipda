@@ -1,7 +1,7 @@
 import fs from 'fs';
 
 import {assert} from '../common';
-import Ast from '../ast';
+import {FileResource, StringResource} from "../ast";
 import {BOT} from '../lattice';
 import concAlloc from '../conc-alloc';
 import concKalloc from '../conc-kalloc';
@@ -14,24 +14,21 @@ import {TestSuite} from '../test';
 
 typeLattice.sanity();
 
-
-const read = name => fs.readFileSync(name).toString();
-
-const ast0src = read("../prelude.js");
+const ast0resource = new FileResource("../prelude.js");
 
 var module = new TestSuite("suiteJipdaTests");
 
 const preludeJsSemantics = createSemantics(typeLattice, concAlloc, concKalloc, {errors:true});
-const s0 = computeInitialCeskState(preludeJsSemantics, ast0src);
+const s0 = computeInitialCeskState(preludeJsSemantics, ast0resource);
 const typeJsSemantics = createSemantics(typeLattice, tagAlloc, aacKalloc, {errors:true});
 
 let c = 0;
 
-function run(src, expected)
+function run(resource, expected)
 {
-  console.log("type " + ++c + "\t" + src.substring(0, 80).replace(/(\r\n\t|\n|\r\t)/gm, ' '));
+  console.log("type " + ++c + "\t" + resource);
   const s1 = s0.switchMachine(typeJsSemantics, {gc:true});
-  const s2 = s1.enqueueScriptEvaluation(src);
+  const s2 = s1.enqueueScriptEvaluation(resource);
   let actual = typeJsSemantics.lat.bot();
   const system = explore([s2], s => {
     if (isSuccessState(s))
@@ -54,10 +51,16 @@ function run(src, expected)
   assert(actual.equals(expected));
 }
 
-run("function f() {f()}; f()", BOT);
-run("var t = function (x) {return t(x+1)}; t(0)", BOT);
-run("var x = 'hela'; while (true) {x += x}", BOT);
-run("for (var x=0;true;x++);", BOT);
+function runSource(src, expected)
+{
+  return run(new StringResource(src), expected);
+}
+
+
+runSource("function f() {f()}; f()", BOT);
+runSource("var t = function (x) {return t(x+1)}; t(0)", BOT);
+runSource("var x = 'hela'; while (true) {x += x}", BOT);
+runSource("for (var x=0;true;x++);", BOT);
 
 // simplest of GC tests
 //    

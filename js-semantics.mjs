@@ -1,5 +1,5 @@
 import {HashCode, Strings, Sets, MutableHashSet, ArraySet, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
-import Ast from './ast.mjs';
+import * as Ast from './ast.mjs';
 import {BOT} from './lattice.mjs';
 import Benv from './benv.mjs';
 import Store from './countingStore.mjs';
@@ -6359,15 +6359,15 @@ function createSemantics(lat, alloc, kalloc, cc)
     return koState;
   }
   
-  function ScriptEvaluationJob(src)
+  function ScriptEvaluationJob(resource)
   {
-    this.src = src;
+    this.resource = resource;
   }
   
   ScriptEvaluationJob.prototype.execute =
       function (store, lkont, kont, machine)
       {
-        const ast = Ast.createAst(this.src);
+        const ast = Ast.createAst(this.resource);
         return [machine.evaluate(ast, kont.realm.GlobalEnv, store, lkont, kont)];
       }
   
@@ -6377,7 +6377,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         var prime = 29;
         var result = 1;
         result = prime * result + 0; // 0 = ScriptEvaluationJob (TODO)
-        result = prime * result + Strings.hashCode(this.src);
+        result = prime * result + this.resource.hashCode();
         return result;
       }
       
@@ -6525,11 +6525,11 @@ Agc.collect =
       const reachable = MutableHashSet.empty();
       Agc.addressesReachable(rootSet, store, reachable);
       
-      const cleanup = Arrays.removeAll(reachable.values(), store.map.keys())
-      if (cleanup.length > 0)
-      {
-        console.debug("cleaning up", cleanup);
-      }
+      // const cleanup = Arrays.removeAll(reachable.values(), store.map.keys())
+      // if (cleanup.length > 0)
+      // {
+      //   console.debug("cleaning up", cleanup);
+      // }
       
       if (reachable.count() === store.map.count()) // we can do this since we have subsumption
       {
