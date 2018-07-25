@@ -154,10 +154,10 @@ export function createMachine(semantics, cc)
         return this.kont.stackAddresses(this.lkont).join(this.value.addresses());
       }
   KontState.prototype.enqueueScriptEvaluation =
-      function (src)
+      function (resource)
       {
         let store = this.store;
-        store = semantics.enqueueScriptEvaluation(src, store);
+        store = semantics.enqueueScriptEvaluation(resource, store);
         return new KontState(this.value, store, this.lkont, this.kont);
       }
     KontState.prototype.enqueueJob =
@@ -534,7 +534,7 @@ export function explore(initialStates,
 {
   const stateRegistry = stateReg || new StateRegistry();
   var startTime = performance.now();
-  const todo = initialStates.map(function (s)   // invariant: all to-do states are interned
+  const initialStatesInterned = initialStates.map(function (s)   // invariant: all to-do states are interned
   {
     const s2 = stateRegistry.getState(s);
     if (s2 === s) // new state
@@ -543,6 +543,7 @@ export function explore(initialStates,
     }
     return s2;
   });
+  const todo = [...initialStatesInterned]; // additional copy to be able to return initialStatesInterned
   var result = new Set();
   let sstorei = -1;
   while (todo.length > 0)
@@ -604,7 +605,7 @@ export function explore(initialStates,
       }
     }
   }
-  return {time: performance.now() - startTime, states:stateRegistry.states};
+  return {time: performance.now() - startTime, states:stateRegistry.states, initialStates: initialStatesInterned};
 }
 
 export function run(initialStates,

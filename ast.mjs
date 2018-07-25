@@ -453,12 +453,12 @@ function printTree(n)
   
   
 let __nodeCounter__ = 0;
-function tagNode(node)
+export function tagNode(node)
 {
   node.tag = __nodeCounter__++;
 }
 
-function augmentAst(node)
+function augmentAst(node, root)
 {
 
   function toString()
@@ -487,7 +487,8 @@ function augmentAst(node)
     node.hashCode = hashCode;
     node.equals = equals;
     node.parent = parent;
-    var cs = children(node);
+    node.root = root;
+    const cs = children(node);
     cs.forEach(function (child) {doVisit(child, node)});
   }
   doVisit(node, null);
@@ -557,8 +558,6 @@ export class StringResource
   }
 }
 
-
-
 export function createAst(resource, config)
   {
     config = config || {keepTagCounter:false};
@@ -568,7 +567,8 @@ export function createAst(resource, config)
     {
       __nodeCounter__ = 0;
     }
-    augmentAst(ast);
+    ast.resource = resource;
+    augmentAst(ast, ast);
     return ast;
   }
   

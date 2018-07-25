@@ -746,9 +746,9 @@ function createSemantics(lat, alloc, kalloc, cc)
     throw new Error("no break target\nlocal stack: " + lkont);
   }
   
-  function enqueueScriptEvaluation(src, store)
+  function enqueueScriptEvaluation(resource, store)
   {
-    return enqueueJob("ScriptJobs", new ScriptEvaluationJob(src), store);
+    return enqueueJob("ScriptJobs", new ScriptEvaluationJob(resource), store);
   }
   
   function storeAlloc(store, addr, value)
@@ -5428,9 +5428,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         return "[ctx#" + this._id + " app: " + (this.ex ? this.ex.tag : this.ex) + "]";
       }
-  
-  
-  
+
   ////////////////////////////////
   
   

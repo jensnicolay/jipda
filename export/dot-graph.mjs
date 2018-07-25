@@ -9,7 +9,7 @@ function stateToLabel(s)
 
   if (s.isEvalState)
   {
-    return s.node.toString().substring(0, 80) + kontLabel(s);
+    return s.node.toString().substring(0, 80) + kontLabel(s);// + " ~ " + s.resource;
   }
   else if (s.isKontState)
   {
@@ -84,7 +84,7 @@ function dotTransition(s, s2)
   return s._id + " -> " + s2._id + ";";
 }
 
-export default function dotGraph(states)
+export function statesToDot(states)
 {
   let sb = "digraph G {\nnode [style=filled,fontname=\"Roboto Condensed\"];\n";
   for (const s of states)
@@ -94,6 +94,31 @@ export default function dotGraph(states)
     {
       sb += dotTransition(s, s2) + "\n";
     }
+  }
+  sb += "}";
+  return sb;
+}
+
+export function initialStatesToDot(initialStates)
+{
+  let sb = "digraph G {\nnode [style=filled,fontname=\"Roboto Condensed\"];\n";
+
+  const W = [...initialStates];
+  const S = [];
+  while (W.length > 0)
+  {
+    const s = W.pop();
+    if (S[s._id])
+    {
+      continue;
+    }
+    S[s._id] = true;
+    sb += stateToVertex(s) + "\n";
+    for (const s2 of s._successors)
+    {
+      sb += dotTransition(s, s2) + "\n";
+    }
+    s._successors.forEach(s2 => W.push(s2));
   }
   sb += "}";
   return sb;

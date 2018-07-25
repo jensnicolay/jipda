@@ -10,11 +10,10 @@ import {JsContext} from '../js-context';
 import {explore, StateRegistry, computeInitialCeskState} from "../abstract-machine.mjs";
 import dotGraph from '../export/dot-graph';
 
-const read = name => fs.readFileSync(name).toString();
-const ast0src = read("../prelude.js");
-const ast1src = read("../web-prelude.js");
+const ast0resource = new FileResource("../prelude.js");
+const ast1resource = new FileResource("../web-prelude.js");
 const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, ast0src, ast1src);
+const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, ast0resource, ast1resource);
 
 assert(store0);
 assert(kont0);

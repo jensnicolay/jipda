@@ -1,5 +1,3 @@
-import fs from 'fs';
-
 import {assertEquals} from '../common';
 import concLattice from '../conc-lattice';
 import concAlloc from '../conc-alloc';
@@ -7,13 +5,13 @@ import concKalloc from '../conc-kalloc';
 import createSemantics from '../js-semantics';
 import {} from '../jipda';
 import {Browser} from '../browser';
+import {FileResource} from '../ast';
 import {JsContext} from '../js-context';
 import {computeInitialCeskState} from "../abstract-machine.mjs";
 
-const read = name => fs.readFileSync(name).toString();
-const ast0src = read("../prelude.js");
+const ast0resource = new FileResource("../prelude.js");
 const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, ast0src);
+const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, ast0resource);
 
 let c = 0;
 
