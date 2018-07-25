@@ -1,8 +1,6 @@
-import Ast from "./ast.mjs";
-import {ArraySet, assert} from "./common.mjs";
-import concLattice from "./conc-lattice.mjs";
-import {createMachine, explore} from "./abstract-machine.mjs";
-import {isSuccessState} from "./abstract-machine";
+import {createAst, StringResource} from "./ast";
+import {ArraySet, assert} from "./common";
+import {createMachine, explore, isSuccessState} from "./abstract-machine";
 
 
 export function JsContext(semantics, explorer, store, kont)
@@ -88,7 +86,7 @@ JsContext.prototype.globalObject =
 JsContext.prototype.createArray =
     function ()
     {
-      return this.evaluateScript("[]");
+      return this.evaluateScript(new StringResource("[]"));
     }
 
 // JsContext.prototype.createFunction =
@@ -111,10 +109,10 @@ JsContext.prototype.createArray =
 //     }
 
 JsContext.prototype.evaluateScript =
-    function (src)
+    function (resource)
     {
       const semantics = this.semantics;
-      const ast = Ast.createAst(src);
+      const ast = createAst(resource);
       const benv = this.kont.realm.GlobalEnv;
       const store = this.store;
       const lkont = [];

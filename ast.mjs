@@ -528,14 +528,15 @@ export class FileResource
 
 export class StringResource
 {
-  constructor(src)
+  constructor(src, parentResource)
   {
     this.src = src;
+    this.parentResource = parentResource;
   }
 
   toSrc()
   {
-    return this.src
+    return this.src;
   }
 
   hashCode()
@@ -549,12 +550,12 @@ export class StringResource
     {
       return true;
     }
-    return (x instanceof StringResource && this.src === x.src);
+    return (x instanceof StringResource && this.src === x.src && (this.parentResource === x.parentResource || (this.parentResource && this.parentResource.equals(x.parentResource))))
   }
 
   toString()
   {
-    return this.src.substring(0, 80).replace(/(\r\n\t|\n|\r\t)/gm, ' ');
+    return this.src.substring(0, 80).replace(/(\r\n\t|\n|\r\t)/gm, ' ') + (this.parentResource ? this.parentResource : "");
   }
 }
 

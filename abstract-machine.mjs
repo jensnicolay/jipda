@@ -1,4 +1,5 @@
 import {ArraySet, HashMap, HashCode, Sets, Formatter, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
+import {FileResource} from "./ast";
 
 export function createMachine(semantics, cc)
 {
@@ -605,7 +606,9 @@ export function explore(initialStates,
       }
     }
   }
-  return {time: performance.now() - startTime, states:stateRegistry.states, initialStates: initialStatesInterned};
+  markResources(initialStatesInterned);
+  const initialStatesPruned = pruneGraph(initialStatesInterned);
+  return {time: performance.now() - startTime, states:stateRegistry.states, initialStates: initialStatesPruned};
 }
 
 export function run(initialStates,
@@ -645,4 +648,91 @@ export function computeInitialCeskState(semantics, ...resources)
   }
   const prelState = [...resultStates][0];
   return prelState;
+}
+
+function markResources(initialStates)
+{
+  const W = [...initialStates];
+  const S = [];
+  const resources = [];
+  let currentCtx = null;
+  while (W.length > 0)
+  {
+    const s = W.pop();
+    if (S[s._id])
+    {
+      continue;
+    }
+    S[s._id] = true;
+    const ctx = s.kont;
+    let resource = resources[ctx._id];
+    if (ctx !== currentCtx)
+    {
+      if (!resource)
+      {
+        //assert(s.isEvalState);
+        if (s.isEvalState)
+        {
+          resource = s.node.root.resource;
+          if (resource.parentResource)
+          {
+            resource = resource.parentResource;
+          }
+          resources[ctx._id] = resource;
+        }
+      }
+    }
+    s.resource = resource;
+    s._successors.forEach(s2 => W.push(s2));
+  }
+}
+
+function pruneGraph(initialStates)
+{
+  function preludeState(s)
+  {
+    const resource = s.resource;
+    return resource && resource instanceof FileResource && resource.path.includes("prelude");
+  }
+
+  function scanForNonPreludeStates(W)
+  {
+    // const W = [...W2];
+    const S = [];
+    const nonPreludeStates = [];
+    while (W.length > 0)
+    {
+      const s = W.pop();
+      if (S[s._id])
+      {
+        continue;
+      }
+      S[s._id] = true;
+      if (preludeState(s))
+      {
+        s._successors.forEach(s2 => W.push(s2));
+      }
+      else
+      {
+        nonPreludeStates.push(s);
+      }
+    }
+    return nonPreludeStates;
+  }
+
+  const W = [...initialStates].filter(s => !preludeState(s));
+  const W2 = [...W];
+  const S = [];
+  while (W.length > 0)
+  {
+    const s = W.pop();
+    if (S[s._id])
+    {
+      continue;
+    }
+    S[s._id] = true;
+    s._successors = scanForNonPreludeStates(s._successors);
+    s._successors.forEach(s2 => W.push(s2));
+  }
+  return W2;
 }

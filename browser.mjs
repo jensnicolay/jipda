@@ -1,6 +1,7 @@
 import {assert} from './common';
 import jsdom  from "jsdom";
 import {explore} from "./abstract-machine";
+import {StringResource} from "./ast";
 
 
 const { JSDOM } = jsdom;
@@ -12,9 +13,10 @@ export function Browser(jsContext)
 }
 
 Browser.prototype.parse =
-    function (html)
+    function (htmlResource)
     {
-      const dom = new JSDOM(html);
+      const dom = new JSDOM(htmlResource.toSrc());
+      dom.window.document.resource = htmlResource;
       this.parseWindow(dom.window);
       const result = this.jsContext.globalObject().getProperty("$result$");
       return result.d;
@@ -113,7 +115,8 @@ Browser.prototype.parseScript =
       jsChildren.push(jsScript);
       //const src =‌ ‌script.getAttribute("src");
       const src = script.text;
-      this.jsContext.evaluateScript(src);
+      console.log("::", script.ownerDocument.resource);
+      this.jsContext.evaluateScript(new StringResource(src, script.ownerDocument.resource));
       return jsScript;
     }
 

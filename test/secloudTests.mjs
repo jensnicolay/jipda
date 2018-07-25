@@ -7,8 +7,9 @@ import concKalloc from '../conc-kalloc';
 import createSemantics from '../js-semantics';
 import {Browser} from '../browser';
 import {JsContext} from '../js-context';
-import {explore, StateRegistry, computeInitialCeskState} from "../abstract-machine.mjs";
-import dotGraph from '../export/dot-graph';
+import {explore, StateRegistry, computeInitialCeskState} from "../abstract-machine";
+import {FileResource} from "../ast";
+import {initialStatesToDot} from "../export/dot-graph";
 
 const ast0resource = new FileResource("../prelude.js");
 const ast1resource = new FileResource("../web-prelude.js");
@@ -21,12 +22,15 @@ assert(kont0);
 function Explorer()
 {
   this.stateRegistry = new StateRegistry();
+  this.initialStates = [];
 }
 
 Explorer.prototype.explore =
     function (initialStates, onEndState)
     {
-      return explore(initialStates, onEndState, undefined, undefined, this.stateRegistry);
+      const system = explore(initialStates, onEndState, undefined, undefined, this.stateRegistry);
+      system.initialStates.forEach(s => this.initialStates.push(s));
+      return system;
     }
 
 
@@ -39,10 +43,10 @@ function run(name, expected)
   const jsContext = new JsContext(jsSemantics, explorer, store0, kont0);
   const browser = new Browser(jsContext);
   //const html1 = fs.readFileSync("resources/secloud/" + name + ".js");
-  const html = read("resources/secloud/" + name + ".html");
+  const html = new FileResource("resources/secloud/" + name + ".html");
   const actual = browser.parse(html);
-  const states = explorer.stateRegistry.states;
-  const dot = dotGraph(states);
+  const initialStates = explorer.initialStates;
+  const dot = initialStatesToDot(initialStates);
   fs.writeFileSync("resources/secloud/" + name + ".dot", dot);
   assertEquals(concLattice.abst1(expected), actual);
 }

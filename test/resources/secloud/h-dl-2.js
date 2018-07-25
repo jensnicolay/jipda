@@ -1,1 +1,0 @@
-dump(document.location);
