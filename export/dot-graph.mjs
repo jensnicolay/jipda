@@ -9,11 +9,11 @@ function stateToLabel(s)
 
   if (s.isEvalState)
   {
-    return s.node.toString().substring(0, 80) + kontLabel(s) + " ~ " + s.resource;
+    return s.node.toString().substring(0, 80) + kontLabel(s);// + " ~ " + s.resource;
   }
   else if (s.isKontState)
   {
-    return s.value.toString() + kontLabel(s) + " ~ " + s.resource;
+    return s.value.toString() + kontLabel(s);// + " ~ " + s.resource;
   }
   else if (s.isReturnState)
   {

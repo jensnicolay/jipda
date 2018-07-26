@@ -10,6 +10,7 @@ import {JsContext} from '../js-context';
 import {explore, StateRegistry, computeInitialCeskState} from "../abstract-machine";
 import {FileResource} from "../ast";
 import {initialStatesToDot} from "../export/dot-graph";
+import {decycle} from "../lib/cycle";
 
 const ast0resource = new FileResource("../prelude.js");
 const ast1resource = new FileResource("../web-prelude.js");
@@ -45,10 +46,25 @@ function run(name, expected)
   //const html1 = fs.readFileSync("resources/secloud/" + name + ".js");
   const html = new FileResource("resources/secloud/" + name + ".html");
   const actual = browser.parse(html);
-  const initialStates = explorer.initialStates;
-  const dot = initialStatesToDot(initialStates);
-  fs.writeFileSync("resources/secloud/" + name + ".dot", dot);
   assertEquals(concLattice.abst1(expected), actual);
+
+  const dotFileName = "resources/secloud/results/" + name + ".dot";
+  fs.writeFileSync(dotFileName, initialStatesToDot(explorer.initialStates));
+  console.log("written", dotFileName);
+
+
+  const states = explorer.stateRegistry.states;
+  states.forEach(function (state)
+  {
+    state.store = null;
+    state.kont = null;
+    state._successors = state._successors.map(s => s._id);
+  });
+  const states2 = decycle(states);
+
+  const jsonFileName = "resources/secloud/results/" + name + ".json";
+  fs.writeFileSync(jsonFileName, JSON.stringify(states2));
+  console.log("written", jsonFileName);
 }
 
 run('h-dc-1', undefined);

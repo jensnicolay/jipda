@@ -115,7 +115,6 @@ Browser.prototype.parseScript =
       jsChildren.push(jsScript);
       //const src =‌ ‌script.getAttribute("src");
       const src = script.text;
-      console.log("::", script.ownerDocument.resource);
       this.jsContext.evaluateScript(new StringResource(src, script.ownerDocument.resource));
       return jsScript;
     }
