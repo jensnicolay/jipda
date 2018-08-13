@@ -133,6 +133,12 @@ JsContext.prototype.createMachine =
     return createMachine(this.semantics, {rootSet});
   }
 
+  JsContext.prototype.wrapValue =
+  function (d)
+  {
+    return new JsValue(d,this);
+  }
+
 
 function JsValue(d, context)
 {
@@ -277,3 +283,5 @@ JsValue.prototype.toString =
       }
       return "<" + str.join(",") + ">";
     }
+
+    
