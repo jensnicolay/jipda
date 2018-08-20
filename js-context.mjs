@@ -136,7 +136,16 @@ JsContext.prototype.createMachine =
   JsContext.prototype.wrapValue =
   function (d)
   {
-    return new JsValue(d,this);
+    const type = typeof d;
+    if(type === 'string')
+    { 
+      return new JsValue(this.semantics.lat.abst1(d), this);
+    }
+    else
+    {
+      return new JsValue(d,this);
+    }
+    
   }
 
 
