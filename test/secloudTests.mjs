@@ -8,7 +8,7 @@ import createSemantics from '../js-semantics';
 import {Browser} from '../browser';
 import {JsContext} from '../js-context';
 import {explore, StateRegistry, computeInitialCeskState} from "../abstract-machine";
-import {FileResource} from "../ast";
+import {FileResource, nodes} from "../ast";
 import {initialStatesToDot} from "../export/dot-graph";
 import {decycle} from "../lib/cycle";
 
@@ -56,11 +56,21 @@ function run(name, expected)
   const states = explorer.stateRegistry.states;
   states.forEach(function (state)
   {
-    state.store = null;
-    state.kont = null;
+    delete state.benv;
+    delete state.store;
+    delete state.kont;
+
+    if (state.node)
+    {
+      nodes(state.node.root || state.node).forEach(function (node) {
+        delete node.parent;
+        delete node.root;
+      })
+    }
+
     state._successors = state._successors.map(s => s._id);
   });
-  const states2 = decycle(states);
+  const states2 = states;//decycle(states);
 
   const jsonFileName = "resources/secloud/results/" + name + ".json";
   fs.writeFileSync(jsonFileName, JSON.stringify(states2));
