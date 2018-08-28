@@ -643,6 +643,12 @@ TypeValue.prototype.isFalsy =
       return (this.type & TypeValue.FALSY);
     }
 
+TypeValue.prototype.isFalse =
+    function ()
+    {
+      return (this.type & TypeValue.BOOL);
+    }
+
 TypeValue.prototype.isUndefined =
     function ()
     {
