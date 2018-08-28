@@ -3767,7 +3767,13 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         return this.Value.addresses().join(this.Get.addresses()).join(this.Set.addresses());
       }
-  
+
+  Property.prototype.isUndefined =
+      function ()
+      {
+        return false;
+      }
+
   Property.prototype.toString =
       function ()
       {
@@ -3775,6 +3781,8 @@ function createSemantics(lat, alloc, kalloc, cc)
             + " [[Writable]]:" + this.Writable + " [[Enumerable]]:" + this.Enumerable + " [[Configurable]]:" + this.Configurable
             + "}";
       }
+
+
   
   // 6.2.2
   function Completion(Type, Value, Target)
