@@ -414,7 +414,7 @@ function descendants(n)
   }
   else
   {
-    var cs = Ast.children(n);
+    var cs = children(n);
     return cs.concat(descendants(cs));
   }
 }
@@ -424,11 +424,11 @@ export function nodes(n)
 {
   if (Array.isArray(n))
   {
-    return n.flatMap(Ast.nodes);
+    return n.flatMap(nodes);
   }
   else
   {
-    return [n].concat(Ast.nodes(Ast.children(n)));
+    return [n].concat(nodes(children(n)));
   }
 }
   
