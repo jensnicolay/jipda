@@ -112,13 +112,13 @@ JsContext.prototype.evaluateScript =
     function (resource)
     {
       const semantics = this.semantics;
-      const ast = createAst(resource);
+      const ast = createAst(typeof resource === "string" ? new StringResource(resource) : resource);
       const benv = this.kont.realm.GlobalEnv;
       const store = this.store;
       const lkont = [];
       const kont = this.kont;
       const machine = this.createMachine();
-      const S = semantics.evaluate(ast, benv, store, lkont, kont, machine);
+      const S = [machine.evaluate(ast, benv, store, lkont, kont, machine)];
       return this.explore(S);
     }
 

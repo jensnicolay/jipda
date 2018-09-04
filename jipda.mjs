@@ -1,6 +1,7 @@
 import fs from 'fs';
 import argvf from 'minimist';
 import Repl from 'repl';
+import {decycle} from './lib/cycle';
 
 import concLattice from "./conc-lattice.mjs";
 import typeLattice from "./type-lattice";
@@ -11,10 +12,11 @@ import {computeInitialCeskState, explore} from "./abstract-machine.mjs";
 import {JsContext} from "./js-context.mjs";
 import readline from 'readline';
 import {Browser} from './browser.mjs';
-import dotGraph from './export/dot-graph.mjs';
 import tagAlloc from "./tag-alloc";
 import aacKalloc from "./aac-kalloc";
 import {StateRegistry} from "./abstract-machine";
+import {statesToDot} from "./export/dot-graph";
+import {FileResource, StringResource} from "./ast";
 
 /*
 
@@ -32,6 +34,8 @@ const argv = argvf(process.argv.slice(2));
 
 const nodeRepl = argv.R;
 
+const json = argv.j;
+
 const graph = argv.g;
 
 const browser = argv.b;
@@ -42,6 +46,7 @@ const repl = !inputFileName || argv.r;
 
 console.log("input file: " + inputFileName);
 console.log("browser: " + browser);
+console.log("JSON: " + json);
 console.log("graph: " + graph);
 console.log("JIPDA repl: " + repl);
 console.log("node repl: " + nodeRepl);
@@ -66,15 +71,8 @@ console.log("lattice: " + lattice);
 
 let jsContext = null;
 
-function evalPrint(src)
-{
-  const jsValue = jsContext.evaluateScript(src);
-  const value = jsValue.d;
-  console.log(value.toString());
-}
-
-const ast0src = read("prelude.js");
-const ast1src = browser ? read("web-prelude.js") : "";
+const ast0src = new FileResource("prelude.js");
+const ast1src = browser ? new FileResource("web-prelude.js") : new StringResource("");
 
 const jsPreludeSemantics = createSemantics(lattice, concAlloc, concKalloc, {errors: true});
 const {store:store0, kont:kont0} = computeInitialCeskState(jsPreludeSemantics, ast0src, ast1src);
@@ -96,24 +94,40 @@ const jsSemantics = createSemantics(lattice, alloc, kalloc, {errors:true});
 jsContext = new JsContext(jsSemantics, new Explorer(), store0, kont0);
 if (inputFileName)
 {
-  const src = read(inputFileName);
+//  const src = read(inputFileName);
+  const resource = new FileResource(inputFileName);
   if (browser)
   {
     const browser = new Browser(jsContext);
-    const value = browser.parse(src);
+    const value = browser.parse(resource);
     console.log(value.toString());
   }
   else
   {
-    evalPrint(src);
+    evalPrint(resource);
   }
 }
 
+function evalPrint(resource)
+{
+  const jsValue = jsContext.evaluateScript(resource);
+  const value = jsValue.d;
+  console.log(value.toString());
+}
+
+
 function finalize()
 {
+  if (json)
+  {
+    const stringified = JSON.stringify(decycle(jsContext.explorer.stateRegistry.states));
+    const outputFileName = (inputFileName || "jipda") + ".json";
+    fs.writeFileSync(outputFileName, stringified);
+    console.log("wrote " + outputFileName);
+  }
   if (graph)
   {
-    const g = dotGraph(jsContext.explorer.stateRegistry.states);
+    const g = statesToDot(jsContext.explorer.stateRegistry.states);
     const outputFileName = (inputFileName || "jipda") + ".dot";
     fs.writeFileSync(outputFileName, g);
     console.log("wrote " + outputFileName);
@@ -141,7 +155,7 @@ if (repl)
         finalize();
         return;
       }
-      evalPrint(src)
+      evalPrint(new StringResource(src))
       r();
     })
   }
