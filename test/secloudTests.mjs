@@ -12,13 +12,6 @@ import {FileResource, nodes} from "../ast";
 import {initialStatesToDot} from "../export/dot-graph";
 import {decycle} from "../lib/cycle";
 
-const ast0resource = new FileResource("../prelude.js");
-const ast1resource = new FileResource("../web-prelude.js");
-const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, ast0resource, ast1resource);
-
-assert(store0);
-assert(kont0);
 
 function Explorer()
 {
@@ -40,6 +33,18 @@ let c = 0;
 function run(name, expected)
 {
   console.log(++c + "\t" + name);
+
+  // used to be outside
+  const ast0resource = new FileResource("../prelude.js");
+  const ast1resource = new FileResource("../web-prelude.js");
+  const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
+  const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, ast0resource, ast1resource);
+
+  assert(store0);
+  assert(kont0);
+  //
+
+
   const explorer = new Explorer();
   const jsContext = new JsContext(jsSemantics, explorer, store0, kont0);
   const browser = new Browser(jsContext);
@@ -78,3 +83,11 @@ function run(name, expected)
 }
 
 run('h-dc-1', undefined);
+run('p1', undefined);
+run('p2', undefined);
+run('p3', undefined);
+run('p4', undefined);
+run('p6', undefined);
+run('p7', undefined);
+run('p8', undefined);
+run('p9', undefined);

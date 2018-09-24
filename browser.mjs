@@ -70,11 +70,13 @@ Browser.prototype.parseElement =
     {
       switch (element.nodeName)
       {
-        case 'HTML': return this.parseHtml(element, jsChildren);
-        case 'HEAD': return this.parseHead(element, jsChildren);
         case 'BODY': return this.parseBody(element, jsChildren);
-        case 'SCRIPT': return this.parseScript(element, jsChildren);
         case 'DIV': return this.parseDiv(element, jsChildren);
+        case 'HEAD': return this.parseHead(element, jsChildren);
+        case 'HTML': return this.parseHtml(element, jsChildren);
+        case 'META': return this.parseMeta(element, jsChildren);
+        case 'SCRIPT': return this.parseScript(element, jsChildren);
+        case 'TITLE': return this.parseTitle(element, jsChildren);
         default: throw new Error("cannot handle element name " + element.nodeName);
       }
     }
@@ -117,6 +119,24 @@ Browser.prototype.parseScript =
       const src = script.text;
       this.jsContext.evaluateScript(new StringResource(src, script.ownerDocument.resource));
       return jsScript;
+    }
+
+Browser.prototype.parseTitle =
+    function (title, jsChildren)
+    {
+      const jsTitle = this.jsContext.globalObject().getProperty("HTMLTitleElement").construct([]);
+      jsChildren.push(jsTitle);
+      const titleText = title.text;
+      jsTitle.assignProperty("text", titleText);
+      return jsTitle;
+    }
+
+Browser.prototype.parseMeta =
+    function (title, jsChildren)
+    {
+      const jsMeta = this.jsContext.globalObject().getProperty("HTMLMetaElement").construct([]);
+      jsChildren.push(jsMeta);
+      return jsMeta;
     }
 
 Browser.prototype.parseDiv =

@@ -1,0 +1,15 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Disallow dynamic iframe creation</title>
+</head>
+
+<body>
+<script>
+  var frame = document.createElement('iframe');
+  //window.alert = frame.contentWindow.alert; the attacker can reattach secured
+</script>
+</body>
+
+</html>

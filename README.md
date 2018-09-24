@@ -10,7 +10,7 @@ Getting started
 ---------------
 Up until now, JIPDA has been mostly used or integrated in a programmatic way (see below), but this low-level programmatic interface of JIPDA is also one of its more difficult and volatile parts.
 
-Therefore, a minimalistic Node.js command line UI    to perform some basic tasks.
+Therefore, a minimalistic Node.js command line UI exists to perform some basic tasks.
 
 ### Basic concrete evaluation
 ```node --use-strict --experimental-modules jipda test/resources/fib.js```
