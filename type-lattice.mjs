@@ -501,7 +501,7 @@ Some.prototype.isUndefined =
 Some.prototype.isNonUndefined =
     function ()
     {
-      return this.prim !== null;
+      return this.prim !== undefined;
     }
 
 Some.prototype.toString =

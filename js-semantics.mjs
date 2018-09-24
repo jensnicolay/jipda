@@ -3769,10 +3769,16 @@ function createSemantics(lat, alloc, kalloc, cc)
       }
 
   Property.prototype.isUndefined =
-      function ()
-      {
-        return false;
-      }
+  function ()
+  {
+    return false;
+  }
+
+  Property.prototype.isNonUndefined =
+  function ()
+  {
+    return true;
+  }
 
   Property.prototype.toString =
       function ()
@@ -4781,9 +4787,9 @@ function createSemantics(lat, alloc, kalloc, cc)
         result = result.join(L_TRUE);
       }
     }
-    else
+    // step 3
+    if (current.isNonUndefined())
     {
-      // step 3
       if (Desc.Value === Desc.Get === Desc.Set === Desc.Writable === Desc.Enumerable === Desc.Configurable === BOT)
       {
         result = result.join(L_TRUE);
@@ -4797,119 +4803,143 @@ function createSemantics(lat, alloc, kalloc, cc)
           {
             result = result.join(L_FALSE);
           }
-          if (Desc.Enumerable !== BOT && lat.neqq(current.Enumerable, Desc.Enumerable).isTrue())
+          if (Desc.Configurable === BOT || Desc.Configurable.isFalse())
           {
-            result = result.join(L_FALSE);
+            if (Desc.Enumerable !== BOT && lat.neqq(current.Enumerable, Desc.Enumerable).isTrue())
+            {
+              result = result.join(L_FALSE);
+            }  
           }
         }
         // step 5
-        if (IsGenericDescriptor(Desc))
+        if (current.Configurable.isTrue())
         {
-          result = result.join(L_TRUE);
-        }
-        // step 6
-        else if (IsDataDescriptor(current) !== IsDataDescriptor(Desc))
-        {
-          if (current.Configurable.isFalse())
+          if (IsGenericDescriptor(Desc))
           {
-            result = result.join(L_FALSE);
+            result = result.join(L_TRUE);
           }
-          if (current.Configurable.isTrue())
+          else
           {
-            if (IsDataDescriptor(current))
+            // step 6
+            if (IsDataDescriptor(current) !== IsDataDescriptor(Desc))
             {
-              if (O.isNonUndefined())
+              if (current.Configurable.isFalse())
               {
-                const D = new Property(L_UNDEFINED, current.Get, current.Set, L_FALSE, current.Enumerable, current.Configurable);
-                const as = O.addresses().values();
-                for (const a of as)
+                result = result.join(L_FALSE);
+              }
+              if (current.Configurable.isTrue())
+              {
+                if (IsDataDescriptor(current))
                 {
-                  let obj = storeLookup(store, a);
-                  obj = obj.add(P, D);
-                  store = storeUpdate(store, a, obj);
+                  if (O.isNonUndefined())
+                  {
+                    const D = new Property(L_UNDEFINED, current.Get, current.Set, L_FALSE, current.Enumerable, current.Configurable);
+                    const as = O.addresses().values();
+                    for (const a of as)
+                    {
+                      let obj = storeLookup(store, a);
+                      obj = obj.add(P, D);
+                      store = storeUpdate(store, a, obj);
+                    }
+                  }
                 }
+                else
+                {
+                  if (O.isNonUndefined())
+                  {
+                    const D = new Property(current.Value, L_UNDEFINED, L_UNDEFINED, L_FALSE, current.Enumerable, current.Configurable);
+                    const as = O.addresses().values();
+                    for (const a of as)
+                    {
+                      let obj = storeLookup(store, a);
+                      obj = obj.add(P, D);
+                      store = storeUpdate(store, a, obj);
+                    }    
+                  }
+                }
+                result = result.join(L_TRUE); // not in spec?
               }
             }
             else
             {
-              if (O.isNonUndefined())
+              // step 7
+              if (IsDataDescriptor(current) && IsDataDescriptor(Desc))
               {
-                const D = new Property(current.Value, L_UNDEFINED, L_UNDEFINED, L_FALSE, current.Enumerable, current.Configurable);
-                const as = O.addresses().values();
-                for (const a of as)
+                if (current.Configurable.isFalse() && current.Writable.isFalse())
                 {
-                  let obj = storeLookup(store, a);
-                  obj = obj.add(P, D);
-                  store = storeUpdate(store, a, obj);
+                  if (Desc.Writable !== BOT && Desc.Writable.isTrue())
+                  {
+                    result = result.join(L_FALSE);
+                  }
+                  if (Desc.Writable === BOT || Desc.Writable.isFalse())
+                  {
+                    if (Desc.Value !== BOT && SameValue(Desc.Value, current.Value).isFalse())
+                    {
+                      result = result.join(L_FALSE);
+                    }
+                    if (Desc.Value === BOT || SameValue(Desc.Value, current.Value).isTrue())
+                    {
+                      result = result.join(L_TRUE);
+                    }
+                  }
+                }
+                else //?
+                {
+                  step9();
+                }
+              }
+              else
+              {
+                  // step 8
+                if (IsAccessorDescriptor(current) && IsAccesorDescriptor(Desc))
+                {
+                  if (current.Configurable.isFalse())
+                  {
+                    if (Desc.Set !== BOT && SameValue(Desc.Set, current.Set).isFalse())
+                    {
+                      result = result.join(L_FALSE);
+                    }
+                    if (Desc.Set === BOT || SameValue(Desc.Set, current.Set).isTrue())
+                    {
+                      if (Desc.Get !== BOT && SameValue(Desc.Get, current.Get).isFalse())
+                      {
+                        result = result.join(L_FALSE);
+                      }
+                      if (Desc.Get === BOT || SameValue(Desc.Get, current.Get).isTrue())
+                      {
+                        result = result.join(L_TRUE);
+                      }                          
+                    }
+                  }
+                }
+                else
+                {
+                  step9();
                 }
               }
             }
-            result = result.join(L_TRUE);
           }
-        }
-        // step 7
-        else if (IsDataDescriptor(current) && IsDataDescriptor(Desc))
-        {
-          if (current.Configurable.isFalse())
-          {
-            if (current.Writable.isFalse())
-            {
-              if (Desc.Writable !== BOT && Desc.Writable.isTrue())
-              {
-                result = result.join(L_FALSE);
-              }
-              if (Desc.Writable === BOT || Desc.Writable.isFalse())
-              {
-                if (Desc.Value !== BOT && SameValue(Desc.Value, current.Value).isFalse())
-                {
-                  result = result.join(L_FALSE);
-                }
-                if (Desc.Value === BOT || SameValue(Desc.Value, current.Value).isTrue())
-                {
-                  result = result.join(L_TRUE);
-                }
-              }
-            }
-          }
-        }
-        // step 8
-        else if (IsAccessorDescriptor(current) && IsAccessorDescriptor(Desc))
-        {
-          if (current.Configurable.isFalse())
-          {
-            if (Desc.Set !== BOT && SameValue(Desc.Set, current.Set).isFalse())
-            {
-              result = result.join(L_FALSE);
-            }
-            if (Desc.Get !== BOT && SameValue(Desc.Get, current.Get).isFalse())
-            {
-              result = result.join(L_FALSE);
-            }
-            if (Desc.Set === BOT || Desc.Get === BOT || SameValue(Desc.Set, current.Set).isTrue() || SameValue(Desc.Get, current.Get).isTrue())
-            {
-              result = result.join(L_TRUE);
-            }
-          }
-        }
-        else
-        {
-          // step 9
-          if (O.isNonUndefined())
-          {
-            const D = new Property(Desc.Value === BOT ? L_UNDEFINED : Desc.Value, Desc.Get === BOT ? L_UNDEFINED : Desc.Get, Desc.Set === BOT ? L_UNDEFINED : Desc.Set,
-                Desc.Writable === BOT ? L_FALSE : Desc.Writable, Desc.Enumerable === BOT ? L_FALSE : Desc.Enumerable, Desc.Configurable === BOT ? L_FALSE : Desc.Configurable);
-            const as = O.addresses().values();
-            for (const a of as)
-            {
-              let obj = storeLookup(store, a);
-              obj = obj.add(P, D);
-              store = storeUpdate(store, a, obj);
-            }
-          }
-          result = result.join(L_TRUE);
         }
       }
     }
+
+    function step9()
+    {
+      if (O.isNonUndefined())
+      {
+        const D = new Property(Desc.Value === BOT ? L_UNDEFINED : Desc.Value, Desc.Get === BOT ? L_UNDEFINED : Desc.Get, Desc.Set === BOT ? L_UNDEFINED : Desc.Set,
+            Desc.Writable === BOT ? L_FALSE : Desc.Writable, Desc.Enumerable === BOT ? L_FALSE : Desc.Enumerable, Desc.Configurable === BOT ? L_FALSE : Desc.Configurable);
+        const as = O.addresses().values();
+        for (const a of as)
+        {
+          let obj = storeLookup(store, a);
+          obj = obj.add(P, D);
+          store = storeUpdate(store, a, obj);
+        }
+      }
+      result = result.join(L_TRUE);
+    }
+
     return [{value:result, store}];
   }
   
