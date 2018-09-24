@@ -299,6 +299,36 @@ export function createMachine(semantics, cc)
       {
         return this.kont.stackAddresses(this.lkont).join(this.value.addresses());
       }
+  ThrowState.prototype.stackTrace =
+      function ()
+      {
+        const buf = [];
+        walkStack(this.kont, buf);
+        return buf.join("\n");
+      }
+
+function walkStack(kont, buf, S = new Set())
+{
+  if (S.has(kont))
+  {
+    buf.push("(already visited)");
+  }
+  S.add(kont);
+
+  if (kont.ex)
+  {
+    buf.push(kont.ex.toString());
+  }
+  else
+  {
+    buf.push("(bottom)");
+  }
+
+  for (const stack of kont._stacks)
+  {
+    walkStack(stack.kont, buf, S);
+  }
+}
   
   function BreakState(store, lkont, kont)
   {

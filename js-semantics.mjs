@@ -77,7 +77,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         this.states.push(this.machine.throw(value, store, lkont, kont));
       }
 
-  States.prototype.throwTypeError =
+  States.prototype.throwTypeError = // TODO this is not a type error!!
     function (msg, store, lkont, kont)
     {
       console.debug("throwTypeError: " + msg);
@@ -234,22 +234,33 @@ function createSemantics(lat, alloc, kalloc, cc)
     var frame = new BodyKont(node, 1, benv);
     return [machine.evaluate(nodes[0], benv, store, [frame].concat(lkont), kont)];
   }
-  
+
+///
   function evalVariableDeclaration(node, benv, store, lkont, kont, machine)
   {
-    var nodes = node.declarations;
-    if (nodes.length === 0)
+    var declarations = node.declarations;
+    if (declarations.length === 0)
     {
       throw new Error("no declarations in " + node);
     }
-    if (nodes.length === 1)
+    const kind = node.kind;
+    switch (kind)
     {
-      return evalVariableDeclarator(nodes[0], benv, store, lkont, kont, machine);
+      case 'var':
+      {
+        const frame = new VarDeclarationKont(node, 1, benv);
+        return [machine.evaluate(declarations[0], benv, store, [frame].concat(lkont), kont, machine)];
+      }
+      case 'let':
+      {
+        const frame = new LetDeclarationKont(node, 1, benv);
+        return [machine.evaluate(declarations[0], benv, store, [frame].concat(lkont), kont, machine)];
+      }
+      default:
+        throw new Error("unsupported variable kind: " + kind);
     }
-    var frame = new VariableDeclarationKont(node, 1, benv);
-    return [machine.evaluate(nodes[0], benv, store, [frame].concat(lkont), kont)];
   }
-  
+
   function evalVariableDeclarator(node, benv, store, lkont, kont, machine)
   {
     var init = node.init;
@@ -257,10 +268,126 @@ function createSemantics(lat, alloc, kalloc, cc)
     {
       return [machine.continue(L_UNDEFINED, store, lkont, kont)];
     }
-    var frame = new VariableDeclaratorKont(node, benv);
-    return [machine.evaluate(init, benv, store, [frame].concat(lkont), kont)];
+    return [machine.evaluate(init, benv, store, lkont, kont)];
   }
-  
+
+  function VarDeclarationKont(node, i, benv)
+  {
+    this.node = node;
+    this.i = i;
+    this.benv = benv;
+  }
+
+  VarDeclarationKont.prototype.equals =
+      function (x)
+      {
+        return x instanceof VarDeclarationKont
+            && this.node === x.node
+            && this.i === x.i
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
+  VarDeclarationKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.i;
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
+  VarDeclarationKont.prototype.toString =
+      function ()
+      {
+        return "vrator " + this.node.tag + " " + this.i;
+      }
+  VarDeclarationKont.prototype.nice =
+      function ()
+      {
+        return "vrator " + this.node.tag + " " + this.i;
+      }
+  VarDeclarationKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses();
+      }
+  VarDeclarationKont.prototype.apply =
+      function (value, store, lkont, kont, machine)
+      {
+        const node = this.node;
+        const declarations = node.declarations;
+        const i = this.i;
+        const declaration = declarations[i - 1];
+        const id = declaration.id;
+        const benv = this.benv;
+        store = doScopeSet(id, value, benv, store, kont);
+        if (i === declarations.length)
+        {
+          return [machine.continue(L_UNDEFINED, store, lkont, kont, machine)];
+        }
+        const frame = new VarDeclarationKont(node, i + 1, benv);
+        return [machine.evaluate(declarations[i], benv, store, [frame].concat(lkont), kont, machine)]
+      }
+
+
+  function LetDeclarationKont(node, i, benv)
+  {
+    this.node = node;
+    this.i = i;
+    this.benv = benv;
+  }
+
+  LetDeclarationKont.prototype.equals =
+      function (x)
+      {
+        return x instanceof LetDeclarationKont
+            && this.node === x.node
+            && this.i === x.i
+            && (this.benv === x.benv || this.benv.equals(x.benv))
+      }
+  LetDeclarationKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        result = prime * result + this.i;
+        result = prime * result + this.benv.hashCode();
+        return result;
+      }
+  LetDeclarationKont.prototype.toString =
+      function ()
+      {
+        return "vrator " + this.node.tag + " " + this.i;
+      }
+  LetDeclarationKont.prototype.nice =
+      function ()
+      {
+        return "vrator " + this.node.tag + " " + this.i;
+      }
+  LetDeclarationKont.prototype.addresses =
+      function ()
+      {
+        return this.benv.addresses();
+      }
+  LetDeclarationKont.prototype.apply =
+      function (value, store, lkont, kont, machine)
+      {
+        const node = this.node;
+        const declarations = node.declarations;
+        const i = this.i;
+        const declaration = declarations[i - 1];
+        const id = declaration.id;
+        const benv = this.benv;
+        store = InitializeReferenceBinding(id, value, benv, store, kont);
+        if (i === declarations.length)
+        {
+          return [machine.continue(L_UNDEFINED, store, lkont, kont, machine)];
+        }
+        const frame = new LetDeclarationKont(node, i + 1, benv);
+        return [machine.evaluate(declarations[i], benv, store, [frame].concat(lkont), kont, machine)]
+      }
+
   function evalUnaryExpression(node, benv, store, lkont, kont, machine)
   {
     var frame = new UnaryKont(node);
@@ -401,7 +528,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     {
       if (operatorAs.count() === 0)
       {
-        states.throwTypeError(application.callee + " is not a function", store, lkont, kont);
+        states.throwTypeError(application.callee + " is not a function (" + operatorValue + ")", store, lkont, kont);
       }
     }
     for (const operatora of operatorAs.values())
@@ -587,6 +714,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     let obj = new Obj();
     obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ErrorPrototype%"));
     obj = obj.setInternal("[[ErrorData]]", L_UNDEFINED);
+    obj = obj.setInternal("[[Get]]", SetValueNoAddresses.from1(OrdinaryGet));
     obj = obj.add(P_MESSAGE, Property.fromValue(message));
     return obj;
   }
@@ -1080,109 +1208,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         return this.scope.addresses();
       }
-  
-  function VariableDeclarationKont(node, i, benv)
-  {
-    this.node = node;
-    this.i = i;
-    this.benv = benv;
-  }
-  
-  VariableDeclarationKont.prototype.equals =
-      function (x)
-      {
-        return x instanceof VariableDeclarationKont
-            && this.node === x.node
-            && this.i === x.i
-            && (this.benv === x.benv || this.benv.equals(x.benv))
-      }
-  VariableDeclarationKont.prototype.hashCode =
-      function ()
-      {
-        var prime = 31;
-        var result = 1;
-        result = prime * result + this.node.hashCode();
-        result = prime * result + this.i;
-        result = prime * result + this.benv.hashCode();
-        return result;
-      }
-  VariableDeclarationKont.prototype.toString =
-      function ()
-      {
-        return "vdecl-" + this.node.tag + "-" + this.i;
-      }
-  VariableDeclarationKont.prototype.nice =
-      function ()
-      {
-        return "vdecl-" + this.node.tag + "-" + this.i;
-      }
-  VariableDeclarationKont.prototype.addresses =
-      function ()
-      {
-        return this.benv.addresses();
-      }
-  VariableDeclarationKont.prototype.apply =
-      function (value, store, lkont, kont, machine)
-      {
-        var node = this.node;
-        var benv = this.benv;
-        var i = this.i;
-        
-        var nodes = node.declarations;
-        if (i === nodes.length)
-        {
-          return [machine.continue(value, store, lkont, kont)];
-        }
-        var frame = new VariableDeclarationKont(node, i + 1, benv);
-        return [machine.evaluate(nodes[i], benv, store, [frame].concat(lkont), kont)];
-      }
-  
-  function VariableDeclaratorKont(node, benv)
-  {
-    this.node = node;
-    this.benv = benv;
-  }
-  
-  VariableDeclaratorKont.prototype.equals =
-      function (x)
-      {
-        return x instanceof VariableDeclaratorKont
-            && this.node === x.node
-            && (this.benv === x.benv || this.benv.equals(x.benv))
-      }
-  VariableDeclaratorKont.prototype.hashCode =
-      function ()
-      {
-        var prime = 31;
-        var result = 1;
-        result = prime * result + this.node.hashCode();
-        result = prime * result + this.benv.hashCode();
-        return result;
-      }
-  VariableDeclaratorKont.prototype.toString =
-      function ()
-      {
-        return "vrator " + this.node.tag;
-      }
-  VariableDeclaratorKont.prototype.nice =
-      function ()
-      {
-        return "vrator " + this.node.tag;
-      }
-  VariableDeclaratorKont.prototype.addresses =
-      function ()
-      {
-        return this.benv.addresses();
-      }
-  VariableDeclaratorKont.prototype.apply =
-      function (value, store, lkont, kont, machine)
-      {
-        var id = this.node.id;
-        var benv = this.benv;
-        store = doScopeSet(id, value, benv, store, kont);
-        return [machine.continue(L_UNDEFINED, store, lkont, kont)];
-      }
-  
+
   function LeftKont(node, benv)
   {
     this.node = node;
@@ -3810,6 +3836,20 @@ function createSemantics(lat, alloc, kalloc, cc)
   {
     return Completion(Completion.normal, value, Completion.empty);
   }
+
+  // 6.2.4.11
+  function InitializeReferenceBinding(nameNode, value, benv, store, kont)
+  {
+    var name = nameNode.name;
+    if (benv.lookup(name) !== BOT)
+    {
+      throw new Error("SyntaxError: " + name + " has already been declared");
+    }
+    const addr = alloc.vr(nameNode, kont);
+    store = storeAlloc(store, addr, value);
+    return store;
+  }
+
   
   // 6.2.5.1
   function IsAccessorDescriptor(Desc)
@@ -4108,7 +4148,7 @@ function createSemantics(lat, alloc, kalloc, cc)
   }
   
   // 7.1.1
-  function ToPrimitive(input, PreferredType, store, lkont, kont, states)
+  function ToPrimitive(input, PreferredType, node, benv, store, lkont, kont, states)
   {
     const result = [];
     if (input.isRef())
@@ -4139,7 +4179,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         hint = "number";
       }
-      const r1 = OrdinaryToPrimitive(input, hint);
+      const r1 = OrdinaryToPrimitive(input, hint, node, benv, store, lkont, kont, states);
       for (const r of r1)
       {
         result.push(r);
@@ -4153,8 +4193,9 @@ function createSemantics(lat, alloc, kalloc, cc)
   }
   
   // 7.1.1.1
-  function OrdinaryToPrimitive(O, hint, store, lkont, kont, states)
+  function OrdinaryToPrimitive(O, hint, node, benv, store, lkont, kont, states)
   {
+    const result = [];
     assertIsObject(O);
     assert(hint === "string" || hint === "number");
     let methodNames;
@@ -4166,8 +4207,46 @@ function createSemantics(lat, alloc, kalloc, cc)
     {
       methodNames = ["valueOf", "toString"];
     }
-    // TODO ... requires "Call"
-    throw new Error("NYI!");
+    const g1 = Get(O, lat.abst1(methodNames[0]), store, lkont, kont, states);
+    for (const {value:method, store} of g1)
+    {
+      const ic = IsCallable(method, store);
+      if (ic.isTrue())
+      {
+        const r1 = Call(method, O, [], node, benv, store, lkont, kont, states);
+        for (const valueStore of r1)
+        {
+          if (valueStore.value.isNonRef())
+          {
+            result.push(valueStore);
+          }
+          if (valueStore.value.isRef())
+          {
+            const g2 = Get(O, lat.abst1(methodNames[1]), store, lkont, kont, states);
+            for (const {value:method, store} of g2)
+            {
+              const ic = IsCallable(method, store);
+              if (ic.isTrue())
+              {
+                const r2 = Call(method, O, [], node, benv, store, lkont, kont, states);
+                for (const valueStore of r2)
+                {
+                  if (valueStore.value.isNonRef())
+                  {
+                    result.push(valueStore);
+                  }
+                  if (valueStore.value.isRef())
+                  {
+                    states.throwTypeError("7.1.1.1", store, lkont, kont);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return result;
   }
 
   // 7.1.3
@@ -4176,6 +4255,52 @@ function createSemantics(lat, alloc, kalloc, cc)
     const result = [];
     // TODO
     result.push({value:argument.ToNumber(), store});
+    return result;
+  }
+
+  // 7.1.12
+  function ToString(argument, node, benv, store, lkont, kont, states)
+  {
+    const result = [];
+    if (argument.isUndefined())
+    {
+      result.push({value:lat.abst1("undefined"), store});
+    }
+    if (argument.isNull())
+    {
+      result.push({value:lat.abst1("null"), store});
+    }
+    if (argument.isTrue())
+    {
+      result.push({value:lat.abst1("true"), store});
+    }
+    if (argument.isFalse())
+    {
+      result.push({value:lat.abst1("false"), store});
+    }
+    const pn = argument.projectNumber();
+    if (pn !== BOT)
+    {
+      result.push({value:pn.ToString(), store}); // TODO
+    }
+    const ps = argument.projectString();
+    if (ps !== BOT)
+    {
+      result.push({value:ps, store});
+    }
+    // TODO symbol
+    if (argument.isRef())
+    {
+      const r1 = ToPrimitive(argument, "String", node, benv, store, lkont, kont, states);
+      for (const {value:primValue, store} of r1)
+      {
+        const r2 = ToString(primValue, node, benv, store, lkont, kont, states);
+        for (const r of r2)
+        {
+          result.push(r);
+        }
+      }
+    }
     return result;
   }
   
@@ -4235,7 +4360,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     return [{value:argument, store}];
     
     // TODO:
-    // return ToPrimitive(argument, "String", store, lkont, kont,
+    // return ToPrimitive(argument, "String", node, benv, store, lkont, kont,
     //   function (key, store)
     //   {
     //     // TODO: If Type(key) is Symbol, then Return key.
@@ -5388,7 +5513,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     this._id = -1;
     this._sstoreid = -1;
   }
-  
+
   JipdaContext.prototype.equals = // reminder: instances should be compared using === (after interning)
       function (ctx)
       {
@@ -5779,11 +5904,15 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         if (operandValues.length === 0)
         {
-          return states.continue(L_EMPTY_STRING, store, lkont, kont);
+          states.continue(L_EMPTY_STRING, store, lkont, kont);
         }
         else
         {
-          states.continue(operandValues[0].ToString(), store, lkont, kont);
+          const ts = ToString(operandValues[0], application, benv, store, lkont, kont, states);
+          for (const {value, store} of ts)
+          {
+            states.continue(value, store, lkont, kont);
+          }
         }
       }
 

@@ -8,19 +8,53 @@
     }
   }
 
-  global.window = global;
-  global.Node = Node;
-  global.Document = Document;
-  global.HTMLDocument = HTMLDocument;
+  global.window = global; // TODO add/create actual Window object
+  global.alert = function (x) {print("(Window.alert) " + x)};
+  global.open = function (url, windowName, windowFeatures) {print("(Window.open) " + url)};
+  global.location = new Location();
   global.CharacterData = CharacterData;
-  global.Text = Text;
+  global.Document = Document;
   global.Element = Element;
-  global.HTMLElement = HTMLElement;
-  global.HTMLHtmlElement = HTMLHtmlElement;
-  global.HTMLHeadElement = HTMLHeadElement;
   global.HTMLBodyElement = HTMLBodyElement;
-  global.HTMLScriptElement = HTMLScriptElement;
   global.HTMLDivElement = HTMLDivElement;
+  global.HTMLDocument = HTMLDocument;
+  global.HTMLElement = HTMLElement;
+  global.HTMLHeadElement = HTMLHeadElement;
+  global.HTMLHtmlElement = HTMLHtmlElement;
+  global.HTMLMetaElement = HTMLMetaElement;
+  global.HTMLIframeElement = HTMLIframeElement;
+  global.HTMLImageElement = HTMLImageElement;
+  global.HTMLScriptElement = HTMLScriptElement;
+  global.HTMLTitleElement = HTMLTitleElement;
+  global.Node = Node;
+  global.Text = Text;
+  global.XMLHttpRequest = XMLHttpRequest;
+
+  function Location()
+  {
+  }
+
+  Location.prototype.assign =
+      function (x)
+      {
+        print("(Location.assign) " + x);
+      }
+
+  function XMLHttpRequest()
+  {
+  }
+
+  XMLHttpRequest.prototype.open =
+      function (method, url)
+      {
+        print("(XHR.open) " + method + " " + url);
+      }
+
+  XMLHttpRequest.prototype.send =
+      function (body)
+      {
+        print("(XHR.Send) " + body);
+      }
 
   function Node()
   {
@@ -72,6 +106,8 @@
   {
     Node.call(this);
     ParentNode.call(this);
+    this.cookie = "";
+    this.location = global.location; // must be shared with Window
   }
   Document.prototype = Object.create(Node.prototype);
   Document.prototype.constructor = Document;
@@ -86,6 +122,14 @@
         if (localName === "div")
         {
           return new HTMLDivElement();
+        }
+        if (localName === "iframe")
+        {
+          return new HTMLIframeElement();
+        }
+        if (localName === "img")
+        {
+          return new HTMLImageElement();
         }
         throw new Error("no custom element support yet");
       }
@@ -173,6 +217,34 @@
   HTMLDivElement.prototype = Object.create(HTMLElement.prototype);
   HTMLDivElement.prototype.constructor = HTMLDivElement;
 
+  function HTMLTitleElement()
+  {
+    HTMLElement.call(this);
+  }
+  HTMLTitleElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLTitleElement.prototype.constructor = HTMLTitleElement;
+
+  function HTMLMetaElement()
+  {
+    HTMLElement.call(this);
+  }
+  HTMLMetaElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLMetaElement.prototype.constructor = HTMLMetaElement;
+
+  function HTMLIframeElement()
+  {
+    HTMLElement.call(this);
+  }
+  HTMLIframeElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLIframeElement.prototype.constructor = HTMLIframeElement;
+
+  function HTMLImageElement()
+  {
+    HTMLElement.call(this);
+    this.src = "";
+  }
+  HTMLImageElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLImageElement.prototype.constructor = HTMLImageElement;
 
 })(this);
 

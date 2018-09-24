@@ -9,7 +9,7 @@ export function JsContext(semantics, explorer, store, kont)
   this.explorer = explorer;
   this.store = store;
   assert(kont);
-  this.kont = kont;
+  this.kont0 = kont;
   this.managedValues = ArraySet.empty();
 }
 
@@ -22,7 +22,7 @@ JsContext.prototype.explore =
       this.explorer.explore(initialStates, s => resultStates.add(s));
       let value = this.semantics.lat.bot();
       let store = this.semantics.lat.bot();
-      let kont = null;
+      //let kont = null;
       if (resultStates.size === 0)
       {
         throw new Error("TODO: no result states");
@@ -33,34 +33,37 @@ JsContext.prototype.explore =
         {
           value = value.join(s.value);
           store = store.join(s.store);
-          if (kont)
-          {
-            if (s.kont !== kont)
-            {
-              throw new Error("?");
-            }
-          }
-          else
-          {
-            kont = s.kont;
-          }
+          // if (kont)
+          // {
+          //   if (s.kont !== kont)
+          //   {
+          //     throw new Error("?");
+          //   }
+          // }
+          // else
+          // {
+          //   kont = s.kont;
+          // }
         }
         else if (s.isThrowState)
         {
           this.managedValues = this.managedValues.add(s.value);
           store = store.join(s.store);
-          if (kont)
-          {
-            if (s.kont !== kont)
-            {
-              throw new Error("?");
-            }
-          }
-          else
-          {
-            kont = s.kont;
-          }
-          console.warn("warning: ignoring throw state " + s);
+          // if (kont)
+          // {
+          //   if (s.kont !== kont)
+          //   {
+          //     throw new Error("?");
+          //   }
+          // }
+          // else
+          // {
+          //   kont = s.kont;
+          // }
+          // warning: NESTING JsContexts!
+          // cannot wrap jsValue here, because context store doesn't match; therefore: new JsValue(..., new JsC(...))
+          console.warn("Uncaught exception: " + new JsValue(s.value, new JsContext(this.semantics, this.explorer, s.store, this.kont0)).introspectiveToString());
+          console.warn(s.stackTrace());
         }
         else
         {
@@ -68,9 +71,9 @@ JsContext.prototype.explore =
         }
       }
       assert(store);
-      assert(kont);
+      //assert(kont);
       this.store = store;
-      this.kont = kont;
+      //this.kont = kont;
       this.managedValues = this.managedValues.add(value);
       assert(typeof value.addresses === 'function');
       //console.log("managing " + s.value.addresses());
@@ -80,7 +83,7 @@ JsContext.prototype.explore =
 JsContext.prototype.globalObject =
     function ()
     {
-      return new JsValue(this.kont.realm.GlobalObject, this);
+      return new JsValue(this.kont0.realm.GlobalObject, this);
     }
 
 JsContext.prototype.createArray =
@@ -112,13 +115,13 @@ JsContext.prototype.evaluateScript =
     function (resource)
     {
       const semantics = this.semantics;
-      const ast = createAst(resource);
-      const benv = this.kont.realm.GlobalEnv;
+      const ast = createAst(typeof resource === "string" ? new StringResource(resource) : resource);
+      const benv = this.kont0.realm.GlobalEnv;
       const store = this.store;
       const lkont = [];
-      const kont = this.kont;
+      const kont = this.kont0;
       const machine = this.createMachine();
-      const S = semantics.evaluate(ast, benv, store, lkont, kont, machine);
+      const S = [machine.evaluate(ast, benv, store, lkont, kont, machine)];
       return this.explore(S);
     }
 
@@ -133,19 +136,18 @@ JsContext.prototype.createMachine =
     return createMachine(this.semantics, {rootSet});
   }
 
-  JsContext.prototype.wrapValue =
+JsContext.prototype.wrapValue =
   function (d)
   {
     const type = typeof d;
-    if(type === 'string')
-    { 
+    if (type === 'string' || type === 'null' || type === 'undefined' || type === 'number' || type === 'boolean')
+    {
       return new JsValue(this.semantics.lat.abst1(d), this);
     }
     else
     {
-      return new JsValue(d,this);
+      return new JsValue(d, this);
     }
-    
   }
 
 
@@ -175,7 +177,7 @@ JsValue.prototype.getProperty =
       const obj = this.d;
       const store = this.context.store;
       const lkont = [];
-      const kont = this.context.kont;
+      const kont = this.context.kont0;
       const machine = this.context.createMachine();
       const S = semantics.$getProperty(obj, nameValue, store, lkont, kont, machine);
       return this.context.explore(S);
@@ -190,7 +192,7 @@ JsValue.prototype.assignProperty =
       const obj = this.d;
       const store = this.context.store;
       const lkont = [];
-      const kont = this.context.kont;
+      const kont = this.context.kont0;
       const machine = this.context.createMachine();
       const S = semantics.$assignProperty(obj, dName, dValue, store, lkont, kont, machine);
       return this.context.explore(S);
@@ -203,9 +205,9 @@ JsValue.prototype.construct =
       const obj = this.d;
       const operandValues = args.map(v => v.d);
       const store = this.context.store;
-      const benv = this.context.kont.realm.GlobalEnv;
+      const benv = this.context.kont0.realm.GlobalEnv;
       const lkont = [];
-      const kont = this.context.kont;
+      const kont = this.context.kont0;
       const machine = this.context.createMachine();
       const S = semantics.$construct(obj, operandValues, benv, store, lkont, kont, machine);
       return this.context.explore(S);
@@ -218,13 +220,13 @@ JsValue.prototype.push =
     const obj = this.d;
     const operandValues = [v.d];
     const store = this.context.store;
-    const benv = this.context.kont.realm.GlobalEnv;
+    const benv = this.context.kont0.realm.GlobalEnv;
     const lkont = [];
-    const kont = this.context.kont;
+    const kont = this.context.kont0;
     const machine = this.context.createMachine();
     const S = semantics.$getProperty(obj, semantics.lat.abst1("push"), store, lkont, kont, machine);
     const pushMethod = this.context.explore(S);
-    const S2 = semantics.$call(pushMethod.d, obj, operandValues, benv, this.context.store, lkont, this.context.kont, machine);
+    const S2 = semantics.$call(pushMethod.d, obj, operandValues, benv, this.context.store, lkont, this.context.kont0, machine);
     return this.context.explore(S2);
   }
 
@@ -245,52 +247,73 @@ JsValue.prototype.call =
   function (thisArg, ...args)
   {
     const semantics = this.context.semantics;
-    const benv = this.context.kont.realm.GlobalEnv;
+    const benv = this.context.kont0.realm.GlobalEnv;
     const lkont = [];
     const machine = this.context.createMachine();
-    const S = semantics.$call(this.d, thisArg.d, args.map(x => x.d), benv, this.context.store, lkont, this.context.kont, machine);
+    const S = semantics.$call(this.d, thisArg.d, args.map(x => x.d), benv, this.context.store, lkont, this.context.kont0, machine);
     return this.context.explore(S);
   }
 
-JsValue.prototype.toString =
+JsValue.prototype.String =
     function ()
     {
-      const BOT = this.context.semantics.lat.bot();
-      let str = [];
-      const d = this.d;
-      if (d.projectObject() !== BOT)
-      {
-        const store = this.context.store;
-        for (const a of d.addresses())
-        {
-          str.push(a + ":" + new JsValue(store.lookupAval(a), this));
-        }
-      }
-      if (d.projectUndefined() !== BOT)
-      {
-        str.push("undefined");
-      }
-      if (d.projectNull() !== BOT)
-      {
-        str.push("null");
-      }
-      if (d.isTrue())
-      {
-        str.push("true");
-      }
-      if (d.isFalse())
-      {
-        str.push("true");
-      }
-      if (d.projectNumber() !== BOT)
-      {
-        str.push(d.isProjectNumber());
-      }
-      if (d.projectString() !== BOT)
-      {
-        str.push(d.isProjectString());
-      }
-      return "<" + str.join(",") + ">";
+      const rator = this.context.globalObject().getProperty("String").d;
+      const semantics = this.context.semantics;
+      const benv = this.context.kont0.realm.GlobalEnv;
+      const lkont = [];
+      const machine = this.context.createMachine();
+      const thisArg = semantics.lat.abst1(null);
+      const S = semantics.$call(rator, thisArg, [this.d], benv, this.context.store, lkont, this.context.kont0, machine);
+      return this.context.explore(S);
     }
 
-    
+
+JsValue.prototype.introspectiveToString =
+    function ()
+    {
+      return introspectiveToString(this.d, this.context.store, this.context.semantics);
+    }
+function introspectiveToString(d, store, semantics)
+{
+  const BOT = semantics.lat.bot();
+  let str = [];
+  if (d.projectObject() !== BOT)
+  {
+    let sb = "";
+    for (const a of d.addresses())
+    {
+      const obj = store.lookupAval(a);
+      sb += a + ":";
+      for (const entry of obj.frame.entries())
+      {
+        sb += "(" + entry[0] + "=>" + entry[1].value + ")";
+      }
+    }
+    str.push(sb);
+  }
+  if (d.projectUndefined() !== BOT)
+  {
+    str.push("undefined");
+  }
+  if (d.projectNull() !== BOT)
+  {
+    str.push("null");
+  }
+  if (d.isTrue())
+  {
+    str.push("true");
+  }
+  if (d.isFalse())
+  {
+    str.push("true");
+  }
+  if (d.projectNumber() !== BOT)
+  {
+    str.push(d.isProjectNumber());
+  }
+  if (d.projectString() !== BOT)
+  {
+    str.push(d.isProjectString());
+  }
+  return "<" + str.join(",") + ">";
+}
