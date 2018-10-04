@@ -93,7 +93,7 @@ function createSemantics(lat, alloc, kalloc, cc)
   
   function evaluate_(node, benv, store, lkont, kont, machine)
   {
-    //print(node.toString());
+    //console.log(node.toString());
     switch (node.type)
     {
       case "Literal":
@@ -228,8 +228,8 @@ function createSemantics(lat, alloc, kalloc, cc)
     }
     if (nodes.length === 1)
     {
-//      return kont.unch(machine.evaluate(nodes[0], benv, store));
-      return evaluate_(nodes[0], benv, store, lkont, kont, machine);
+      //return evaluate_(nodes[0], benv, store, lkont, kont, machine);
+      return [machine.evaluate(nodes[0], benv, store, lkont, kont)];
     }
     var frame = new BodyKont(node, 1, benv);
     return [machine.evaluate(nodes[0], benv, store, [frame].concat(lkont), kont)];
@@ -5466,6 +5466,8 @@ function createSemantics(lat, alloc, kalloc, cc)
       }
     }
     ctx._sstorei = sstorei;
+    console.log(ctx._id, (application || "<root>").toString(), stackAs.size());
+    console.log([...stackAs].sort().join(" "));
     return ctx;
   }
   
