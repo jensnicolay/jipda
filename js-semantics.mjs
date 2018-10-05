@@ -12,7 +12,7 @@ const EMPTY_LKONT = [];
 const EMPTY_ADDRESS_SET = ArraySet.empty();
 //const queues = new Map([["ScriptJobs", "!ScriptJobs"]]);
 
-function createSemantics(lat, alloc, kalloc, cc)
+function createSemantics(lat, cc)
 {
   const errors = cc.errors === undefined ? false : cc.errors;
   
@@ -83,7 +83,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       console.debug("throwTypeError: " + msg);
       assert(typeof msg === "string");
       const obj = createError(lat.abst1(msg), kont.realm);
-      const addr = alloc.error("@" + msg, kont);
+      const addr = this.machine.alloc.error("@" + msg, kont);
       store = storeAlloc(store, addr, obj);
       const ref = lat.abstRef(addr);
       this.states.push(this.machine.throw(ref, store, lkont, kont));
@@ -203,7 +203,7 @@ function createSemantics(lat, alloc, kalloc, cc)
           var aname = lat.abst1(name);
           if (Ast.isFunctionDeclaration(node))
           {
-            var allocateResult = allocateClosure(node, benv, store, lkont, kont);
+            var allocateResult = allocateClosure(node, benv, store, lkont, kont, machine);
             var closureRef = allocateResult.ref;
             store = doProtoSet(aname, closureRef, kont.realm.GlobalObject, allocateResult.store);
           }
@@ -379,7 +379,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         const declaration = declarations[i - 1];
         const id = declaration.id;
         const benv = this.benv;
-        store = InitializeReferenceBinding(id, value, benv, store, kont);
+        store = InitializeReferenceBinding(id, value, benv, store, kont, machine);
         if (i === declarations.length)
         {
           return [machine.continue(L_UNDEFINED, store, lkont, kont, machine)];
@@ -476,13 +476,13 @@ function createSemantics(lat, alloc, kalloc, cc)
   }
   
   
-  function allocateClosure(node, benv, store, lkont, kont)
+  function allocateClosure(node, benv, store, lkont, kont, machine)
   {
     var closure = createClosure(node, benv, kont.realm);
-    var closurea = alloc.closure(node, kont);
+    var closurea = machine.alloc.closure(node, kont);
     
     var prototype = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
-    var prototypea = alloc.closureProtoObject(node, kont);
+    var prototypea = machine.alloc.closureProtoObject(node, kont);
     var closureRef = lat.abstRef(closurea);
     prototype = prototype.add(P_CONSTRUCTOR, Property.fromValue(closureRef));
     store = storeAlloc(store, prototypea, prototype);
@@ -676,7 +676,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     if (properties.length === 0)
     {
       var obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
-      var objectAddress = alloc.object(node, kont);
+      var objectAddress = machine.alloc.object(node, kont);
       store = storeAlloc(store, objectAddress, obj);
       var objectRef = lat.abstRef(objectAddress);
       return [machine.continue(objectRef, store, lkont, kont)];
@@ -692,7 +692,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     {
       var arr = createArray(kont.realm);
       arr = arr.add(P_LENGTH, Property.fromValue(L_0));
-      var arrAddress = alloc.array(node, kont);
+      var arrAddress = machine.alloc.array(node, kont);
       store = storeAlloc(store, arrAddress, arr);
       var arrRef = lat.abstRef(arrAddress);
       return [machine.continue(arrRef, store, lkont, kont)];
@@ -1114,7 +1114,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         var nodeAddr = names.map(function (name)
         {
           var node = funScopeDecls[name];
-          var addr = alloc.vr(node.id || node, ctx); // new ctx!
+          var addr = states.machine.alloc.vr(node.id || node, ctx); // new ctx!
           extendedBenv = extendedBenv.add(name, addr);
           return [node, addr];
         });
@@ -1137,7 +1137,7 @@ function createSemantics(lat, alloc, kalloc, cc)
             }
             else if (Ast.isFunctionDeclaration(node))
             {
-              var allocateResult = allocateClosure(node, extendedBenv, store, lkont, kont, states);
+              var allocateResult = allocateClosure(node, extendedBenv, store, lkont, kont, states.machine);
               var closureRef = allocateResult.ref;
               store = allocateResult.store;
               store = storeAlloc(store, addr, closureRef);
@@ -1153,7 +1153,7 @@ function createSemantics(lat, alloc, kalloc, cc)
               const create = CreateArrayFromList(operandValues.slice(node.i), node, store, lkont, kont, states);
               for (const {value: arr, store} of create)
               {
-                const arrAddress = alloc.array(node, ctx);
+                const arrAddress = states.machine.alloc.array(node, ctx);
                 const store2 = storeAlloc(store, arrAddress, arr);
                 const arrRef = lat.abstRef(arrAddress);
                 const store3 = storeAlloc(store2, addr, arrRef);
@@ -1180,7 +1180,7 @@ function createSemantics(lat, alloc, kalloc, cc)
   ObjClosureCall.prototype.applyFunction =
       function (application, operandValues, thisValue, TODO_REMOVE, store, lkont, kont, states)
       {
-        const userContext = kalloc(this, operandValues, store);
+        const userContext = states.machine.kalloc(this, operandValues, store);
         var previousStack = Stackget(new Stack(lkont, kont));
         var stackAs = kont.stackAddresses(lkont).join(this.addresses());
         var ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack);
@@ -1191,10 +1191,10 @@ function createSemantics(lat, alloc, kalloc, cc)
       function (application, operandValues, protoRef, TODO_REMOVE, store, lkont, kont, states)
       {
         // call store should not contain freshly allocated `this`
-        const userContext = kalloc(this, operandValues, store);
+        const userContext = states.machine.kalloc(this, operandValues, store);
         const funNode = this.node;
         const obj = ObjectCreate(protoRef);
-        const thisa = alloc.constructor(funNode, kont, application);
+        const thisa = states.machine.alloc.constructor(funNode, kont, application);
         store = store.allocAval(thisa, obj);
         const thisValue = lat.abstRef(thisa);
         const stackAs = kont.stackAddresses(lkont).join(this.addresses());
@@ -2016,7 +2016,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         var extendedBenv = this.benv.extend();
         var param = handler.param;
         var name = param.name;
-        var addr = alloc.vr(param, kont);
+        var addr = machine.alloc.vr(param, kont);
         extendedBenv = extendedBenv.add(name, addr);
         store = storeAlloc(store, addr, throwValue);
         return evalStatementList(body, extendedBenv, store, lkont, kont, machine);
@@ -2723,7 +2723,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         if (properties.length === i)
         {
           const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
-          const objectAddress = alloc.object(node, kont);
+          const objectAddress = machine.alloc.object(node, kont);
           store = storeAlloc(store, objectAddress, obj);
           const object = lat.abstRef(objectAddress);
           const states = new States(machine);
@@ -2817,7 +2817,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         if (elements.length === i)
         {
           var arr = createArray(kont.realm);
-          var arrAddress = alloc.array(node, kont);
+          var arrAddress = machine.alloc.array(node, kont);
           for (var j = 0; j < i; j++)
           {
             var indexName = lat.abst1(String(j));
@@ -3832,14 +3832,14 @@ function createSemantics(lat, alloc, kalloc, cc)
   }
 
   // 6.2.4.11
-  function InitializeReferenceBinding(nameNode, value, benv, store, kont)
+  function InitializeReferenceBinding(nameNode, value, benv, store, kont, machine)
   {
     var name = nameNode.name;
     if (benv.lookup(name) !== BOT)
     {
       throw new Error("SyntaxError: " + name + " has already been declared");
     }
-    const addr = alloc.vr(nameNode, kont);
+    const addr = machine.alloc.vr(nameNode, kont);
     store = storeAlloc(store, addr, value);
     return store;
   }
@@ -3897,7 +3897,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     }
     const result = [];
     const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
-    const objAddr = alloc.object(node, kont);
+    const objAddr = states.machine.alloc.object(node, kont);
     const objRef = lat.abstRef(objAddr);
     store = storeAlloc(store, objAddr, obj);
 
@@ -4325,7 +4325,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     {
       let obj = ObjectCreate(kont.realm.Intrinsics.get("%NumberPrototype%"));
       obj = obj.setInternal("[[NumberData]]", narg);
-      const addr = alloc.object(node, kont); // no number-specific alloc?
+      const addr = states.machine.alloc.object(node, kont); // no number-specific alloc?
       store = storeAlloc(store, addr, obj);
       const ref = lat.abstRef(addr);
       result.push({value:ref, store});
@@ -4335,7 +4335,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     {
       let obj = ObjectCreate(kont.realm.Intrinsics.get("%StringPrototype%"));
       obj = obj.setInternal("[[StringData]]", sarg);
-      const addr = alloc.string(node, kont);
+      const addr = states.machine.alloc.string(node, kont);
       store = storeAlloc(store, addr, obj);
       const ref = lat.abstRef(addr);
       result.push({value:ref, store});
@@ -5311,7 +5311,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         const create = CreateArrayFromList(nameList, node, store, lkont, kont, states);
         for (const {value:arr, store} of create)
         {
-          const arrAddress = alloc.array(node, kont);
+          const arrAddress = states.machine.alloc.array(node, kont);
           const store2 = storeAlloc(store, arrAddress, arr);
           const ref = lat.abstRef(arrAddress);
           result.push({value:ref, store: store2});
@@ -5643,7 +5643,7 @@ function createSemantics(lat, alloc, kalloc, cc)
     
     function allocNative()
     {
-      return alloc.native();
+      return machine.alloc.native();
     }
     
     function initialize2(benv, store)
@@ -5723,7 +5723,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       function objectConstructor(application, operandValues, protoRef, benv, store, lkont, kont, states)
       {
         var obj = ObjectCreate(protoRef);
-        var objectAddress = alloc.object(application, kont);
+        var objectAddress = states.machine.alloc.object(application, kont);
         store = storeAlloc(store, objectAddress, obj);
         var objRef = lat.abstRef(objectAddress);
         return states.continue(objRef, store, lkont, kont);
@@ -5844,7 +5844,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         const message = operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING;
         const obj = createError(message, kont.realm);
-        var errAddress = alloc.error(application, kont);
+        var errAddress = states.machine.alloc.error(application, kont);
         store = storeAlloc(store, errAddress, obj);
         var errRef = lat.abstRef(errAddress);
         states.continue(errRef, store, lkont, kont);
@@ -5961,7 +5961,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         {
           let obj = ObjectCreate(kont.realm.Intrinsics.get("%NumberPrototype%")); // TODO OrdinaryCreateFromConstructor
           obj = obj.setInternal("[[NumberData]]", value);
-          const addr = alloc.object(application, kont); // no number-specific alloc?
+          const addr = states.machine.alloc.object(application, kont); // no number-specific alloc?
           const store2 = storeAlloc(store, addr, obj);
           const ref = lat.abstRef(addr);
           states.continue(ref, store2, lkont, kont);
@@ -6009,7 +6009,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         }
         arr = arr.add(P_LENGTH, Property.fromValue(length));
         
-        var arrAddress = alloc.array(application, kont);
+        var arrAddress = states.machine.alloc.array(application, kont);
         store = storeAlloc(store, arrAddress, arr);
         var arrRef = lat.abstRef(arrAddress);
         states.continue(arrRef, store, lkont, kont);
@@ -6024,7 +6024,7 @@ function createSemantics(lat, alloc, kalloc, cc)
         }
         arr = arr.add(P_LENGTH, Property.fromValue(lat.abst1(operandValues.length)));
         
-        var arrAddress = alloc.array(application, kont);
+        var arrAddress = states.machine.alloc.array(application, kont);
         store = storeAlloc(store, arrAddress, arr);
         var arrRef = lat.abstRef(arrAddress);
         states.continue(arrRef, store, lkont, kont);
@@ -6080,7 +6080,7 @@ function createSemantics(lat, alloc, kalloc, cc)
                 }
                 resultArr = resultArr.add(P_LENGTH, Property.fromValue(lat.add(thisLen, i)));
               });
-          var arrAddress = alloc.array(application, kont);
+          var arrAddress = states.machine.alloc.array(application, kont);
           store = storeAlloc(store, arrAddress, resultArr);
           states.continue(lat.abstRef(arrAddress), store, lkont, kont);
         }
@@ -6268,7 +6268,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         const [value] = operandValues; // TODO pass prototype as second param
         const obj = StringCreate(value, kont);
-        const obja = alloc.string(application, kont);
+        const obja = states.machine.alloc.string(application, kont);
         store = storeAlloc(store, obja, obj);
         const ref = lat.abstRef(obja);
         states.continue(ref, store, lkont, kont);
@@ -6278,7 +6278,7 @@ function createSemantics(lat, alloc, kalloc, cc)
       {
         const [proto, internalSlotsList] = operandValues;
         const obj = ObjectCreate(proto, internalSlotsList);
-        const objAddr = alloc.object(application, kont);
+        const objAddr = states.machine.alloc.object(application, kont);
         store = storeAlloc(store, objAddr, obj);
         const ref = lat.abstRef(objAddr);
         states.continue(ref, store, lkont, kont);
@@ -6457,7 +6457,7 @@ function createSemantics(lat, alloc, kalloc, cc)
           }
         }
         let service = ObjectCreate(lat.abst1(null));
-        const servicea = alloc.object(application, kont);
+        const servicea = states.machine.alloc.object(application, kont);
         for (const [operationName, ops] of model)
         {
           const applyFunction = function (application, operandValues, thisValue, benv, store, lkont, kont, states)
