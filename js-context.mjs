@@ -3,10 +3,12 @@ import {ArraySet, assert} from "./common";
 import {createMachine, explore, isSuccessState} from "./abstract-machine";
 
 
-export function JsContext(semantics, explorer, store, kont)
+export function JsContext(semantics, explorer, alloc, kalloc, store, kont)
 {
   this.semantics = semantics;
   this.explorer = explorer;
+  this.alloc = alloc;
+  this.kalloc = kalloc;
   this.store = store;
   assert(kont);
   this.kont0 = kont;
@@ -62,7 +64,7 @@ JsContext.prototype.explore =
           // }
           // warning: NESTING JsContexts!
           // cannot wrap jsValue here, because context store doesn't match; therefore: new JsValue(..., new JsC(...))
-          console.warn("Uncaught exception: " + new JsValue(s.value, new JsContext(this.semantics, this.explorer, s.store, this.kont0)).introspectiveToString());
+          console.warn("Uncaught exception: " + new JsValue(s.value, new JsContext(this.semantics, this.explorer, this.alloc, this.kalloc, s.store, this.kont0)).introspectiveToString());
           console.warn(s.stackTrace());
         }
         else
@@ -133,7 +135,7 @@ JsContext.prototype.createMachine =
         {
           return acc.join(d.addresses())
         }, ArraySet.empty());
-    return createMachine(this.semantics, {rootSet});
+    return createMachine(this.semantics, this.alloc, this.kalloc, {rootSet});
   }
 
 JsContext.prototype.wrapValue =
@@ -309,11 +311,11 @@ function introspectiveToString(d, store, semantics)
   }
   if (d.projectNumber() !== BOT)
   {
-    str.push(d.isProjectNumber());
+    str.push(d.projectNumber());
   }
   if (d.projectString() !== BOT)
   {
-    str.push(d.isProjectString());
+    str.push(d.projectString());
   }
   return "<" + str.join(",") + ">";
 }

@@ -40,12 +40,10 @@ function run(name, expected)
   // used to be outside
   const ast0resource = new FileResource("../prelude.js");
   const ast1resource = new FileResource("../web-prelude.js");
-  const jsConcSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-  const {store:store0conc, kont:kont0conc} = computeInitialCeskState(jsConcSemantics, ast0resource, ast1resource);
-
-  const jsPreludeTypeSemantics = createSemantics(typeLattice, concAlloc, concKalloc, {errors:true});
-  const {store:store0type, kont:kont0type} = computeInitialCeskState(jsPreludeTypeSemantics, ast0resource, ast1resource);
-  const jsTypeSemantics = createSemantics(typeLattice, tagAlloc, aacKalloc, {errors:true});
+  const jsConcSemantics = createSemantics(concLattice, {errors:true});
+  const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
+  const {store:store0conc, kont:kont0conc} = computeInitialCeskState(jsConcSemantics, concAlloc, concKalloc, ast0resource, ast1resource);
+  const {store:store0type, kont:kont0type} = computeInitialCeskState(jsTypeSemantics, concAlloc, concKalloc, ast0resource, ast1resource);
 
   assert(store0conc);
   assert(kont0conc);
@@ -57,15 +55,19 @@ function run(name, expected)
   // const kont0 = kont0conc;
   // const lat = concLattice;
   // const sem = jsConcSemantics;
+  // const alloc = concAlloc;
+  // const kalloc = concKalloc;
 
   const store0 = store0type;
   const kont0 = kont0type;
   const lat = typeLattice;
   const sem = jsTypeSemantics;
+  const alloc = tagAlloc;
+  const kalloc = aacKalloc;
 
 
   const explorer = new Explorer();
-  const jsContext = new JsContext(sem, explorer, store0, kont0);
+  const jsContext = new JsContext(sem, explorer, alloc, kalloc, store0, kont0);
   const browser = new Browser(jsContext);
   const html = new FileResource("resources/secloud/" + name + ".html");
   const actual = browser.parse(html);
@@ -100,7 +102,7 @@ function run(name, expected)
   console.log("written", jsonFileName);
 }
 
-run('h-dc-1', undefined);
+//run('h-dc-1', undefined);
 run('p1', undefined);
 run('p2', undefined);
 run('p3', undefined);
