@@ -6,8 +6,12 @@ export function createMachine(semantics, alloc, kalloc, cc)
   const gcFlag = cc.gc === undefined ? true : cc.gc;
   //const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
   //const hardSemanticAsserts = cc.hardAsserts === undefined ? false : cc.hardAsserts;
-
   const rootSet = cc.rootSet || ArraySet.empty();
+
+  const contexts = [];
+  const stacks = [];
+  let sstorei = 0;
+
   const machine =
       {
         evaluate: (exp, benv, store, lkont, kont) => new EvalState(exp, benv, store, lkont, kont),
@@ -16,7 +20,11 @@ export function createMachine(semantics, alloc, kalloc, cc)
         throw: (value, store, lkont, kont) => new ThrowState(value, store, lkont, kont),
         break: (store, lkont, kont) => new BreakState(store, lkont, kont),
         alloc,
-        kalloc
+        kalloc,
+        contexts,
+        stacks,
+        getSstorei: () => sstorei,
+        increaseSstorei: () => ++sstorei
         //initialize: initialState => semantics.initialize(initialState, this)
       }
   

@@ -1181,9 +1181,9 @@ function createSemantics(lat, cc)
       function (application, operandValues, thisValue, TODO_REMOVE, store, lkont, kont, states)
       {
         const userContext = states.machine.kalloc(this, operandValues, store);
-        var previousStack = Stackget(new Stack(lkont, kont));
+        var previousStack = Stackget(new Stack(lkont, kont), states.machine);
         var stackAs = kont.stackAddresses(lkont).join(this.addresses());
-        var ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack);
+        var ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack, states.machine);
         performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, states);
       }
   
@@ -1198,8 +1198,8 @@ function createSemantics(lat, cc)
         store = store.allocAval(thisa, obj);
         const thisValue = lat.abstRef(thisa);
         const stackAs = kont.stackAddresses(lkont).join(this.addresses());
-        const previousStack = Stackget(new Stack(lkont, kont));
-        const ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack);
+        const previousStack = Stackget(new Stack(lkont, kont), states.machine);
+        const ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack, states.machine);
         return performApply(operandValues, funNode, this.scope, store, lkont, kont, ctx, states);
       }
   
@@ -5437,15 +5437,11 @@ function createSemantics(lat, cc)
   //   const value = lat.abstRef(addr);
   //   return [machine.continue(value, store, lkont, kont)];
   // }
-  
-  const contexts = [];
-  const stacks = [];
-  let sstorei = 0;
-  
-  function createContext(application, thisValue, realm, userContext, stackAs, previousStack)
+
+  function createContext(application, thisValue, realm, userContext, stackAs, previousStack, machine)
   {
     var ctx0 = new JipdaContext(application, thisValue, realm, userContext, stackAs);
-    var ctx = ctx0.intern(contexts);
+    var ctx = ctx0.intern(machine.contexts);
     if (ctx === ctx0)
     {
       ctx._stacks = new Set();
@@ -5462,10 +5458,10 @@ function createSemantics(lat, cc)
       else
       {
         ctx._stacks.add(previousStack);
-        sstorei++;
+        machine.increaseSstorei();
       }
     }
-    ctx._sstorei = sstorei;
+    ctx._sstorei = machine.getSstorei();
     console.log(ctx._id, (application || "<root>").toString(), stackAs.size());
     console.log([...stackAs].sort().join(" "));
     return ctx;
@@ -5624,16 +5620,16 @@ function createSemantics(lat, cc)
       }
   
   
-  function Stackget(st)
+  function Stackget(st, machine)
   {
-    for (let i = 0; i < stacks.length; i++)
+    for (let i = 0; i < machine.stacks.length; i++)
     {
-      if (stacks[i].equals(st))
+      if (machine.stacks[i].equals(st))
       {
-        return stacks[i];
+        return machine.stacks[i];
       }
     }
-    st._id = stacks.push(st) - 1;
+    st._id = machine.stacks.push(st) - 1;
     return st;
   }
   
@@ -6484,7 +6480,7 @@ function createSemantics(lat, cc)
       store = storeAlloc(store, globala, global);
       // END GLOBAL
 
-      const kont = createContext(null, realm.GlobalObject, realm, "globalctx", ArraySet.empty().add("ScriptJobs"), null);
+      const kont = createContext(null, realm.GlobalObject, realm, "globalctx", ArraySet.empty().add("ScriptJobs"), null, machine);
       return {store, kont};
     } // end initialize2
     
