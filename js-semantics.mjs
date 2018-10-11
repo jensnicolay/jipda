@@ -5462,8 +5462,8 @@ function createSemantics(lat, cc)
       }
     }
     ctx._sstorei = machine.getSstorei();
-    console.log(ctx._id, (application || "<root>").toString(), stackAs.size());
-    console.log([...stackAs].sort().join(" "));
+    // console.log(ctx._id, (application || "<root>").toString(), stackAs.size());
+    // console.log([...stackAs].sort().join(" "));
     return ctx;
   }
   
