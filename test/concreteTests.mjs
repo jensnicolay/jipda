@@ -9,15 +9,15 @@ import {computeInitialCeskState, explore, isSuccessState} from '../abstract-mach
 import {FileResource, StringResource} from "../ast";
 
 const ast0resource = new FileResource("../prelude.js");
-const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-const s0 = computeInitialCeskState(jsSemantics, ast0resource);
+const jsSemantics = createSemantics(concLattice, {errors: true});
+const s0 = computeInitialCeskState(jsSemantics, concAlloc, concKalloc, ast0resource);
 
 let c = 0;
 
 function run(resource, expected)
 {
   console.log("conc " + ++c + "\t" + resource); //src.substring(0, 80).replace(/(\r\n\t|\n|\r\t)/gm, ' '));
-  const s1 = s0.switchMachine(jsSemantics, {hardAsserts: true});
+  const s1 = s0.switchMachine(jsSemantics, concAlloc, concKalloc, {hardAsserts: true});
   const s2 = s1.enqueueScriptEvaluation(resource);
   let actual = jsSemantics.lat.bot();
   const system = explore([s2], s => {

@@ -7,3 +7,5 @@ node_modules/**
 /jipda.dot
 /test/resources/prog.js
 /test/resources/prog.js.dot
+
+test/resources/secloud/results/

@@ -18,16 +18,15 @@ const ast0resource = new FileResource("../prelude.js");
 
 var module = new TestSuite("suiteJipdaTests");
 
-const preludeJsSemantics = createSemantics(typeLattice, concAlloc, concKalloc, {errors:true});
-const s0 = computeInitialCeskState(preludeJsSemantics, ast0resource);
-const typeJsSemantics = createSemantics(typeLattice, tagAlloc, aacKalloc, {errors:true});
+const typeJsSemantics = createSemantics(typeLattice, {errors:true});
+const s0 = computeInitialCeskState(typeJsSemantics, concAlloc, concKalloc, ast0resource);
 
 let c = 0;
 
 function run(resource, expected)
 {
   console.log("type " + ++c + "\t" + resource);
-  const s1 = s0.switchMachine(typeJsSemantics, {gc:true});
+  const s1 = s0.switchMachine(typeJsSemantics, tagAlloc, aacKalloc, {gc:true});
   const s2 = s1.enqueueScriptEvaluation(resource);
   let actual = typeJsSemantics.lat.bot();
   const system = explore([s2], s => {

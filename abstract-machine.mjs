@@ -1,13 +1,17 @@
 import {ArraySet, HashMap, HashCode, Sets, Formatter, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
 import {FileResource} from "./ast";
 
-export function createMachine(semantics, cc)
+export function createMachine(semantics, alloc, kalloc, cc)
 {
   const gcFlag = cc.gc === undefined ? true : cc.gc;
   //const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
   //const hardSemanticAsserts = cc.hardAsserts === undefined ? false : cc.hardAsserts;
-
   const rootSet = cc.rootSet || ArraySet.empty();
+
+  const contexts = [];
+  const stacks = [];
+  let sstorei = 0;
+
   const machine =
       {
         evaluate: (exp, benv, store, lkont, kont) => new EvalState(exp, benv, store, lkont, kont),
@@ -15,7 +19,12 @@ export function createMachine(semantics, cc)
         return: (value, store, lkont, kont) => new ReturnState(value, store, lkont, kont),
         throw: (value, store, lkont, kont) => new ThrowState(value, store, lkont, kont),
         break: (store, lkont, kont) => new BreakState(store, lkont, kont),
-
+        alloc,
+        kalloc,
+        contexts,
+        stacks,
+        getSstorei: () => sstorei,
+        increaseSstorei: () => ++sstorei
         //initialize: initialState => semantics.initialize(initialState, this)
       }
   
@@ -170,9 +179,9 @@ export function createMachine(semantics, cc)
       }
 
   KontState.prototype.switchMachine =
-      function (semantics, cc)
+      function (semantics, alloc, kalloc, cc)
       {
-        const machine = createMachine(semantics, cc);
+        const machine = createMachine(semantics, alloc, kalloc, cc);
         return machine.continue(this.value, this.store, this.lkont, this.kont);
       }
 
@@ -664,9 +673,9 @@ export function run(initialStates,
   return {time: performance.now() - startTime};
 }
 
-export function computeInitialCeskState(semantics, ...resources)
+export function computeInitialCeskState(semantics, alloc, kalloc, ...resources)
 {
-  const machine = createMachine(semantics, {errors:true, hardAsserts:true});
+  const machine = createMachine(semantics, alloc, kalloc, {errors:true, hardAsserts:true});
   const s0 = semantics.initialize(machine);
   const s1 = resources.reduce((state, resource) => state.enqueueScriptEvaluation(resource), s0);
   const resultStates = new Set();

@@ -13,12 +13,11 @@ import tagAlloc from "../tag-alloc";
 
 const ast0resource = new FileResource("../prelude.js");
 
-const jsConcSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-const s0Conc = computeInitialCeskState(jsConcSemantics, ast0resource);
+const jsConcSemantics = createSemantics(concLattice, {errors: true});
+const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
 
-const jsPreludeTypeSemantics = createSemantics(typeLattice, concAlloc, concKalloc, {errors:true});
-const s0Type = computeInitialCeskState(jsPreludeTypeSemantics, ast0resource);
-const jsTypeSemantics = createSemantics(typeLattice, tagAlloc, aacKalloc, {errors:true});
+const s0Conc = computeInitialCeskState(jsConcSemantics, concAlloc, concKalloc, ast0resource);
+const s0Type = computeInitialCeskState(jsTypeSemantics, concAlloc, concKalloc, ast0resource);
 
 let c = 0;
 
@@ -27,7 +26,7 @@ function run(resource, expected)
   console.log(++c + "\t" + resource);
 
   process.stdout.write("conc ");
-  const s1Conc = s0Conc.switchMachine(jsConcSemantics, {hardAsserts: true});
+  const s1Conc = s0Conc.switchMachine(jsConcSemantics, concAlloc, concKalloc, {hardAsserts: true});
 
   const s2Conc = s1Conc.enqueueScriptEvaluation(resource);
   let actualConc = jsConcSemantics.lat.bot();
@@ -56,7 +55,7 @@ function run(resource, expected)
   }
 
   process.stdout.write("type ");
-  const s1Type = s0Type.switchMachine(jsTypeSemantics, {hardAsserts: true});
+  const s1Type = s0Type.switchMachine(jsTypeSemantics, tagAlloc, aacKalloc, {hardAsserts: true});
   const s2Type = s1Type.enqueueScriptEvaluation(resource);
   let actualType = jsTypeSemantics.lat.bot();
   const systemType = explore([s2Type], s => {
