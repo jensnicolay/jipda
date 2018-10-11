@@ -5,12 +5,13 @@ import {createMachine, explore, isSuccessState} from "./abstract-machine";
 
 export function JsContext(semantics, explorer, alloc, kalloc, store, kont)
 {
+  assert(store);
+  assert(kont);
   this.semantics = semantics;
   this.explorer = explorer;
   this.alloc = alloc;
   this.kalloc = kalloc;
   this.store = store;
-  assert(kont);
   this.kont0 = kont;
   this.managedValues = ArraySet.empty();
 }

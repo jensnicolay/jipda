@@ -14,8 +14,8 @@ import {StringResource, FileResource} from "../ast";
 const read = name => fs.readFileSync(name).toString();
 const ast0resource = new FileResource("../prelude.js");
 const ast1resource = new FileResource("../web-prelude.js");
-const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, ast0resource, ast1resource);
+const jsSemantics = createSemantics(concLattice, {errors: true});
+const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, concAlloc, concKalloc, ast0resource, ast1resource);
 
 function Explorer()
 {
@@ -33,7 +33,7 @@ let c = 0;
 function run(html, expected)
 {
   console.log(++c + "\t" + html.substring(0, 80).replace(/(\r\n\t|\n|\r\t)/gm, ' '));
-  const jsContext = new JsContext(jsSemantics, new Explorer(), store0, kont0);
+  const jsContext = new JsContext(jsSemantics, new Explorer(), concAlloc, concKalloc, store0, kont0);
   const browser = new Browser(jsContext);
   const actual = browser.parse(new StringResource(html));
   assertEquals(concLattice.abst1(expected), actual);
@@ -73,3 +73,4 @@ run("<html><body><script>$result$ = !!document.body</script></body></html>", tru
 run("<body><script>document.body.onload = function () {$result$ = true}</script></body>", true);
 run("<body><div id='hopla'></div><script>$result$ = document.body.children[0].id</script></body>", "hopla");
 run("<body><div id='hopla'></div><script>$result$ = document.getElementById('hopla').id</script></body>", "hopla");
+run("<script>function sq(x) {return x*x}; $result$ = sq(4)</script>", 16);
