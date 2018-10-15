@@ -197,6 +197,21 @@
         return thisStringValue(this);
       }
   
+  // 22.1.3.5
+  Array.prototype.every = 
+      function (f)
+      {
+        for (var i = 0; i < this.length; i++) 
+        {
+          var x = this[i];
+          if(!f(x))
+          {
+            return false;
+          }
+        }
+        return true;
+      }
+  
   // 22.1.3.7
   Array.prototype.filter =
       function (f)

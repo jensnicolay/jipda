@@ -29,6 +29,9 @@
   global.Node = Node;
   global.Text = Text;
   global.XMLHttpRequest = XMLHttpRequest;
+  global.HTMLInputElement = HTMLInputElement;
+  global.Event = Event;
+  global.EventTarget = EventTarget;
 
   function Location()
   {
@@ -245,6 +248,86 @@
   }
   HTMLImageElement.prototype = Object.create(HTMLElement.prototype);
   HTMLImageElement.prototype.constructor = HTMLImageElement;
+
+  function HTMLInputElement()
+  {
+    HTMLElement.call(this);
+  }
+  HTMLInputElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLInputElement.prototype.constructor = HTMLInputElement;
+  HTMLInputElement.prototype.tagName = "INPUT";
+
+  function EventTarget(){
+    this.listeners = {} // new Map? if they are implemented!
+  }
+
+  EventTarget.prototype.addEventListener =
+      function(type, callback)
+      {
+        if(!this.listeners[type])
+        {
+          this.listeners[type] = [];
+        }
+        this.listeners[type].push(callback);
+      }
+
+  EventTarget.prototype.removeEventListener =
+      function(type, callback)
+      {
+        if(!this.listeners[type]) 
+        {
+          return;
+        }
+        var callbacks = this.listeners[type];
+
+        for (let i = 0; i < callbacks.length; i++) 
+        {
+          var cb = callback[i];
+          if(cb === callback)
+          {
+            callbacks.splice(i,1);
+            return;
+          }
+        }
+      }  
+
+  EventTarget.prototype.dispatchEvent =
+      function(event)
+      {
+        if(!this.listeners[event.type])
+        {
+          return true;
+        }
+        var callbacks = this.listeners[event.type];
+
+        for (var i = 0; i < callbacks.length; i++) 
+        {
+          var cb = callbacks[i];
+          cb.call(this, event);
+        }
+        return !event.defaultPrevented;
+      }
+
+  function Event(type){
+    this.type = type;
+    this.target = undefined;
+    //this.bubbles = true;
+  }
+  Event.prototype.stopPropagation = 
+      function()
+      {
+       //TODO: this.bubbles = false;
+      }  
+  Event.prototype.stopImmediatePropagation =
+      function()
+      {
+        //TODO:
+      }
+  Event.prototype.preventDefault = 
+      function()
+      {
+        //TODO:
+      }
 
 })(this);
 
