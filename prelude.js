@@ -212,6 +212,21 @@
         return true;
       }
   
+  // 22.1.3.23
+  Array.prototype.some =
+      function (f, thisArg)
+      {
+        for (var i = 0; i < this.length; i++) 
+        {
+          var x = this[i];
+          if (f.call(thisArg, x))
+          {
+            return true;
+          }
+        }
+        return false;
+      }  
+  
   // 22.1.3.7
   Array.prototype.filter =
       function (f)

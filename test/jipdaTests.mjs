@@ -452,3 +452,13 @@ runSource("Number(2) === 2", true);
 runSource("new Number(2) === 2", false);
 
 
+//22.1.3.23
+runSource("[42].some(function(x){ return x === 42})", true);
+runSource("[].some(function(x){ return x === 42})", false);
+runSource("[1, 2, -1, 42, 12].some(function(x){ return x === 42})", true);
+
+// 22.1.3.5
+runSource("[].every(function(x){ return x > 0})", true);
+runSource("[-1].every(function(x){ return x > 0})", false);
+runSource("[2,3,4,0].every(function(x){ return x > 0})", false);
+runSource("[2,3,4,10].every(function(x){ return x > 0})", true);
