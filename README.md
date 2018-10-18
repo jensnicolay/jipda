@@ -175,8 +175,8 @@ Programmatic interaction with JIPDA enables one to directly work with the full s
 #### Step 1: bootstrap JIPDA
 ```
 const ast0resource = new FileResource("../prelude.js");
-const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-const s0 = computeInitialCeskState(jsSemantics, ast0resource);
+const jsSemantics = createSemantics(concLattice, {errors: true});
+const s0 = computeInitialCeskState(jsSemantics, concAlloc, concKalloc, ast0resource);
 ```
 
 The first step consists of obtaining an initial state that represents an initial JavaScript environment.
@@ -217,13 +217,12 @@ In the abstract case, using the type lattice, a switch of machines is required.
 The prelude is explored with concrete allocators (but with the type lattice) to obtain the initial state.
 The actual input program then is evaluated using abstract (finite) allocators:
 ```
-const preludeJsSemantics = createSemantics(typeLattice, concAlloc, concKalloc, {errors:true});
-const s0 = computeInitialCeskState(preludeJsSemantics, ast0resource);
+const jsSemantics = createSemantics(typeLattice, {errors:true});
 
-const typeJsSemantics = createSemantics(typeLattice, tagAlloc, aacKalloc, {errors:true});
-const s1 = s0.switchMachine(typeJsSemantics, {gc:true});
+const s0 = computeInitialCeskState(preludeJsSemantics, concAlloc, concKalloc, ast0resource);
+const s1 = s0.switchMachine(jsSemantics, tagAlloc, aacKalloc, {gc:true});
 const s2 = s1.enqueueScriptEvaluation(resource);
-let actual = typeJsSemantics.lat.bot();
+let actual = jsSemantics.lat.bot();
 const system = explore([s2], s => {
     if (isSuccessState(s))
     {

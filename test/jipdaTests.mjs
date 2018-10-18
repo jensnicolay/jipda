@@ -444,6 +444,16 @@ runSource("var o = {}; Object.prototype.isPrototypeOf(o);", true);
 runSource("var p = {}; var o = Object.create(p); p.isPrototypeOf(o)", true);
 runFile("resources/inheritance1.js", true);
 // FIXME runSource("aBRaCADabrA".toLowerCase(), "abracadabra");
+runSource("(function(){}).constructor === Function", true);
+runSource("(Function())()", undefined);
+runSource("(new Function())()", undefined);
+runSource("(Function(''))()", undefined);
+runSource("(new Function(''))()", undefined);
+runSource("(Function ('a','return a'))(123)", 123);
+runSource("(new Function ('a','return a'))(123)", 123);
+runSource("(Function ('a', 'b', 'return a+b'))(123,456)", 579);
+runSource("(new Function ('a', 'b', 'return a+b'))(123,456)", 579);
+
 
 // 20.1.3
 runSource("Object.getPrototypeOf(Number.prototype) === Object.prototype", true);

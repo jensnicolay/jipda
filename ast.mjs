@@ -561,13 +561,14 @@ export class StringResource
 
 export function createAst(resource, config)
   {
-    config = config || {keepTagCounter:false};
+    config = config || {resetTagCounter:false};
     const src = resource.toSrc();
     const ast = parseScript(src, {loc:true});
-    if (!config.keepTagCounter)
-    {
-      __nodeCounter__ = 0;
-    }
+    // if (config.resetTagCounter)  // disabled, too difficult to manage with preludes and tests... TODO make parsing immutably stateful
+    // {
+    //   console.warn("Ast: resetting counter");
+    //   __nodeCounter__ = 0;
+    // }
     ast.resource = resource;
     augmentAst(ast, ast);
     return ast;

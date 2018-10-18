@@ -74,8 +74,8 @@ let jsContext = null;
 const ast0src = new FileResource("prelude.js");
 const ast1src = browser ? new FileResource("web-prelude.js") : new StringResource("");
 
-const jsPreludeSemantics = createSemantics(lattice, concAlloc, concKalloc, {errors: true});
-const {store:store0, kont:kont0} = computeInitialCeskState(jsPreludeSemantics, ast0src, ast1src);
+const jsSemantics = createSemantics(lattice, {errors: true});
+const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, concAlloc, concKalloc, ast0src, ast1src);
 
 function Explorer()
 {
@@ -90,8 +90,7 @@ Explorer.prototype.explore =
 
 
 
-const jsSemantics = createSemantics(lattice, alloc, kalloc, {errors:true});
-jsContext = new JsContext(jsSemantics, new Explorer(), store0, kont0);
+jsContext = new JsContext(jsSemantics, new Explorer(), alloc, kalloc, store0, kont0);
 if (inputFileName)
 {
 //  const src = read(inputFileName);

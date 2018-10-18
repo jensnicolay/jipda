@@ -5,6 +5,7 @@ import Benv from './benv.mjs';
 import Store from './countingStore.mjs';
 import {Obj} from './object.mjs';
 import {Arrays} from "./common";
+import {StringResource} from "./ast";
 
 export default createSemantics;
 
@@ -538,7 +539,7 @@ function createSemantics(lat, cc)
       for (const callable of Call)
       {
         //if (!callable.applyFunction) {print(application, callable, Object.keys(callable))};
-        callable.applyFunction(application, operandValues, thisValue, operatorObj, store, lkont, kont, states);
+        callable.applyFunction(application, operandValues, thisValue, benv, store, lkont, kont, states);
       }
     }
   }
@@ -1057,6 +1058,7 @@ function createSemantics(lat, cc)
   function ObjClosureCall(node, scope)
   {
     assertDefinedNotNull(node);
+    assertDefinedNotNull(scope);
     this.node = node;
     this.scope = scope;
   }
@@ -1744,7 +1746,7 @@ function createSemantics(lat, cc)
           }
           else
           {
-            applyProc(node, operatorValue, [], kont.realm.GlobalObject, null, store, lkont, kont, states);
+            applyProc(node, operatorValue, [], kont.realm.GlobalObject, benv, store, lkont, kont, states);
           }
           return states;
         }
@@ -1829,7 +1831,7 @@ function createSemantics(lat, cc)
           }
           else
           {
-            applyProc(node, operatorValue, operandValues.addLast(operandValue), thisValue, null, store, lkont, kont, states);
+            applyProc(node, operatorValue, operandValues.addLast(operandValue), thisValue, benv, store, lkont, kont, states);
           }
           return states;
         }
@@ -5822,14 +5824,11 @@ function createSemantics(lat, cc)
       
       // BEGIN FUNCTION
       var functionP = ObjectCreate(objectProtoRef);
-//  functionP.toString = function () { return "~Function.prototype"; }; // debug
       var functiona = allocNative();
       var functionP = registerProperty(functionP, "constructor", lat.abstRef(functiona));
       
 
-      var fun = createPrimitive(function ()
-      {
-      }, null, realm); // TODO
+      var fun = createPrimitive(functionFunction, functionFunction, realm);
       fun = fun.add(P_PROTOTYPE, Property.fromValue(functionProtoRef));
       global = global.add(lat.abst1("Function"), Property.fromValue(lat.abstRef(functiona)));
       store = storeAlloc(store, functiona, fun);
@@ -5838,6 +5837,30 @@ function createSemantics(lat, cc)
       functionP = registerPrimitiveFunction(functionP, "apply", functionApply);
       
       store = storeAlloc(store, functionPa, functionP);
+
+      const emptyFunctionNode = Ast.createAst(new StringResource("(function () {})")).body[0].expression;
+
+      function functionFunction(application, operandValues, thisValue, benv, store, lkont, kont, states)
+      {
+        if (operandValues.length === 0)
+        {
+          const {store: store2, ref: closureRef} = allocateClosure(emptyFunctionNode, benv, store, lkont, kont, states.machine);
+          states.continue(closureRef, store2, lkont, kont);
+        }
+        else
+        {
+          const bodyText = operandValues[operandValues.length - 1].conc1();
+          const argsText = [];
+          for (let i = 0; i < operandValues.length - 1; i++)
+          {
+            argsText.push(operandValues[i].conc1());
+          }
+          const functionText = "(function (" + argsText.join(", ") + ") {" + bodyText + "})";
+          const functionNode = Ast.createAst(new StringResource(functionText)).body[0].expression;
+          const {store: store2, ref: closureRef} = allocateClosure(functionNode, benv, store, lkont, kont, states.machine);
+          states.continue(closureRef, store2, lkont, kont);
+        }
+      }
       // END FUNCTION
       
       

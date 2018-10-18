@@ -51,19 +51,19 @@ function run(name, expected)
   assert(kont0type);
   //
 
-  // const store0 = store0conc;
-  // const kont0 = kont0conc;
-  // const lat = concLattice;
-  // const sem = jsConcSemantics;
-  // const alloc = concAlloc;
-  // const kalloc = concKalloc;
+  const store0 = store0conc;
+  const kont0 = kont0conc;
+  const lat = concLattice;
+  const sem = jsConcSemantics;
+  const alloc = concAlloc;
+  const kalloc = concKalloc;
 
-  const store0 = store0type;
-  const kont0 = kont0type;
-  const lat = typeLattice;
-  const sem = jsTypeSemantics;
-  const alloc = tagAlloc;
-  const kalloc = aacKalloc;
+  // const store0 = store0type;
+  // const kont0 = kont0type;
+  // const lat = typeLattice;
+  // const sem = jsTypeSemantics;
+  // const alloc = tagAlloc;
+  // const kalloc = aacKalloc;
 
 
   const explorer = new Explorer();
