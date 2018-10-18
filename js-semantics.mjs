@@ -4341,8 +4341,7 @@ function createSemantics(lat, cc)
     const sarg = argument.projectString();
     if (sarg !== BOT)
     {
-      let obj = ObjectCreate(kont.realm.Intrinsics.get("%StringPrototype%"));
-      obj = obj.setInternal("[[StringData]]", sarg);
+      let obj = StringCreate(sarg, kont);
       const addr = states.machine.alloc.string(node, kont);
       store = storeAlloc(store, addr, obj);
       const ref = lat.abstRef(addr);
