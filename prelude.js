@@ -196,6 +196,66 @@
       {
         return thisStringValue(this);
       }
+
+  // 21.1.3.8
+  String.prototype.indexOf = 
+      function(searchString, start) 
+      {
+        if (searchString === undefined) 
+        {
+          return -1;
+        } else if (searchString === '') 
+        {
+          return 0;
+        } else 
+        {
+          if (typeof start !== 'number') 
+          {
+            start = 0;
+          }
+          var searchLength = searchString.length;
+          var count = 0;
+          
+          for (var i = start; i < this.length - searchLength + 1; i++) 
+          {
+            for (var j = 0; j < searchLength; j++) 
+            {
+              if (this.charAt(i + j) === searchString.charAt(j))
+              {
+                count = count + 1;
+                if (count === searchLength)
+                {
+                  return i;
+                }
+              } else 
+              {
+                count = 0;
+                break;
+              }
+            }
+          }
+          return -1;
+        }
+    }
+
+  // 21.1.3.7
+  String.prototype.includes = 
+      function (searchString, start)
+      {
+        if (typeof start !== 'number') 
+        {
+          start = 0;
+        }
+        
+        if (start + search.length > this.length) 
+        {
+          return false;
+        }
+         else 
+        {
+          return this.indexOf(search, start) !== -1;
+        }
+      }
   
   // 22.1.3.5
   Array.prototype.every = 

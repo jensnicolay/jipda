@@ -457,8 +457,14 @@ runSource("[42].some(function(x){ return x === 42})", true);
 runSource("[].some(function(x){ return x === 42})", false);
 runSource("[1, 2, -1, 42, 12].some(function(x){ return x === 42})", true);
 
-// 22.1.3.5
-runSource("[].every(function(x){ return x > 0})", true);
-runSource("[-1].every(function(x){ return x > 0})", false);
-runSource("[2,3,4,0].every(function(x){ return x > 0})", false);
-runSource("[2,3,4,10].every(function(x){ return x > 0})", true);
+// // 22.1.3.5
+// runSource("[].every(function(x){ return x > 0})", true);
+// runSource("[-1].every(function(x){ return x > 0})", false);
+// runSource("[2,3,4,0].every(function(x){ return x > 0})", false);
+ //runSource("[2,3,4,10].every(function(x){ return x > 0})", true);
+
+ //String.prototype.length
+ //runSource("var t = 'aBRaCADabrA'; '123'.length", 3); 
+ //21.1.3.7
+ //runSource("var t = 'aBRaCADabrA'; t.length", 11);
+
