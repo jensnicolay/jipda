@@ -9,8 +9,8 @@ import {computeInitialCeskState} from "../abstract-machine.mjs";
 import {explore, StateRegistry} from "../abstract-machine";
 
 const ast0resource = new FileResource("../prelude.js");
-const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, ast0resource);
+const jsSemantics = createSemantics(concLattice, {errors: true});
+const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, concAlloc, concKalloc, ast0resource);
 
 function Explorer()
 {
@@ -30,7 +30,7 @@ let c = 0;
 function run(f, expected)
 {
   console.log("test " + c++ + "\n");
-  const jsContext = new JsContext(jsSemantics, new Explorer(), store0, kont0);
+  const jsContext = new JsContext(jsSemantics, new Explorer(), concAlloc, concKalloc, store0, kont0);
   //const actual =
   f(jsContext);
   //assertEquals(concLattice.abst1(expected), actual);

@@ -5236,7 +5236,7 @@ function createSemantics(lat, cc)
   
   // 13.7.5.12
   // function ForInOfHeadEvaluation(TDZnames, expr, iterationKind, store, lkont, kont, states)
-  
+
   // 19.1.2.3.1
   function ObjectDefineProperties(O, Properties, node, store, lkont, kont, states)
   {
@@ -5392,6 +5392,24 @@ function createSemantics(lat, cc)
     }
   }
 
+  // 19.2.1.1.1: placeholder, not even close to spec
+//  function createDynamicFunction(constructor, newTarget, kind, args, benv, store, lkont, kont, states) // specc sig
+  function createDynamicFunction(argsText, bodyText, benv, store, lkont, kont, states)
+  {
+    const functionText = "(function (" + argsText.join(", ") + ") {" + bodyText + "})";
+    const functionNode = Ast.createAst(new StringResource(functionText)).body[0].expression;
+    const {store: store2, ref: closureRef} = allocateClosure(functionNode, benv, store, lkont, kont, states.machine);
+    states.continue(closureRef, store2, lkont, kont);
+  }
+
+  function $createFunction(argsText, bodyText, benv, store, lkont, kont, machine)
+  {
+    const states = new States(machine);
+    createDynamicFunction(argsText, bodyText, benv, store, lkont, kont, states);
+    return states;
+  }
+
+
 
   // 19.2.3.1
   function functionApply(application, operandValues, thisValue, benv, store, lkont, kont, states)
@@ -5459,15 +5477,6 @@ function createSemantics(lat, cc)
     obj = obj.setInternal("[[Call]]", SetValue.from1(Call));
     return obj;
   }
-
-  // function $createFunction(Call, store, kont, lkont, machine)
-  // {
-  //   const obj = createFunction(Call, kont.realm);
-  //   const addr = alloc.native();
-  //   store = storeAlloc(store, addr, obj);
-  //   const value = lat.abstRef(addr);
-  //   return [machine.continue(value, store, lkont, kont)];
-  // }
 
   function createContext(application, thisValue, realm, userContext, stackAs, previousStack, machine)
   {
@@ -5663,8 +5672,8 @@ function createSemantics(lat, cc)
     st._id = machine.stacks.push(st) - 1;
     return st;
   }
-  
-  
+
+
   function initialize(machine)
   {
     
@@ -5753,7 +5762,7 @@ function createSemantics(lat, cc)
         var objectAddress = states.machine.alloc.object(application, kont);
         store = storeAlloc(store, objectAddress, obj);
         var objRef = lat.abstRef(objectAddress);
-        return states.continue(objRef, store, lkont, kont);
+        states.continue(objRef, store, lkont, kont);
       }
       
       // // 19.1.2.2
@@ -5854,10 +5863,7 @@ function createSemantics(lat, cc)
           {
             argsText.push(operandValues[i].conc1());
           }
-          const functionText = "(function (" + argsText.join(", ") + ") {" + bodyText + "})";
-          const functionNode = Ast.createAst(new StringResource(functionText)).body[0].expression;
-          const {store: store2, ref: closureRef} = allocateClosure(functionNode, benv, store, lkont, kont, states.machine);
-          states.continue(closureRef, store2, lkont, kont);
+          createDynamicFunction(argsText, bodyText, benv, store, lkont, kont, states);
         }
       }
       // END FUNCTION
@@ -5980,7 +5986,7 @@ function createSemantics(lat, cc)
       {
         if (operandValues.length === 0)
         {
-          return states.continue(L_0, store, lkont, kont);
+          states.continue(L_0, store, lkont, kont);
         }
         else
         {
@@ -6408,7 +6414,7 @@ function createSemantics(lat, cc)
         {
           result = result.join(L_FALSE);
         }
-        return states.continue(result, store, lkont, kont);
+        states.continue(result, store, lkont, kont);
       }
       
       function baseAddIntrinsic(application, operandValues, thisValue, benv, store, lkont, kont, states)
@@ -6476,7 +6482,7 @@ function createSemantics(lat, cc)
       function _print(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         console.log.apply(null, operandValues);
-        return states.continue(L_UNDEFINED, store, lkont, kont);
+        states.continue(L_UNDEFINED, store, lkont, kont);
       }
       
       function globalParseInt(application, operandValues, thisValue, benv, store, lkont, kont, states)
@@ -6576,7 +6582,7 @@ function createSemantics(lat, cc)
     initialize,
     evaluate: evaluate_, continue:continue_, return:return_, throw: throw_, break: break_,
     gc: gc_, enqueueScriptEvaluation, enqueueJob,
-    $getProperty, $assignProperty, $call, $construct, //$createFunction
+    $getProperty, $assignProperty, $call, $construct, $createFunction,
       lat};
 }
 

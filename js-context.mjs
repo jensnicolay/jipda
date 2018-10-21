@@ -95,24 +95,18 @@ JsContext.prototype.createArray =
       return this.evaluateScript(new StringResource("[]"));
     }
 
-// JsContext.prototype.createFunction =
-//     function (f)
-//     {
-//       // Call, store, kont, lkont, machine
-// //      ObjClosureCall.prototype.applyFunction =
-//   //        function (application, operandValues, thisValue, TODO_REMOVE, store, lkont, kont, states)
-//
-// //      ObjClosureCall.prototype.applyConstructor =
-//   //        function (application, operandValues, protoRef, TODO_REMOVE, store, lkont, kont, states)
-//       const semantics = this.semantics;
-//       const machine = this.createMachine();
-//       const applyFunction = function (application, operandValues, thisValue, TODO_REMOVE, store, lkont, kont, states)
-//       {
-//
-//       };
-//       const S = semantics.createFunction(ast, benv, store, lkont, kont, machine);
-//       return this.explore(S);
-//     }
+JsContext.prototype.createFunction =
+    function (argsText /* array of strings */, bodyText)
+    {
+      const semantics = this.semantics;
+      const machine = this.createMachine();
+      const benv = this.kont0.realm.GlobalEnv; // ??
+      const store = this.store;
+      const lkont = [];
+      const kont = this.kont0;
+      const S = semantics.$createFunction(argsText, bodyText, benv, store, lkont, kont, machine);
+      return this.explore(S);
+    }
 
 JsContext.prototype.evaluateScript =
     function (resource)
