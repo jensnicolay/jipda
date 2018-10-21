@@ -78,8 +78,4 @@ run("<script>function sq(x) {return x*x}; $result$ = sq(4)</script>", 16);
 //Scull Tests
 run("<input>", undefined);
 run("<body><input type='input'><script>$result$ = document.body.children[0].type</script></body>", "input");
-run(`<body><input type='input' onclick='$result$ = 21 * 2;'>
-    <script>
-        document.body.children[0].onclick()
-    </script>
-    </body>`, 42);
+run("<body><input type='input' onclick='$result$ = 21 * 2;'><script>document.body.children[0].onclick()</script></body>", 42);

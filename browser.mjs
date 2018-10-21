@@ -181,7 +181,7 @@ Browser.prototype.parseInput =
       const onclick = input.getAttribute("onclick");
       if (onclick)
       { 
-        const handler = new Function("event", onclick); //Not supported, waiting for Jen's support
+        const handler = this.jsContext.createFunction(["param1", "param2"], onclick); //Not supported, waiting for Jen's support
         jsInput.assignProperty("onclick", handler);
       }
       this.parseChildren(input, jsInput);
