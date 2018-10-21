@@ -473,13 +473,28 @@ runSource("[].some(function(x){ return x === 42})", false);
 runSource("[1, 2, -1, 42, 12].some(function(x){ return x === 42})", true);
 
 // // 22.1.3.5
-// runSource("[].every(function(x){ return x > 0})", true);
-// runSource("[-1].every(function(x){ return x > 0})", false);
-// runSource("[2,3,4,0].every(function(x){ return x > 0})", false);
- //runSource("[2,3,4,10].every(function(x){ return x > 0})", true);
+runSource("[].every(function(x){ return x > 0})", true);
+runSource("[-1].every(function(x){ return x > 0})", false);
+runSource("[2,3,4,0].every(function(x){ return x > 0})", false);
+runSource("[2,3,4,10].every(function(x){ return x > 0})", true);
 
  //String.prototype.length
- //runSource("var t = 'aBRaCADabrA'; '123'.length", 3); 
+ runSource("var t = 'aBRaCADabrA'; '123'.length", 3); 
  //21.1.3.7
- //runSource("var t = 'aBRaCADabrA'; t.length", 11);
+ runSource("var t = 'aBRaCADabrA'; t.length", 11);
+ 
+ //String.prototype.indexOf
+ runSource("var t = 'aBRaCADabrA'; t.indexOf('BR')", 1);
+ runSource("'Hello World'.indexOf('')", 0);
+ runSource("''.indexOf('')", 0);
+ runSource("'Blue Whale'.indexOf('Blue')",0)     
+ runSource("'Blue Whale'.indexOf('Blute')",-1);    
+ runSource("'Blue Whale'.indexOf('Whale', 0)",5);  
+ runSource("'Blue Whale'.indexOf('Whale', 5)",5);  
+ runSource("'Blue Whale'.indexOf('Whale', 7)",-1);  
+ runSource("'Blue Whale'.indexOf('')",0);          
+ runSource("'Blue Whale'.indexOf('', 9)",9);       
+ runSource("'Blue Whale'.indexOf('', 10)",10);     
+ runSource("'Blue Whale'.indexOf('', 11)",10);    
+
 
