@@ -200,19 +200,20 @@
   // 21.1.3.8
   String.prototype.indexOf = 
       function(searchString, start) 
-      {
+      { 
+        if (typeof start !== 'number') 
+        {
+          start = 0;
+        }
         if (searchString === undefined) 
         {
           return -1;
         } else if (searchString === '') 
         {
-          return 0;
-        } else 
+          return this.length < start ? this.length : start;
+        } 
+        else 
         {
-          if (typeof start !== 'number') 
-          {
-            start = 0;
-          }
           var searchLength = searchString.length;
           var count = 0;
           
