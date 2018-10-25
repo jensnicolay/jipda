@@ -288,8 +288,8 @@ Obj.prototype.diff = //DEBUG
       return addresses;
     }
   
-  Obj.prototype.toJSON =
-    function (replacer)
-    {
-      return JSON.stringify(this, replacer);
-    }
+  // Obj.prototype.toJSON =
+  //   function (replacer)
+  //   {
+  //     return JSON.stringify(this, replacer);
+  //   }

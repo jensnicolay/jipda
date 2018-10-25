@@ -130,7 +130,7 @@ JsContext.prototype.createMachine =
         {
           return acc.join(d.addresses())
         }, ArraySet.empty());
-    return createMachine(this.semantics, this.alloc, this.kalloc, {rootSet});
+    return createMachine(this.semantics, this.alloc, this.kalloc, {rootSet, contexts: [this.kont0]});
   }
 
 JsContext.prototype.wrapValue =

@@ -1,4 +1,6 @@
 // https://github.com/tc39/proposal-global
+import Store from "./countingStore";
+
 export function getGlobal()
 {
   if (typeof self !== 'undefined') { return self; }
@@ -882,6 +884,17 @@ Map_.prototype.diff = // debug
     }
     return diff.join("\n");
   }
+
+Map_.prototype.toJSON =
+    function (key)
+    {
+      const entries = this.entries();
+      return entries.map(
+          function (entry)
+          {
+            return {key: entry[0], value: entry[1]};
+          });
+    }
 
 export function ArrayMap(arr)
 {

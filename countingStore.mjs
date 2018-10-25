@@ -278,3 +278,14 @@ Store.prototype.keys =
   {
     return this.map.keys();
   }
+
+Store.prototype.toJSON =
+    function (key)
+    {
+      const entries = this.map.entries();
+      return entries.map(
+          function (entry)
+          {
+            return {key: entry[0], value: entry[1].aval};
+          });
+    }

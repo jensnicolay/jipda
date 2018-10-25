@@ -123,3 +123,20 @@ export function initialStatesToDot(initialStates)
   sb += "}";
   return sb;
 }
+
+export function visitReachableStates(initialStates, cb)
+{
+  const W = [...initialStates];
+  const S = [];
+  while (W.length > 0)
+  {
+    const s = W.pop();
+    if (S[s._id])
+    {
+      continue;
+    }
+    S[s._id] = true;
+    s._successors.forEach(s2 => W.push(s2));
+    cb(s);
+  }
+}

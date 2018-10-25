@@ -1,5 +1,6 @@
 import {HashMap, ArraySet} from './common.mjs';
 import {BOT} from './lattice.mjs';
+import Store from "./countingStore";
 
 export default function Benv(map, global)
 {
