@@ -248,13 +248,13 @@
           start = 0;
         }
         
-        if (start + search.length > this.length) 
+        if (start + searchString.length > this.length) 
         {
           return false;
         }
          else 
         {
-          return this.indexOf(search, start) !== -1;
+          return this.indexOf(searchString, start) !== -1;
         }
       }
   
