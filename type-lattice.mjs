@@ -38,11 +38,11 @@ function abst1(value)
   }
   if (value === undefined)
   {
-    return new Some(value);
+    return new Some(undefined); // don't use TypeValue._UND: not recognized as 'precise' Some
   }
   if (value === null)
   {
-    return TypeValue._NULL;
+    return new Some(null); // TypeValue._NULL;
   }
   throw new Error("cannot abstract value " + value);
 }
@@ -897,4 +897,3 @@ TypeValue.prototype.parseInt =
     {
       return TypeValue._NUM;
     }
-    
