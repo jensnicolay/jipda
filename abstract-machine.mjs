@@ -669,6 +669,10 @@ export function run(initialStates,
     {
       endState(s);
     }
+    if (length > 1)
+    {
+      throw new Error("Nondeterministic prelude at " + s);
+    }
   }
   return {time: performance.now() - startTime};
 }
