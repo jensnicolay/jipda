@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -6,6 +7,9 @@
 
 <body>
 <script>
+  var noLocation = GG().arg(contains, GG().targ(2,String), "location=false")
+  var noStatus = GG().arg(contains, GG().targ(2,String), "status=false")
+  GG().onCall(window.open).with(GG().or(noLocation, noStatus)).deny();
   window.open('http://2ality.com/', 'My_window', 'location=false,status=false'); //may not work on modern browsers.
 </script>
 </body>

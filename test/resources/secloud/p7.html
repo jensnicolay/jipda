@@ -1,14 +1,20 @@
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
 
     <title>Only redirect to whitelisted URLs</title>
-        </head>
+</head>
 
 <body>
 <script>
+  var notInn = function(url, xs){ return !xs.some( function(x) {return x === url})};
+  var whiteList = ['facebook.com', 'yahoo.com', 'google.com']
+  GG().onCall(location.assign).with( GG().arg(notInn, GG().targ(1,String), whiteList)).deny();
+
+//  location.assign('http://evil.com')
   var alias = location.assign;
-  alias.apply(location, ['http://evil.com']);
+  alias.apply(location,['http://evil.com']);
 </script>
 </body>
 
