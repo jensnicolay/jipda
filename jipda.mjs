@@ -98,8 +98,8 @@ if (inputFileName)
   if (browser)
   {
     const browser = new Browser(jsContext);
-    const value = browser.parse(resource);
-    console.log(value.toString());
+    browser.parse(resource);
+    //console.log(resultofparsing.toString());
   }
   else
   {

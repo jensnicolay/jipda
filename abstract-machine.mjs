@@ -312,7 +312,7 @@ export function createMachine(semantics, alloc, kalloc, cc)
       function ()
       {
         const buf = [];
-        walkStack(this.kont, buf);
+        //walkStack(this.kont, buf);
         return buf.join("\n");
       }
 

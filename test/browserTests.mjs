@@ -14,7 +14,6 @@ import {StringResource, FileResource} from "../ast";
 const read = name => fs.readFileSync(name).toString();
 const ast0resource = new FileResource("../prelude.js");
 const ast1resource = new FileResource("../web-prelude.js");
-const ast2resource = new FileResource("../web-test-prelude.js");
 const jsSemantics = createSemantics(concLattice, {errors: true});
 const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, concAlloc, concKalloc, ast0resource, ast1resource);
 
@@ -36,7 +35,9 @@ function run(html, expected)
   console.log(++c + "\t" + html.substring(0, 80).replace(/(\r\n\t|\n|\r\t)/gm, ' '));
   const jsContext = new JsContext(jsSemantics, new Explorer(), concAlloc, concKalloc, store0, kont0);
   const browser = new Browser(jsContext);
-  const actual = browser.parse(new StringResource(html));
+  browser.parse(new StringResource(html));
+  const result = jsContext.globalObject().getProperty("$result$");
+  const actual = result.d;
   assertEquals(concLattice.abst1(expected), actual);
 }
 
