@@ -146,23 +146,30 @@ export function Obj()
       return visitor.visitObj(this);
     }
   
-  function strongUpdateFrame(frame, name, value)
+  function updateFrame(frame, name, value)
   {
-    var newFrame = Obj.EMPTY_FRAME;
-    frame.iterateEntries(
-      function (entry)
-      {
-        var entryName = entry[0]; 
-        if (name.subsumes(entryName))
-        {
-          // drop existing entry
-        }
-        else
-        {
-          newFrame = newFrame.put(entryName, entry[1]);
-        }
-      });
-    return newFrame.put(name, value);
+    if (name.conc1)
+    {
+      return frame.put(name, value);
+    }
+    // let newFrame = Obj.EMPTY_FRAME;
+    // let newValue = value;
+    // frame.iterateEntries(
+    //   function (entry)
+    //   {
+    //     var entryName = entry[0];
+    //     if (name.subsumes(entryName))
+    //     {
+    //       // drop existing entry, but keep prev
+    //       newValue = newValue.join(entry[1]);
+    //     }
+    //     else
+    //     {
+    //       newFrame = newFrame.put(entryName, entry[1]);
+    //     }
+    //   });
+    // return newFrame.put(name, value);
+    return frame.put(name, (frame.get(name) || BOT).join(value));
   }
 
 
@@ -191,7 +198,7 @@ Obj.prototype.add =
       assert(name);
       const prop = Prop.fromValue(value);
       const result = new Obj();
-      result.frame = strongUpdateFrame(this.frame, name, prop);
+      result.frame = updateFrame(this.frame, name, prop);
       result.internals = this.internals;
       return result;
     }

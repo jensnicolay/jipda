@@ -18,8 +18,9 @@ Browser.prototype.parse =
       const dom = new JSDOM(htmlResource.toSrc());
       dom.window.document.resource = htmlResource;
       this.parseWindow(dom.window);
-      const result = this.jsContext.globalObject().getProperty("$result$");
-      return result.d;
+      // const result = this.jsContext.globalObject().getProperty("$result$");
+      // return result.d;
+      return null; // useful return value?
     }
 
 Browser.prototype.parseChildren =
