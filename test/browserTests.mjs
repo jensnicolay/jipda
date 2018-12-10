@@ -14,6 +14,7 @@ import {StringResource, FileResource} from "../ast";
 const read = name => fs.readFileSync(name).toString();
 const ast0resource = new FileResource("../prelude.js");
 const ast1resource = new FileResource("../web-prelude.js");
+const ast2resource = new FileResource("../web-test-prelude.js");
 const jsSemantics = createSemantics(concLattice, {errors: true});
 const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, concAlloc, concKalloc, ast0resource, ast1resource);
 
@@ -38,7 +39,6 @@ function run(html, expected)
   const actual = browser.parse(new StringResource(html));
   assertEquals(concLattice.abst1(expected), actual);
 }
-
 
 run("<script></script>", undefined);
 run("<script>123</script>", undefined);
@@ -75,7 +75,40 @@ run("<body><div id='hopla'></div><script>$result$ = document.body.children[0].id
 run("<body><div id='hopla'></div><script>$result$ = document.getElementById('hopla').id</script></body>", "hopla");
 run("<script>function sq(x) {return x*x}; $result$ = sq(4)</script>", 16);
 
-//Scull Tests
-run("<input>", undefined);
+run("<input/>", undefined);
 run("<body><input type='input'><script>$result$ = document.body.children[0].type</script></body>", "input");
 run("<body><input type='input' onclick='$result$ = 21 * 2;'><script>document.body.children[0].onclick()</script></body>", 42);
+
+run("<body>\n" +
+    "<input id='value' value=\"someValue\" type='text'/>\n" +
+    "<input type='button' value='CLICK' onclick='doIt()'/>\n" +
+    "<script>\n" +
+    "  function doIt()\n" +
+    "  {\n" +
+    "    var value = document.getElementById('value').value;\n" +
+    "    $result$ = value;\n" +
+    "  }\n" +
+    "\n" +
+    "  function doVisit()\n" +
+    "  {\n" +
+    "    visit(document);\n" +
+    "  }\n" +
+    "\n" +
+    "  function visit(element)\n" +
+    "  {\n" +
+    "    var onclick = element.onclick;\n" +
+    "    if (onclick)\n" +
+    "    {\n" +
+    "      onclick.apply(element, []);\n" +
+    "    }\n" +
+    "    var children = element.children;\n" +
+    "    for (var i = 0; i < children.length; i++)\n" +
+    "    {\n" +
+    "      visit(children[i]);\n" +
+    "    }\n" +
+    "  }\n" +
+    "\n" +
+    "  doVisit();\n" +
+    "\n" +
+    "</script>\n" +
+    "</body>", "someValue");

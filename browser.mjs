@@ -158,16 +158,6 @@ Browser.prototype.parseDiv =
       return jsDiv;
     }
 
-//Added by Scull
-
-Browser.prototype.click = 
-    function(elemID)
-    { 
-      const jsWindow = this.jsContext.globalObject();
-      const getElementById = jsWindow.getProperty("document").getProperty("getElementById");
-      //TODO: Continue Here!
-    }
-
 Browser.prototype.parseInput =
     function (input, jsChildren)
     {
@@ -179,15 +169,27 @@ Browser.prototype.parseInput =
         jsInput.assignProperty("id", id);
       }
       const type = input.getAttribute("type");
-      jsInput.assignProperty("type",type || "input");
+      jsInput.assignProperty("type", type || "input");
+
+      const value = input.getAttribute("value");
+      jsInput.assignProperty("value", value);
 
       //Following: https://developer.mozilla.org/en-US/docs/Web/Guide/Events/Event_handlers
       const onclick = input.getAttribute("onclick");
       if (onclick)
       { 
-        const handler = this.jsContext.createFunction(["param1", "param2"], onclick); //Not supported, waiting for Jen's support
+        const handler = this.jsContext.createFunction([], onclick);
         jsInput.assignProperty("onclick", handler);
       }
       this.parseChildren(input, jsInput);
       return jsInput;
     }
+
+Browser.prototype.click =
+    function(elemID)
+    {
+      const jsWindow = this.jsContext.globalObject();
+      const getElementById = jsWindow.getProperty("document").getProperty("getElementById");
+      //TODO: Continue Here!
+    }
+
