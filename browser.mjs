@@ -15,8 +15,9 @@ export function Browser(jsContext)
 Browser.prototype.parse =
     function (htmlResource)
     {
-      const dom = new JSDOM(htmlResource.toSrc());
+      const dom = new JSDOM(htmlResource.toSrc(),  { includeNodeLocations: true });
       dom.window.document.resource = htmlResource;
+      dom.window.document.dom = dom;
       this.parseWindow(dom.window);
       const result = this.jsContext.globalObject().getProperty("$result$");
       return result.d;
@@ -118,7 +119,10 @@ Browser.prototype.parseScript =
       jsChildren.push(jsScript);
       //const src =‌ ‌script.getAttribute("src");
       const src = script.text;
-      this.jsContext.evaluateScript(new StringResource(src, script.ownerDocument.resource));
+      const stringResource = new StringResource(src, script.ownerDocument.resource);
+      const posInParent = script.ownerDocument.dom.nodeLocation(script);
+      stringResource.posInParent = {start:{line:posInParent.line,column:posInParent.col}};
+      this.jsContext.evaluateScript(stringResource);
       return jsScript;
     }
 

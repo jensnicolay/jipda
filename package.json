@@ -8,6 +8,7 @@
     "test": "test"
   },
   "dependencies": {
+    "express": "^4.16.4",
     "jsdom": "^11.6.2",
     "minimist": "^1.2.0"
   },
