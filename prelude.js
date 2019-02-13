@@ -427,9 +427,20 @@
           this[i - c] = this[i];
         }
         this.length = this.length - c;
-        return undefined;
+        return undefined; //FIXME: See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice
       }
   
   
-  
+  Array.prototype.pop =
+      function()
+      {
+        if(this.length > 0)
+        {
+          var r = this[this.length - 1];
+          this.length = this.length - 1;
+          return r;
+        }
+        return undefined;
+      }
+
 })(this);
