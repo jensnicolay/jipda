@@ -6538,9 +6538,12 @@ function createSemantics(lat, cc)
       store = storeAlloc(store, globala, global);
       // END GLOBAL
 
-      const kont = createContext(null, realm.GlobalObject, realm, "globalctx", ArraySet.empty().add("ScriptJobs"), null, machine);
+      const kont = createContext(null, realm.GlobalObject, realm, "globalctx" + (glcount++), ArraySet.empty().add("ScriptJobs"), null, machine);
       return {store, kont};
     } // end initialize2
+
+    let glcount = 0; // hack to distinguish different initial contexts (should really depend on program,
+                      // and then kont -> resource becomes almost immediate (pruneGraph)
     
     
     const initialState = initialize2(Benv.empty(), Store.empty());
