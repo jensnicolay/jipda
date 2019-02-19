@@ -505,3 +505,11 @@ runSource("'To be, or not to be, that is the question.'.includes('question.')", 
 runSource("'To be, or not to be, that is the question.'.includes('nonexistent')", false);     
 runSource("'To be, or not to be, that is the question.'.includes('To be', 1)", false);     
 runSource("'To be, or not to be, that is the question.'.includes('TO BE')", false);     
+
+
+//Array.prototype.pop
+
+runSource("[].pop()", undefined);
+runSource("var c = []; c.pop(); c.length",0);
+runSource("[1].pop()", 1);
+runSource("var c = [1,2,3]; c.pop(); c.length", 2);
