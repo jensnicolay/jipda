@@ -13,6 +13,10 @@ const EMPTY_LKONT = [];
 const EMPTY_ADDRESS_SET = ArraySet.empty();
 //const queues = new Map([["ScriptJobs", "!ScriptJobs"]]);
 
+let glcount = 0; // hack to distinguish different initial contexts (should really depend on program,
+// and then kont -> resource becomes almost immediate (pruneGraph)
+
+
 function createSemantics(lat, cc)
 {
   const errors = cc.errors === undefined ? false : cc.errors;
@@ -6542,10 +6546,6 @@ function createSemantics(lat, cc)
       return {store, kont};
     } // end initialize2
 
-    let glcount = 0; // hack to distinguish different initial contexts (should really depend on program,
-                      // and then kont -> resource becomes almost immediate (pruneGraph)
-    
-    
     const initialState = initialize2(Benv.empty(), Store.empty());
     const store = initialState.store;
     const kont = initialState.kont;
