@@ -904,7 +904,7 @@ function createSemantics(lat, cc)
   
   function storeLookup(store, addr)
   {
-    //assert(addr>>>0===addr);
+    // assert(addr>>>0===addr);
     return store.lookupAval(addr);
   }
   

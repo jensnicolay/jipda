@@ -11,6 +11,7 @@
   global.window = global; // TODO add/create actual Window object
   global.alert = function (x) {print("(Window.alert) " + x)};
   global.open = function (url, windowName, windowFeatures) {print("(Window.open) " + url)};
+  global.fetch = function (url) {print("(Window.fetch) " + url)}; //TODO: 
   global.location = new Location();
   global.CharacterData = CharacterData;
   global.Document = Document;
