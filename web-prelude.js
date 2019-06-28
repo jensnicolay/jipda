@@ -9,6 +9,8 @@
   }
 
   global.window = global; // TODO add/create actual Window object
+  global.top = window; //TODO check semantics
+  global.self =  window; //TODO check semantics
   global.alert = function (x) {print("(Window.alert) " + x)};
   global.open = function (url, windowName, windowFeatures) {print("(Window.open) " + url)};
   global.fetch = function (url) {print("(Window.fetch) " + url)}; //TODO: 

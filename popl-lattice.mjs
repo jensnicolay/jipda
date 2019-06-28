@@ -83,15 +83,14 @@ let flag = true;
 
 export default {
   switchPrecision: 
-      function() {
-        if(flag)
+      function(prec) {
+        if(prec === 1)
         {
           this.abst1 = abstPrecise;
         }else
         {
           this.abst1 = abstTyped;
         }
-        flag = !flag;
       },
   bot:
       function ()
@@ -111,7 +110,7 @@ export default {
     },
 
 
-  abst1: abstTyped,
+  abst1: abstPrecise,
   
 
   add:

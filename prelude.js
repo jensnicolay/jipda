@@ -257,8 +257,7 @@
           return this.indexOf(searchString, start) !== -1;
         }
       }
-  
-  // 22.1.3.5
+      
   Array.prototype.every = 
       function (f)
       {

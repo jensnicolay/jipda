@@ -506,6 +506,9 @@ runSource("'To be, or not to be, that is the question.'.includes('nonexistent')"
 runSource("'To be, or not to be, that is the question.'.includes('To be', 1)", false);     
 runSource("'To be, or not to be, that is the question.'.includes('TO BE')", false);     
 
+//String.prototype.charAt
+runSource("'abcdfkx'.charAt(2)", 'c'); 
+runSource("'abcdfkx'.charAt(10)", ''); 
 
 //Array.prototype.pop
 
