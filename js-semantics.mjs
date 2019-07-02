@@ -5927,6 +5927,7 @@ function createSemantics(lat, cc)
       stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
       stringP = registerPrimitiveFunction(stringP, "charCodeAt", stringCharCodeAt);
       stringP = registerPrimitiveFunction(stringP, "startsWith", stringStartsWith);
+      stringP = registerPrimitiveFunction(stringP, "substring", stringSubstring);
 
       store = storeAlloc(store, stringPa, stringP);
 
@@ -5967,6 +5968,14 @@ function createSemantics(lat, cc)
         states.continue(value, store, lkont, kont);
       }
 
+      function stringSubstring(application, operandValues, thisValue, benv, store, lkont, kont, states)
+      {
+        var lprim = getInternal(thisValue, "[[StringData]]", store);
+        var value = lprim.substring(operandValues[0], operandValues[1]);
+        states.continue(value, store, lkont, kont);
+      }
+
+  
       // END STRING
 
       // BEGIN NUMBER

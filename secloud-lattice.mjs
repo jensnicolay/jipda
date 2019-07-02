@@ -1,4 +1,4 @@
-import {HashCode, ArraySet, assert} from './common.mjs';
+import {HashCode, ArraySet, assert, assertFalse} from './common.mjs';
 import {BOT} from './lattice.mjs';
 
 TypeValue.UND = 1 << 0;
@@ -368,6 +368,11 @@ export default {
       assert(this.abst1("xyz").isTruthy());
       assert(this.abst1(true).isTruthy());
       assert(this.abst1(false).isFalsy());
+      assert((TypeValue._STR.join(TypeValue._UND)).subsumes(this.abst1("0")));
+      assert(TypeValue._STR.subsumes(TypeValue._STR));
+      assert(TypeValue._NUMSTR.subsumes(TypeValue._NUMSTR));
+      assert(TypeValue._STR.subsumes(TypeValue._NUMSTR));
+      assertFalse(TypeValue._NUMSTR.subsumes(TypeValue._STR));
     }
 }
 
@@ -628,6 +633,12 @@ Some.prototype.startsWith =
       return TypeValue._BOOL;
     }
 
+Some.prototype.substring =
+    function (x, y)
+    {
+      return TypeValue._STR;
+    }
+
 Some.prototype.stringLength =
     function (x)
     {
@@ -761,6 +772,10 @@ TypeValue.prototype.subsumes =
       var as = this.as;
       if (x instanceof TypeValue)
       {
+        if ((type & TypeValue.STR) && (x.type & TypeValue.NUMSTR))
+        {
+          return true;
+        }  
         return ((~type & x.type) === 0) && as.subsumes(x.as);
       }
       if (as.count() > 0)
@@ -768,6 +783,10 @@ TypeValue.prototype.subsumes =
         return false;
       }
       var xx = x.abst();
+      if ((type & TypeValue.STR) && (xx.type & TypeValue.NUMSTR))
+      {
+        return true;
+      }
       return (type & xx.type);
     }
 
@@ -934,6 +953,12 @@ TypeValue.prototype.startsWith =
     function (x)
     {
       return TypeValue._BOOL;
+    }
+    
+TypeValue.prototype.substring =
+    function (x, y)
+    {
+      return TypeValue._STR;
     }
 
 TypeValue.prototype.parseInt =
