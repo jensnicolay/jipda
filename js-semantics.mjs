@@ -6543,6 +6543,7 @@ function createSemantics(lat, cc)
       // END GLOBAL
 
       const kont = createContext(null, realm.GlobalObject, realm, "globalctx" + (glcount++), ArraySet.empty().add("ScriptJobs"), null, machine);
+      console.log("CREATED context " + kont);
       return {store, kont};
     } // end initialize2
 

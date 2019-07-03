@@ -695,36 +695,35 @@ export function computeInitialCeskState(semantics, alloc, kalloc, ...resources)
 
 function markResources(initialStates)
 {
+
+  function getResource(s)
+  {
+    let resource;
+    if (s.isEvalState)
+    {
+      resource = s.node.root.resource;
+    }
+    else if (s.isKontState)
+    {
+      resource = s.lkont
+    }
+
+    if (resource.parentResource)
+    {
+      resource = resource.parentResource;
+    }
+  }
+
+
   const W = [...initialStates];
-  const S = [];
-  const resources = [];
-  let currentCtx = null;
   while (W.length > 0)
   {
     const s = W.pop();
-    if (S[s._id])
+    if (s.resource)
     {
       continue;
     }
-    S[s._id] = true;
-    const ctx = s.kont;
-    let resource = resources[ctx._id];
-    if (ctx !== currentCtx)
-    {
-      if (!resource)
-      {
-        //assert(s.isEvalState);
-        if (s.isEvalState)
-        {
-          resource = s.node.root.resource;
-          if (resource.parentResource)
-          {
-            resource = resource.parentResource;
-          }
-          resources[ctx._id] = resource;
-        }
-      }
-    }
+    let resource = getResource(s);
     s.resource = resource;
     s._successors.forEach(s2 => W.push(s2));
   }
