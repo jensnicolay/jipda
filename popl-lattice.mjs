@@ -22,7 +22,7 @@ TypeValue._NUMSTR = new TypeValue(TypeValue.NUMSTR, TypeValue.EMPTY_SET);
 TypeValue._UND = new TypeValue(TypeValue.UND, TypeValue.EMPTY_SET);
 TypeValue._NULL = new TypeValue(TypeValue.NULL, TypeValue.EMPTY_SET);
 
-function abst1(value)
+function abstPrecise(value)
 {
   if (typeof value === "string")
   {
@@ -30,6 +30,7 @@ function abst1(value)
   }
   if (typeof value === "number")
   {
+    // console.log(value)
     if (value < 50)
     {
       return new Some(value);
@@ -51,7 +52,46 @@ function abst1(value)
   throw new Error("cannot abstract value " + value);
 }
 
+function abstTyped(value)
+{
+  if (typeof value === "string")
+  {
+    return new Some(value);
+  }
+  if (typeof value === "number")
+  {
+    return TypeValue._NUM;
+  }
+  if (value === true || value === false)
+  {
+    return new Some(value);
+  }
+  if (value === undefined)
+  {
+    return new Some(undefined); // don't use TypeValue._UND: not recognized as 'precise' Some
+  }
+  if (value === null)
+  {
+    return new Some(null); // TypeValue._NULL;
+  }
+  throw new Error("cannot abstract value " + value);
+}
+
+//let abst1 = abstTyped;
+
+let flag = true;
+
 export default {
+  switchPrecision: 
+      function(prec) {
+        if(prec === 1)
+        {
+          this.abst1 = abstPrecise;
+        }else
+        {
+          this.abst1 = abstTyped;
+        }
+      },
   bot:
       function ()
       {
@@ -70,7 +110,7 @@ export default {
     },
 
 
-  abst1,
+  abst1: abstPrecise,
   
 
   add:
@@ -79,10 +119,16 @@ export default {
       if (x instanceof Some && y instanceof Some)
       {
         var result = x.prim + y.prim;
+
+        if (typeof result === "number" && result >= 50)
+        { 
+          return TypeValue._NUM;
+        }
+
         if (typeof result === "string" && result.length > 32)
         {
           return TypeValue._STR;
-        }
+        } 
         return new Some(result);
       }
       var x = x.abst();
@@ -165,7 +211,11 @@ export default {
     {
       if (x instanceof Some && y instanceof Some)
       {
-        return new Some(x.prim - y.prim);
+        var result = x.prim - y.prim;
+        if(result < 50)
+        {
+          return new Some(result);
+        } 
       }
       return TypeValue._NUM;
     },
@@ -618,6 +668,10 @@ Some.prototype.projectNull =
 Some.prototype.charAt =
     function (x)
     {
+      if(typeof this.prim === "string" && typeof x.prim === "number")
+      {
+        return new Some(String(this.prim.charAt(x.prim)));
+      }
       return new TypeValue(TypeValue.STR | TypeValue.NUMSTR, TypeValue.EMPTY_SET);
     }
 
@@ -634,10 +688,14 @@ Some.prototype.startsWith =
     }
 
 Some.prototype.substring =
-    function (x, y)
-    {
-      return TypeValue._STR;
-    }
+      function (x, y)
+      {
+        if(typeof this.prim === "string" && typeof x.prim === "number" && typeof y.prim === "number")
+        {
+          return new Some(String(this.prim.substring(x.prim, y.prim)));
+        }
+        return TypeValue._STR;
+      }
 
 Some.prototype.stringLength =
     function (x)
@@ -954,7 +1012,6 @@ TypeValue.prototype.startsWith =
     {
       return TypeValue._BOOL;
     }
-    
 TypeValue.prototype.substring =
     function (x, y)
     {

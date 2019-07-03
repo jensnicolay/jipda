@@ -28,7 +28,7 @@ JsContext.prototype.explore =
       //let kont = null;
       if (resultStates.size === 0)
       {
-        throw new Error("TODO: no result states");
+        //throw new Error("TODO: no result states");
       }
       for (const s of resultStates)
       {

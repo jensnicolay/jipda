@@ -189,6 +189,38 @@
     
     throw new TypeError("cannot convert to string: " + value);
   }
+
+
+  //FIXME: There are differences between substring and slice! 
+
+  String.prototype.slice =
+  function (begin, end)
+  {
+    return this.substring(begin, end);
+  }
+
+  // 21.1.3.20
+  String.prototype.split =
+    function (spl)
+    {
+      var stringValue = thisStringValue(this);
+      var result = [];
+      var cur = 0;
+      while (cur < stringValue.length)
+      {
+        var next = stringValue.indexOf(spl, cur);
+        if (next < 0)
+        {
+          next = stringValue.length;
+        }
+        var sub = stringValue.substring(cur, next);
+        result.push(sub);    
+        // cur = next + spl.length; //FIXME: this is the correct but computes to much states!
+        cur = next + 1;
+      }
+        return result;
+    }
+
   
   // 21.1.3.25
   String.prototype.toString =
@@ -257,8 +289,7 @@
           return this.indexOf(searchString, start) !== -1;
         }
       }
-  
-  // 22.1.3.5
+      
   Array.prototype.every = 
       function (f)
       {

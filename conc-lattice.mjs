@@ -365,10 +365,16 @@ ConcValue.prototype.charCodeAt =
       return new ConcValue(this.value.charCodeAt(x.value));
     }
 
-ConcValue.prototype.startsWith =
+    ConcValue.prototype.startsWith =
     function (x)
     {
       return new ConcValue(this.value.startsWith(x.value));
+    }
+
+  ConcValue.prototype.substring =
+    function (x, y)
+    {
+      return new ConcValue(this.value.substring(x.value, y.value));
     }
 
 ConcValue.prototype.stringLength =

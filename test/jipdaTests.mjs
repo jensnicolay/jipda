@@ -80,6 +80,7 @@ function run(resource, expected)
   {
     if (!actualType.abst().subsumes(jsTypeSemantics.lat.abst1(expected)))
     {
+      console.log(jsTypeSemantics.lat.abst1(expected).constructor.name)
       throw new Error(actualType + " does not subsume " + expected);
     }
     console.warn("required abst on abstract value");
@@ -506,6 +507,9 @@ runSource("'To be, or not to be, that is the question.'.includes('nonexistent')"
 runSource("'To be, or not to be, that is the question.'.includes('To be', 1)", false);     
 runSource("'To be, or not to be, that is the question.'.includes('TO BE')", false);     
 
+//String.prototype.charAt
+runSource("'abcdfkx'.charAt(2)", 'c'); 
+runSource("'abcdfkx'.charAt(10)", ''); 
 
 //Array.prototype.pop
 
@@ -513,3 +517,14 @@ runSource("[].pop()", undefined);
 runSource("var c = []; c.pop(); c.length",0);
 runSource("[1].pop()", 1);
 runSource("var c = [1,2,3]; c.pop(); c.length", 2);
+
+//String.prototype.split
+runSource("'0,1,hello'.split(',').length", 3 );
+runSource("'0,1,hello'.split(',')[0]", "0" );
+runSource("'0,1,hello'.split(',')[2]", "hello");
+
+runSource("'hd.com?access_token=sshshs'.split('access_token=').length",2);
+runSource("'hd.com?access_token=sshshs'.split('access_token=')[1]","sshshs"); //FIXME: does not pass
+
+//String.prototype.slice
+// runSource("'To be, or not to be, that is the question.'.slice(0,7)", "To be, ");     
