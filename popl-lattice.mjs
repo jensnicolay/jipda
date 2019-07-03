@@ -31,7 +31,7 @@ function abstPrecise(value)
   if (typeof value === "number")
   {
     // console.log(value)
-    if (value < 20)
+    if (value < 50)
     {
       return new Some(value);
     }
@@ -120,8 +120,8 @@ export default {
       {
         var result = x.prim + y.prim;
 
-        if (typeof result === "number" && result >= 20)
-        {
+        if (typeof result === "number" && result >= 50)
+        { 
           return TypeValue._NUM;
         }
 
@@ -212,7 +212,7 @@ export default {
       if (x instanceof Some && y instanceof Some)
       {
         var result = x.prim - y.prim;
-        if(result < 20)
+        if(result < 50)
         {
           return new Some(result);
         } 
@@ -668,6 +668,10 @@ Some.prototype.projectNull =
 Some.prototype.charAt =
     function (x)
     {
+      if(typeof this.prim === "string" && typeof x.prim === "number")
+      {
+        return new Some(String(this.prim.charAt(x.prim)));
+      }
       return new TypeValue(TypeValue.STR | TypeValue.NUMSTR, TypeValue.EMPTY_SET);
     }
 
@@ -686,6 +690,10 @@ Some.prototype.startsWith =
 Some.prototype.substring =
       function (x, y)
       {
+        if(typeof this.prim === "string" && typeof x.prim === "number" && typeof y.prim === "number")
+        {
+          return new Some(String(this.prim.substring(x.prim, y.prim)));
+        }
         return TypeValue._STR;
       }
 

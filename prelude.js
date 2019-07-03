@@ -201,25 +201,25 @@
 
   // 21.1.3.20
   String.prototype.split =
-      function (spl)
+    function (spl)
+    {
+      var stringValue = thisStringValue(this);
+      var result = [];
+      var cur = 0;
+      while (cur < stringValue.length)
       {
-        var stringValue = thisStringValue(this);
-        var result = [];
-        var cur = 0;
-        while (cur < stringValue.length)
+        var next = stringValue.indexOf(spl, cur);
+        if (next < 0)
         {
-          var next = stringValue.indexOf(spl, cur);
-          if (next < 0)
-          {
-            next = stringValue.length;
-          }
-          var sub = stringValue.substring(cur, next);
-          result.push(sub);    
-          // cur = next + spl.length; //FIXME: this is the correct but computes to much states!
-          cur = next + 1;
+          next = stringValue.length;
         }
-         return result;
+        var sub = stringValue.substring(cur, next);
+        result.push(sub);    
+        // cur = next + spl.length; //FIXME: this is the correct but computes to much states!
+        cur = next + 1;
       }
+        return result;
+    }
 
   
   // 21.1.3.25
