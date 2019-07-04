@@ -460,6 +460,10 @@ runSource("(new Function ('a','return a'))(123)", 123);
 runSource("(Function ('a', 'b', 'return a+b'))(123,456)", 579);
 runSource("(new Function ('a', 'b', 'return a+b'))(123,456)", 579);
 
+runSource("Math.max(2,1)", 2);
+runSource("Math.max(1,2)", 2);
+runSource("Math.min(2,1)", 1);
+runSource("Math.min(1,2)", 1);
 
 // 20.1.3
 runSource("Object.getPrototypeOf(Number.prototype) === Object.prototype", true);
@@ -480,7 +484,7 @@ runSource("[2,3,4,0].every(function(x){ return x > 0})", false);
 runSource("[2,3,4,10].every(function(x){ return x > 0})", true);
 
 //String.prototype.length
-runSource("var t = 'aBRaCADabrA'; '123'.length", 3); 
+runSource("var t = 'aBRaCADabrA'; '123'.length", 3);
 //21.1.3.7
 runSource("var t = 'aBRaCADabrA'; t.length", 11);
 
@@ -488,28 +492,28 @@ runSource("var t = 'aBRaCADabrA'; t.length", 11);
 runSource("var t = 'aBRaCADabrA'; t.indexOf('BR')", 1);
 runSource("'Hello World'.indexOf('')", 0);
 runSource("''.indexOf('')", 0);
-runSource("'Blue Whale'.indexOf('Blue')",0)     
-runSource("'Blue Whale'.indexOf('Blute')",-1);    
-runSource("'Blue Whale'.indexOf('Whale', 0)",5);  
-runSource("'Blue Whale'.indexOf('Whale', 5)",5);  
-runSource("'Blue Whale'.indexOf('Whale', 7)",-1);  
-runSource("'Blue Whale'.indexOf('')",0);          
-runSource("'Blue Whale'.indexOf('', 9)",9);       
-runSource("'Blue Whale'.indexOf('', 10)",10);     
-runSource("'Blue Whale'.indexOf('', 11)",10);  
- 
+runSource("'Blue Whale'.indexOf('Blue')",0)
+runSource("'Blue Whale'.indexOf('Blute')",-1);
+runSource("'Blue Whale'.indexOf('Whale', 0)",5);
+runSource("'Blue Whale'.indexOf('Whale', 5)",5);
+runSource("'Blue Whale'.indexOf('Whale', 7)",-1);
+runSource("'Blue Whale'.indexOf('')",0);
+runSource("'Blue Whale'.indexOf('', 9)",9);
+runSource("'Blue Whale'.indexOf('', 10)",10);
+runSource("'Blue Whale'.indexOf('', 11)",10);
+
 
 //String.prototype.includes
-//21.1.3.7 
-runSource("'To be, or not to be, that is the question.'.includes('To be')", true);     
-runSource("'To be, or not to be, that is the question.'.includes('question.')", true);     
-runSource("'To be, or not to be, that is the question.'.includes('nonexistent')", false);     
-runSource("'To be, or not to be, that is the question.'.includes('To be', 1)", false);     
-runSource("'To be, or not to be, that is the question.'.includes('TO BE')", false);     
+//21.1.3.7
+runSource("'To be, or not to be, that is the question.'.includes('To be')", true);
+runSource("'To be, or not to be, that is the question.'.includes('question.')", true);
+runSource("'To be, or not to be, that is the question.'.includes('nonexistent')", false);
+runSource("'To be, or not to be, that is the question.'.includes('To be', 1)", false);
+runSource("'To be, or not to be, that is the question.'.includes('TO BE')", false);
 
 //String.prototype.charAt
-runSource("'abcdfkx'.charAt(2)", 'c'); 
-runSource("'abcdfkx'.charAt(10)", ''); 
+runSource("'abcdfkx'.charAt(2)", 'c');
+runSource("'abcdfkx'.charAt(10)", '');
 
 //Array.prototype.pop
 
@@ -524,7 +528,16 @@ runSource("'0,1,hello'.split(',')[0]", "0" );
 runSource("'0,1,hello'.split(',')[2]", "hello");
 
 runSource("'hd.com?access_token=sshshs'.split('access_token=').length",2);
-runSource("'hd.com?access_token=sshshs'.split('access_token=')[1]","sshshs"); //FIXME: does not pass
+runSource("'hd.com?access_token=sshshs'.split('access_token=')[1]","sshshs");
+
+runSource("'8249823789237'.substring(3, 5)", "98");
+runSource("String.prototype.substring.apply('8249823789237', [3, 5])", "98");
+
+// 22.1.3.15 join
+runSource("[].join()", "");
+runSource("[1,2,3].join()", "1,2,3");
+runSource("[1,2,3].join('-')", "1-2-3");
+
 
 //String.prototype.slice
 // runSource("'To be, or not to be, that is the question.'.slice(0,7)", "To be, ");     

@@ -75,11 +75,10 @@ export default {
       if (x instanceof Some && y instanceof Some)
       {
         var result = x.prim + y.prim;
-        if (typeof result === "string" && result.length > 32)
+        if (typeof result === "string" && result.length < 33)
         {
-          return TypeValue._STR;
+          return new Some(result);
         }
-        return new Some(result);
       }
       var x = x.abst();
       var y = y.abst();
@@ -192,15 +191,15 @@ export default {
     },
 
   neqq:
-    function (x, y)
-    {
-      if (x instanceof Some && y instanceof Some)
+      function (x, y)
       {
-        return new Some(x.prim !== y.prim);
-      }
-      
-      return TypeValue._BOOL;
-    },
+        if (x instanceof Some && y instanceof Some)
+        {
+          return new Some(x.prim !== y.prim);
+        }
+
+        return TypeValue._BOOL;
+      },
 
   binor:
     function (x, y)
@@ -233,10 +232,22 @@ export default {
     },
 
   shrr:
-    function (x, y)
-    {
-      return TypeValue._NUM;
-    },
+      function (x, y)
+      {
+        return TypeValue._NUM;
+      },
+
+  max:
+      function (x, y)
+      {
+        return TypeValue._NUM;
+      },
+
+  min:
+      function (x, y)
+      {
+        return TypeValue._NUM;
+      },
 
   not:
     function (x)

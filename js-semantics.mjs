@@ -1738,6 +1738,7 @@ function createSemantics(lat, cc)
       function (operatorValue, store, lkont, kont, machine)
       {
         var node = this.node;
+        console.log(node.toString())
         var benv = this.benv;
         var operands = node.arguments;
         
@@ -3008,8 +3009,8 @@ function createSemantics(lat, cc)
         }
         const nameValue = lat.abst1(property.name);
         const states = new States(machine);
-        const obj = ToObject(objectValue, node, store, lkont, kont, states);
-        for (const {value:objectRef, store} of obj)
+        const to = ToObject(objectValue, node, store, lkont, kont, states);
+        for (const {value:objectRef, store} of to)
         {
           const operands = node.arguments;
           invoke(node, objectRef, nameValue, operands, benv, store, lkont, kont, states);
@@ -4201,7 +4202,6 @@ function createSemantics(lat, cc)
   // 7.1.1.1
   function OrdinaryToPrimitive(O, hint, node, benv, store, lkont, kont, states)
   {
-    const result = [];
     assertIsObject(O);
     assert(hint === "string" || hint === "number");
     let methodNames;
@@ -4219,10 +4219,9 @@ function createSemantics(lat, cc)
       const ic = IsCallable(method, store);
       if (ic.isTrue())
       {
-        const r1 = Call(method, O, [], node, benv, store, lkont, kont, states);
-        for (const valueStore of r1)
+        const cont = function (value, store, lkont, kont, machine)
         {
-          if (valueStore.value.isNonRef())
+          if (value.isNonRef())
           {
             result.push(valueStore);
           }
@@ -4250,10 +4249,15 @@ function createSemantics(lat, cc)
             }
           }
         }
+        Call(method, O, [], cont, node, benv, store, lkont, kont, states);
       }
     }
-    return result;
   }
+
+  // for (const valueStore of r1)
+  // {
+  // }
+
 
   // 7.1.3
   function ToNumber(argument, node, store, lkont, kont, states)
@@ -4338,18 +4342,18 @@ function createSemantics(lat, cc)
       let obj = ObjectCreate(kont.realm.Intrinsics.get("%NumberPrototype%"));
       obj = obj.setInternal("[[NumberData]]", narg);
       const addr = states.machine.alloc.object(node, kont); // no number-specific alloc?
-      store = storeAlloc(store, addr, obj);
+      const store2 = storeAlloc(store, addr, obj);
       const ref = lat.abstRef(addr);
-      result.push({value:ref, store});
+      result.push({value:ref, store:store2});
     }
     const sarg = argument.projectString();
     if (sarg !== BOT)
     {
       let obj = StringCreate(sarg, kont);
       const addr = states.machine.alloc.string(node, kont);
-      store = storeAlloc(store, addr, obj);
+      const store2 = storeAlloc(store, addr, obj);
       const ref = lat.abstRef(addr);
-      result.push({value:ref, store});
+      result.push({value:ref, store: store2});
     }
     // TODO symbols
     if (argument.isRef())
@@ -4604,28 +4608,65 @@ function createSemantics(lat, cc)
   }
   
   // 7.3.12
-  function Call(F, V, argumentsList, node, benv, store, lkont, kont, states)
+  function Call(F, V, argumentsList, cont, node, benv, store, lkont, kont, states)
   {
-    // non-spec: argumentsList must be []
-    // (spec: if argList not passed,set to [])
+    // non-spec: argumentsList should be optional, and [] if not passed
     assert(Array.isArray(argumentsList));
-    const result = [];
-    const ic = IsCallable(F);
+    const ic = IsCallable(F, store);
     if (ic.isFalse())
     {
       states.throwTypeError("not a function", store, lkont, kont);
     }
     if (ic.isTrue())
     {
-      const apply = applyProc(node, F, argumentsList, V, benv, store, lkont, kont, states);
-      for (const r of apply)
-      {
-        result.push(r);
-      }
+      const frame = new CallKont(cont, node);
+      applyProc(node, F, argumentsList, V, benv, store, [frame].concat(lkont), kont, states);
     }
-    return result;
   }
-  
+
+  function CallKont(cont, node)
+  {
+    this.cont = cont;
+    this.node = node;
+  }
+
+  CallKont.prototype.equals =
+      function (x)
+      {
+        return x instanceof CallKont
+            && this.cont === x.cont
+            && this.node === x.node
+      }
+  CallKont.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.node.hashCode();
+        return result;
+      }
+  CallKont.prototype.toString =
+      function ()
+      {
+        return "call-" + this.node.tag;
+      }
+  CallKont.prototype.nice =
+      function ()
+      {
+        return "call-" + this.node.tag;
+      }
+  CallKont.prototype.addresses =
+      function ()
+      {
+        return EMPTY_ADDRESS_SET;
+      }
+  CallKont.prototype.apply =
+      function (value, store, lkont, kont, machine)
+      {
+        return cont(value, store, lkont, kont, machine);
+      }
+
+
   // 7.3.16
   function CreateArrayFromList(elements, node, store, lkont, kont, states)///, cont)
   {
@@ -5203,12 +5244,13 @@ function createSemantics(lat, cc)
     return result;
   }
   
-  // 9.4.3.3
+  // 9.4.3.4
   function StringCreate(lprim, kont)
   {
     let obj = new Obj();
     obj = obj.setInternal("[[Prototype]]", kont.realm.Intrinsics.get("%StringPrototype%"));
     obj = obj.setInternal("[[StringData]]", lprim);
+    obj = obj.setInternal("[[Get]]", SetValueNoAddresses.from1(OrdinaryGet));
     obj = obj.add(P_LENGTH, Property.fromValue(lprim.stringLength()));
     return obj;
   }
@@ -5924,13 +5966,14 @@ function createSemantics(lat, cc)
       global = global.add(lat.abst1("String"), Property.fromValue(lat.abstRef(stringa)));
       store = storeAlloc(store, stringa, string);
 
+
       stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
       stringP = registerPrimitiveFunction(stringP, "charCodeAt", stringCharCodeAt);
       stringP = registerPrimitiveFunction(stringP, "startsWith", stringStartsWith);
-      stringP = registerPrimitiveFunction(stringP, "substring", stringSubstring);
 
       store = storeAlloc(store, stringPa, stringP);
 
+      // 21.1.1.1
       function stringFunction(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         if (operandValues.length === 0)
@@ -5947,6 +5990,7 @@ function createSemantics(lat, cc)
         }
       }
 
+      // 21.1.3.1
       function stringCharAt(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         var lprim = getInternal(thisValue, "[[StringData]]", store);
@@ -5954,6 +5998,7 @@ function createSemantics(lat, cc)
         states.continue(value, store, lkont, kont);
       }
 
+      // 21.1.3.2
       function stringCharCodeAt(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         var lprim = getInternal(thisValue, "[[StringData]]", store);
@@ -5961,6 +6006,19 @@ function createSemantics(lat, cc)
         states.continue(value, store, lkont, kont);
       }
 
+      // 21.1.3.7
+      // includes: prelude
+
+      // 21.1.3.8
+      // indexOf: prelude
+
+      // 21.1.3.19
+      // slice: prelude
+
+      // 21.1.3.20
+      // split: prelude
+
+      // 21.1.3.21
       function stringStartsWith(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         var lprim = getInternal(thisValue, "[[StringData]]", store);
@@ -5968,14 +6026,12 @@ function createSemantics(lat, cc)
         states.continue(value, store, lkont, kont);
       }
 
-      function stringSubstring(application, operandValues, thisValue, benv, store, lkont, kont, states)
-      {
-        var lprim = getInternal(thisValue, "[[StringData]]", store);
-        var value = lprim.substring(operandValues[0], operandValues[1]);
-        states.continue(value, store, lkont, kont);
-      }
+      // 21.1.3.22
+      // substring: prelude
 
-  
+      // 21.1.3.25
+      // toString: prelude
+
       // END STRING
 
       // BEGIN NUMBER
@@ -6107,7 +6163,8 @@ function createSemantics(lat, cc)
           states.continue(lat.abst1(list.join()), store, lkont, kont);
         }
       }
-      
+
+
       function arrayConcat(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         if (operandValues.length !== 1)
@@ -6153,6 +6210,10 @@ function createSemantics(lat, cc)
         }
       }
       
+      // 22.1.3.15
+      // Array.prototype.join: prelude
+
+      // 22.1.3.14
       function arrayPush(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         for (const thisa of thisValue.addresses().values())
@@ -6167,7 +6228,7 @@ function createSemantics(lat, cc)
           states.continue(len1, store, lkont, kont);
         }
       }
-      
+
       // END ARRAY
       
       
@@ -6181,7 +6242,8 @@ function createSemantics(lat, cc)
       math = registerPrimitiveFunction(math, "cos", mathCos);
       math = registerPrimitiveFunction(math, "sqrt", mathSqrt);
       math = registerPrimitiveFunction(math, "random", mathRandom);
-//  math = registerPrimitiveFunction(math, matha, "max", mathMax);
+      math = registerPrimitiveFunction(math, "max", mathMax);
+      math = registerPrimitiveFunction(math, "min", mathMin);
 //  math = registerProperty(math, "PI", lat.abst1(Math.PI));
       store = storeAlloc(store, matha, math);
       global = global.add(lat.abst1("Math"), Property.fromValue(lat.abstRef(matha)));
@@ -6244,7 +6306,22 @@ function createSemantics(lat, cc)
         var value = lat.abst1(random());
         states.continue(value, store, lkont, kont);
       }
-      
+
+      // 20.2.2.24
+      function mathMax(application, operandValues, thisValue, benv, store, lkont, kont, states)
+      {
+        var value = lat.max(operandValues[0], operandValues[1]);
+        states.continue(value, store, lkont, kont);
+      }
+
+      // 20.2.2.25
+      function mathMin(application, operandValues, thisValue, benv, store, lkont, kont, states)
+      {
+        var value = lat.min(operandValues[0], operandValues[1]);
+        states.continue(value, store, lkont, kont);
+      }
+
+
       // END MATH
       
       
@@ -6552,7 +6629,7 @@ function createSemantics(lat, cc)
       // END GLOBAL
 
       const kont = createContext(null, realm.GlobalObject, realm, "globalctx" + (glcount++), ArraySet.empty().add("ScriptJobs"), null, machine);
-      console.log("CREATED context " + kont);
+      //console.log("CREATED context " + kont);
       return {store, kont};
     } // end initialize2
 
