@@ -38,7 +38,7 @@ function run(resource, expected)
     }
     else if (s.isThrowState)
     {
-      throw new Error(s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsSemantics.lat.abst1("message")).value.Value).join());
+      throw new Error(s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsConcSemantics.lat.abst1("message")).value.Value).join());
     }
     else if (s.isErrorState)
     {
@@ -522,6 +522,10 @@ runSource("var c = []; c.pop(); c.length",0);
 runSource("[1].pop()", 1);
 runSource("var c = [1,2,3]; c.pop(); c.length", 2);
 
+runSource("'8249823789237'.substring(3, 5)", "98");
+runSource("String.prototype.substring.apply('8249823789237', [3, 5])", "98");
+
+
 //String.prototype.split
 runSource("'0,1,hello'.split(',').length", 3 );
 runSource("'0,1,hello'.split(',')[0]", "0" );
@@ -530,8 +534,6 @@ runSource("'0,1,hello'.split(',')[2]", "hello");
 runSource("'hd.com?access_token=sshshs'.split('access_token=').length",2);
 runSource("'hd.com?access_token=sshshs'.split('access_token=')[1]","sshshs");
 
-runSource("'8249823789237'.substring(3, 5)", "98");
-runSource("String.prototype.substring.apply('8249823789237', [3, 5])", "98");
 
 // 22.1.3.15 join
 runSource("[].join()", "");

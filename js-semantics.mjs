@@ -95,10 +95,16 @@ function createSemantics(lat, cc)
     }
 
 
-  
+  // const storeMap = [];
+
   function evaluate_(node, benv, store, lkont, kont, machine)
   {
-    //console.log(node.toString());
+    // const prevStore = storeMap[node.tag];
+    // if (prevStore)
+    // {
+    //   console.log(node.toString(), prevStore.diff(store));
+    // }
+    // storeMap[node.tag] = store;
     switch (node.type)
     {
       case "Literal":
@@ -1738,7 +1744,6 @@ function createSemantics(lat, cc)
       function (operatorValue, store, lkont, kont, machine)
       {
         var node = this.node;
-        console.log(node.toString())
         var benv = this.benv;
         var operands = node.arguments;
         
@@ -4155,109 +4160,11 @@ function createSemantics(lat, cc)
   }
   
   // 7.1.1
-  function ToPrimitive(input, PreferredType, node, benv, store, lkont, kont, states)
-  {
-    const result = [];
-    if (input.isRef())
-    {
-      let hint;
-      if (PreferredType === undefined)
-      {
-        hint = "default";
-      }
-      else if (PreferredType === "String")
-      {
-        hint = "string";
-      }
-      else if (PreferredType === 'Number')
-      {
-        hint = "number";
-      }
-      let exoticToPrim = L_UNDEFINED; // TODO: exotic stuff
-      if (exoticToPrim.isUndefined())
-      {
-      
-      }
-      if (exoticToPrim.isNonUndefined())
-      {
-        // TODO
-      }
-      if (hint === "default")
-      {
-        hint = "number";
-      }
-      const r1 = OrdinaryToPrimitive(input, hint, node, benv, store, lkont, kont, states);
-      for (const r of r1)
-      {
-        result.push(r);
-      }
-    }
-    if (input.isNonRef())
-    {
-      result.push({value:input, store});
-    }
-    return result;
-  }
-  
+  // ToPrimitive: prelude
+
+
   // 7.1.1.1
-  function OrdinaryToPrimitive(O, hint, node, benv, store, lkont, kont, states)
-  {
-    assertIsObject(O);
-    assert(hint === "string" || hint === "number");
-    let methodNames;
-    if (hint === "string")
-    {
-      methodNames = ["toString", "valueOf"];
-    }
-    else
-    {
-      methodNames = ["valueOf", "toString"];
-    }
-    const g1 = Get(O, lat.abst1(methodNames[0]), store, lkont, kont, states);
-    for (const {value:method, store} of g1)
-    {
-      const ic = IsCallable(method, store);
-      if (ic.isTrue())
-      {
-        const cont = function (value, store, lkont, kont, machine)
-        {
-          if (value.isNonRef())
-          {
-            result.push(valueStore);
-          }
-          if (valueStore.value.isRef())
-          {
-            const g2 = Get(O, lat.abst1(methodNames[1]), store, lkont, kont, states);
-            for (const {value:method, store} of g2)
-            {
-              const ic = IsCallable(method, store);
-              if (ic.isTrue())
-              {
-                const r2 = Call(method, O, [], node, benv, store, lkont, kont, states);
-                for (const valueStore of r2)
-                {
-                  if (valueStore.value.isNonRef())
-                  {
-                    result.push(valueStore);
-                  }
-                  if (valueStore.value.isRef())
-                  {
-                    states.throwTypeError("7.1.1.1", store, lkont, kont);
-                  }
-                }
-              }
-            }
-          }
-        }
-        Call(method, O, [], cont, node, benv, store, lkont, kont, states);
-      }
-    }
-  }
-
-  // for (const valueStore of r1)
-  // {
-  // }
-
+  // OrdinaryToPrimitive: prelude
 
   // 7.1.3
   function ToNumber(argument, node, store, lkont, kont, states)
@@ -4269,51 +4176,12 @@ function createSemantics(lat, cc)
   }
 
   // 7.1.12
-  function ToString(argument, node, benv, store, lkont, kont, states)
-  {
-    const result = [];
-    if (argument.isUndefined())
-    {
-      result.push({value:lat.abst1("undefined"), store});
-    }
-    if (argument.isNull())
-    {
-      result.push({value:lat.abst1("null"), store});
-    }
-    if (argument.isTrue())
-    {
-      result.push({value:lat.abst1("true"), store});
-    }
-    if (argument.isFalse())
-    {
-      result.push({value:lat.abst1("false"), store});
-    }
-    const pn = argument.projectNumber();
-    if (pn !== BOT)
-    {
-      result.push({value:pn.ToString(), store}); // TODO
-    }
-    const ps = argument.projectString();
-    if (ps !== BOT)
-    {
-      result.push({value:ps, store});
-    }
-    // TODO symbol
-    if (argument.isRef())
-    {
-      const r1 = ToPrimitive(argument, "String", node, benv, store, lkont, kont, states);
-      for (const {value:primValue, store} of r1)
-      {
-        const r2 = ToString(primValue, node, benv, store, lkont, kont, states);
-        for (const r of r2)
-        {
-          result.push(r);
-        }
-      }
-    }
-    return result;
-  }
-  
+  // ToString: prelude
+  // function ToString(arg, application, benv, store, lkont, kont, states)
+  // {
+  //
+  // }
+
   // 7.1.13
   function ToObject(argument, node, store, lkont, kont, states)
   {
@@ -5530,6 +5398,7 @@ function createSemantics(lat, cc)
     var ctx = ctx0.intern(machine.contexts);
     if (ctx === ctx0)
     {
+      // console.log("created new context", ctx._id, (application || "<root>").toString(), stackAs.size());
       ctx._stacks = new Set();
       if (previousStack)
       {
@@ -5548,7 +5417,6 @@ function createSemantics(lat, cc)
       }
     }
     ctx._sstorei = machine.getSstorei();
-    // console.log(ctx._id, (application || "<root>").toString(), stackAs.size());
     // console.log([...stackAs].sort().join(" "));
     return ctx;
   }
@@ -5982,11 +5850,8 @@ function createSemantics(lat, cc)
         }
         else
         {
-          const ts = ToString(operandValues[0], application, benv, store, lkont, kont, states);
-          for (const {value, store} of ts)
-          {
-            states.continue(value, store, lkont, kont);
-          }
+          const operatorValue = baseReg.get("ToString");
+          applyProc(application, operatorValue, operandValues, thisValue, benv, store, lkont, kont, states);
         }
       }
 
@@ -6326,6 +6191,8 @@ function createSemantics(lat, cc)
       
       
       // BEGIN BASE
+      const baseReg = new Map();
+
       var base = ObjectCreate(lat.abst1(null));
       var basea = allocNative();
       base = registerPrimitiveFunction(base, "addIntrinsic", baseAddIntrinsic);
@@ -6347,11 +6214,27 @@ function createSemantics(lat, cc)
       base = registerPrimitiveFunction(base, "FromPropertyDescriptor", baseFromPropertyDescriptor);
       base = registerPrimitiveFunction(base, "ToPropertyKey", baseToPropertyKey);
       base = registerPrimitiveFunction(base, "ObjectDefineProperties", baseObjectDefineProperties);
-      
+
+      base = registerPrimitiveFunction(base, "register", baseRegister);
+      base = registerPrimitiveFunction(base, "NumberToString", baseNumberToString);
+
       store = storeAlloc(store, basea, base);
       global = global.add(lat.abst1("$BASE$"), Property.fromValue(lat.abstRef(basea)));
-      
-      
+
+
+      function baseNumberToString(application, operandValues, thisValue, benv, store, lkont, kont, states)
+      {
+        const [m] = operandValues;
+        states.continue(m.ToString(), store, lkont, kont);
+      }
+
+      function baseRegister(application, operandValues, thisValue, benv, store, lkont, kont, states)
+      {
+        const [key, F] = operandValues;
+        baseReg.set(key.conc1(), F);
+        states.continue(L_TRUE, store, lkont, kont);
+      }
+
       function baseDefinePropertyOrThrow(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         const [O, key, desc] = operandValues;
@@ -6361,7 +6244,7 @@ function createSemantics(lat, cc)
           states.continue(value, store, lkont, kont);
         }
       }
-      
+
       function baseObjectDefineProperties(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
         const [O, Properties] = operandValues;
@@ -6546,6 +6429,7 @@ function createSemantics(lat, cc)
         store = assignInternal(O, Name.conc1(), Value, store);
         states.continue(lat.abst1(undefined), store, lkont, kont);
       }
+      // END BASE
       
       // BEGIN PERFORMANCE
       let perf = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
@@ -6629,7 +6513,7 @@ function createSemantics(lat, cc)
       // END GLOBAL
 
       const kont = createContext(null, realm.GlobalObject, realm, "globalctx" + (glcount++), ArraySet.empty().add("ScriptJobs"), null, machine);
-      //console.log("CREATED context " + kont);
+      // console.log("CREATED context " + kont);
       return {store, kont};
     } // end initialize2
 

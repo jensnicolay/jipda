@@ -7,7 +7,122 @@
       throw new Error("Assertion failed");
     }
   }
-  
+
+  // 7.1.1
+  function ToPrimitive(input, PreferredType)
+  {
+    // TODO assert input is an ECMAScript language value
+    if (typeof input === "object")
+    {
+      var hint;
+      if (PreferredType === undefined)
+      {
+        hint = "default";
+      }
+      else if (PreferredType === "String")
+      {
+        hint = "string";
+      }
+      else
+      {
+        assert(PreferredType === "Number");
+        hint = "number";
+      }
+      // TODO exotic stuff
+      if (hint === "default")
+      {
+        hint = "number";
+      }
+      var otp = OrdinaryToPrimitive(input, hint);
+      return otp;
+    }
+  }
+
+  // 7.1.1.1
+  function OrdinaryToPrimitive(O, hint)
+  {
+    assert(typeof(O) === "object");
+    assert(hint === "string" || hint === "number");
+    var methodNames;
+    if (hint === "string")
+    {
+      methodNames = ["toString", "valueOf"];
+    }
+    else
+    {
+      methodNames = ["valueOf", "toString"];
+    }
+    var method = O[methodNames[0]];
+    //print("method0 is", method, methodNames[0]);
+    if (typeof method === "function")
+    {
+      var result = method.call(O);
+      if (typeof result !== "object")
+      {
+        return result;
+      }
+
+      var method = O[methodNames[1]];
+      if (typeof method === "function")
+      {
+        var result = method.call(O);
+        if (typeof result !== "object")
+        {
+          return result;
+        }
+
+        throw new TypeError("7.1.1.1")
+      }
+    }
+  }
+
+  // 7.1.12
+  $BASE$.register("ToString", ToString);
+  function ToString(argument)
+  {
+    //print("enter ToString", argument);
+    if (argument === undefined)
+    {
+      // print("exit ToString", argument, "UNDEFINED");
+      return "undefined";
+    }
+    if (argument === null)
+    {
+      // print("exit ToString", argument, "NULL");
+      return "null";
+    }
+    if (argument === true)
+    {
+      // print("exit ToString", argument, "TRUE");
+      return "true";
+    }
+    if (argument === false)
+    {
+      // print("exit ToString", argument, "FALSE");
+      return "false";
+    }
+    if (typeof argument === "number")
+    {
+      return NumberToString(argument);
+    }
+    if (typeof argument === "string")
+    {
+      //print("exit ToString", argument, "FALSE");
+      return argument;
+    }
+    // TODO symbol
+    var primValue = ToPrimitive(argument, "String");
+    //print("ToPrim for", argument, "returns", primValue);
+    return ToString(primValue);
+  }
+
+  // 7.1.12.1
+  function NumberToString(m)
+  {
+    return $BASE$.NumberToString(m);
+  }
+
+
   // 19.1.2.2
   Object.create =
       function (O, Properties)
@@ -213,7 +328,7 @@
         }
         var sub = stringValue.substring(cur, next);
         result.push(sub);
-        print(cur, next, spl.length);
+        // print(cur, next, spl.length, sub);
         cur = next + spl.length;
       }
         return result;
@@ -223,7 +338,6 @@
   String.prototype.substring =
       function (start, end)
       {
-        print(this);
         var S = String(this);
         var len = S.length;
         var intStart = start; // TODO ToInteger
@@ -417,9 +531,11 @@
         else
         {
           next = String(element);
+          //print("element", element, "next", next);
         }
         R += next;
         k += 1;
+        //print("::", R, k);
       }
       return R;
     }

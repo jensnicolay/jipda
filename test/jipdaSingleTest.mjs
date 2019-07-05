@@ -9,7 +9,8 @@ import createSemantics from '../js-semantics';
 import {computeInitialCeskState, explore, isSuccessState} from '../abstract-machine';
 import typeLattice from "../type-lattice";
 import aacKalloc from "../aac-kalloc";
-import tagAlloc from "../tag-alloc";
+import tagCtxAlloc from "../tag-alloc";
+//import tagCtxAlloc from "../tag-ctx-alloc";
 
 const ast0resource = new FileResource("../prelude.js");
 
@@ -25,42 +26,43 @@ function run(resource, expected)
 {
   console.log(++c + "\t" + resource);
 
-  process.stdout.write("conc ");
-  const s1Conc = s0Conc.switchMachine(jsConcSemantics, concAlloc, concKalloc, {hardAsserts: true});
-
-  const s2Conc = s1Conc.enqueueScriptEvaluation(resource);
-  let actualConc = jsConcSemantics.lat.bot();
-  const systemConc = explore([s2Conc], s =>
-  {
-    if (isSuccessState(s))
-    {
-      actualConc = actualConc.join(s.value);
-    }
-    else if (s.isThrowState)
-    {
-      throw new Error(s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsSemantics.lat.abst1("message")).value.Value).join());
-    }
-    else if (s.isErrorState)
-    {
-      throw new Error(s.node.loc.start.line + ": " + s.msg);
-    }
-    else
-    {
-      throw new Error("no progress: " + s);
-    }
-  });
-  if (!concLattice.abst1(expected).equals(actualConc))
-  {
-    throw new Error("expected " + expected + ", got " + actualConc);
-  }
+  // process.stdout.write("conc ");
+  // const s1Conc = s0Conc.switchMachine(jsConcSemantics, concAlloc, concKalloc, {hardAsserts: true});
+  //
+  // const s2Conc = s1Conc.enqueueScriptEvaluation(resource);
+  // let actualConc = jsConcSemantics.lat.bot();
+  // const systemConc = explore([s2Conc], s =>
+  // {
+  //   if (isSuccessState(s))
+  //   {
+  //     actualConc = actualConc.join(s.value);
+  //   }
+  //   else if (s.isThrowState)
+  //   {
+  //     throw new Error(s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsConcSemantics.lat.abst1("message")).value.Value).join());
+  //   }
+  //   else if (s.isErrorState)
+  //   {
+  //     throw new Error(s.node.loc.start.line + ": " + s.msg);
+  //   }
+  //   else
+  //   {
+  //     throw new Error("no progress: " + s);
+  //   }
+  // });
+  // if (!concLattice.abst1(expected).equals(actualConc))
+  // {
+  //   throw new Error("expected " + expected + ", got " + actualConc);
+  // }
 
   process.stdout.write("type ");
-  const s1Type = s0Type.switchMachine(jsTypeSemantics, tagAlloc, aacKalloc, {hardAsserts: true});
+  const s1Type = s0Type.switchMachine(jsTypeSemantics, tagCtxAlloc, aacKalloc, {hardAsserts: true});
   const s2Type = s1Type.enqueueScriptEvaluation(resource);
   let actualType = jsTypeSemantics.lat.bot();
   const systemType = explore([s2Type], s => {
     if (isSuccessState(s))
     {
+      console.log("abstract success value: " + s.value);
       actualType = actualType.join(s.value);
     }
     else if (s.isThrowState)
@@ -107,10 +109,7 @@ function runEval(...tests)
   }
 }
 
-runSource("'8249823789237'.substring(3, 5)", "98");
-runSource("String.prototype.substring.apply('8249823789237', [3, 5])", "98");
 
 
+runSource("'0,1,hello'.split(',').length", 3 );
 
-//String.prototype.slice
-// runSource("'To be, or not to be, that is the question.'.slice(0,7)", "To be, ");     
