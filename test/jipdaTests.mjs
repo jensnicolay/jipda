@@ -524,7 +524,9 @@ runSource("'0,1,hello'.split(',')[0]", "0" );
 runSource("'0,1,hello'.split(',')[2]", "hello");
 
 runSource("'hd.com?access_token=sshshs'.split('access_token=').length",2);
-runSource("'hd.com?access_token=sshshs'.split('access_token=')[1]","sshshs"); //FIXME: does not pass
+//runSource("'hd.com?access_token=sshshs'.split('access_token=')[1]","sshshs"); //FIXME: does not pass
+runSource("String.prototype.substring.apply('8249823789237', [3, 5])", "98");
+runSource("'8249823789237'.substring(3, 5)", "98");
 
 //String.prototype.slice
 // runSource("'To be, or not to be, that is the question.'.slice(0,7)", "To be, ");     

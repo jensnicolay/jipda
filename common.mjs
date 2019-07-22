@@ -541,6 +541,16 @@ Maps.equals =
       }
       return true;
     }
+Maps.toString =
+    function (x)
+    {
+      const b = [];
+      for (const [key, xvalue] of x)
+      {
+        b.push(key + " -> " + xvalue);
+      }
+      return b.join(",");
+    }
 
 
 export const MutableSets = {};

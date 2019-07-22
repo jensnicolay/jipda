@@ -3447,7 +3447,7 @@ function createSemantics(lat, cc)
       const fs = obj.getInternal(name).value;
       if (!fs)
       {
-        throw new Error("no internal slot: " + name);
+        throw new Error("no internal slot " + name + " on " + obj + " (internals: " + obj.internals + ")");
       }
       for (const f of fs)
       {
@@ -4213,12 +4213,14 @@ function createSemantics(lat, cc)
     {
       methodNames = ["valueOf", "toString"];
     }
+    console.log("+++ " + store.lookupAval([...O.addresses()][0]));
     const g1 = Get(O, lat.abst1(methodNames[0]), store, lkont, kont, states);
     for (const {value:method, store} of g1)
     {
       const ic = IsCallable(method, store);
       if (ic.isTrue())
       {
+        //console.log("HERE " + store.lookupAval([...method.addresses()][0]).internals);
         const r1 = Call(method, O, [], node, benv, store, lkont, kont, states);
         for (const valueStore of r1)
         {
@@ -4603,27 +4605,23 @@ function createSemantics(lat, cc)
     return [{value:result, store}];
   }
   
-  // 7.3.12
+  // 7.3.12: BROKEN: must use caller-provided continuation
   function Call(F, V, argumentsList, node, benv, store, lkont, kont, states)
   {
     // non-spec: argumentsList must be []
     // (spec: if argList not passed,set to [])
     assert(Array.isArray(argumentsList));
     const result = [];
-    const ic = IsCallable(F);
+    const ic = IsCallable(F, store);
     if (ic.isFalse())
     {
       states.throwTypeError("not a function", store, lkont, kont);
     }
     if (ic.isTrue())
     {
-      const apply = applyProc(node, F, argumentsList, V, benv, store, lkont, kont, states);
-      for (const r of apply)
-      {
-        result.push(r);
-      }
+      applyProc(node, F, argumentsList, V, benv, store, lkont, kont, states);
     }
-    return result;
+    return result; // always empty!
   }
   
   // 7.3.16
@@ -5209,6 +5207,7 @@ function createSemantics(lat, cc)
     let obj = new Obj();
     obj = obj.setInternal("[[Prototype]]", kont.realm.Intrinsics.get("%StringPrototype%"));
     obj = obj.setInternal("[[StringData]]", lprim);
+    obj = obj.setInternal("[[Get]]", SetValueNoAddresses.from1(OrdinaryGet));
     obj = obj.add(P_LENGTH, Property.fromValue(lprim.stringLength()));
     return obj;
   }
@@ -5970,12 +5969,22 @@ function createSemantics(lat, cc)
 
       function stringSubstring(application, operandValues, thisValue, benv, store, lkont, kont, states)
       {
-        var lprim = getInternal(thisValue, "[[StringData]]", store);
-        var value = lprim.substring(operandValues[0], operandValues[1]);
-        states.continue(value, store, lkont, kont);
+        // if (fastPath && hasInternal(thisValue, "[[StringData]]", store))
+        // {
+          var lprim = getInternal(thisValue, "[[StringData]]", store);
+          var value = lprim.substring(operandValues[0], operandValues[1]);
+          states.continue(value, store, lkont, kont);            
+        // }
+        // else
+        // {
+        //   const ts = ToString(thisValue, application, benv, store, lkont, kont, states);
+        //   for (const {value, store} of ts)
+        //   {
+        //     const substringValue = value.substring(operandValues[0], operandValues[1]);
+        //     states.continue(substringValue, store, lkont, kont);
+        //   }  
+        // }
       }
-
-  
       // END STRING
 
       // BEGIN NUMBER
@@ -6682,7 +6691,7 @@ SetValueNoAddresses.prototype.addresses =
       return as;
     }
 
-SetValue.prototype[Symbol.iterator] =
+SetValueNoAddresses.prototype[Symbol.iterator] =
     function* ()
     {
       yield* this.set;

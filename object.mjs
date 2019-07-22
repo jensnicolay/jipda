@@ -119,6 +119,11 @@ Record.prototype.addresses =
       });
       return addresses;
     }
+Record.prototype.toString =
+    function ()
+    {
+      return Maps.toString(this.map);
+    }
 
 export function Obj()
   {

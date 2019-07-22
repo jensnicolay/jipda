@@ -31,7 +31,7 @@ function abstPrecise(value)
   if (typeof value === "number")
   {
     // console.log(value)
-    if (value < 50)
+    if (value < 10)
     {
       return new Some(value);
     }
@@ -120,7 +120,7 @@ export default {
       {
         var result = x.prim + y.prim;
 
-        if (typeof result === "number" && result >= 50)
+        if (typeof result === "number" && result >= 10)
         { 
           return TypeValue._NUM;
         }
@@ -212,7 +212,7 @@ export default {
       if (x instanceof Some && y instanceof Some)
       {
         var result = x.prim - y.prim;
-        if(result < 50)
+        if(result < 10)
         {
           return new Some(result);
         } 
