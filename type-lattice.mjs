@@ -47,6 +47,48 @@ function abst1(value)
   throw new Error("cannot abstract value " + value);
 }
 
+function eqqHelper1(prim, tvy)
+{
+  if (prim === undefined)
+  {
+   if (tvy === TypeValue.UND)
+   {
+     return new Some(true);
+   }
+   if (!(tvy & TypeValue.UND))
+   {
+     return new Some(false);
+   }
+   return TypeValue._BOOL;
+  }
+  if (prim === null)
+  {
+    if (tvy === TypeValue.NULL)
+    {
+      return new Some(true);
+    }
+    if (!(tvy & TypeValue.NULL))
+    {
+      return new Some(false);
+    }
+    return TypeValue._BOOL;
+  }
+  if (typeof prim === "number" && !(tvy & TypeValue.NUM))
+  {
+    return new Some(false);
+  }
+  if ((prim === true || prim === false) && !(tvy & TypeValue.BOOL))
+  {
+    return new Some(false);
+  }
+  if (typeof prim === "string" && !((tvy & TypeValue.STR) || (tvy & TypeValue.NUMSTR)))
+  {
+    return new Some(false);
+  }
+  return TypeValue._BOOL;
+}
+
+
 export default {
   bot:
       function ()
@@ -75,11 +117,10 @@ export default {
       if (x instanceof Some && y instanceof Some)
       {
         var result = x.prim + y.prim;
-        if (typeof result === "string" && result.length > 32)
+        if (typeof result === "string" && result.length < 33)
         {
-          return TypeValue._STR;
+          return new Some(result);
         }
-        return new Some(result);
       }
       var x = x.abst();
       var y = y.abst();
@@ -163,14 +204,85 @@ export default {
       return TypeValue._NUM;
     },
 
+  // eqq: function (x, y)
+  // {
+  //   const r = this.eqqH(x, y);
+  //   console.log(x + " === " + y + " = " + r);
+  //   return r;
+  // },
+
   eqq:
     function (x, y)
     {
-      if (x instanceof Some && y instanceof Some)
+      if (x instanceof Some)
       {
-        return new Some(x.prim === y.prim);
+        if (y instanceof Some)
+        {
+          return new Some(x.prim === y.prim);
+        }
+        // x some y typevalue
+        if (y.type === 0)
+        {
+          // y ref without prim part, x only prim
+          return new Some(false);
+        }
+        else if (!y.isRef())
+        {
+          // y prim without ref part, x only prim
+          return eqqHelper1(x.prim, y.type);
+        }
+        return TypeValue._BOOL;
       }
-      
+      else if (y instanceof Some)
+      {
+        // x typevalue y some
+        if (x.type === 0)
+        {
+          // x ref without prim part, y only prim
+          return new Some(false);
+        }
+        else if (!x.isRef())
+        {
+          // x prim without ref part, y only prim
+          return eqqHelper1(y.prim, x.type);
+        }
+        return TypeValue._BOOL;
+      }
+
+      // x typevalue y typevalue
+
+      if (x.isNonRef() && y.isNonRef())
+      {
+        const tvx = x.type;
+        const tvy = y.type;
+        if ((tvx === TypeValue.UND || tvx === TypeValue.NULL) && tvx === tvy)
+        {
+          return new Some(true);
+        }
+        if ((tvx & TypeValue.NUM) && !(tvy & TypeValue.NUM))
+        {
+          return new Some(false);
+        }
+        if ((tvx & TypeValue.BOOL) && !(tvy & TypeValue.BOOL))
+        {
+          return new Some(false);
+        }
+        if ((tvx & TypeValue.STR) && !((tvy & TypeValue.STR) || (tvy & TypeValue.NUMSTR)))
+        {
+          return new Some(false);
+        }
+        return TypeValue._BOOL;
+      }
+
+      if (x.type === 0 && y.type === 0)
+      {
+        const xn = x.as.size();
+        if (xn === 1 && x.as.equals(y.as))
+        {
+          return new Some(true);
+        }
+      }
+
       return TypeValue._BOOL;
     },
 
@@ -192,15 +304,15 @@ export default {
     },
 
   neqq:
-    function (x, y)
-    {
-      if (x instanceof Some && y instanceof Some)
+      function (x, y)
       {
-        return new Some(x.prim !== y.prim);
-      }
-      
-      return TypeValue._BOOL;
-    },
+        if (x instanceof Some && y instanceof Some)
+        {
+          return new Some(x.prim !== y.prim);
+        }
+
+        return TypeValue._BOOL;
+      },
 
   binor:
     function (x, y)
@@ -233,10 +345,22 @@ export default {
     },
 
   shrr:
-    function (x, y)
-    {
-      return TypeValue._NUM;
-    },
+      function (x, y)
+      {
+        return TypeValue._NUM;
+      },
+
+  max:
+      function (x, y)
+      {
+        return TypeValue._NUM;
+      },
+
+  min:
+      function (x, y)
+      {
+        return TypeValue._NUM;
+      },
 
   not:
     function (x)
@@ -359,6 +483,8 @@ Some.prototype.hashCode =
 Some.prototype.abst =
     function ()
     {
+      // console.log("absting " + this);
+      // console.trace();
       var prim = this.prim;
       if (typeof prim === "string")
       {
@@ -734,8 +860,10 @@ TypeValue.prototype.subsumes =
         }  
         return ((~type & x.type) === 0) && as.subsumes(x.as);
       }
-      if (as.count() > 0)
+      // x is prim only
+      if (type === 0)
       {
+        // this is ref only
         return false;
       }
       var xx = x.abst();

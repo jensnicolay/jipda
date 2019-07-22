@@ -7,7 +7,122 @@
       throw new Error("Assertion failed");
     }
   }
-  
+
+  // 7.1.1
+  function ToPrimitive(input, PreferredType)
+  {
+    // TODO assert input is an ECMAScript language value
+    if (typeof input === "object")
+    {
+      var hint;
+      if (PreferredType === undefined)
+      {
+        hint = "default";
+      }
+      else if (PreferredType === "String")
+      {
+        hint = "string";
+      }
+      else
+      {
+        assert(PreferredType === "Number");
+        hint = "number";
+      }
+      // TODO exotic stuff
+      if (hint === "default")
+      {
+        hint = "number";
+      }
+      var otp = OrdinaryToPrimitive(input, hint);
+      return otp;
+    }
+  }
+
+  // 7.1.1.1
+  function OrdinaryToPrimitive(O, hint)
+  {
+    assert(typeof(O) === "object");
+    assert(hint === "string" || hint === "number");
+    var methodNames;
+    if (hint === "string")
+    {
+      methodNames = ["toString", "valueOf"];
+    }
+    else
+    {
+      methodNames = ["valueOf", "toString"];
+    }
+    var method = O[methodNames[0]];
+    //print("method0 is", method, methodNames[0]);
+    if (typeof method === "function")
+    {
+      var result = method.call(O);
+      if (typeof result !== "object")
+      {
+        return result;
+      }
+
+      var method = O[methodNames[1]];
+      if (typeof method === "function")
+      {
+        var result = method.call(O);
+        if (typeof result !== "object")
+        {
+          return result;
+        }
+
+        throw new TypeError("7.1.1.1")
+      }
+    }
+  }
+
+  // 7.1.12
+  $BASE$.register("ToString", ToString);
+  function ToString(argument)
+  {
+    //print("enter ToString", argument);
+    if (argument === undefined)
+    {
+      // print("exit ToString", argument, "UNDEFINED");
+      return "undefined";
+    }
+    if (argument === null)
+    {
+      // print("exit ToString", argument, "NULL");
+      return "null";
+    }
+    if (argument === true)
+    {
+      // print("exit ToString", argument, "TRUE");
+      return "true";
+    }
+    if (argument === false)
+    {
+      // print("exit ToString", argument, "FALSE");
+      return "false";
+    }
+    if (typeof argument === "number")
+    {
+      return NumberToString(argument);
+    }
+    if (typeof argument === "string")
+    {
+      //print("exit ToString", argument, "FALSE");
+      return argument;
+    }
+    // TODO symbol
+    var primValue = ToPrimitive(argument, "String");
+    //print("ToPrim for", argument, "returns", primValue);
+    return ToString(primValue);
+  }
+
+  // 7.1.12.1
+  function NumberToString(m)
+  {
+    return $BASE$.NumberToString(m);
+  }
+
+
   // 19.1.2.2
   Object.create =
       function (O, Properties)
@@ -171,7 +286,6 @@
   global.TypeError = TypeError;
 
   // 21.1.3
-  
   function thisStringValue(value)
   {
     if (typeof value === "string")
@@ -191,15 +305,14 @@
   }
 
 
-  //FIXME: There are differences between substring and slice! 
-
+  // 21.1.3.18
   String.prototype.slice =
   function (begin, end)
   {
-    return this.substring(begin, end);
+    return this.substring(begin, end);   //FIXME: There are differences between substring and slice!
   }
 
-  // 21.1.3.20
+  // 21.1.3.19
   String.prototype.split =
     function (spl)
     {
@@ -214,14 +327,42 @@
           next = stringValue.length;
         }
         var sub = stringValue.substring(cur, next);
-        result.push(sub);    
-        // cur = next + spl.length; //FIXME: this is the correct but computes to much states!
-        cur = next + 1;
+        result.push(sub);
+        // print(cur, next, spl.length, sub);
+        cur = next + spl.length;
       }
         return result;
     }
 
-  
+  // 21.1.3.22
+  String.prototype.substring =
+      function (start, end)
+      {
+        var S = String(this);
+        var len = S.length;
+        var intStart = start; // TODO ToInteger
+        var intEnd;
+        if (end === undefined)
+        {
+          intEnd = len;
+        }
+        else
+        {
+          intEnd = end; // TODO ToInteger
+        }
+        var finalStart = Math.min(Math.max(intStart, 0), len);
+        var finalEnd = Math.min(Math.max(intEnd, 0), len);
+        var from = Math.min(finalStart, finalEnd);
+        var to = Math.max(finalStart, finalEnd);
+
+        var R = "";
+        for (var i = from; i < to; i++)
+        {
+          R += S.charAt(i);
+        }
+        return R;
+      }
+
   // 21.1.3.25
   String.prototype.toString =
       function ()
@@ -289,7 +430,8 @@
           return this.indexOf(searchString, start) !== -1;
         }
       }
-      
+
+  // 22.1.3.5
   Array.prototype.every = 
       function (f)
       {
@@ -303,22 +445,7 @@
         }
         return true;
       }
-  
-  // 22.1.3.23
-  Array.prototype.some =
-      function (f, thisArg)
-      {
-        for (var i = 0; i < this.length; i++) 
-        {
-          var x = this[i];
-          if (f.call(thisArg, x))
-          {
-            return true;
-          }
-        }
-        return false;
-      }  
-  
+
   // 22.1.3.7
   Array.prototype.filter =
       function (f)
@@ -350,7 +477,7 @@
         return undefined;
       }
 
-  // 22.1.3.10
+  // 22.1.3.12
   Array.prototype.forEach =
       function (f)
       {
@@ -360,7 +487,7 @@
         }
       }
       
-  // 22.1.3.12
+  // 22.1.3.14
   Array.prototype.indexOf =
       function (x)
       {
@@ -373,8 +500,47 @@
         }
         return -1;
       }
-      
-  // 22.1.3.16
+
+  // 22.1.3.15
+  Array.prototype.join =
+    function (separator)
+    {
+      var len = this.length;
+      if (separator === undefined)
+      {
+        sep = ",";
+      }
+      else
+      {
+        sep = String(separator);
+      }
+      var R = "";
+      var k = 0;
+      while (k < len)
+      {
+        if (k > 0)
+        {
+          R += sep;
+        }
+        var element = this[k];
+        var next;
+        if (element === undefined || element === null)
+        {
+          next = "";
+        }
+        else
+        {
+          next = String(element);
+          //print("element", element, "next", next);
+        }
+        R += next;
+        k += 1;
+        //print("::", R, k);
+      }
+      return R;
+    }
+
+  // 22.1.3.18
   Array.prototype.map =
       function (f, thisArg)
       {
@@ -395,6 +561,22 @@
       }
       
   // 22.1.3.19
+  Array.prototype.pop =
+      function()
+      {
+        if (this.length > 0)
+        {
+          var r = this[this.length - 1];
+          this.length = this.length - 1;
+          return r;
+        }
+        return undefined;
+      }
+
+  // 22.1.3.20
+  // Array.prototype.push: impl
+
+  // 22.1.3.21
   Array.prototype.reduce =
       function (f, initialValue)
       {
@@ -414,14 +596,29 @@
           result = initialValue;
           start = 0;
         }
-    
+
         for (var i = start; i < this.length; i++)
         {
           result = f(result, this[i]);
         }
         return result;
       }
-  
+
+  // 22.1.3.26
+  Array.prototype.some =
+      function (f, thisArg)
+      {
+        for (var i = 0; i < this.length; i++)
+        {
+          var x = this[i];
+          if (f.call(thisArg, x))
+          {
+            return true;
+          }
+        }
+        return false;
+      }
+
   function insertionSort(arr, f)
   {
     for (i = 1; i < arr.length; i++)
@@ -438,7 +635,7 @@
     return arr;
   }
   
-  // 22.1.3.25
+  // 22.1.3.27
   Array.prototype.sort =
       function (f)
       {
@@ -449,7 +646,7 @@
         return insertionSort(this, f);
       }
       
-  // 22.1.3.26
+  // 22.1.3.28
   Array.prototype.splice =
       function (index, c)
       {
@@ -459,19 +656,6 @@
         }
         this.length = this.length - c;
         return undefined; //FIXME: See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice
-      }
-  
-  
-  Array.prototype.pop =
-      function()
-      {
-        if(this.length > 0)
-        {
-          var r = this[this.length - 1];
-          this.length = this.length - 1;
-          return r;
-        }
-        return undefined;
       }
 
 })(this);

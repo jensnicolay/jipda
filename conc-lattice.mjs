@@ -192,10 +192,22 @@ export default {
     },
 
   rem:
-    function (x, y)
-    {
-      return new ConcValue(x.value % y.value);
-    },
+      function (x, y)
+      {
+        return new ConcValue(x.value % y.value);
+      },
+
+  max:
+      function (x, y)
+      {
+        return new ConcValue(Math.max(x.value, y.value));
+      },
+
+  min:
+      function (x, y)
+      {
+        return new ConcValue(Math.min(x.value, y.value));
+      },
 
   binnot:
     function (x)
