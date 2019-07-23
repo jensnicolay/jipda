@@ -702,15 +702,18 @@ function markResources(initialStates)
     if (s.isEvalState)
     {
       resource = s.node.root.resource;
+      if (resource.parentResource)
+      {
+        resource = resource.parentResource;
+      }
+      if (!s.kont.resource)
+      {
+        s.kont.resource = resource;
+      }
     }
-    else //if (s.isKontState)
+    else
     {
-      resource = "?";
-    }
-
-    if (resource && resource.parentResource)
-    {
-      resource = resource.parentResource;
+      resource = s.kont.resource;
     }
 
     return resource;
