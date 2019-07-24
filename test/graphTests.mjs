@@ -1,21 +1,21 @@
 import fs from 'fs';
 
-import {assert} from '../common';
+import {assertEquals} from '../common';
 import concLattice from '../conc-lattice';
 import concAlloc from '../conc-alloc';
 import concKalloc from '../conc-kalloc';
 import createSemantics from '../js-semantics';
 import {computeInitialCeskState, explore, isSuccessState} from '../abstract-machine';
-import {FileResource, StringResource} from '../ast';
+import {FileResource, StringResource} from "../ast";
 import {initialStatesToDot} from "../export/dot-graph";
 
 const ast0resource = new FileResource("../prelude.js");
-const jsSemantics = createSemantics(concLattice, concAlloc, concKalloc, {errors: true});
-const s0 = computeInitialCeskState(jsSemantics, ast0resource);
+const jsSemantics = createSemantics(concLattice, {errors: true});
+const s0 = computeInitialCeskState(jsSemantics, concAlloc, concKalloc, ast0resource);
 
 function run(resource)
 {
-  const s1 = s0.switchMachine(jsSemantics, {hardAsserts: true});
+  const s1 = s0.switchMachine(jsSemantics, concAlloc, concKalloc, {hardAsserts: true});
   const s2 = s1.enqueueScriptEvaluation(resource);
   let actual = jsSemantics.lat.bot();
   const system = explore([s2], s => {

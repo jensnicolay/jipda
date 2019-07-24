@@ -38,6 +38,11 @@ function stateToLabel(s)
   }
 }
 
+function stateToTooltip(s)
+{
+  return s.kont.resource;
+}
+
 function stateToColor(s)
 {
   if (isSuccessState(s))
@@ -76,7 +81,7 @@ function stateToColor(s)
 
 function stateToVertex(s)
 {
-  return s._id + " [label=\"" + s._id + ": " + stateToLabel(s) + "\",color=\""+ stateToColor(s) + "\"];"
+  return s._id + " [label=\"" + s._id + ": " + stateToLabel(s) + "\",tooltip=\"" + stateToTooltip(s) + "\",color=\""+ stateToColor(s) + "\"];"
 }
 
 function dotTransition(s, s2)
