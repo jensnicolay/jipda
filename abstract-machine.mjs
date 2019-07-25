@@ -91,11 +91,11 @@ export function createMachine(semantics, alloc, kalloc, cc)
         }
         return semantics.evaluate(this.node, this.benv, store, this.lkont, this.kont, machine);
       }
-  EvalState.prototype.gc =
-      function ()
-      {
-        return new EvalState(this.node, this.benv, Agc.collect(this.store, this.addresses()), this.lkont, this.kont);
-      }
+  // EvalState.prototype.gc =
+  //     function ()
+  //     {
+  //       return new EvalState(this.node, this.benv, Agc.collect(this.store, this.addresses()), this.lkont, this.kont);
+  //     }
   EvalState.prototype.addresses =
       function ()
       {

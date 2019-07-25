@@ -36,6 +36,7 @@
       var otp = OrdinaryToPrimitive(input, hint);
       return otp;
     }
+    return input
   }
 
   // 7.1.1.1

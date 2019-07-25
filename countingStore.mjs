@@ -170,6 +170,10 @@ Store.prototype.diff = // debug
           {
             diff.push(value.aval.diff(xvalue.aval))
           }
+          if (value.aval.constructor.name === "Obj" && xvalue.aval.constructor.name === "Obj")
+          {
+            diff.push(value.aval.diff(xvalue.aval))
+          }
         }
       }
       else

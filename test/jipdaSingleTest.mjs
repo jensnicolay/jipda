@@ -59,10 +59,15 @@ function run(resource, expected)
   const s1Type = s0Type.switchMachine(jsTypeSemantics, tagCtxAlloc, aacKalloc, {hardAsserts: true});
   const s2Type = s1Type.enqueueScriptEvaluation(resource);
   let actualType = jsTypeSemantics.lat.bot();
+
+  let sss = null;
+
   const systemType = explore([s2Type], s => {
     if (isSuccessState(s))
     {
-      console.log("abstract success value: " + s.value);
+      // console.log("abstract success value: " + s.value);
+      // if (sss) {console.log(s.store.diff(sss))};
+      // sss = s.store;
       actualType = actualType.join(s.value);
     }
     else if (s.isThrowState)
@@ -111,5 +116,5 @@ function runEval(...tests)
 
 
 
-runSource("'0,1,hello'.split(',').length", 3 );
+runSource("function Circle(x,y,r){this.x=x;this.y=y;this.r=r};function area(s){return 3*s.r*s.r};var circles=[[10,100,4],[-10,-10,3],[0,50,5]].map(function (xyr){return new Circle(xyr[0], xyr[1], xyr[2])});var totalArea = circles.map(area).reduce(function (x,y) {return x+y});totalArea", 150 );
 
