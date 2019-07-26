@@ -458,6 +458,7 @@ export default {
 
 function Some(prim)
 {
+  assertFalse(typeof prim === "object" && prim !== null && prim.constructor.name === "Property", prim)
   this.prim = prim;
 }
 
@@ -569,7 +570,7 @@ Some.prototype.subsumes =
       return false;
     }
 
-Some.prototype.join =
+Some.prototype.update =
     function (x)
     {
       if (x === BOT || this.equals(x))
@@ -577,9 +578,15 @@ Some.prototype.join =
         return this;
       }
       var x1 = this.abst();
+      if (!x.abst)
+      {
+        throw new Error("NO ABST " + x + " " + x.constructor.name + " " + this);
+      }
       var x2 = x.abst();
       return x1.join(x2);
     }
+
+Some.prototype.join = Some.prototype.update;
 
 Some.prototype.meet =
     function (x)
@@ -874,7 +881,7 @@ TypeValue.prototype.subsumes =
       return (type & xx.type);
     }
 
-TypeValue.prototype.join =
+TypeValue.prototype.update =
     function (x)
     {
       if (x === BOT)
@@ -884,6 +891,8 @@ TypeValue.prototype.join =
       var x2 = x.abst();
       return new TypeValue(this.type | x2.type, this.as.join(x2.as));
     }
+
+TypeValue.prototype.join = TypeValue.prototype.update;
 
 TypeValue.prototype.meet =
     function (x)

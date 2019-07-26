@@ -29,6 +29,12 @@ Prop.prototype.hashCode =
     {
       return this.value.hashCode();
     }
+
+Prop.prototype.update =
+    function (x)
+    {
+      return this.join(x);
+    }
     
 Prop.prototype.join =
     function (other)
@@ -169,7 +175,13 @@ export function Obj()
     //     }
     //   });
     // return newFrame.put(name, value);
-    return frame.put(name, (frame.get(name) || BOT).join(value));
+
+    if (frame.get(name) && !frame.get(name).update)
+    {
+      console.log("!!!");
+    }
+
+    return frame.put(name, (frame.get(name) || BOT).update(value));
   }
 
 
@@ -225,6 +237,12 @@ Obj.prototype.add =
     {
       return [this];
     }
+
+  Obj.prototype.update =
+      function (x)
+      {
+        return x;
+      }
     
   Obj.prototype.join =
     function (other)

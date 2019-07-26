@@ -17,7 +17,7 @@ const ast0resource = new FileResource("../prelude.js");
 const jsConcSemantics = createSemantics(concLattice, {errors: true});
 const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
 
-const s0Conc = computeInitialCeskState(jsConcSemantics, concAlloc, concKalloc, ast0resource);
+//const s0Conc = computeInitialCeskState(jsConcSemantics, concAlloc, concKalloc, ast0resource);
 const s0Type = computeInitialCeskState(jsTypeSemantics, concAlloc, concKalloc, ast0resource);
 
 let c = 0;
@@ -116,5 +116,5 @@ function runEval(...tests)
 
 
 
-runSource("function Circle(x,y,r){this.x=x;this.y=y;this.r=r};function area(s){return 3*s.r*s.r};var circles=[[10,100,4],[-10,-10,3],[0,50,5]].map(function (xyr){return new Circle(xyr[0], xyr[1], xyr[2])});var totalArea = circles.map(area).reduce(function (x,y) {return x+y});totalArea", 150 );
+runSource("42", 42 );
 

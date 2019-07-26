@@ -7,7 +7,6 @@ export function createMachine(semantics, alloc, kalloc, cc)
   //const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
   //const hardSemanticAsserts = cc.hardAsserts === undefined ? false : cc.hardAsserts;
   const rootSet = cc.rootSet || ArraySet.empty();
-
   const contexts = cc.contexts || [];
   const stacks = [];
   let sstorei = 0;

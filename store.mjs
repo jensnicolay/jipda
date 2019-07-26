@@ -1,6 +1,7 @@
-"use strict";
+import {HashMap} from './common';
+import {BOT} from './lattice';
 
-function Store(map)
+export default function Store(map)
 {
   this.map = map;
 }
@@ -62,7 +63,7 @@ Store.prototype.diff = // debug
 //          {
             diff.push(address + ":\n\t" + value + "\n\t" + xvalue);            
 //          }
-          if (value.aval.isBenv && xvalue.aval.isBenv)
+          if (value.aval.constructor.name === "Obj" && xvalue.aval.constructor.name === "Obj")
           {
             diff.push(value.aval.diff(xvalue.aval))
           }
@@ -115,7 +116,7 @@ Store.prototype.allocAval =
   function (address, aval)
   {
     const map = this.map;
-    const newValue = (map.get(address) || BOT).join(aval);
+    const newValue = (map.get(address) || BOT).update(aval);
     return new Store(map.put(address, newValue));
   }
     
@@ -128,15 +129,13 @@ Store.prototype.updateAval =
     {
       throw new Error("no value at address " + address);  
     }
-    return new Store(map.put(address, value.join(aval)));
+    if (!value.update)
+    {
+      throw new Error("NO UPDATE " + value);
+    }
+    return new Store(map.put(address, value.update(aval)));
   }
   
-//Store.prototype.join =
-//  function (store)
-//  {
-//    return new Store(this.map.join(result.map));
-//  }
-
 Store.prototype.narrow =
   function (addresses)
   {

@@ -780,18 +780,18 @@ export function functionScopeDeclarations(nodeWithBody)
   if (nodeWithBody.params)
   {
     nodeWithBody.params.forEach(
-      function (param, i)
-      {
-        if (isIdentifier(param))
+        function (param, i)
         {
-          result[param.name] = param;
-        }
-        else // rest param
-        {
-          result[param.argument.name] = param;
-        }
-        param.i = i;
-      });
+          if (isIdentifier(param))
+          {
+            result[param.name] = param;
+          }
+          else // rest param
+          {
+            result[param.argument.name] = param;
+          }
+          param.i = i;
+        });
     helper(nodeWithBody.body);
   }
   else
@@ -810,20 +810,77 @@ export function functionScopeDeclarations(nodeWithBody)
       if (node.kind === "var")
       {
         return node.declarations.forEach(
-          function (decl)
-          {
-            var existing = result[decl.id.name];
-            if (!existing)
+            function (decl)
             {
-              result[decl.id.name] = decl;
-            }
-            helper(decl.init);
-          });
+              var existing = result[decl.id.name];
+              if (!existing)
+              {
+                result[decl.id.name] = decl;
+              }
+              helper(decl.init);
+            });
       }
     }
     else if (isFunctionDeclaration(node))
     {
       result[node.id.name] = node;
+    }
+    else
+    {
+      var cs = children(node);
+      cs.forEach(helper);
+    }
+  }
+
+  return result;
+}
+
+export function blockScopeDeclarations(nodeWithBody)
+{
+  const result = new Map(); // name -> declarationNode
+  if (nodeWithBody.params)
+  {
+    // nodeWithBody.params.forEach(
+    //     function (param, i)
+    //     {
+    //       if (isIdentifier(param))
+    //       {
+    //         result[param.name] = param;
+    //       }
+    //       else // rest param
+    //       {
+    //         result[param.argument.name] = param;
+    //       }
+    //       param.i = i;
+    //     });
+    helper(nodeWithBody.body);
+  }
+  else
+  {
+    helper(nodeWithBody);
+  }
+
+  function helper(node)
+  {
+    if (node === null || isFunctionExpression(node))
+    {
+      return;
+    }
+    if (isVariableDeclaration(node))
+    {
+      if (node.kind === "let")
+      {
+        return node.declarations.forEach(
+            function (decl)
+            {
+              var existing = result.get(decl.id.name);
+              if (!existing)
+              {
+                result.set(decl.id.name, decl);
+              }
+              helper(decl.init);
+            });
+      }
     }
     else
     {
