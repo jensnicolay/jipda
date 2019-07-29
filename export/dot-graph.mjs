@@ -95,9 +95,12 @@ export function statesToDot(states)
   for (const s of states)
   {
     sb += stateToVertex(s) + "\n";
-    for (const s2 of s._successors)
+    if (s._successors)
     {
-      sb += dotTransition(s, s2) + "\n";
+      for (const s2 of s._successors)
+      {
+        sb += dotTransition(s, s2) + "\n";
+      }
     }
   }
   sb += "}";

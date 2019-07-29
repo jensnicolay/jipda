@@ -31,10 +31,10 @@ Prop.prototype.hashCode =
     }
 
 Prop.prototype.update =
-    function (x)
-    {
-      return this.join(x);
-    }
+  function (x)
+  {
+    return new Prop(this.value.update(x.value), this.must && x.must);
+  }
     
 Prop.prototype.join =
     function (other)
@@ -154,33 +154,10 @@ export function Obj()
   
   function updateFrame(frame, name, value)
   {
-    if (name.conc1)
-    {
-      return frame.put(name, value);
-    }
-    // let newFrame = Obj.EMPTY_FRAME;
-    // let newValue = value;
-    // frame.iterateEntries(
-    //   function (entry)
-    //   {
-    //     var entryName = entry[0];
-    //     if (name.subsumes(entryName))
-    //     {
-    //       // drop existing entry, but keep prev
-    //       newValue = newValue.join(entry[1]);
-    //     }
-    //     else
-    //     {
-    //       newFrame = newFrame.put(entryName, entry[1]);
-    //     }
-    //   });
-    // return newFrame.put(name, value);
-
-    if (frame.get(name) && !frame.get(name).update)
-    {
-      console.log("!!!");
-    }
-
+    // if (name.conc1)
+    // {
+    //   return frame.put(name, value);
+    // }
     return frame.put(name, (frame.get(name) || BOT).update(value));
   }
 

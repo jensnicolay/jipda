@@ -11,7 +11,7 @@ function Context(callable, operandValues, store)
   assertDefinedNotNull(callable);
   this.callable = callable;
   this.operandValues = operandValues;
-  this.store = store;
+  //this.store = store;
 }
 
 Context.prototype.equals =
@@ -23,5 +23,5 @@ Context.prototype.equals =
       }
       return this.callable.equals(other.callable)
           && this.operandValues.equals(other.operandValues)
-          && this.store.equals(other.store)
+          //&& this.store.equals(other.store)
     }

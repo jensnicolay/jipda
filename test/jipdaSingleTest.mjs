@@ -14,7 +14,7 @@ import tagCtxAlloc from "../tag-alloc";
 
 const ast0resource = new FileResource("../prelude.js");
 
-const jsConcSemantics = createSemantics(concLattice, {errors: true});
+//const jsConcSemantics = createSemantics(concLattice, {errors: true});
 const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
 
 //const s0Conc = computeInitialCeskState(jsConcSemantics, concAlloc, concKalloc, ast0resource);
@@ -35,7 +35,8 @@ function run(resource, expected)
   // {
   //   if (isSuccessState(s))
   //   {
-  //     actualConc = actualConc.join(s.value);
+  //     console.log(s.value);
+  //     //actualConc = actualConc.join(s.value);
   //   }
   //   else if (s.isThrowState)
   //   {
@@ -116,5 +117,7 @@ function runEval(...tests)
 
 
 
-runSource("42", 42 );
-
+//runSource("function Circle(x,y,r){this.x=x;this.y=y;this.r=r};function area(s){return 3*s.r*s.r};var circles=[[10,100,4],[-10,-10,3],[0,50,5]].map(function (xyr){return new Circle(xyr[0], xyr[1], xyr[2])});var totalArea = circles.map(area).reduce(function (x,y) {return x+y});totalArea", 150);
+//runSource("var x={a:1}; function Y() {this.b=2};Y.prototype=x;var obj=new Y();var glob=[];for (var prop in obj) {glob.push(prop)};glob.length===2 && glob.indexOf('a')>-1 && glob.indexOf('b')>-1", true);
+//runSource("var t = 'aBRaCADabrA'; t.length", 11);
+runSource("'0,1,hello'.split(',').length", 3 );

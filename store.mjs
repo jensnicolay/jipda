@@ -44,6 +44,12 @@ Store.prototype.subsumes =
     return this.map.subsumes(x.map);
   }
 
+Store.prototype.join =
+    function (store)
+    {
+      return new Store(this.map.join(store.map, BOT));
+    }
+
 Store.prototype.diff = // debug
   function (x)
   {
@@ -63,9 +69,9 @@ Store.prototype.diff = // debug
 //          {
             diff.push(address + ":\n\t" + value + "\n\t" + xvalue);            
 //          }
-          if (value.aval.constructor.name === "Obj" && xvalue.aval.constructor.name === "Obj")
+          if (value.constructor.name === "Obj" && xvalue.constructor.name === "Obj")
           {
-            diff.push(value.aval.diff(xvalue.aval))
+            diff.push(value.diff(xvalue))
           }
         }
       }
@@ -75,7 +81,7 @@ Store.prototype.diff = // debug
       }
     }
     const xentries = x.map.entries();
-    for (i = 0; i < xentries.length; i++)
+    for (let i = 0; i < xentries.length; i++)
     {
       const xentry = xentries[i];
       const address = xentry[0];
@@ -116,7 +122,7 @@ Store.prototype.allocAval =
   function (address, aval)
   {
     const map = this.map;
-    const newValue = (map.get(address) || BOT).update(aval);
+    const newValue = (map.get(address) || BOT).join(aval);
     return new Store(map.put(address, newValue));
   }
     

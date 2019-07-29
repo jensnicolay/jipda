@@ -545,8 +545,8 @@
   Array.prototype.map =
       function (f, thisArg)
       {
-        var result = [];
-        for (var i = 0; i < this.length; i++)
+        let result = [];
+        for (let i = 0; i < this.length; i++)
         {
           var x = this[i];
           if (x === undefined)

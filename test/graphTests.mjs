@@ -52,7 +52,7 @@ function runFile(path)
 }
 
 
-const system = runSource("[1,2,3].map(function (n) {return n+1})");
+const system = runSource("var o = undefined; o = {x:123}; o");
 //const states = system.states;
 const initialStates = system.initialStates;
 const dot = initialStatesToDot(initialStates);

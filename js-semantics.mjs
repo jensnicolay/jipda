@@ -1203,7 +1203,7 @@ function createSemantics(lat, cc)
         const funNode = this.node;
         const obj = ObjectCreate(protoRef);
         const thisa = states.machine.alloc.constructor(funNode, kont, application);
-        store = store.allocAval(thisa, obj);
+        store = storeAlloc(store, thisa, obj);
         const thisValue = lat.abstRef(thisa);
         const stackAs = kont.stackAddresses(lkont).join(this.addresses());
         const previousStack = Stackget(new Stack(lkont, kont), states.machine);
@@ -2486,7 +2486,7 @@ function createSemantics(lat, cc)
       const ownProp = callInternal(ref, "[[GetOwnProperty]]", [ownKey], store, lkont, kont, states);
       for (const {value: desc, store} of ownProp)
       {
-        if (desc !== undefined && desc.Enumerable.isTrue())
+        if (desc instanceof Property && desc.Enumerable.isTrue()) // TODO instanceof? (can be prim `undefined`)
         {
           const store2 = doScopeSet(nameNode, ownKey, benv, store, kont);
           const frame = new ForInBodyKont(node, nameNode, ref, ownKeys, i, benv);
@@ -3777,6 +3777,19 @@ function createSemantics(lat, cc)
         result = prime * result + this.Enumerable.hashCode();
         result = prime * result + this.Configurable.hashCode();
         return result;
+      }
+
+  Property.prototype.update =
+      function (x)
+      {
+        return new Property(
+            this.Value.update(x.Value),
+            this.Get.update(x.Get),
+            this.Set.update(x.Set),
+            this.Writable.update(x.Writable),
+            this.Enumerable.update(x.Enumerable),
+            this.Configurable.update(x.Configurable)
+        );
       }
   
   Property.prototype.join =
@@ -5121,7 +5134,7 @@ function createSemantics(lat, cc)
     let result = [];
     if (O.isNonRef())
     {
-      throw new Error("TODO");
+      states.continue(L_FALSE, store, lkont, kont);
     }
     // TODO instHandler
     const c = IsCallable(C, store);
@@ -5386,11 +5399,11 @@ function createSemantics(lat, cc)
 
   function createContext(application, thisValue, realm, userContext, stackAs, previousStack, machine)
   {
-    var ctx0 = new JipdaContext(application, thisValue, realm, userContext, stackAs);
+    var ctx0 = new JipdaContext(application, thisValue, realm, userContext, EMPTY_ADDRESS_SET/*stackAs*/);
     var ctx = ctx0.intern(machine.contexts);
     if (ctx === ctx0)
     {
-      // console.log("created new context", ctx._id, (application || "<root>").toString(), stackAs.size());
+      console.log("created new context", ctx._id, (application || "<root>").toString(), "this", thisValue);
       ctx._stacks = new Set();
       if (previousStack)
       {

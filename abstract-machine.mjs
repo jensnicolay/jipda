@@ -1,5 +1,6 @@
 import {ArraySet, HashMap, HashCode, Sets, Formatter, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
 import {FileResource} from "./ast";
+import {initialStatesToDot, statesToDot} from "./export/dot-graph";
 
 export function createMachine(semantics, alloc, kalloc, cc)
 {
@@ -77,14 +78,14 @@ export function createMachine(semantics, alloc, kalloc, cc)
       function ()
       {
         let store;
-        if (gcFlag)
-        {
-          const as = this.addresses().join(rootSet);
-          store = semantics.gc(this.store, as);
-          // console.log("gc " + rootSet);
-          // console.log(store.diff(this.store));
-        }
-        else
+        // if (gcFlag)
+        // {
+        //   const as = this.addresses().join(rootSet);
+        //   store = semantics.gc(this.store, as);
+        //   // console.log("gc " + rootSet);
+        //   // console.log(store.diff(this.store));
+        // }
+        // else
         {
           store = this.store;
         }
@@ -587,9 +588,9 @@ export function explore(initialStates,
   let sstorei = -1;
   while (todo.length > 0)
   {
-    if (stateRegistry.states.length > 100000)
+    if (stateRegistry.states.length > 200000)
     {
-      console.log("STATE SIZE LIMIT", states.length);
+      console.log("STATE SIZE LIMIT", stateRegistry.states.length);
       break;
     }
     var s = todo.pop();
