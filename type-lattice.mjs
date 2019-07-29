@@ -1039,7 +1039,7 @@ TypeValue.prototype.charCodeAt =
 TypeValue.prototype.stringLength =
     function (x)
     {
-      return TypeValue._NUMSTR;
+      return TypeValue._NUM;
     }
 
 TypeValue.prototype.startsWith =
