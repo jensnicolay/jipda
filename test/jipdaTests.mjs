@@ -6,7 +6,7 @@ import concLattice from '../conc-lattice';
 import concAlloc from '../conc-alloc';
 import concKalloc from '../conc-kalloc';
 import createSemantics from '../js-semantics';
-import {computeInitialCeskState, explore, isSuccessState} from '../abstract-machine';
+import {initializeMachine, isSuccessState} from '../abstract-machine';
 import typeLattice from "../type-lattice";
 import aacKalloc from "../aac-kalloc";
 import tagAlloc from "../tag-alloc";
@@ -16,66 +16,48 @@ const ast0resource = new FileResource("../prelude.js");
 const jsConcSemantics = createSemantics(concLattice, {errors: true});
 const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
 
-const s0Conc = computeInitialCeskState(jsConcSemantics, concAlloc, concKalloc, ast0resource);
-const s0Type = computeInitialCeskState(jsTypeSemantics, concAlloc, concKalloc, ast0resource);
+const concMachine = initializeMachine(jsConcSemantics, concAlloc, concKalloc, ast0resource);
+const typeMachine = initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource);
 
 let c = 0;
+
+function handleState(value, s)
+{
+  if (isSuccessState(s))
+  {
+    return value.join(s.value);
+  }
+  else if (s.isThrowState)
+  {
+    console.warn(s.value + "\n" + s.value.addresses().map(addr => s.store.lookup(addr).lookup(jsConcSemantics.lat.abst1("message")).Value).join());
+    return value;
+  }
+  else if (s.isErrorState)
+  {
+    throw new Error(s.node.loc.start.line + ": " + s.msg);
+  }
+  else
+  {
+    throw new Error("no progress: " + s);
+  }
+}
 
 function run(resource, expected)
 {
   console.log(++c + "\t" + resource);
 
   process.stdout.write("conc ");
-  const s1Conc = s0Conc.switchMachine(jsConcSemantics, concAlloc, concKalloc, {hardAsserts: true});
-
-  const s2Conc = s1Conc.enqueueScriptEvaluation(resource);
-  let actualConc = jsConcSemantics.lat.bot();
-  const systemConc = explore([s2Conc], s =>
-  {
-    if (isSuccessState(s))
-    {
-      actualConc = actualConc.join(s.value);
-    }
-    else if (s.isThrowState)
-    {
-      throw new Error(s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsConcSemantics.lat.abst1("message")).value.Value).join());
-    }
-    else if (s.isErrorState)
-    {
-      throw new Error(s.node.loc.start.line + ": " + s.msg);
-    }
-    else
-    {
-      throw new Error("no progress: " + s);
-    }
-  });
+  const systemConc = concMachine.explore(resource);
+  const actualConc = [...systemConc.endStates].reduce(handleState, jsConcSemantics.lat.bot());
   if (!concLattice.abst1(expected).equals(actualConc))
   {
     throw new Error("expected " + expected + ", got " + actualConc);
   }
 
   process.stdout.write("type ");
-  const s1Type = s0Type.switchMachine(jsTypeSemantics, tagAlloc, aacKalloc, {hardAsserts: true});
-  const s2Type = s1Type.enqueueScriptEvaluation(resource);
-  let actualType = jsTypeSemantics.lat.bot();
-  const systemType = explore([s2Type], s => {
-    if (isSuccessState(s))
-    {
-      actualType = actualType.join(s.value);
-    }
-    else if (s.isThrowState)
-    {
-      console.warn(s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsTypeSemantics.lat.abst1("message")).value.Value).join());
-    }
-    else if (s.isErrorState)
-    {
-      throw new Error(s.node.loc.start.line + ": " + s.msg);
-    }
-    else
-    {
-      throw new Error("no progress: " + s);
-    }
-  });
+  const typeMachine2 = typeMachine.switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
+  const systemType = typeMachine2.explore(resource);
+  const actualType = [...systemType.endStates].reduce(handleState, jsTypeSemantics.lat.bot());
   if (!actualType.subsumes(jsTypeSemantics.lat.abst1(expected)))
   {
     if (!actualType.abst().subsumes(jsTypeSemantics.lat.abst1(expected)))

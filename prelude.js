@@ -186,7 +186,7 @@
         return O;
       }
   
-  // 19.1.2.7
+  // 19.1.2.8
   Object.getOwnPropertyDescriptor =
       function (O, P)
       {
@@ -195,7 +195,7 @@
         let desc = $BASE$.callInternal(obj, "[[GetOwnProperty]]", key);
         return $BASE$.FromPropertyDescriptor(desc);
       }
-  
+
   // 19.1.2.11
   Object.getPrototypeOf =
       function (O)

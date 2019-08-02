@@ -102,7 +102,7 @@ Record.prototype.equals =
       {
         return true;
       }
-      return Maps.equals(this.maps, x.maps,
+      return Maps.equals(this.map, x.map,
           function (x,y)
           {
             return x === y || x.equals(y)

@@ -1,483 +1,278 @@
 import {ArraySet, HashMap, HashCode, Sets, Formatter, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
 import {FileResource} from "./ast";
 import {initialStatesToDot, statesToDot} from "./export/dot-graph";
+import Store from "./store";
 
-export function createMachine(semantics, alloc, kalloc, cc)
+export function initializeMachine(semantics, alloc, kalloc, ...resources)
 {
-  const gcFlag = cc.gc === undefined ? true : cc.gc;
-  //const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
-  //const hardSemanticAsserts = cc.hardAsserts === undefined ? false : cc.hardAsserts;
-  const rootSet = cc.rootSet || ArraySet.empty();
-  const contexts = cc.contexts || [];
+  const machineConfig = createMachine(semantics, Store.empty(), undefined, alloc, kalloc, {errors:true, hardAsserts:true});
+  const s0 = semantics.initialize(machineConfig.machine);
+  resources.forEach(resource => semantics.enqueueScriptEvaluation(resource, machineConfig.machine));
+  const system0 = machineConfig.run([s0]);
+  const s1 = system0.endState;
+  // const store1 = system0.store;
+
+  return createInternalMachine(semantics, s1, alloc, kalloc);
+}
+
+function createInternalMachine(semantics, s1, alloc, kalloc)
+{
+  function explore(...resources)
+  {
+    const machineConfig = createMachine(semantics, s1.store, s1.kont, alloc, kalloc, {errors: true, hardAsserts: true});
+    const s1Copy = new KontState(s1.value, s1.store, s1.lkont, s1.kont);
+    resources.forEach(resource => semantics.enqueueScriptEvaluation(resource, machineConfig.machine));
+    const system = machineConfig.explore([s1Copy]);
+    return system;
+  }
+
+  function switchConfiguration(semantics, alloc, kalloc, cc)
+  {
+    return createInternalMachine(semantics, s1, alloc, kalloc);
+  }
+
+  return {explore, switchConfiguration, semantics};
+}
+
+
+function createMachine(semantics, store, kont0, alloc, kalloc, cc)
+{
+  // const rootSet = cc.rootSet || ArraySet.empty();
+
+  // `store` is shortcut to stores[stores.length - 1]
+  const stores = [store];
+
+  if (kont0)
+  {
+    assert(kont0._id === 0);
+    assert(kont0._stacks.size === 0);
+  }
+
+  const contexts = kont0 ? [kont0] : [];
   const stacks = [];
   let sstorei = 0;
 
   const machine =
       {
-        evaluate: (exp, benv, store, lkont, kont) => new EvalState(exp, benv, store, lkont, kont),
-        continue: (value, store, lkont, kont) => new KontState(value, store, lkont, kont),
-        return: (value, store, lkont, kont) => new ReturnState(value, store, lkont, kont),
-        throw: (value, store, lkont, kont) => new ThrowState(value, store, lkont, kont),
-        break: (store, lkont, kont) => new BreakState(store, lkont, kont),
+        evaluate: (exp, benv, lkont, kont) => new EvalState(exp, benv, store, lkont, kont),
+        continue: (value, lkont, kont) => new KontState(value, store, lkont, kont),
+        return: (value, lkont, kont) => new ReturnState(value, store, lkont, kont),
+        throw: (value, lkont, kont) => new ThrowState(value, store, lkont, kont),
+        break: (lkont, kont) => new BreakState(store, lkont, kont),
         alloc,
         kalloc,
-        contexts,
-        stacks,
-        getSstorei: () => sstorei,
-        increaseSstorei: () => ++sstorei
+        // getSstorei: () => sstorei,
+        increaseSstorei: () => ++sstorei,
+        storeAlloc, storeUpdate, storeLookup,
         //initialize: initialState => semantics.initialize(initialState, this)
+
+        // not for semantics? (but are used!)
+        contexts,
+        stacks
       }
-  
-  function EvalState(node, benv, store, lkont, kont)
+
+  function storeAlloc(addr, value)
   {
-    assertDefinedNotNull(kont);
-    this.node = node;
-    this.benv = benv;
-    this.store = store;
-    this.lkont = lkont;
-    this.kont = kont;
-    this._successors = null;
-    this._sstorei = -1;
-    this._id = -1;
+    // if (addr === 155)
+    // {
+    //   console.log("!! alloc")
+    // }
+
+    //assert(addr>>>0===addr);
+    assert(value);
+    assert(value.toString);
+    assert(value.addresses);
+    const [store2, updated] = store.alloc(addr, value);
+    if (updated)
+    {
+      store = store2;
+      stores.push(store2);
+      // console.log("alloc", addr, value);
+    }
   }
-  
-  EvalState.prototype.isEvalState = true;
-  
-  EvalState.prototype.toString =
-      function ()
+
+  function storeUpdate(addr, value)
+  {
+    // if (addr === 155)
+    // {
+    //   console.log("!! update")
+    // }
+
+    //assert(addr>>>0===addr);
+    assert(value);
+    assert(value.toString);
+    assert(value.addresses);
+    const [store2, updated] = store.update(addr, value);
+    if (updated)
+    {
+      store = store2;
+      stores.push(store2);
+      // console.log("update", addr, value);
+    }
+  }
+
+  function storeLookup(addr)
+  {
+    // if (addr === 155)
+    // {
+    //   console.log("!! lookup")
+    // }
+
+    // assert(addr>>>0===addr);
+    return store.lookup(addr);
+  }
+
+  // function walkStack(kont, buf, S = new Set())
+  // {
+  //   if (S.has(kont))
+  //   {
+  //     buf.push("(already visited)");
+  //   }
+  //   S.add(kont);
+  //
+  //   if (kont.ex)
+  //   {
+  //     buf.push(kont.ex.toString());
+  //   }
+  //   else
+  //   {
+  //     buf.push("(bottom)");
+  //   }
+  //
+  //   for (const stack of kont._stacks)
+  //   {
+  //     walkStack(stack.kont, buf, S);
+  //   }
+  // }
+
+
+  function run(initialStates)
+  {
+    const startTime = performance.now();
+    const todo = initialStates;
+    const endStates = new Set();
+    while (todo.length > 0)
+    {
+      const s = todo.pop();
+      const next = s.next(semantics, machine);
+      let length = 0;
+      for (const s2 of next)
       {
-        return "#eval " + this.node + this.kont;
+        length++;
+        todo.push(s2);
       }
-  EvalState.prototype.nice =
-      function ()
+      if (length === 0)
       {
-        return "#eval " + this.node + " " + this.benv + " " + this.kont;
+        endStates.add(s);
       }
-  EvalState.prototype.equals =
-      function (x)
+      if (length > 1)
       {
-        return (x instanceof EvalState)
-            && this.node === x.node
-            && (this.benv === x.benv || this.benv.equals(x.benv))
-            && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-            && (this.kont === x.kont || this.kont.equals(x.kont))
-            && (this.store === x.store || this.store.equals(x.store))
+        throw new Error("Nondeterministic prelude at " + s);
       }
-  EvalState.prototype.hashCode =
-      function ()
+    }
+    //console.log("prelude time: " + prelSystem.time);
+    if (endStates.size !== 1) // maybe check this in a dedicated concExplore?
+    {
+      throw new Error("wrong number of prelude results: " + endStates.size);
+    }
+
+    return {time: performance.now() - startTime, endState: [...endStates][0], store};
+  }
+
+  function explore(initialStates, /*optional*/ stateReg)
+  {
+    const startTime = performance.now();
+    const stateRegistry = stateReg || new StateRegistry();
+    const endStates = new Set();
+    const initialStatesInterned = initialStates.map(function (s)   // invariant: all to-do states are interned
+    {
+      const s2 = stateRegistry.getState(s);
+      return s2;
+    });
+    const todo = [...initialStatesInterned]; // additional copy to be able to return initialStatesInterned
+    const result = new Set();
+    while (todo.length > 0)
+    {
+      if (stateRegistry.states.length > 100000)
       {
-        var prime = 31;
-        var result = 1;
-        result = prime * result + this.node.hashCode();
-        result = prime * result + this.benv.hashCode();
-        result = prime * result + this.lkont.hashCode();
-        result = prime * result + this.kont.hashCode();
-        return result;
+        console.log("STATE SIZE LIMIT", stateRegistry.states.length);
+        break;
       }
-  EvalState.prototype.next =
-      function ()
+      const s = todo.pop();
+      // console.log("popped " + s._id + " storei " + stores.indexOf(s.store) + " (" + (stores.length-1) + ") sstorei " + s._sstorei + " (" + sstorei + ")" + " ctx id " + s.kont._id);
+      //if (s.node) console.log("-->" + s.node);
+
+      // if (s.kont._sstorei > sstorei)
+      // {
+      //   sstorei = s.kont._sstorei;
+      // }
+
+      if (s._sstorei === sstorei)
       {
-        let store;
-        // if (gcFlag)
-        // {
-        //   const as = this.addresses().join(rootSet);
-        //   store = semantics.gc(this.store, as);
-        //   // console.log("gc " + rootSet);
-        //   // console.log(store.diff(this.store));
-        // }
-        // else
+        continue;
+      }
+      s._sstorei = sstorei;
+      const next = [...s.next(semantics, machine)];
+      s._successors = next;
+      if (next.length === 0)
+      {
+        endStates.add(s);
+        continue;
+      }
+      for (let i = 0; i < next.length; i++)
+      {
+        const successor = next[i];
+        const successorInterned = stateRegistry.getState(successor);
+        if (successor !== successorInterned) // existing state
         {
-          store = this.store;
+          next[i] = successorInterned;
         }
-        return semantics.evaluate(this.node, this.benv, store, this.lkont, this.kont, machine);
+        else
+        {
+          // new state
+          if (stateRegistry.states.length % 10000 === 0)
+          {
+            console.log(Formatter.displayTime(performance.now() - startTime), "states", stateRegistry.states.length, "todo", todo.length, "stores", stores.length, "contexts", contexts.length);
+          }
+        }
+        todo.push(successorInterned);
       }
-  // EvalState.prototype.gc =
-  //     function ()
-  //     {
-  //       return new EvalState(this.node, this.benv, Agc.collect(this.store, this.addresses()), this.lkont, this.kont);
-  //     }
-  EvalState.prototype.addresses =
-      function ()
-      {
-        var as = this.benv.addresses().join(this.kont.stackAddresses(this.lkont));
-        return as;
-      }
-  
-  function KontState(value, store, lkont, kont)
-  {
-    assertDefinedNotNull(value);
-    assertDefinedNotNull(store);
-    assertDefinedNotNull(kont);
-    this.value = value;
-    this.store = store;
-    this.lkont = lkont;
-    this.kont = kont;
-    this._successors = null;
-    this._sstorei = -1;
-    this._id = -1;
-  }
-  
-  KontState.prototype.isKontState = true;
-  
-  KontState.prototype.equals =
-      function (x)
-      {
-        return (x instanceof KontState)
-            && (this.value === x.value || this.value.equals(x.value))
-            && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-            && (this.kont === x.kont)
-            && (this.store === x.store || this.store.equals(x.store))
-      }
-  KontState.prototype.hashCode =
-      function ()
-      {
-        var prime = 31;
-        var result = 1;
-        result = prime * result + this.value.hashCode();
-        result = prime * result + this.lkont.hashCode();
-        result = prime * result + this.kont.hashCode();
-        return result;
-      }
-  KontState.prototype.toString =
-      function ()
-      {
-        return "#kont-" + this.lkont[0];
-      }
-  KontState.prototype.nice =
-      function ()
-      {
-        return "(kont value:" + this.value + " lkont[0]:" + (this.lkont[0] ? this.lkont[0].nice() : "") + ")";
-      }
-  KontState.prototype.next =
-      function ()
-      {
-        return semantics.continue(this.value, this.store, this.lkont, this.kont, machine);
-      }
-  KontState.prototype.gc =
-      function ()
-      {
-        return this;
-      }
-  KontState.prototype.addresses =
-      function ()
-      {
-        return this.kont.stackAddresses(this.lkont).join(this.value.addresses());
-      }
-  KontState.prototype.enqueueScriptEvaluation =
-      function (resource)
-      {
-        let store = this.store;
-        store = semantics.enqueueScriptEvaluation(resource, store);
-        return new KontState(this.value, store, this.lkont, this.kont);
-      }
-    KontState.prototype.enqueueJob =
-      function (job)
-      {
-        let store = this.store;
-        store = semantics.enqueueJob("ScriptJobs", job, store);
-        return new KontState(this.value, store, this.lkont, this.kont);
-      }
-
-  KontState.prototype.switchMachine =
-      function (semantics, alloc, kalloc, cc)
-      {
-        const machine = createMachine(semantics, alloc, kalloc, cc);
-        return machine.continue(this.value, this.store, this.lkont, this.kont);
-      }
-
-  KontState.prototype.callStacks =
-      function ()
-      {
-        return callStacks(this.lkont, this.kont);
-      }
-  
-  function ReturnState(value, store, lkont, kont)
-  {
-    this.value = value;
-    this.store = store;
-    this.lkont = lkont;
-    this.kont = kont;
-    this._successors = null;
-    this._sstorei = -1;
-    this._id = -1;
-  }
-  
-  ReturnState.prototype.isReturnState = true;
-  
-  ReturnState.prototype.equals =
-      function (x)
-      {
-        return (x instanceof ReturnState)
-            && (this.value === x.value || this.value.equals(x.value))
-            && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-            && (this.kont === x.kont)
-            && (this.store === x.store || this.store.equals(x.store))
-      }
-  ReturnState.prototype.hashCode =
-      function ()
-      {
-        var prime = 31;
-        var result = 1;
-        result = prime * result + this.value.hashCode();
-        result = prime * result + this.lkont.hashCode();
-        result = prime * result + this.kont.hashCode();
-        return result;
-      }
-  ReturnState.prototype.toString =
-      function ()
-      {
-        return "#ret-" + this.lkont[0];
-      }
-  ReturnState.prototype.nice =
-      function ()
-      {
-        return "#ret-" + this.lkont[0];
-      }
-  ReturnState.prototype.next =
-      function ()
-      {
-        return semantics.return(this.value, this.store, this.lkont, this.kont, machine);
-      }
-  
-  ReturnState.prototype.gc =
-      function ()
-      {
-        return this;
-      }
-  ReturnState.prototype.addresses =
-      function ()
-      {
-        return this.kont.addresses().join(this.value.addresses());
-      }
-  
-  function ThrowState(value, store, lkont, kont)
-  {
-    this.value = value;
-    this.store = store;
-    this.lkont = lkont;
-    this.kont = kont;
-    this._successors = null;
-    this._sstorei = -1;
-    this._id = -1;
-  }
-  
-  ThrowState.prototype.isThrowState = true;
-  
-  ThrowState.prototype.equals =
-      function (x)
-      {
-        return (x instanceof ThrowState)
-            && (this.value === x.value || this.value.equals(x.value))
-            && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-            && (this.kont === x.kont)
-            && (this.store === x.store || this.store.equals(x.store))
-      }
-  ThrowState.prototype.hashCode =
-      function ()
-      {
-        var prime = 31;
-        var result = 1;
-        result = prime * result + this.value.hashCode();
-        result = prime * result + this.lkont.hashCode();
-        result = prime * result + this.kont.hashCode();
-        return result;
-      }
-  ThrowState.prototype.toString =
-      function ()
-      {
-        return "#throw-" + this.lkont[0];
-      }
-  ThrowState.prototype.nice =
-      function ()
-      {
-        return "#throw-" + this.lkont[0];
-      }
-  ThrowState.prototype.next =
-      function ()
-      {
-        return semantics.throw(this.value, this.store, this.lkont, this.kont, machine);
-      }
-  
-  ThrowState.prototype.gc =
-      function ()
-      {
-        return this;
-      }
-  ThrowState.prototype.addresses =
-      function ()
-      {
-        return this.kont.stackAddresses(this.lkont).join(this.value.addresses());
-      }
-  ThrowState.prototype.stackTrace =
-      function ()
-      {
-        const buf = [];
-        //walkStack(this.kont, buf);
-        return buf.join("\n");
-      }
-
-function walkStack(kont, buf, S = new Set())
-{
-  if (S.has(kont))
-  {
-    buf.push("(already visited)");
-  }
-  S.add(kont);
-
-  if (kont.ex)
-  {
-    buf.push(kont.ex.toString());
-  }
-  else
-  {
-    buf.push("(bottom)");
+      // console.log(s._id + " -> " + todo.map(ss => ss._id).join(",") +  " " + s.node);
+    }
+    markResources(initialStatesInterned);
+    const initialStatesPruned = pruneGraph(initialStatesInterned);
+    //const initialStatesPruned = initialStatesInterned;
+    return {time: performance.now() - startTime, states:stateRegistry.states, initialStates: initialStatesPruned, endStates, store};
   }
 
-  for (const stack of kont._stacks)
-  {
-    walkStack(stack.kont, buf, S);
-  }
-}
-  
-  function BreakState(store, lkont, kont)
-  {
-    this.store = store;
-    this.lkont = lkont;
-    this.kont = kont;
-    this._successors = null;
-    this._sstorei = -1;
-    this._id = -1;
-  }
-  
-  BreakState.prototype.isBreakState = true;
-  
-  BreakState.prototype.equals =
-      function (x)
-      {
-        return (x instanceof BreakState)
-            && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
-            && (this.kont === x.kont)
-            && (this.store === x.store || this.store.equals(x.store))
-      }
-  BreakState.prototype.hashCode =
-      function ()
-      {
-        var prime = 31;
-        var result = 1;
-        result = prime * result + this.lkont.hashCode();
-        result = prime * result + this.kont.hashCode();
-        return result;
-      }
-  BreakState.prototype.toString =
-      function ()
-      {
-        return "#break-" + this.lkont[0];
-      }
-  BreakState.prototype.nice =
-      function ()
-      {
-        return "#break-" + this.lkont[0];
-      }
-  BreakState.prototype.next =
-      function ()
-      {
-        return semantics.break(this.store, this.lkont, this.kont, machine);
-      }
-  BreakState.prototype.gc =
-      function ()
-      {
-        return this;
-      }
-  BreakState.prototype.addresses =
-      function ()
-      {
-        return this.kont.stackAddresses(this.lkont);
-      }
-  
-  function ErrorState(node, msg, kont)
-  {
-    this.node = node;
-    this.msg = msg;
-    this.kont = kont;
-    this._successors = null;
-    this._sstorei = -1;
-    this._id = -1;
-  }
-  
-  ErrorState.prototype.isErrorState = true;
-  
-  ErrorState.prototype.toString =
-      function ()
-      {
-        return this.msg;
-      }
-  ErrorState.prototype.nice =
-      function ()
-      {
-        return this.msg;
-      }
-  ErrorState.prototype.equals =
-      function (x)
-      {
-        return (x instanceof ErrorState)
-            && this.node === x.node
-            && this.msg === x.msg
-            && this.kont == kont
-      }
-  ErrorState.prototype.hashCode =
-      function ()
-      {
-        var prime = 31;
-        var result = 1;
-        result = prime * result + this.node.hashCode();
-        result = prime * result + this.msg.hashCode();
-        result = prime * result + this.kont.hashCode();
-        return result;
-      }
-  ErrorState.prototype.next =
-      function ()
-      {
-        return [];
-      }
-  ErrorState.prototype.gc =
-      function ()
-      {
-        return this;
-      }
-  ErrorState.prototype.addresses =
-      function ()
-      {
-        return EMPTY_ADDRESS_SET;
-      }
-  
-  //return semantics.initialize(cc.initialState, machine);
-  return machine;
+  return {machine, run, explore}
 }
 
-function retrieveEndStates(initial) // not used for the moment
-{
-  var todo = [initial];
-  var result = ArraySet.empty();
-  while (todo.length > 0)
-  {
-    var s = todo.pop();
-    if (s._result)
-    {
-      continue;
-    }
-    s._result = true;
-    var successors = s._successors; 
-    if (successors.length === 0)
-    {
-      result = result.add(s);
-    }
-    else
-    {
-      todo = todo.concat(successors.map(function (t) {return t.state}));      
-    }
-  }
-  return result;
-}
+
+// function retrieveEndStates(initial) // not used for the moment
+// {
+//   var todo = [initial];
+//   var result = ArraySet.empty();
+//   while (todo.length > 0)
+//   {
+//     var s = todo.pop();
+//     if (s._result)
+//     {
+//       continue;
+//     }
+//     s._result = true;
+//     var successors = s._successors;
+//     if (successors.length === 0)
+//     {
+//       result = result.add(s);
+//     }
+//     else
+//     {
+//       todo = todo.concat(successors.map(function (t) {return t.state}));
+//     }
+//   }
+//   return result;
+// }
 
 export function isSuccessState(s)
 {
@@ -566,132 +361,6 @@ StateRegistry.prototype.getState =
       return s;
     }
 
-export function explore(initialStates,
-                        onEndState = s => undefined,
-                        onNewState = s => undefined,
-                        onNewTransition = (s0, s1) => undefined,
-                        stateReg) // optional
-{
-  const stateRegistry = stateReg || new StateRegistry();
-  var startTime = performance.now();
-  const initialStatesInterned = initialStates.map(function (s)   // invariant: all to-do states are interned
-  {
-    const s2 = stateRegistry.getState(s);
-    if (s2 === s) // new state
-    {
-      onNewState(s2);
-    }
-    return s2;
-  });
-  const todo = [...initialStatesInterned]; // additional copy to be able to return initialStatesInterned
-  var result = new Set();
-  let sstorei = -1;
-  while (todo.length > 0)
-  {
-    if (stateRegistry.states.length > 200000)
-    {
-      console.log("STATE SIZE LIMIT", stateRegistry.states.length);
-      break;
-    }
-    var s = todo.pop();
-    if (s.kont._sstorei > sstorei)
-    {
-      sstorei = s.kont._sstorei;
-    }
-    if (s._sstorei === sstorei)
-    {
-      continue;
-    }
-    s._sstorei = sstorei;
-    const knownSuccessors = s._successors;
-    if (knownSuccessors && s.isEvalState)
-    {
-      for (const knownSuccessor of knownSuccessors)
-      {
-        todo.push(knownSuccessor);
-      }
-      continue;
-    }
-    const next = [...s.next()];
-    s._successors = next;
-    if (next.length === 0)
-    {
-      onEndState(s);
-      continue;
-    }
-    for (let i = 0; i < next.length; i++)
-    {
-      const successor = next[i];
-      const successorInterned = stateRegistry.getState(successor);
-      if (successor !== successorInterned) // existing state
-      {
-        if (!knownSuccessors || !knownSuccessors.includes(successorInterned)) // new transition
-        {
-          onNewTransition(s, successorInterned);
-        }
-        next[i] = successorInterned;
-        todo.push(successorInterned);
-        continue;
-      }
-      else // new state, so new transition
-      {
-        onNewState(successorInterned);
-        onNewTransition(s, successorInterned);
-      }
-      todo.push(successorInterned);
-      if (stateRegistry.states.length % 10000 === 0)
-      {
-        console.log(Formatter.displayTime(performance.now() - startTime), "states", stateRegistry.states.length, "todo", todo.length, "ctxs", "contexts.length", "sstorei", sstorei);
-      }
-    }
-  }
-  markResources(initialStatesInterned);
-  const initialStatesPruned = pruneGraph(initialStatesInterned);
-  return {time: performance.now() - startTime, states:stateRegistry.states, initialStates: initialStatesPruned};
-}
-
-export function run(initialStates,
-                    endState = s => undefined)
-{
-  const startTime = performance.now();
-  const todo = initialStates;
-  while (todo.length > 0)
-  {
-    const s = todo.pop();
-    const next = s.next();
-    let length = 0;
-    for (const s2 of next)
-    {
-      length++;
-      todo.push(s2);
-    }
-    if (length === 0)
-    {
-      endState(s);
-    }
-    if (length > 1)
-    {
-      throw new Error("Nondeterministic prelude at " + s);
-    }
-  }
-  return {time: performance.now() - startTime};
-}
-
-export function computeInitialCeskState(semantics, alloc, kalloc, ...resources)
-{
-  const machine = createMachine(semantics, alloc, kalloc, {errors:true, hardAsserts:true});
-  const s0 = semantics.initialize(machine);
-  const s1 = resources.reduce((state, resource) => state.enqueueScriptEvaluation(resource), s0);
-  const resultStates = new Set();
-  const prelSystem = run([s1], s => resultStates.add(s));
-  //console.log("prelude time: " + prelSystem.time);
-  if (resultStates.size !== 1) // maybe check this in a dedicated concExplore?
-  {
-    throw new Error("wrong number of prelude results: " + resultStates.size);
-  }
-  const prelState = [...resultStates][0];
-  return prelState;
-}
 
 function markResources(initialStates)
 {
@@ -730,7 +399,7 @@ function markResources(initialStates)
     }
     let resource = getResource(s);
     s.resource = resource;
-    s._successors.forEach(s2 => W.push(s2));
+    s._successors && s._successors.forEach(s2 => W.push(s2));
   }
 }
 
@@ -783,3 +452,374 @@ function pruneGraph(initialStates)
   }
   return W2;
 }
+
+
+function EvalState(node, benv, store, lkont, kont)
+{
+  assertDefinedNotNull(kont);
+  this.node = node;
+  this.benv = benv;
+  this.store = store;
+  this.lkont = lkont;
+  this.kont = kont;
+  this._successors = null;
+  this._sstorei = -1;
+  this._id = -1;
+}
+
+EvalState.prototype.isEvalState = true;
+
+EvalState.prototype.toString =
+    function ()
+    {
+      return "#eval " + this.node + this.kont;
+    }
+EvalState.prototype.nice =
+    function ()
+    {
+      return "#eval " + this.node + " " + this.benv + " " + this.kont;
+    }
+EvalState.prototype.equals =
+    function (x)
+    {
+      return (x instanceof EvalState)
+          && this.node === x.node
+          && (this.benv === x.benv || this.benv.equals(x.benv))
+          && this.store === x.store
+          && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
+          && this.kont === x.kont
+    }
+EvalState.prototype.hashCode =
+    function ()
+    {
+      var prime = 31;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.benv.hashCode();
+      result = prime * result + this.lkont.hashCode();
+      result = prime * result + this.kont.hashCode();
+      return result;
+    }
+EvalState.prototype.next =
+    function (semantics, machine)
+    {
+      return semantics.evaluate(this.node, this.benv, this.lkont, this.kont, machine);
+    }
+// EvalState.prototype.gc =
+//     function ()
+//     {
+//       return new EvalState(this.node, this.benv, Agc.collect(this.store, this.addresses()), this.lkont, this.kont);
+//     }
+EvalState.prototype.addresses =
+    function ()
+    {
+      var as = this.benv.addresses().join(this.kont.stackAddresses(this.lkont));
+      return as;
+    }
+
+function KontState(value, store, lkont, kont)
+{
+  assertDefinedNotNull(value);
+  assertDefinedNotNull(kont);
+  this.value = value;
+  this.store = store;
+  this.lkont = lkont;
+  this.kont = kont;
+  this._successors = null;
+  this._sstorei = -1;
+  this._id = -1;
+}
+
+KontState.prototype.isKontState = true;
+
+KontState.prototype.equals =
+    function (x)
+    {
+      return (x instanceof KontState)
+          && (this.value === x.value || this.value.equals(x.value))
+          && this.store === x.store
+          && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
+          && this.kont === x.kont
+    }
+KontState.prototype.hashCode =
+    function ()
+    {
+      var prime = 31;
+      var result = 1;
+      result = prime * result + this.value.hashCode();
+      result = prime * result + this.lkont.hashCode();
+      result = prime * result + this.kont.hashCode();
+      return result;
+    }
+KontState.prototype.toString =
+    function ()
+    {
+      return "#kont-" + this.lkont[0];
+    }
+KontState.prototype.nice =
+    function ()
+    {
+      return "(kont value:" + this.value + " lkont[0]:" + (this.lkont[0] ? this.lkont[0].nice() : "") + ")";
+    }
+KontState.prototype.next =
+    function (semantics, machine)
+    {
+      return semantics.continue(this.value, this.lkont, this.kont, machine);
+    }
+
+// KontState.prototype.gc =
+//     function ()
+//     {
+//       return this;
+//     }
+
+KontState.prototype.addresses =
+function ()
+{
+  return this.kont.stackAddresses(this.lkont).join(this.value.addresses());
+}
+
+KontState.prototype.callStacks =
+function ()
+{
+  return callStacks(this.lkont, this.kont);
+}
+
+function ReturnState(value, store, lkont, kont)
+{
+  this.value = value;
+  this.store = store;
+  this.lkont = lkont;
+  this.kont = kont;
+  this._successors = null;
+  this._sstorei = -1;
+  this._id = -1;
+}
+
+ReturnState.prototype.isReturnState = true;
+
+ReturnState.prototype.equals =
+    function (x)
+    {
+      return x.isReturnState
+          && (this.value === x.value || this.value.equals(x.value))
+          && this.store === x.store
+          && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
+          && this.kont === x.kont
+    }
+ReturnState.prototype.hashCode =
+    function ()
+    {
+      var prime = 31;
+      var result = 1;
+      result = prime * result + this.value.hashCode();
+      result = prime * result + this.lkont.hashCode();
+      result = prime * result + this.kont.hashCode();
+      return result;
+    }
+ReturnState.prototype.toString =
+    function ()
+    {
+      return "#ret-" + this.lkont[0];
+    }
+ReturnState.prototype.nice =
+    function ()
+    {
+      return "#ret-" + this.lkont[0];
+    }
+ReturnState.prototype.next =
+    function (semantics, machine)
+    {
+      return semantics.return(this.value, this.lkont, this.kont, machine);
+    }
+
+// ReturnState.prototype.gc =
+//     function ()
+//     {
+//       return this;
+//     }
+ReturnState.prototype.addresses =
+    function ()
+    {
+      return this.kont.addresses().join(this.value.addresses());
+    }
+
+function ThrowState(value, store, lkont, kont)
+{
+  this.value = value;
+  this.store = store;
+  this.lkont = lkont;
+  this.kont = kont;
+  this._sstorei = -1;
+  this._successors = null;
+  this._id = -1;
+}
+
+ThrowState.prototype.isThrowState = true;
+
+ThrowState.prototype.equals =
+    function (x)
+    {
+      return x.isThrowState
+          && (this.value === x.value || this.value.equals(x.value))
+          && this.store === x.store
+          && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
+          && this.kont === x.kont
+    }
+ThrowState.prototype.hashCode =
+    function ()
+    {
+      var prime = 31;
+      var result = 1;
+      result = prime * result + this.value.hashCode();
+      result = prime * result + this.lkont.hashCode();
+      result = prime * result + this.kont.hashCode();
+      return result;
+    }
+ThrowState.prototype.toString =
+    function ()
+    {
+      return "#throw-" + this.lkont[0];
+    }
+ThrowState.prototype.nice =
+    function ()
+    {
+      return "#throw-" + this.lkont[0];
+    }
+ThrowState.prototype.next =
+    function (semantics, machine)
+    {
+      return semantics.throw(this.value, this.lkont, this.kont, machine);
+    }
+
+// ThrowState.prototype.gc =
+//     function ()
+//     {
+//       return this;
+//     }
+ThrowState.prototype.addresses =
+    function ()
+    {
+      return this.kont.stackAddresses(this.lkont).join(this.value.addresses());
+    }
+ThrowState.prototype.stackTrace =
+    function ()
+    {
+      const buf = [];
+      //walkStack(this.kont, buf);
+      return buf.join("\n");
+    }
+
+function BreakState(store, lkont, kont)
+{
+  this.store = store;
+  this.lkont = lkont;
+  this.kont = kont;
+  this._successors = null;
+  this._sstorei = -1;
+  this._id = -1;
+}
+
+BreakState.prototype.isBreakState = true;
+
+BreakState.prototype.equals =
+    function (x)
+    {
+      return x.isBreakState
+          && this.store === x.store
+          && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
+          && this.kont === x.kont
+    }
+BreakState.prototype.hashCode =
+    function ()
+    {
+      var prime = 31;
+      var result = 1;
+      result = prime * result + this.lkont.hashCode();
+      result = prime * result + this.kont.hashCode();
+      return result;
+    }
+BreakState.prototype.toString =
+    function ()
+    {
+      return "#break-" + this.lkont[0];
+    }
+BreakState.prototype.nice =
+    function ()
+    {
+      return "#break-" + this.lkont[0];
+    }
+BreakState.prototype.next =
+    function (semantics, machine)
+    {
+      return semantics.break(this.lkont, this.kont, machine);
+    }
+BreakState.prototype.gc =
+    function ()
+    {
+      return this;
+    }
+BreakState.prototype.addresses =
+    function ()
+    {
+      return this.kont.stackAddresses(this.lkont);
+    }
+
+function ErrorState(node, msg, store, kont)
+{
+  this.node = node;
+  this.msg = msg;
+  this.store = store;
+  this.kont = kont;
+  this._successors = null;
+  this._sstorei = -1;
+  this._id = -1;
+}
+
+ErrorState.prototype.isErrorState = true;
+
+ErrorState.prototype.toString =
+    function ()
+    {
+      return this.msg;
+    }
+ErrorState.prototype.nice =
+    function ()
+    {
+      return this.msg;
+    }
+ErrorState.prototype.equals =
+    function (x)
+    {
+      return x.isErrorState
+          && this.node === x.node
+          && this.msg === x.msg
+          && this.store === x.store
+          && this.kont == kont
+    }
+ErrorState.prototype.hashCode =
+    function ()
+    {
+      var prime = 31;
+      var result = 1;
+      result = prime * result + this.node.hashCode();
+      result = prime * result + this.msg.hashCode();
+      result = prime * result + this.kont.hashCode();
+      return result;
+    }
+ErrorState.prototype.next =
+    function (semantics, machine)
+    {
+      return [];
+    }
+ErrorState.prototype.gc =
+    function ()
+    {
+      return this;
+    }
+ErrorState.prototype.addresses =
+    function ()
+    {
+      return EMPTY_ADDRESS_SET;
+    }
+

@@ -511,6 +511,7 @@ Maps.subsumes =
       }
       return true;
     }
+
 Maps.equals =
     function (x, y, equals)
     {
@@ -521,10 +522,6 @@ Maps.equals =
       if (x.size !== y.size)
       {
         return false;
-      }
-      if (x[Symbol.iterator] === undefined)
-      {
-        print(x, x.constructor.name, Object.keys(x));
       }
       for (const [key, xvalue] of x)
       {
