@@ -1,26 +1,26 @@
 import {HashCode, ArraySet, assert, assertFalse} from './common.mjs';
 import {BOT} from './lattice.mjs';
 
-TypeValue.UND = 1 << 0;
-TypeValue.NULL = 1 << 1;
-TypeValue.STR = 1 << 2;
-TypeValue.NUM = 1 << 3;
-TypeValue.NUMSTR = 1 << 4;
-TypeValue.BOOL = 1 << 5;
-TypeValue.EMPTY_SET = ArraySet.empty();
+const UND = 1 << 0;
+const NULL = 1 << 1;
+const STR = 1 << 2;
+const NUM = 1 << 3;
+const NUMSTR = 1 << 4;
+const BOOL = 1 << 5;
+const EMPTY_SET = ArraySet.empty();
 
-TypeValue.TRUTHY = TypeValue.STR | TypeValue.NUM | TypeValue.NUMSTR | TypeValue.BOOL;
-TypeValue.FALSY = TypeValue.UND | TypeValue.NULL | TypeValue.STR | TypeValue.NUM | TypeValue.BOOL;
+const TRUTHY = STR | NUM | NUMSTR | BOOL;
+const FALSY = UND | NULL | STR | NUM | BOOL;
 
-TypeValue.STRINGMASK = TypeValue.STR | TypeValue.NUMSTR;
-TypeValue.STRINGERS = TypeValue.UND | TypeValue.NULL | TypeValue.BOOL | TypeValue.NUM;
+const STRINGMASK = STR | NUMSTR;
+const STRINGERS = UND | NULL | BOOL | NUM;
 
-TypeValue._NUM = new TypeValue(TypeValue.NUM, TypeValue.EMPTY_SET);
-TypeValue._STR = new TypeValue(TypeValue.STR, TypeValue.EMPTY_SET);
-TypeValue._BOOL = new TypeValue(TypeValue.BOOL, TypeValue.EMPTY_SET);
-TypeValue._NUMSTR = new TypeValue(TypeValue.NUMSTR, TypeValue.EMPTY_SET);
-TypeValue._UND = new TypeValue(TypeValue.UND, TypeValue.EMPTY_SET);
-TypeValue._NULL = new TypeValue(TypeValue.NULL, TypeValue.EMPTY_SET);
+const _NUM = new TypeValue(NUM, EMPTY_SET);
+const _STR = new TypeValue(STR, EMPTY_SET);
+const _BOOL = new TypeValue(BOOL, EMPTY_SET);
+const _NUMSTR = new TypeValue(NUMSTR, EMPTY_SET);
+const _UND = new TypeValue(UND, EMPTY_SET);
+const _NULL = new TypeValue(NULL, EMPTY_SET);
 
 function abst1(value)
 {
@@ -30,7 +30,7 @@ function abst1(value)
   }
   if (typeof value === "number")
   {
-    return TypeValue._NUM;
+    return _NUM;
   }
   if (value === true || value === false)
   {
@@ -38,11 +38,11 @@ function abst1(value)
   }
   if (value === undefined)
   {
-    return new Some(undefined); // don't use TypeValue._UND: not recognized as 'precise' Some
+    return new Some(undefined); // don't use _UND: not recognized as 'precise' Some
   }
   if (value === null)
   {
-    return new Some(null); // TypeValue._NULL;
+    return new Some(null); // _NULL;
   }
   throw new Error("cannot abstract value " + value);
 }
@@ -51,41 +51,41 @@ function eqqHelper1(prim, tvy)
 {
   if (prim === undefined)
   {
-   if (tvy === TypeValue.UND)
+   if (tvy === UND)
    {
      return new Some(true);
    }
-   if (!(tvy & TypeValue.UND))
+   if (!(tvy & UND))
    {
      return new Some(false);
    }
-   return TypeValue._BOOL;
+   return _BOOL;
   }
   if (prim === null)
   {
-    if (tvy === TypeValue.NULL)
+    if (tvy === NULL)
     {
       return new Some(true);
     }
-    if (!(tvy & TypeValue.NULL))
+    if (!(tvy & NULL))
     {
       return new Some(false);
     }
-    return TypeValue._BOOL;
+    return _BOOL;
   }
-  if (typeof prim === "number" && !(tvy & TypeValue.NUM))
+  if (typeof prim === "number" && !(tvy & NUM))
   {
     return new Some(false);
   }
-  if ((prim === true || prim === false) && !(tvy & TypeValue.BOOL))
+  if ((prim === true || prim === false) && !(tvy & BOOL))
   {
     return new Some(false);
   }
-  if (typeof prim === "string" && !((tvy & TypeValue.STR) || (tvy & TypeValue.NUMSTR)))
+  if (typeof prim === "string" && !((tvy & STR) || (tvy & NUMSTR)))
   {
     return new Some(false);
   }
-  return TypeValue._BOOL;
+  return _BOOL;
 }
 
 
@@ -126,82 +126,82 @@ export default {
       var y = y.abst();
       
       var type = 0;
-      if ((x.type & TypeValue.STR) || (y.type & TypeValue.STR))
+      if ((x.type & STR) || (y.type & STR))
       {
-        type |= TypeValue.STR;
+        type |= STR;
       }
-      if (x.type & TypeValue.NUMSTR)
+      if (x.type & NUMSTR)
       {
-        if (y.type & (TypeValue.NUMSTR | TypeValue.NUM))
+        if (y.type & (NUMSTR | NUM))
         {
-          type |= TypeValue.NUMSTR;
+          type |= NUMSTR;
         }
-        if ((y.type ^ TypeValue.NUMSTR) || y.isRef())
+        if ((y.type ^ NUMSTR) || y.isRef())
         {
-          type |= TypeValue.STR;
+          type |= STR;
         }
       }
-      else if (y.type & TypeValue.NUMSTR)
+      else if (y.type & NUMSTR)
       {
-        if (x.type & TypeValue.NUM)
+        if (x.type & NUM)
         {
-          type |= TypeValue.NUMSTR;
+          type |= NUMSTR;
         }
-        type |= TypeValue.STR;
+        type |= STR;
       }
-      if (((x.type & TypeValue.STRINGERS) || x.isRef()) && ((y.type & TypeValue.STRINGERS) || y.isRef()))
+      if (((x.type & STRINGERS) || x.isRef()) && ((y.type & STRINGERS) || y.isRef()))
       {
-        type |= TypeValue.NUM;
+        type |= NUM;
       }
-      return new TypeValue(type, TypeValue.EMPTY_SET);
+      return new TypeValue(type, EMPTY_SET);
     },
 
   lt:
     function (x, y)
     {
-      return TypeValue._BOOL;
+      return _BOOL;
     },
 
   lte:
     function (x, y)
     {
-      return TypeValue._BOOL;
+      return _BOOL;
     },
 
   gt:
     function (x, y)
     {
-      return TypeValue._BOOL;
+      return _BOOL;
     },
 
   gte:
     function (x, y)
     {
-      return TypeValue._BOOL;
+      return _BOOL;
     },
 
   sub:
     function (x, y)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   mul:
     function (x, y)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   div:
     function (x, y)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   rem:
     function (x, y)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   // eqq: function (x, y)
@@ -231,7 +231,7 @@ export default {
           // y prim without ref part, x only prim
           return eqqHelper1(x.prim, y.type);
         }
-        return TypeValue._BOOL;
+        return _BOOL;
       }
       else if (y instanceof Some)
       {
@@ -246,7 +246,7 @@ export default {
           // x prim without ref part, y only prim
           return eqqHelper1(y.prim, x.type);
         }
-        return TypeValue._BOOL;
+        return _BOOL;
       }
 
       // x typevalue y typevalue
@@ -255,23 +255,23 @@ export default {
       {
         const tvx = x.type;
         const tvy = y.type;
-        if ((tvx === TypeValue.UND || tvx === TypeValue.NULL) && tvx === tvy)
+        if ((tvx === UND || tvx === NULL) && tvx === tvy)
         {
           return new Some(true);
         }
-        if ((tvx & TypeValue.NUM) && !(tvy & TypeValue.NUM))
+        if ((tvx & NUM) && !(tvy & NUM))
         {
           return new Some(false);
         }
-        if ((tvx & TypeValue.BOOL) && !(tvy & TypeValue.BOOL))
+        if ((tvx & BOOL) && !(tvy & BOOL))
         {
           return new Some(false);
         }
-        if ((tvx & TypeValue.STR) && !((tvy & TypeValue.STR) || (tvy & TypeValue.NUMSTR)))
+        if ((tvx & STR) && !((tvy & STR) || (tvy & NUMSTR)))
         {
           return new Some(false);
         }
-        return TypeValue._BOOL;
+        return _BOOL;
       }
 
       if (x.type === 0 && y.type === 0)
@@ -283,13 +283,13 @@ export default {
         }
       }
 
-      return TypeValue._BOOL;
+      return _BOOL;
     },
 
   eq:
     function (x, y)
     {
-      return TypeValue._BOOL;
+      return _BOOL;
     },
 
   neq:
@@ -300,7 +300,7 @@ export default {
         return new Some(x.prim != y.prim);
       }
       
-      return TypeValue._BOOL;
+      return _BOOL;
     },
 
   neqq:
@@ -311,55 +311,55 @@ export default {
           return new Some(x.prim !== y.prim);
         }
 
-        return TypeValue._BOOL;
+        return _BOOL;
       },
 
   binor:
     function (x, y)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   binxor:
     function (x, y)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   binand:
     function (x, y)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   shl:
     function (x, y)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   shr:
     function (x, y)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   shrr:
       function (x, y)
       {
-        return TypeValue._NUM;
+        return _NUM;
       },
 
   max:
       function (x, y)
       {
-        return TypeValue._NUM;
+        return _NUM;
       },
 
   min:
       function (x, y)
       {
-        return TypeValue._NUM;
+        return _NUM;
       },
 
   not:
@@ -370,61 +370,61 @@ export default {
         return new Some(!x.prim);
       }
       
-      return TypeValue._BOOL;
+      return _BOOL;
     },
 
   pos: // unary +
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   neg: // unary -
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   binnot:
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   sqrt:
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   sin:
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   cos:
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   abs:
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   round:
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   floor:
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     },
 
   toString:
@@ -436,10 +436,10 @@ export default {
   sanity:
     function ()
     {
-      assert(TypeValue._NUM.isTruthy());
-      assert(TypeValue._NUM.isFalsy());
-      assert(TypeValue._BOOL.isTruthy());
-      assert(TypeValue._BOOL.isFalsy());
+      assert(_NUM.isTruthy());
+      assert(_NUM.isFalsy());
+      assert(_BOOL.isTruthy());
+      assert(_BOOL.isFalsy());
       assert(this.abst1(0).isFalsy());
       assert(this.abst1(1).isTruthy());
       assert(this.abst1(-1).isTruthy());
@@ -448,11 +448,11 @@ export default {
       assert(this.abst1("xyz").isTruthy());
       assert(this.abst1(true).isTruthy());
       assert(this.abst1(false).isFalsy());
-      assert((TypeValue._STR.join(TypeValue._UND)).subsumes(this.abst1("0")));
-      assert(TypeValue._STR.subsumes(TypeValue._STR));
-      assert(TypeValue._NUMSTR.subsumes(TypeValue._NUMSTR));
-      assert(TypeValue._STR.subsumes(TypeValue._NUMSTR));
-      assertFalse(TypeValue._NUMSTR.subsumes(TypeValue._STR));
+      assert((_STR.join(_UND)).subsumes(this.abst1("0")));
+      assert(_STR.subsumes(_STR));
+      assert(_NUMSTR.subsumes(_NUMSTR));
+      assert(_STR.subsumes(_NUMSTR));
+      assertFalse(_NUMSTR.subsumes(_STR));
     }
 }
 
@@ -491,25 +491,25 @@ Some.prototype.abst =
       {
         if (+prim === +prim && prim !== "")
         {
-          return TypeValue._NUMSTR;
+          return _NUMSTR;
         }
-        return TypeValue._STR;
+        return _STR;
       }
       if (typeof prim === "number")
       {
-        return TypeValue._NUM;
+        return _NUM;
       }
       if (prim === true || prim === false)
       {
-        return TypeValue._BOOL;
+        return _BOOL;
       }
       if (prim === undefined)
       {
-        return TypeValue._UND;
+        return _UND;
       }
       if (prim === null)
       {
-        return TypeValue._NULL;
+        return _NULL;
       }
       throw new Error("cannot abstract value " + prim);
     }
@@ -603,7 +603,7 @@ Some.prototype.meet =
 Some.prototype.addresses =
     function ()
     {
-      return TypeValue.EMPTY_SET;
+      return EMPTY_SET;
     }
 
 Some.prototype.isRef =
@@ -707,25 +707,26 @@ Some.prototype.projectNull =
 Some.prototype.charAt =
     function (x)
     {
-      return new TypeValue(TypeValue.STR | TypeValue.NUMSTR, TypeValue.EMPTY_SET);
+      // return new TypeValue(STR | NUMSTR, EMPTY_SET);
+      return new TypeValue(STR, EMPTY_SET);
     }
 
 Some.prototype.charCodeAt =
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     }
 
   Some.prototype.startsWith =
   function (x)
   {
-    return TypeValue._BOOL;
+    return _BOOL;
   }
 
   Some.prototype.substring =
   function (x, y)
   {
-    return TypeValue._STR;
+    return _STR;
   }
 
 Some.prototype.stringLength =
@@ -772,76 +773,76 @@ TypeValue.prototype.hashCode =
 TypeValue.prototype.isTruthy =
     function ()
     {
-      return (this.type & TypeValue.TRUTHY) || this.isRef();
+      return (this.type & TRUTHY) || this.isRef();
     }
 
 TypeValue.prototype.isTrue =
     function ()
     {
-      return (this.type & TypeValue.BOOL);
+      return (this.type & BOOL);
     }
 
 TypeValue.prototype.isFalsy =
     function ()
     {
-      return (this.type & TypeValue.FALSY);
+      return (this.type & FALSY);
     }
 
 TypeValue.prototype.isFalse =
     function ()
     {
-      return (this.type & TypeValue.BOOL);
+      return (this.type & BOOL);
     }
 
 TypeValue.prototype.isUndefined =
     function ()
     {
-      return (this.type & TypeValue.UND);
+      return (this.type & UND);
     }
 
 TypeValue.prototype.isNonUndefined =
     function ()
     {
-      return (this.type ^ TypeValue.UND) || this.isRef();
+      return (this.type ^ UND) || this.isRef();
     }
 
 TypeValue.prototype.isNull =
     function ()
     {
-      return (this.type & TypeValue.NULL);
+      return (this.type & NULL);
     }
 
 TypeValue.prototype.isNonNull =
     function ()
     {
-      return (this.type ^ TypeValue.NULL) || this.isRef();
+      return (this.type ^ NULL) || this.isRef();
     }
 
 TypeValue.prototype.ToString =
     function ()
     {
-      var type = (this.type & TypeValue.STRINGMASK);
-      if ((this.type & (TypeValue.UND | TypeValue.NULL | TypeValue.BOOL )) || this.isRef())
+      var type = (this.type & STRINGMASK);
+      if ((this.type & (UND | NULL | BOOL )) || this.isRef())
       {
-        type |= TypeValue.STR;
+        type |= STR;
       }
-      if (this.type & TypeValue.NUM)
+      if (this.type & NUM)
       {
-        type |= TypeValue.NUMSTR;
+        type |= NUMSTR;
       }
-      return new TypeValue(type, TypeValue.EMPTY_SET);
+      return new TypeValue(type, EMPTY_SET);
     }
 
 TypeValue.prototype.ToNumber =
     function ()
     {
-      return TypeValue._NUM;
+      return _NUM;
     }
 
 TypeValue.prototype.ToUint32 =
     function ()
     {
-      return TypeValue._NUM;
+      return _NUM;
     }
 
 TypeValue.prototype.abst =
@@ -861,7 +862,7 @@ TypeValue.prototype.subsumes =
       var as = this.as;
       if (x instanceof TypeValue)
       {
-        if ((type & TypeValue.STR) && (x.type & TypeValue.NUMSTR))
+        if ((type & STR) && (x.type & NUMSTR))
         {
           return true;
         }  
@@ -874,14 +875,14 @@ TypeValue.prototype.subsumes =
         return false;
       }
       var xx = x.abst();
-      if ((type & TypeValue.STR) && (xx.type & TypeValue.NUMSTR))
+      if ((type & STR) && (xx.type & NUMSTR))
       {
         return true;
       }
       return (type & xx.type);
     }
 
-TypeValue.prototype.update =
+TypeValue.prototype.join =
     function (x)
     {
       if (x === BOT)
@@ -892,7 +893,7 @@ TypeValue.prototype.update =
       return new TypeValue(this.type | x2.type, this.as.join(x2.as));
     }
 
-TypeValue.prototype.join = TypeValue.prototype.update;
+TypeValue.prototype.update = TypeValue.prototype.join;
 
 TypeValue.prototype.meet =
     function (x)
@@ -916,27 +917,27 @@ TypeValue.prototype.toString =
     {
       var result = [];
       var type = this.type;
-      if (type & TypeValue.STR)
+      if (type & STR)
       {
         result.push("Str");
       }
-      if (type & TypeValue.NUMSTR)
+      if (type & NUMSTR)
       {
         result.push("NumStr");
       }
-      if (type & TypeValue.NUM)
+      if (type & NUM)
       {
         result.push("Num");
       }
-      if (type & TypeValue.BOOL)
+      if (type & BOOL)
       {
         result.push("Bool");
       }
-      if (type & TypeValue.UND)
+      if (type & UND)
       {
         result.push("Undefined");
       }
-      if (type & TypeValue.NULL)
+      if (type & NULL)
       {
         result.push("Null");
       }
@@ -972,10 +973,10 @@ TypeValue.prototype.projectObject =
 TypeValue.prototype.projectString =
     function ()
     {
-      var type = this.type & TypeValue.STRINGMASK;
+      var type = this.type & STRINGMASK;
       if (type)
       {
-        return new TypeValue(type, TypeValue.EMPTY_SET);
+        return new TypeValue(type, EMPTY_SET);
       }
       return BOT;
     }
@@ -983,10 +984,10 @@ TypeValue.prototype.projectString =
 TypeValue.prototype.projectNumber =
     function ()
     {
-      var type = this.type & TypeValue.NUM;
+      var type = this.type & NUM;
       if (type)
       {
-        return new TypeValue(type, TypeValue.EMPTY_SET);
+        return new TypeValue(type, EMPTY_SET);
       }
       return BOT;
     }
@@ -994,10 +995,10 @@ TypeValue.prototype.projectNumber =
 TypeValue.prototype.projectBoolean =
     function ()
     {
-      var type = this.type & TypeValue.BOOL;
+      var type = this.type & BOOL;
       if (type)
       {
-        return new TypeValue(type, TypeValue.EMPTY_SET);
+        return new TypeValue(type, EMPTY_SET);
       }
       return BOT;
     }
@@ -1005,10 +1006,10 @@ TypeValue.prototype.projectBoolean =
 TypeValue.prototype.projectUndefined =
     function ()
     {
-      var type = this.type & TypeValue.UND;
+      var type = this.type & UND;
       if (type)
       {
-        return new TypeValue(type, TypeValue.EMPTY_SET);
+        return new TypeValue(type, EMPTY_SET);
       }
       return BOT;
     }
@@ -1016,10 +1017,10 @@ TypeValue.prototype.projectUndefined =
 TypeValue.prototype.projectNull =
     function ()
     {
-      var type = this.type & TypeValue.NULL;
+      var type = this.type & NULL;
       if (type)
       {
-        return new TypeValue(type, TypeValue.EMPTY_SET);
+        return new TypeValue(type, EMPTY_SET);
       }
       return BOT;
     }
@@ -1027,36 +1028,37 @@ TypeValue.prototype.projectNull =
 TypeValue.prototype.charAt =
     function (x)
     {
-      return new TypeValue(TypeValue.STR | TypeValue.NUMSTR, TypeValue.EMPTY_SET);
+      // return new TypeValue(STR | NUMSTR, EMPTY_SET);
+      return new TypeValue(STR, EMPTY_SET);
     }
 
 TypeValue.prototype.charCodeAt =
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     }
 
 TypeValue.prototype.stringLength =
     function (x)
     {
-      return TypeValue._NUM;
+      return _NUM;
     }
 
 TypeValue.prototype.startsWith =
     function (x)
     {
-      return TypeValue._BOOL;
+      return _BOOL;
     }
 
 TypeValue.prototype.substring =
     function (x, y)
     {
-      return TypeValue._STR;
+      return _STR;
     }
   
 
 TypeValue.prototype.parseInt =
     function ()
     {
-      return TypeValue._NUM;
+      return _NUM;
     }
