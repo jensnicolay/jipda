@@ -1,5 +1,5 @@
-import {BOT} from './lattice';
-import {Maps} from "./common";
+import {BOT} from './lattice.mjs';
+import {Maps} from "./common.mjs";
 
 export default function Store(map)
 {
@@ -98,53 +98,25 @@ Store.prototype.nice =
     return String(this.map);
   }
 
-Store.prototype.lookup =
-  function (address)
-  {
-    const value = this.map.get(address);
-    if (value)
+Store.prototype.get =
+    function (addr)
     {
-      return value;
+      return this.map.get(addr);
     }
-    throw new Error("no value at address " + address + "\n" + this.nice());
-  }
-  
-Store.prototype.alloc =
-  function (addr, value)
-  {
-    const map = this.map;
-    const current = map.get(addr);
-    if (current)
+Store.prototype.set =
+    function (addr, value)
     {
-      const updated = current.join(value);
-      if (current.equals(updated))
-      {
-        return [this, false];
-      }
-      const map2 = new Map(map);
-      map2.set(addr, updated);
-      return [new Store(map2), true];
+      const newMap = new Map(this.map);
+      newMap.set(addr, value);
+      return new Store(newMap);
     }
-    const map2 = new Map(map);
-    map2.set(addr, value);
-    return [new Store(map2), true];
-  }
-    
-Store.prototype.update =
-  function (addr, value)
-  {
-    const map = this.map;
-    const current = map.get(addr);
-    const updated = current.update(value);
-    if (current.equals(updated))
+
+Store.prototype.has =
+    function (addr)
     {
-      return [this, false];
+      return this.map.has(addr);
     }
-    const map2 = new Map(map);
-    map2.set(addr, updated);
-    return [new Store(map2), true];
-  }
-  
+
 Store.prototype.narrow =
   function (addresses)
   {

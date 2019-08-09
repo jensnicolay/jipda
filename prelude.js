@@ -1,5 +1,6 @@
 (function (global)
 {
+
   function assert(c)
   {
     if (!c)
@@ -7,122 +8,6 @@
       throw new Error("Assertion failed");
     }
   }
-
-  // 7.1.1
-  function ToPrimitive(input, PreferredType)
-  {
-    // TODO assert input is an ECMAScript language value
-    if (typeof input === "object")
-    {
-      var hint;
-      if (PreferredType === undefined)
-      {
-        hint = "default";
-      }
-      else if (PreferredType === "String")
-      {
-        hint = "string";
-      }
-      else
-      {
-        assert(PreferredType === "Number");
-        hint = "number";
-      }
-      // TODO exotic stuff
-      if (hint === "default")
-      {
-        hint = "number";
-      }
-      var otp = OrdinaryToPrimitive(input, hint);
-      return otp;
-    }
-    return input;
-  }
-
-  // 7.1.1.1
-  function OrdinaryToPrimitive(O, hint)
-  {
-    assert(typeof(O) === "object");
-    assert(hint === "string" || hint === "number");
-    let methodNames;
-    if (hint === "string")
-    {
-      methodNames = ["toString", "valueOf"];
-    }
-    else
-    {
-      methodNames = ["valueOf", "toString"];
-    }
-    let method0 = O[methodNames[0]];
-    //print("method0 is", method, methodNames[0]);
-    if (typeof method0 === "function")
-    {
-      let result0 = method0.call(O);
-      if (typeof result0 !== "object")
-      {
-        return result0;
-      }
-
-      let method1 = O[methodNames[1]];
-      if (typeof method1 === "function")
-      {
-        let result1 = method1.call(O);
-        if (typeof result1 !== "object")
-        {
-          return result1;
-        }
-
-        throw new TypeError("7.1.1.1")
-      }
-    }
-  }
-
-  // 7.1.12
-  $BASE$.register("ToString", ToString);
-  function ToString(argument)
-  {
-    //print("enter ToString", argument);
-    if (argument === undefined)
-    {
-      // print("exit ToString", argument, "UNDEFINED");
-      return "undefined";
-    }
-    if (argument === null)
-    {
-      // print("exit ToString", argument, "NULL");
-      return "null";
-    }
-    if (argument === true)
-    {
-      // print("exit ToString", argument, "TRUE");
-      return "true";
-    }
-    if (argument === false)
-    {
-      // print("exit ToString", argument, "FALSE");
-      return "false";
-    }
-    if (typeof argument === "number")
-    {
-      return NumberToString(argument);
-    }
-    if (typeof argument === "string")
-    {
-      //print("exit ToString", argument, "FALSE");
-      return argument;
-    }
-    // TODO symbol
-    let primValue = ToPrimitive(argument, "String");
-    //print("ToPrim for", argument, "returns", primValue);
-    return ToString(primValue);
-  }
-
-  // 7.1.12.1
-  function NumberToString(m)
-  {
-    return $BASE$.NumberToString(m);
-  }
-
 
   // 19.1.2.2
   Object.create =
@@ -185,16 +70,9 @@
         $BASE$.DefinePropertyOrThrow(O, key, desc);
         return O;
       }
-  
+
   // 19.1.2.8
-  Object.getOwnPropertyDescriptor =
-      function (O, P)
-      {
-        let obj = $BASE$.ToObject(O);
-        let key = $BASE$.ToPropertyKey(P);
-        let desc = $BASE$.callInternal(obj, "[[GetOwnProperty]]", key);
-        return $BASE$.FromPropertyDescriptor(desc);
-      }
+  // Object.getOwnPropertyDescriptor =
 
   // 19.1.2.11
   Object.getPrototypeOf =
@@ -430,6 +308,22 @@
         {
           return this.indexOf(searchString, start) !== -1;
         }
+      }
+
+  // 22.1.3.1
+  Array.prototype.concat =
+      function (argument) // TODO: multiple args
+      {
+        let result = [];
+        for (var i = 0; i < this.length; i++)
+        {
+          result.push(this[i]);
+        }
+        for (var j = 0; j < argument.length; j++)
+        {
+          result.push(argument[j]);
+        }
+        return result;
       }
 
   // 22.1.3.5

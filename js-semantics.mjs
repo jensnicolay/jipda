@@ -3,9 +3,8 @@ import * as Ast from './ast.mjs';
 import {BOT} from './lattice.mjs';
 import Benv from './benv.mjs';
 import Store from './store.mjs';
-import {Obj} from './object.mjs';
-import {Arrays} from "./common";
-import {blockScopeDeclarations, StringResource} from "./ast";
+import {Arrays, HashMap, Maps} from "./common.mjs";
+import {blockScopeDeclarations, StringResource} from "./ast.mjs";
 
 export default createSemantics;
 
@@ -16,6 +15,12 @@ const EMPTY_ADDRESS_SET = ArraySet.empty();
 let glcount = 0; // hack to distinguish different initial contexts (should really depend on program,
 // and then kont -> resource becomes almost immediate (pruneGraph)
 
+
+// reminder: has `Set` semantics, i.e., based on `===`
+function SetValueNoAddresses(set)
+{
+  this.set = set || new Set();
+}
 
 function createSemantics(lat, cc)
 {
@@ -388,7 +393,7 @@ function createSemantics(lat, cc)
         const declaration = declarations[i - 1];
         const id = declaration.id;
         const benv = this.benv;
-        InitializeReferenceBinding(id, value, benv, kont, machine);
+        InitializeReferencedBinding(id, value, benv, kont, machine);
         if (i === declarations.length)
         {
           return [machine.continue(L_UNDEFINED, lkont, kont, machine)];
@@ -493,10 +498,10 @@ function createSemantics(lat, cc)
     var prototype = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
     var prototypea = machine.alloc.closureProtoObject(node, kont);
     var closureRef = lat.abstRef(closurea);
-    prototype = prototype.add(P_CONSTRUCTOR, Property.fromValue(closureRef));
+    prototype = prototype.addProperty(P_CONSTRUCTOR, Property.fromData(closureRef, L_TRUE, L_TRUE, L_TRUE));
     machine.storeAlloc(prototypea, prototype);
 
-    closure = closure.add(P_PROTOTYPE, Property.fromValue(lat.abstRef(prototypea)));
+    closure = closure.addProperty(P_PROTOTYPE, Property.fromData(lat.abstRef(prototypea), L_TRUE, L_TRUE, L_TRUE));
     machine.storeAlloc(closurea, closure);
     return closureRef;
   }
@@ -538,10 +543,11 @@ function createSemantics(lat, cc)
         states.throwTypeError(application.callee + " is not a function (" + operatorValue + ")", lkont, kont);
       }
     }
+
     for (const operatora of operatorAs.values())
     {
       const operatorObj = states.machine.storeLookup(operatora);
-      const Call = operatorObj.getInternal("[[Call]]").value;
+      const Call = operatorObj.getInternal("[[Call]]");
       for (const callable of Call)
       {
         //if (!callable.applyFunction) {print(application, callable, Object.keys(callable))};
@@ -579,8 +585,8 @@ function createSemantics(lat, cc)
     for (const operatora of operatorAs.values())
     {
       const obj = states.machine.storeLookup(operatora);
-      const protoRef = obj.lookup(P_PROTOTYPE).value.Value;
-      const Call = obj.getInternal("[[Call]]").value;
+      const protoRef = obj.getProperty(P_PROTOTYPE).getValue();
+      const Call = obj.getInternal("[[Call]]");
       for (const callable of Call)
       {
         callable.applyConstructor(application, operandValues, protoRef, benv, lkont, kont, states);
@@ -697,7 +703,7 @@ function createSemantics(lat, cc)
     if (elements.length === 0)
     {
       var arr = createArray(kont.realm);
-      arr = arr.add(P_LENGTH, Property.fromValue(L_0));
+      arr = arr.addProperty(P_LENGTH, Property.fromData(L_0, L_TRUE, L_TRUE, L_TRUE));
       var arrAddress = machine.alloc.array(node, kont);
       machine.storeAlloc(arrAddress, arr);
       var arrRef = lat.abstRef(arrAddress);
@@ -717,11 +723,11 @@ function createSemantics(lat, cc)
   function createError(message, realm)
   {
     //const O = OrdinaryCreateFromConstructor();
-    let obj = new Obj();
+    let obj = Obj.empty();
     obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ErrorPrototype%"));
     obj = obj.setInternal("[[ErrorData]]", L_UNDEFINED);
     obj = obj.setInternal("[[Get]]", SetValueNoAddresses.from1(OrdinaryGet));
-    obj = obj.add(P_MESSAGE, Property.fromValue(message));
+    obj = obj.addProperty(P_MESSAGE, Property.fromData(message, L_TRUE, L_TRUE, L_TRUE));
     return obj;
   }
 
@@ -737,16 +743,7 @@ function createSemantics(lat, cc)
     {
       if (kont._stacks.size === 0)
       {
-        const scriptJobs = machine.storeLookup("ScriptJobs");
-        if (scriptJobs.isEmpty())
-        {
-          return [];
-        }
-        const job = scriptJobs.first();
-        machine.storeUpdate("ScriptJobs", scriptJobs.rest());
-
-        const result = job.execute(lkont, kont, machine);
-        return result;
+        return machine.nextJob(lkont, kont);
       }
 
       if (kont.ex && Ast.isNewExpression(kont.ex))
@@ -883,93 +880,87 @@ function createSemantics(lat, cc)
 
   function enqueueScriptEvaluation(resource, machine)
   {
-    return enqueueJob("ScriptJobs", new ScriptEvaluationJob(resource), machine);
+    return machine.enqueueJob(new ScriptEvaluationJob(resource));
   }
-
-  function enqueueJob(qname, job, machine)
-  {
-    const jobs = machine.storeLookup(qname);
-    const jobs2 = jobs.add(job);
-    machine.storeUpdate(qname, jobs2);
-  }
-
-  function JobQueue(jobs)
-  {
-    this.jobs = jobs || ArraySet.empty()
-  }
-
-  JobQueue.prototype.equals =
-      function (x)
-      {
-        if (this === x)
-        {
-          return true;
-        }
-
-        return x instanceof JobQueue
-          && this.jobs.equals(x.jobs)
-      }
-
-  JobQueue.prototype.hashCode =
-      function ()
-      {
-        return 42; // TODO
-      }
-
-  JobQueue.prototype.addresses =
-    function ()
-    {
-      let addresses = EMPTY_ADDRESS_SET;
-      for (const job of this.jobs)
-      {
-        addresses = addresses.join(job.addresses);
-      }
-      return addresses;
-    }
-
-  JobQueue.prototype.add =
-      function (job)
-      {
-        return new JobQueue(this.jobs.add(job));
-      }
-
-
-  JobQueue.prototype.first =
-      function ()
-      {
-        return this.jobs.first();
-      }
-
-  JobQueue.prototype.rest =
-      function ()
-      {
-        return new JobQueue(this.jobs.rest());
-      }
-
-  JobQueue.prototype.isEmpty =
-      function ()
-      {
-        return this.jobs.size() === 0;
-      }
-
-  JobQueue.prototype.update =
-    function (x)
-    {
-      return x;
-    }
-
-   JobQueue.prototype.join =
-       function (x)
-       {
-          return new JobQueue(this.jobs.join(x.jobs));
-       }
-
-  JobQueue.prototype.toString =
-      function ()
-      {
-        return "(jobqueue: " + this.jobs + ")";
-      }
-
+  //
+  // function enqueueJob(qname, job, machine)
+  // {
+  //   const jobs = machine.storeLookup(qname);
+  //   const jobs2 = jobs.add(job);
+  //   machine.storeUpdate(qname, jobs2);
+  // }
+  //
+  // function JobQueue(jobs)
+  // {
+  //   this.jobs = jobs || ArraySet.empty()
+  // }
+  //
+  // JobQueue.prototype.equals =
+  //     function (x)
+  //     {
+  //       if (this === x)
+  //       {
+  //         return true;
+  //       }
+  //
+  //       return x instanceof JobQueue
+  //           && this.jobs.equals(x.jobs)
+  //     }
+  //
+  // JobQueue.prototype.hashCode =
+  //     function ()
+  //     {
+  //       return 42; // TODO
+  //     }
+  //
+  // JobQueue.prototype.addresses =
+  //     function ()
+  //     {
+  //       let addresses = EMPTY_ADDRESS_SET;
+  //       for (const job of this.jobs)
+  //       {
+  //         addresses = addresses.join(job.addresses);
+  //       }
+  //       return addresses;
+  //     }
+  //
+  // JobQueue.prototype.add =
+  //     function (job)
+  //     {
+  //       return new JobQueue(this.jobs.add(job));
+  //     }
+  //
+  //
+  // JobQueue.prototype.first =
+  //     function ()
+  //     {
+  //       return this.jobs.first();
+  //     }
+  //
+  // JobQueue.prototype.rest =
+  //     function ()
+  //     {
+  //       return new JobQueue(this.jobs.rest());
+  //     }
+  //
+  // JobQueue.prototype.isEmpty =
+  //     function ()
+  //     {
+  //       return this.jobs.size() === 0;
+  //     }
+  //
+  // JobQueue.prototype.join =
+  //     function (x)
+  //     {
+  //       return new JobQueue(this.jobs.join(x.jobs));
+  //     }
+  //
+  // JobQueue.prototype.toString =
+  //     function ()
+  //     {
+  //       return "(jobqueue: " + this.jobs + ")";
+  //     }
+  //
   function functionScopeDeclarations(node)
   {
     let funScopeDecls = node.funScopeDecls;
@@ -998,13 +989,13 @@ function createSemantics(lat, cc)
     this.applyConstructor = applyConstructor;
     this._hashCode = HashCode.bump();
   }
-  
+
   ObjPrimitiveCall.prototype.toString =
       function ()
       {
         return "ObjPrimitiveCall";
       }
-  
+
   ObjPrimitiveCall.prototype.equals =
       function (other)
       {
@@ -1018,13 +1009,13 @@ function createSemantics(lat, cc)
         }
         return this._hashCode === other._hashCode;
       }
-  
+
   ObjPrimitiveCall.prototype.hashCode =
       function ()
       {
         return this._hashCode;
       }
-  
+
   ObjPrimitiveCall.prototype.addresses =
       function ()
       {
@@ -1038,7 +1029,7 @@ function createSemantics(lat, cc)
     this.node = node;
     this.scope = scope;
   }
-  
+
   ObjClosureCall.prototype.toString =
       function ()
       {
@@ -1049,7 +1040,7 @@ function createSemantics(lat, cc)
       {
         return "closure-" + this.node.tag;
       }
-  
+
   ObjClosureCall.prototype.equals =
       function (other)
       {
@@ -1073,7 +1064,7 @@ function createSemantics(lat, cc)
         result = prime * result + this.scope.hashCode();
         return result;
       }
-  
+
   function performApply(operandValues, funNode, scope, lkont, kont, ctx, states)
   {
     const bodyNode = funNode.body;
@@ -1081,8 +1072,7 @@ function createSemantics(lat, cc)
     if (nodes.length === 0)
     {
       states.continue(L_UNDEFINED, [], ctx);
-    }
-    else
+    } else
     {
       let extendedBenv = scope.extend();
 
@@ -1106,26 +1096,23 @@ function createSemantics(lat, cc)
           if (Ast.isIdentifier(node)) // param
           {
             states.machine.storeAlloc(addr, node.i < operandValues.length ? operandValues[node.i] : L_UNDEFINED);
-          }
+          } 
           else if (Ast.isFunctionDeclaration(node))
           {
             var closureRef = allocateClosure(node, extendedBenv, lkont, kont, states.machine);
             states.machine.storeAlloc(addr, closureRef);
-          }
+          } 
           else if (Ast.isVariableDeclarator(node))
           {
             states.machine.storeAlloc(addr, L_UNDEFINED);
-          }
+          } 
           else if (Ast.isRestElement(node))
           {
-            const create = CreateArrayFromList(operandValues.slice(node.i), node, lkont, kont, states);
-            for (const arr of create)
-            {
-              const arrAddress = states.machine.alloc.array(node, ctx);
-              states.machine.storeAlloc(arrAddress, arr);
-              const arrRef = lat.abstRef(arrAddress);
-              states.machine.storeAlloc(addr, arrRef);
-            }
+            const arr = CreateArrayFromList(operandValues.slice(node.i), node, lkont, kont, states);
+            const arrAddress = states.machine.alloc.array(node, ctx);
+            states.machine.storeAlloc(arrAddress, arr);
+            const arrRef = lat.abstRef(arrAddress);
+            states.machine.storeAlloc(addr, arrRef);
           }
           else
           {
@@ -1145,8 +1132,8 @@ function createSemantics(lat, cc)
       states.evaluate(bodyNode, extendedBenv, [], ctx);
     }
   }
-  
-  
+
+
   ObjClosureCall.prototype.applyFunction =
       function (application, operandValues, thisValue, TODO_REMOVE, lkont, kont, states)
       {
@@ -1156,7 +1143,7 @@ function createSemantics(lat, cc)
         var ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack, states.machine);
         performApply(operandValues, this.node, this.scope, lkont, kont, ctx, states);
       }
-  
+
   ObjClosureCall.prototype.applyConstructor =
       function (application, operandValues, protoRef, TODO_REMOVE, lkont, kont, states)
       {
@@ -1172,7 +1159,7 @@ function createSemantics(lat, cc)
         const ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack, states.machine);
         return performApply(operandValues, funNode, this.scope, lkont, kont, ctx, states);
       }
-  
+
   ObjClosureCall.prototype.addresses =
       function ()
       {
@@ -1184,7 +1171,7 @@ function createSemantics(lat, cc)
     this.node = node;
     this.benv = benv;
   }
-  
+
   LeftKont.prototype.equals =
       function (x)
       {
@@ -1224,13 +1211,13 @@ function createSemantics(lat, cc)
         var frame = new RightKont(node, leftValue);
         return [machine.evaluate(node.right, benv, [frame].concat(lkont), kont)];
       }
-  
+
   function LogicalLeftKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   LogicalLeftKont.prototype.equals =
       function (x)
       {
@@ -1273,7 +1260,7 @@ function createSemantics(lat, cc)
         {
           case "&&":
           {
-            
+
             if (leftValue.isTruthy())
             {
               result = result.concat([machine.evaluate(node.right, benv, lkont, kont)]);
@@ -1301,13 +1288,13 @@ function createSemantics(lat, cc)
         }
         return result;
       }
-  
-  
+
+
   function UnaryKont(node)
   {
     this.node = node;
   }
-  
+
   UnaryKont.prototype.equals =
       function (x)
       {
@@ -1408,13 +1395,13 @@ function createSemantics(lat, cc)
         }
         return [machine.continue(resultValue, lkont, kont)];
       }
-  
+
   function RightKont(node, leftValue)
   {
     this.node = node;
     this.leftValue = leftValue;
   }
-  
+
   RightKont.prototype.equals =
       function (x)
       {
@@ -1454,7 +1441,7 @@ function createSemantics(lat, cc)
         var operator = node.operator;
         return applyBinaryOperator(operator, leftValue, rightValue, lkont, kont, machine);
       }
-  
+
   function applyBinaryOperator(operator, leftValue, rightValue, lkont, kont, machine)
   {
     switch (operator)
@@ -1538,11 +1525,8 @@ function createSemantics(lat, cc)
       case "instanceof":
       {
         const states = new States(machine);
-        const inst = InstanceofOperator(leftValue, rightValue, lkont, kont, states);
-        for (const value of inst)
-        {
-          states.continue(value, lkont, kont);
-        }
+        InstanceofOperator(leftValue, rightValue, lkont, kont, states, value =>
+          states.continue(value, lkont, kont));
         return states;
       }
       case "in":
@@ -1554,15 +1538,13 @@ function createSemantics(lat, cc)
         }
         if (rightValue.isRef())
         {
-          const prop = ToPropertyKey(leftValue, lkont, kont, states);
-          for (const P of prop)
+          ToPropertyKey(leftValue, lkont, kont, states, P =>
           {
-            const hasProp = HasProperty(rightValue, P, lkont, kont, states);
-            for (const result of hasProp)
+            HasProperty(rightValue, P, lkont, kont, states, result =>
             {
               states.continue(result, lkont, kont);
-            }
-          }
+            })
+          })
         }
         return states;
       }
@@ -1570,13 +1552,13 @@ function createSemantics(lat, cc)
         throw new Error("cannot handle binary operator " + operator);
     }
   }
-  
+
   function AssignIdentifierKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   AssignIdentifierKont.prototype.equals =
       function (x)
       {
@@ -1660,13 +1642,13 @@ function createSemantics(lat, cc)
         doScopeSet(node.left, newValue, benv, kont, machine);
         return [machine.continue(newValue, lkont, kont)];
       }
-  
+
   function OperatorKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   OperatorKont.prototype.equals =
       function (x)
       {
@@ -1704,15 +1686,14 @@ function createSemantics(lat, cc)
         var node = this.node;
         var benv = this.benv;
         var operands = node.arguments;
-        
+
         if (operands.length === 0)
         {
           const states = new States(machine);
           if (Ast.isNewExpression(node))
           {
             applyCons(node, operatorValue, [], benv, lkont, kont, states);
-          }
-          else
+          } else
           {
             applyProc(node, operatorValue, [], kont.realm.GlobalObject, benv, lkont, kont, states);
           }
@@ -1721,7 +1702,7 @@ function createSemantics(lat, cc)
         const frame = new OperandsKont(node, 1, benv, operatorValue, [], kont.realm.GlobalObject);
         return [machine.evaluate(operands[0], benv, [frame].concat(lkont), kont)];
       }
-  
+
   function OperandsKont(node, i, benv, operatorValue, operandValues, thisValue)
   {
     assertDefinedNotNull(operatorValue);
@@ -1732,7 +1713,7 @@ function createSemantics(lat, cc)
     this.operandValues = operandValues;
     this.thisValue = thisValue;
   }
-  
+
   OperandsKont.prototype.equals =
       function (x)
       {
@@ -1789,15 +1770,14 @@ function createSemantics(lat, cc)
         var operandValues = this.operandValues;
         var thisValue = this.thisValue;
         var operands = node.arguments;
-        
+
         if (i === operands.length)
         {
           const states = new States(machine);
           if (Ast.isNewExpression(node))
           {
             applyCons(node, operatorValue, operandValues.addLast(operandValue), benv, lkont, kont, states);
-          }
-          else
+          } else
           {
             applyProc(node, operatorValue, operandValues.addLast(operandValue), thisValue, benv, lkont, kont, states);
           }
@@ -1806,14 +1786,14 @@ function createSemantics(lat, cc)
         const frame = new OperandsKont(node, i + 1, benv, operatorValue, operandValues.addLast(operandValue), thisValue);
         return [machine.evaluate(operands[i], benv, [frame].concat(lkont), kont)];
       }
-  
+
   function BodyKont(node, i, benv)
   {
     this.node = node;
     this.i = i;
     this.benv = benv;
   }
-  
+
   BodyKont.prototype.equals =
       function (x)
       {
@@ -1853,7 +1833,7 @@ function createSemantics(lat, cc)
         var node = this.node;
         var benv = this.benv;
         var i = this.i;
-        
+
         var nodes = node.body;
         if (i === nodes.length - 1)
         {
@@ -1862,12 +1842,12 @@ function createSemantics(lat, cc)
         var frame = new BodyKont(node, i + 1, benv);
         return [machine.evaluate(nodes[i], benv, [frame].concat(lkont), kont)];
       }
-  
+
   function ReturnKont(node)
   {
     this.node = node;
   }
-  
+
   ReturnKont.prototype.equals =
       function (x)
       {
@@ -1903,13 +1883,13 @@ function createSemantics(lat, cc)
         var node = this.node;
         return [machine.return(value, lkont, kont)];
       }
-  
+
   function TryKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   TryKont.prototype.equals =
       function (x)
       {
@@ -1963,7 +1943,7 @@ function createSemantics(lat, cc)
         var node = this.node;
         const benv = this.benv;
         var handler = node.handler;
-        
+
         if (handler === null)
         {
           const finalizer = node.finalizer;
@@ -1975,14 +1955,14 @@ function createSemantics(lat, cc)
           const frame = new FinalizerKont(node, throwValue, true);
           return evalStatementList(finalizer, benv, [frame].concat(lkont), kont, machine);
         }
-        
+
         var body = handler.body;
         var nodes = body.body;
         if (nodes.length === 0)
         {
           return [machine.continue(L_UNDEFINED, lkont, kont)];
         }
-        
+
         var extendedBenv = this.benv.extend();
         var param = handler.param;
         var name = param.name;
@@ -1991,14 +1971,14 @@ function createSemantics(lat, cc)
         machine.storeAlloc(addr, throwValue);
         return evalStatementList(body, extendedBenv, lkont, kont, machine);
       }
-  
+
   function FinalizerKont(node, value, thrw)
   {
     this.node = node;
     this.value = value;
     this.thrw = thrw;
   }
-  
+
   FinalizerKont.prototype.equals =
       function (x)
       {
@@ -2043,12 +2023,12 @@ function createSemantics(lat, cc)
         }
         return [machine.continue(value, lkont, kont)];
       }
-  
+
   function ThrowKont(node)
   {
     this.node = node;
   }
-  
+
   ThrowKont.prototype.equals =
       function (x)
       {
@@ -2085,13 +2065,13 @@ function createSemantics(lat, cc)
         var node = this.node;
         return [machine.throw(throwValue, lkont, kont)];
       }
-  
+
   function IfKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   IfKont.prototype.equals =
       function (x)
       {
@@ -2140,21 +2120,20 @@ function createSemantics(lat, cc)
           if (alternate === null)
           {
             result = result.concat([machine.continue(L_UNDEFINED, lkont, kont)]);
-          }
-          else
+          } else
           {
             result = result.concat([machine.evaluate(alternate, benv, lkont, kont)]);
           }
         }
         return result;
       }
-  
+
   function ForInitKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   ForInitKont.prototype.equals =
       function (x)
       {
@@ -2195,14 +2174,14 @@ function createSemantics(lat, cc)
         var frame = new ForTestKont(node, L_UNDEFINED, benv);
         return [machine.evaluate(test, benv, [frame].concat(lkont), kont)];
       }
-  
+
   function ForTestKont(node, bodyValue, benv)
   {
     this.node = node;
     this.bodyValue = bodyValue;
     this.benv = benv;
   }
-  
+
   ForTestKont.prototype.equals =
       function (x)
       {
@@ -2254,13 +2233,13 @@ function createSemantics(lat, cc)
         }
         return result;
       }
-  
+
   function ForBodyKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   ForBodyKont.prototype.equals =
       function (x)
       {
@@ -2306,7 +2285,7 @@ function createSemantics(lat, cc)
       {
         return [machine.continue(L_UNDEFINED, lkont.slice(1), kont)];
       }
-  
+
   function ForUpdateKont(node, bodyValue, benv)
   {
     this.node = node;
@@ -2314,7 +2293,7 @@ function createSemantics(lat, cc)
     this.bodyValue = bodyValue;
     this.benv = benv;
   }
-  
+
   ForUpdateKont.prototype.equals =
       function (x)
       {
@@ -2357,13 +2336,13 @@ function createSemantics(lat, cc)
         var frame = new ForTestKont(node, this.bodyValue, benv);
         return [machine.evaluate(test, benv, [frame].concat(lkont), kont)];
       }
-  
+
   function ForInRightKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   ForInRightKont.prototype.equals =
       function (x)
       {
@@ -2411,51 +2390,47 @@ function createSemantics(lat, cc)
             throw new Error("cannot handle left expression " + left + " (" + left.type + ")");
         }
         const states = new States(machine);
-        const ownKeys = callInternal(ref, "[[OwnPropertyKeys]]", [], lkont, kont, states);
-        forInHelper(node, nameNode, ref, ownKeys, 0, benv, lkont, kont, states);
+        callInternal(ref, "[[OwnPropertyKeys]]", [], lkont, kont, states, ownKeys =>
+          forInHelper(node, nameNode, ref, ownKeys, 0, benv, lkont, kont, states));
         return states;
       }
-  
-  
+
   function forInHelper(node, nameNode, ref, ownKeys, i, benv, lkont, kont, states)
   {
     if (i === ownKeys.length)
     {
-      const proto = callInternal(ref, "[[GetPrototypeOf]]", [], lkont, kont, states);
-      for (const protoRef of proto)
+      callInternal(ref, "[[GetPrototypeOf]]", [], lkont, kont, states, protoRef =>
       {
-        const result = [];
         if (protoRef.isNull())
         {
           states.continue(L_UNDEFINED, lkont, kont);
         }
         if (protoRef.isNonNull()) // TODO: check for non-null ref/non-ref?
         {
-          const ownKeys = callInternal(protoRef, "[[OwnPropertyKeys]]", [], lkont, kont, states);
-          forInHelper(node, nameNode, protoRef, ownKeys, 0, benv, lkont, kont, states);
+          callInternal(protoRef, "[[OwnPropertyKeys]]", [], lkont, kont, states, ownKeys =>
+            forInHelper(node, nameNode, protoRef, ownKeys, 0, benv, lkont, kont, states));
         }
-      }
+      })
     }
     else
     {
       const ownKey = ownKeys[i];
-      const ownProp = callInternal(ref, "[[GetOwnProperty]]", [ownKey], lkont, kont, states);
-      for (const desc of ownProp)
+      callInternal(ref, "[[GetOwnProperty]]", [ownKey], lkont, kont, states, desc =>
       {
-        if (desc instanceof Property && desc.Enumerable.isTrue()) // TODO instanceof? (can be prim `undefined`)
+        if (desc.isDefined() && desc.getEnumerable().isTrue())
         {
           doScopeSet(nameNode, ownKey, benv, kont, states.machine);
           const frame = new ForInBodyKont(node, nameNode, ref, ownKeys, i, benv);
           states.evaluate(node.body, benv, [frame].concat(lkont), kont);
         }
-        else
+        if (desc.isUndefined() || desc.isEnumerableAbsent() || desc.getEnumerable().isFalse())
         {
           forInHelper(node, nameNode, ref, ownKeys, i + 1, benv, lkont, kont, states);
         }
-      }
+      })
     }
   }
-  
+
   function ForInBodyKont(node, nameNode, ref, ownKeys, i, benv)
   {
     this.node = node;
@@ -2465,7 +2440,7 @@ function createSemantics(lat, cc)
     this.i = i;
     this.benv = benv;
   }
-  
+
   ForInBodyKont.prototype.equals =
       function (x)
       {
@@ -2517,14 +2492,14 @@ function createSemantics(lat, cc)
         forInHelper(node, nameNode, ref, ownKeys, i + 1, benv, lkont, kont, states);
         return states;
       }
-  
-  
+
+
   function WhileTestKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   WhileTestKont.prototype.equals =
       function (x)
       {
@@ -2574,13 +2549,13 @@ function createSemantics(lat, cc)
         }
         return result;
       }
-  
+
   function WhileBodyKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   WhileBodyKont.prototype.equals =
       function (x)
       {
@@ -2626,7 +2601,7 @@ function createSemantics(lat, cc)
       {
         return [machine.continue(L_UNDEFINED, lkont.slice(1), kont)];
       }
-  
+
   function ObjectKont(node, i, benv, initValues)
   {
     this.node = node;
@@ -2634,7 +2609,7 @@ function createSemantics(lat, cc)
     this.benv = benv;
     this.initValues = initValues;
   }
-  
+
   ObjectKont.prototype.equals =
       function (x)
       {
@@ -2683,7 +2658,7 @@ function createSemantics(lat, cc)
         var benv = this.benv;
         var i = this.i;
         var initValues = this.initValues.addLast(initValue);
-        
+
         if (properties.length === i)
         {
           const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
@@ -2702,15 +2677,17 @@ function createSemantics(lat, cc)
             {
               const propName = lat.abst1(properties[j].key.name);
               const propValue = initValues[j];
-              const dataProperty = CreateDataPropertyOrThrow(object, propName, propValue, lkont, kont, states);
-              for (const success of dataProperty)
+              CreateDataPropertyOrThrow(object, propName, propValue, lkont, kont, states, success =>
               {
-                if (!success.isTrue() || success.isFalse())
+                if (success.isFalse())
                 {
                   throw new Error("TODO");
                 }
-                cont(j + 1);
-              }
+                if (success.isTrue())
+                {
+                  cont(j + 1);
+                }
+              });
             }
           }
 
@@ -2720,7 +2697,7 @@ function createSemantics(lat, cc)
         var frame = new ObjectKont(node, i + 1, benv, initValues);
         return [machine.evaluate(properties[i].value, benv, [frame].concat(lkont), kont)];
       }
-  
+
   function ArrayKont(node, i, benv, initValues)
   {
     this.node = node;
@@ -2728,7 +2705,7 @@ function createSemantics(lat, cc)
     this.benv = benv;
     this.initValues = initValues;
   }
-  
+
   ArrayKont.prototype.equals =
       function (x)
       {
@@ -2777,7 +2754,7 @@ function createSemantics(lat, cc)
         var benv = this.benv;
         var i = this.i;
         var initValues = this.initValues.addLast(initValue);
-        
+
         if (elements.length === i)
         {
           var arr = createArray(kont.realm);
@@ -2785,22 +2762,22 @@ function createSemantics(lat, cc)
           for (var j = 0; j < i; j++)
           {
             var indexName = lat.abst1(String(j));
-            arr = arr.add(indexName, Property.fromValue(initValues[j]));
+            arr = arr.addProperty(indexName, Property.fromData(initValues[j], L_TRUE, L_TRUE, L_TRUE));
           }
-          arr = arr.add(P_LENGTH, Property.fromValue(lat.abst1(i)));
+          arr = arr.addProperty(P_LENGTH, Property.fromData(lat.abst1(i), L_TRUE, L_TRUE, L_TRUE));
           machine.storeAlloc(arrAddress, arr);
           return [machine.continue(lat.abstRef(arrAddress), lkont, kont)];
         }
         var frame = new ArrayKont(node, i + 1, benv, initValues);
         return [machine.evaluate(elements[i], benv, [frame].concat(lkont), kont)];
       }
-  
+
   function MemberKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   MemberKont.prototype.equals =
       function (x)
       {
@@ -2844,22 +2821,21 @@ function createSemantics(lat, cc)
         {
           const frame = new MemberPropertyKont(node, benv, objectRef);
           states.evaluate(property, benv, [frame].concat(lkont), kont);
-        }
-        else
+        } else
         {
           const value = doProtoLookup(lat.abst1(property.name), objectRef.addresses(), machine);
           states.continue(value, lkont, kont);
         }
         return states;
       }
-  
+
   function MemberPropertyKont(node, benv, objectRef)
   {
     this.node = node;
     this.benv = benv;
     this.objectRef = objectRef;
   }
-  
+
   MemberPropertyKont.prototype.equals =
       function (x)
       {
@@ -2893,7 +2869,7 @@ function createSemantics(lat, cc)
       {
         return this.benv.addresses().join(this.objectRef.addresses());
       }
-  
+
   MemberPropertyKont.prototype.apply =
       function (propertyValue, lkont, kont, machine)
       {
@@ -2911,14 +2887,14 @@ function createSemantics(lat, cc)
     const value = doProtoLookup(name, obj.addresses(), machine);
     return [machine.continue(value, lkont, kont)];
   }
-  
-  
+
+
   function CallMemberKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   CallMemberKont.prototype.equals =
       function (x)
       {
@@ -2967,8 +2943,8 @@ function createSemantics(lat, cc)
         invoke(node, objectRef, nameValue, operands, benv, lkont, kont, states);
         return states;
       }
-  
-  
+
+
   function invoke(application, thisValue, nameValue, operands, benv, lkont, kont, states)
   {
     var operatorValue = doProtoLookup(nameValue, thisValue.addresses(), states.machine);
@@ -2977,25 +2953,23 @@ function createSemantics(lat, cc)
       if (Ast.isNewExpression(application))
       {
         applyCons(application, operatorValue, [], benv, lkont, kont, states);
-      }
-      else
+      } else
       {
         applyProc(application, operatorValue, [], thisValue, null, lkont, kont, states);
       }
-    }
-    else
+    } else
     {
       const frame = new OperandsKont(application, 1, benv, operatorValue, [], thisValue);
       states.evaluate(operands[0], benv, [frame].concat(lkont), kont);
     }
   }
-  
+
   function AssignMemberKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   AssignMemberKont.prototype.equals =
       function (x)
       {
@@ -3044,13 +3018,13 @@ function createSemantics(lat, cc)
         var frame = new MemberAssignmentValueKont(node, benv, objectRef, nameValue);
         return [machine.evaluate(right, benv, [frame].concat(lkont), kont)];
       }
-  
+
   function UpdateMemberKont(node, benv)
   {
     this.node = node;
     this.benv = benv;
   }
-  
+
   UpdateMemberKont.prototype.equals =
       function (x)
       {
@@ -3124,14 +3098,14 @@ function createSemantics(lat, cc)
         var resultingValue = node.prefix ? updatedValue : value;
         return [machine.continue(resultingValue, lkont, kont)];
       }
-  
+
   function AssignMemberPropertyKont(node, benv, objectRef)
   {
     this.node = node;
     this.benv = benv;
     this.objectRef = objectRef;
   }
-  
+
   AssignMemberPropertyKont.prototype.equals =
       function (x)
       {
@@ -3180,7 +3154,7 @@ function createSemantics(lat, cc)
         var frame = new MemberAssignmentValueKont(node, benv, objectRef, nameValue);
         return [machine.evaluate(right, benv, [frame].concat(lkont), kont)];
       }
-  
+
   function MemberAssignmentValueKont(node, benv, objectRef, nameValue)
   {
     this.node = node;
@@ -3188,7 +3162,7 @@ function createSemantics(lat, cc)
     this.objectRef = objectRef;
     this.nameValue = nameValue;
   }
-  
+
   MemberAssignmentValueKont.prototype.equals =
       function (x)
       {
@@ -3267,55 +3241,12 @@ function createSemantics(lat, cc)
         return $assignProperty(objectRef, nameValue, newValue, lkont, kont, machine);
       }
 
-   function $assignProperty(obj, name, value, lkont, kont, machine)
-   {
-     doProtoSet(name, value, obj, machine);
-     return [machine.continue(value, lkont, kont)];
-   }
-  
-  // let genericCounter = 0;
-  // function GenericKont(f)
-  // {
-  //   this.f = f;
-  //   this.counter = genericCounter++;
-  // }
-  //
-  // GenericKont.prototype.equals =
-  //     function (x)
-  //     {
-  //       return x instanceof GenericKont
-  //           && this.counter === x.counter
-  //     }
-  // GenericKont.prototype.hashCode =
-  //     function ()
-  //     {
-  //       var prime = 31;
-  //       var result = 1;
-  //       result = prime * result + this.genericCounter;
-  //       return result;
-  //     }
-  // GenericKont.prototype.toString =
-  //     function ()
-  //     {
-  //       return "generic-" + this.counter;
-  //     }
-  // GenericKont.prototype.nice =
-  //     function ()
-  //     {
-  //       return "generic-" + this.counter;
-  //     }
-  // GenericKont.prototype.addresses =
-  //     function ()
-  //     {
-  //       return EMPTY_ADDRESS_SET;
-  //     }
-  // GenericKont.prototype.apply =
-  //     function (value, lkont, kont, machine)
-  //     {
-  //       return f(value, lkont, kont, machine);
-  //     }
-  
-  
+  function $assignProperty(obj, name, value, lkont, kont, machine)
+  {
+    doProtoSet(name, value, obj, machine);
+    return [machine.continue(value, lkont, kont)];
+  }
+
   function doScopeLookup(nameNode, benv, kont, machine)
   {
     var name = nameNode.name;
@@ -3332,7 +3263,7 @@ function createSemantics(lat, cc)
     }
     return machine.storeLookup(a);
   }
-  
+
   function doProtoLookup(name, as, machine)
   {
     assertDefinedNotNull(machine);
@@ -3342,26 +3273,22 @@ function createSemantics(lat, cc)
     {
       var a = as.pop();
       var obj = machine.storeLookup(a);
-      const prop = obj.lookup(name);
-      let found = false;
-      if (prop !== BOT)
+      if (obj.propertyPresent(name))
       {
-        found = prop.must;
-        const desc = prop.value;
-        
-        if (IsDataDescriptor(desc))
+        const desc = obj.getProperty(name);
+        if (IsDataDescriptor(desc).isTrue())
         {
-          const value = desc.Value;
+          const value = desc.Value.getValue();
           result = result.join(value);
         }
-        if (IsAccessorDescriptor(desc))
+        if (IsAccessorDescriptor(desc).isTrue())
         {
           throw new Error("NIY");
         }
       }
-      if (!found)
+      if (obj.propertyAbsent(name))
       {
-        const proto = obj.getInternal("[[Prototype]]").value;
+        const proto = obj.getInternal("[[Prototype]]");
         if (proto.subsumes(L_NULL))
         {
           result = result.join(L_UNDEFINED);
@@ -3372,7 +3299,7 @@ function createSemantics(lat, cc)
     }
     return result;
   }
-  
+
   function lookupInternal(O, name, machine)
   {
     let result = BOT;
@@ -3381,36 +3308,31 @@ function createSemantics(lat, cc)
     {
       const a = as.pop();
       const obj = machine.storeLookup(a);
-      const value = obj.getInternal(name).value;
+      const value = obj.getInternal(name);
       result = result.join(value);
     }
     return result;
   }
-  
-  function callInternal(O, name, args, lkont, kont, states)
+
+  function callInternal(O, name, args, lkont, kont, states, cont)
   {
-    const result = [];
-    const as = O.addresses().values();
+    assert(typeof cont === "function");
+    const as = O.addresses();
     for (const a of as)
     {
       const obj = states.machine.storeLookup(a);
-      const fs = obj.getInternal(name).value;
+      const fs = obj.getInternal(name);
       if (!fs)
       {
         throw new Error("no internal slot: " + name);
       }
       for (const f of fs)
       {
-        const apply = f.apply(null, [O].concat(args).concat([lkont, kont, states]));
-        for (const r of apply)
-        {
-          result.push(r);
-        }
+        const apply = f.apply(null, [O].concat(args).concat([lkont, kont, states, cont]));
       }
     }
-    return result;
   }
-  
+
   function assignInternal(O, name, value, machine)
   {
     const as = O.addresses().values();
@@ -3422,7 +3344,7 @@ function createSemantics(lat, cc)
       machine.storeUpdate(a, obj);
     }
   }
-  
+
   function hasInternal(O, name, machine)
   {
     assert(typeof name === "string");
@@ -3436,7 +3358,7 @@ function createSemantics(lat, cc)
     }
     return result;
   }
-  
+
   function getInternal(O, name, machine)
   {
     assert(typeof name === "string");
@@ -3446,11 +3368,11 @@ function createSemantics(lat, cc)
     {
       const a = as.pop();
       const obj = machine.storeLookup(a);
-      result = result.join(obj.getInternal(name).value);
+      result = result.join(obj.getInternal(name));
     }
     return result;
   }
-  
+
   function doScopeSet(nameNode, value, benv, kont, machine)
   {
     var name = nameNode.name;
@@ -3459,13 +3381,12 @@ function createSemantics(lat, cc)
     {
       var aname = lat.abst1(name);
       doProtoSet(aname, value, kont.realm.GlobalObject, machine);
-    }
-    else
+    } else
     {
       machine.storeUpdate(a, value);
     }
   }
-  
+
   function doProtoSet(name, value, objectRef, machine)
   {
     assertDefinedNotNull(value);
@@ -3474,69 +3395,64 @@ function createSemantics(lat, cc)
     {
       var a = as.pop();
       var obj = machine.storeLookup(a);
-      obj = obj.add(name, new Property(value, BOT, BOT, L_TRUE, L_TRUE, L_TRUE));
+      obj = obj.addProperty(name, Property.fromData(value, L_TRUE, L_TRUE, L_TRUE));
       if (hasInternalProperty(obj, "isArray").isTrue()) // TODO temp
       {
-        // ES5.1 15.4.5.1
+        // 15.4.5.1
         var n = name.ToNumber();
         var i = name.ToUint32();
         if (n.equals(i))
         {
-          var len = obj.lookup(P_LENGTH).value.Value;
+          var len = obj.getProperty(P_LENGTH).getValue();
           if (lat.gte(i, len).isTrue())
           {
-            obj = obj.add(P_LENGTH, Property.fromValue(lat.add(i, L_1)));
+            obj = obj.addProperty(P_LENGTH, Property.fromData(lat.add(i, L_1), L_TRUE, L_TRUE, L_TRUE));
           }
         }
       }
       machine.storeUpdate(a, obj);
     }
   }
-  
+
   function createEnvironment(parents)
   {
     var benv = Benv.empty(parents);
     return benv;
   }
-  
+
   function hasInternalProperty(obj, name)
   {
     let result = BOT;
-    const prop = obj.getInternal(name);
-    if (prop === BOT)
+    if (obj.internalPresent(name))
+    {
+      result = result.join(L_TRUE);
+    };
+    if (obj.internalAbsent(name))
     {
       result = result.join(L_FALSE);
     }
-    else
-    {
-      result = result.join(L_TRUE);
-      if (!prop.must)
-      {
-        result = result.join(L_FALSE);
-      }
-    }
     return result;
   }
-  
+
   function createArray(realm)
   {
-    var obj = new Obj();
+    var obj = Obj.empty();
     obj = obj.setInternal("[[Prototype]]", realm.Intrinsics.get("%ArrayPrototype%"));
-    
+
     // TODO 9.4.5.4: exotic [[Get]] for Integer Indexed Exotic Objects
     obj = obj.setInternal("[[Get]]", SetValueNoAddresses.from1(OrdinaryGet));
     // TODO 9.4.5.2
     obj = obj.setInternal("[[HasProperty]]", SetValueNoAddresses.from1(OrdinaryHasProperty));
     // TODO 9.4.5.1
     obj = obj.setInternal("[[GetOwnProperty]]", SetValueNoAddresses.from1(OrdinaryGetOwnProperty));
-    
+
     obj = obj.setInternal("[[GetPrototypeOf]]", SetValueNoAddresses.from1(OrdinaryGetPrototypeOf));
-    
+
     // TODO temp
     obj = obj.setInternal("isArray", L_TRUE);
     return obj;
   }
-  
+
   /// debug helpers
   function callStacks(lkont, kont)
   {
@@ -3547,7 +3463,7 @@ function createSemantics(lat, cc)
                 ? Ast.nodeToNiceString(stack.kont.ex) + " " + stack._id + " " + stack.kont._id
                 : String(stack)))
   }
-  
+
   /// semantic helpers
   function semanticAssert(x)
   {
@@ -3599,18 +3515,568 @@ function createSemantics(lat, cc)
     const result = IsPropertyKey(P);
     semanticAssert(result.isTrue());
   }
-  
+
   function assertIsCallable(F)
   {
     const result = IsCallable(F);
     semanticAssert(result.isTrue());
   }
-  
+
+  // const UNDEFINED = new Undefined();
+  //
+  // function Undefined()
+  // {
+  // }
+  //
+  // Undefined.prototype.equals =
+  //     function (x)
+  //     {
+  //       return x instanceof Undefined;
+  //     }
+  //
+  // Undefined.prototype.hashCode =
+  //     function ()
+  //     {
+  //       return 79;
+  //     }
+  //
+  // Undefined.prototype.addresses =
+  //     function ()
+  //     {
+  //       return EMPTY_ADDRESS_SET;
+  //     }
+  //
+  // Undefined.prototype.join =
+  //     function (x)
+  //     {
+  //       if (x instanceof Undefined)
+  //       {
+  //         return this;
+  //       }
+  //       if (x instanceof Defined)
+  //       {
+  //         if (x.isUndefined())
+  //         {
+  //           return x;
+  //         }
+  //         return new Defined(x.value, false);
+  //       }
+  //     }
+  //
+  // Undefined.prototype.isDefined =
+  //     function ()
+  //     {
+  //       return false;
+  //     }
+  //
+  // Undefined.prototype.isUndefined =
+  //     function ()
+  //     {
+  //       return true;
+  //     }
+  //
+  // Undefined.prototype.projectDefined =
+  //     function ()
+  //     {
+  //       return BOT;
+  //     }
+  //
+  // Undefined.prototype.toString =
+  //     function ()
+  //     {
+  //       return "{}";
+  //     }
+  //
+  // function Defined(value, defined)
+  // {
+  //   assert(value !== BOT);
+  //   this.value = value;
+  //   this.defined = defined;
+  // }
+  //
+  // Defined.prototype.equals =
+  //     function (x)
+  //     {
+  //       return x instanceof Defined
+  //           && this.value.equals(x.value)
+  //           && this.defined === x.defined
+  //     }
+  //
+  // Defined.prototype.hashCode =
+  //     function ()
+  //     {
+  //       const prime = 31;
+  //       let result = 1;
+  //       result = prime * result + this.value.hashCode();
+  //       result = prime * result + HashCode.hashCode(this.defined);
+  //       return result;
+  //     }
+  //
+  // Defined.prototype.addresses =
+  //     function ()
+  //     {
+  //       return this.value.addresses();
+  //     }
+  //
+  // Defined.prototype.join =
+  //     function (x)
+  //     {
+  //       if (x instanceof Undefined)
+  //       {
+  //         if (this.isUndefined())
+  //         {
+  //           return this;
+  //         }
+  //         return new Defined(this.value, false);
+  //       }
+  //       if (x instanceof Defined)
+  //       {
+  //         return new Defined(this.value.join(x.value), this.defined && x.defined);
+  //       }
+  //       throw new Error();
+  //     }
+  //
+  //
+  // Defined.prototype.isDefined =
+  //     function ()
+  //     {
+  //       return this.defined;
+  //     }
+  //
+  // Defined.prototype.isUndefined =
+  //     function ()
+  //     {
+  //       return !this.defined;
+  //     }
+  //
+  // Defined.prototype.projectDefined =
+  //     function ()
+  //     {
+  //       return this.value;
+  //     }
+  //
+  // Defined.prototype.toString =
+  //     function ()
+  //     {
+  //       return this.defined ? "{" + this.value + "}" : "{?" + this.value + "}"
+  //     }
+
+  const ABSENT = new Absent();
+
+  function Absent()
+  {
+  }
+
+  Absent.prototype.equals =
+      function (x)
+      {
+        return x instanceof Absent;
+      }
+
+  Absent.prototype.hashCode =
+      function ()
+      {
+        return 83;
+      }
+
+  Absent.prototype.addresses =
+      function ()
+      {
+        return EMPTY_ADDRESS_SET;
+      }
+
+  Absent.prototype.join =
+      function (x)
+      {
+        if (x instanceof Absent)
+        {
+          return this;
+        }
+        if (x instanceof Present)
+        {
+          if (x.isAbsent())
+          {
+            return x;
+          }
+          return new Present(x.value, false);
+        }
+      }
+
+  Absent.prototype.isPresent =
+      function ()
+      {
+        return false;
+      }
+
+  Absent.prototype.isAbsent =
+      function ()
+      {
+        return true;
+      }
+
+  Absent.prototype.getValue =
+      function ()
+      {
+        return BOT;
+      }
+
+  Absent.prototype.toString =
+      function ()
+      {
+        return "[]";
+      }
+
+  function Present(value, present)
+  {
+    assert(value !== BOT);
+    assertDefinedNotNull(present);
+    this.value = value;
+    this.present = present;
+  }
+
+  Present.from =
+      function (value)
+      {
+        return new Present(value, true);
+      }
+
+  Present.prototype.equals =
+      function (x)
+      {
+        return x instanceof Present
+            && this.value.equals(x.value)
+            && this.present === x.present
+      }
+
+  Present.prototype.hashCode =
+      function ()
+      {
+        const prime = 31;
+        let result = 1;
+        result = prime * result + this.value.hashCode();
+        result = prime * result + HashCode.hashCode(this.present);
+        return result;
+      }
+
+  Present.prototype.addresses =
+      function ()
+      {
+        return this.value.addresses();
+      }
+
+  Present.prototype.join =
+      function (x)
+      {
+        if (x instanceof Absent)
+        {
+          if (this.isAbsent())
+          {
+            return this;
+          }
+          return new Present(this.value, false);
+        }
+        if (x instanceof Present)
+        {
+          return new Present(this.value.join(x.value), this.present && x.present);
+        }
+        throw new Error();
+      }
+
+  Present.prototype.isPresent =
+      function ()
+      {
+        return this.present;
+      }
+
+  Present.prototype.isAbsent =
+      function ()
+      {
+        return !this.present;
+      }
+
+  Present.prototype.getValue =
+      function ()
+      {
+        return this.value;
+      }
+
+  Present.prototype.toString =
+      function ()
+      {
+        return this.present ? "[" + this.value + "]" : "[?" + this.value + "]"
+      }
+
+  function Record(map)
+  {
+    assertDefinedNotNull(map);
+    this.map = map;
+  }
+
+  Record.empty =
+      function ()
+      {
+        return new Record(new Map());
+      }
+
+  Record.prototype.add =
+      function (name, value)
+      {
+        const newMap = new Map(this.map);
+        newMap.set(name, Present.from(value));
+        return new Record(newMap);
+      }
+
+  Record.prototype.isPresent =
+      function (name)
+      {
+        return this.map.has(name);
+      }
+
+  Record.prototype.isAbsent =
+      function (name)
+      {
+        const value = this.map.get(name);
+        return !value || value.isAbsent();
+      }
+
+  Record.prototype.get =
+      function (name)
+      {
+        const value = this.map.get(name);
+        return value ? value.getValue() : BOT;
+      }
+
+  Record.prototype.equals =
+      function (x)
+      {
+        if (this === x)
+        {
+          return true;
+        }
+        return Maps.equals(this.map, x.map, (x,y) => x === y || x.equals(y));
+      }
+
+  Record.prototype.join =
+      function (other)
+      {
+        const joinedMap = Maps.join(this.map, other.map, (x,y) => x.join(y), BOT);
+        return new Record(joinedMap);
+      }
+
+  Record.prototype.addresses =
+      function ()
+      {
+        let addresses = ArraySet.empty();
+        this.map.forEach((value, key) => {
+          addresses = addresses.join(value.addresses())
+        });
+        return addresses;
+      }
+
+  function Obj(frame, internals)
+  {
+    assertDefinedNotNull(frame);
+    assertDefinedNotNull(internals);
+    this.frame = frame;//Obj.EMPTY_FRAME;
+    this.internals = internals;//Record.empty();
+  }
+
+  Obj.empty =
+      function ()
+      {
+        return new Obj(Obj.EMPTY_FRAME, Record.empty());
+      }
+
+  Obj.EMPTY_FRAME = HashMap.empty();
+
+  Obj.prototype.toString =
+      function ()
+      {
+        return "<" + this.names() + ">";
+      };
+
+  Obj.prototype.nice =
+      function ()
+      {
+        return this.frame.nice();
+      }
+
+  function updateFrame(frame, name, value)
+  {
+    // if (name.conc1)
+    // {
+    //   return frame.put(name, value);
+    // }
+    return frame.put(name, value);
+  }
+
+
+  Obj.prototype.addInternal =
+      function (name, value)
+      {
+        return new Obj(this.frame, this.internals.add(name, value));
+      }
+
+  Obj.prototype.setInternal = // TODO duplicate w.r.t. `set`? (do we need different add/update semantics?)
+      function (name, value)
+      {
+        return new Obj(this.frame, this.internals.add(name, value));
+      }
+
+  Obj.prototype.internalPresent =
+      function (name)
+      {
+        return this.internals.isPresent(name);
+      }
+
+  Obj.prototype.internalAbsent =
+      function (name)
+      {
+        return this.internals.isAbsent(name);
+      }
+
+  Obj.prototype.getInternal =
+      function (name)
+      {
+        return this.internals.get(name);
+      }
+
+  Obj.prototype.addProperty =
+      function (name, value)
+      {
+        assert(name);
+        const newFrame = updateFrame(this.frame, name, Present.from(value));
+        return new Obj(newFrame, this.internals);
+      }
+
+  Obj.prototype.propertyPresent =
+      function (name)
+      {
+        // const value = this.frame.get(name);
+        // return value !== undefined && value.isPresent(); // TODO `frame.get` should return `BOT` iso. `undefined` when no prop
+        var result = BOT;
+        this.frame.iterateEntries(
+            function (entry)
+            {
+              const entryName = entry[0];
+              if (entryName.subsumes(name) || name.subsumes(entryName))
+              {
+                result = result.join(entry[1]);
+              }
+            });
+        return result !== BOT && result.isPresent();
+      }
+
+  Obj.prototype.propertyAbsent = // TODO expensive (hiding pres/abs behind abstr)
+      function (name)
+      {
+        var result = BOT;
+        this.frame.iterateEntries(
+            function (entry)
+            {
+              const entryName = entry[0];
+              if (entryName.subsumes(name) || name.subsumes(entryName))
+              {
+                result = result.join(entry[1]);
+              }
+            });
+        return result === BOT || result.isAbsent();
+      }
+
+  Obj.prototype.getProperty =
+      function (name)
+      {
+        var result = BOT;
+        this.frame.iterateEntries(
+            function (entry)
+            {
+              const entryName = entry[0];
+              if (entryName.subsumes(name) || name.subsumes(entryName))
+              {
+                result = result.join(entry[1].getValue());
+              }
+            });
+        return result;
+      }
+
+  Obj.prototype.conc =
+      function ()
+      {
+        return [this];
+      }
+
+  Obj.prototype.join =
+      function (other)
+      {
+        if (other === BOT)
+        {
+          return this;
+        }
+        const newFrame = this.frame.join(other.frame, BOT);
+        const newInternals = this.internals.join(other.internals);
+        return new Obj(newFrame, newInternals);
+      }
+
+  Obj.prototype.equals =
+      function (x)
+      {
+        if (this === x)
+        {
+          return true;
+        }
+        if (!(x instanceof Obj))
+        {
+          return false;
+        }
+        return this.frame.equals(x.frame)
+            && this.internals.equals(x.internals);
+      }
+
+  Obj.prototype.hashCode =
+      function ()
+      {
+        var prime = 31;
+        var result = 1;
+        result = prime * result + this.frame.hashCode();
+        return result;
+      }
+
+  Obj.prototype.diff = //DEBUG
+      function (x)
+      {
+        var diff = [];
+        if (!this.frame.equals(x.frame))
+        {
+          diff.push("[[frame]]\t" + this.frame.diff(x.frame));
+        }
+        return ">>>OBJ\n" + diff.join("\n") + "<<<";
+      }
+
+  Obj.prototype.names =
+      function ()
+      {
+        return this.frame.keys();
+      }
+
+//  Obj.prototype.values =
+//    function ()
+//    {
+//      return this.frame.map(function (entry) { return entry[1]; }).toSet();
+//    }
+
+  Obj.prototype.addresses =
+      function ()
+      {
+        let addresses = ArraySet.empty();
+        this.frame.values().forEach(function (value) {addresses = addresses.join(value.addresses())});
+        addresses = addresses.join(this.internals.addresses());
+        return addresses;
+      }
+
   ///
-  
-  
+
   // 6
-  function Type(x)
+  function Type(x) // move to lattice?
   {
     let result = new Set();
     if (x.projectUndefined() !== BOT)
@@ -3643,7 +4109,7 @@ function createSemantics(lat, cc)
     }
     return result;
   }
-  
+
   // 6.1
   const Types = {};
   // 6.1.1
@@ -3660,8 +4126,12 @@ function createSemantics(lat, cc)
   Types.Number = new String("number");
   // 6.1.7
   Types.Object = new String("object");
-  
-  
+
+  function TypeIsObject(x)
+  {
+    return x.isRef();
+  }
+
   // helper
   function projectNonNumber(value)
   {
@@ -3674,11 +4144,11 @@ function createSemantics(lat, cc)
     result = result.join(value.projectObject());
     return result;
   }
-  
+
   // 6.1.7.1
   function Property(Value, Get, Set, Writable, Enumerable, Configurable)
   {
-    assertDefinedNotNull(Value);
+    assert(Value instanceof Absent || Value instanceof Present);
     this.Value = Value;
     this.Get = Get;
     this.Set = Set;
@@ -3686,19 +4156,39 @@ function createSemantics(lat, cc)
     this.Enumerable = Enumerable;
     this.Configurable = Configurable;
   }
-  
+
+  Property.fromData =
+      function (Value, Writable, Enumerable, Configurable)
+      {
+        assertDefinedNotNull(Value);
+        assertDefinedNotNull(Writable);
+        assertDefinedNotNull(Enumerable);
+        assertDefinedNotNull(Configurable);
+        return new Property(Value === BOT ? Present.from(L_UNDEFINED) : Present.from(Value), L_UNDEFINED, L_UNDEFINED, Writable === BOT ? L_FALSE : Writable, Enumerable === BOT ? L_FALSE : Enumerable, Configurable === BOT ? L_FALSE : Configurable);
+      }
+
+  Property.fromAccessor =
+      function (Get, Set, Enumerable, Configurable)
+      {
+        assertDefinedNotNull(Get);
+        assertDefinedNotNull(Set);
+        assertDefinedNotNull(Enumerable);
+        assertDefinedNotNull(Configurable);
+        return new Property(ABSENT, Get === BOT ? L_UNDEFINED : Get, Set === BOT ? L_UNDEFINED : Set, L_UNDEFINED, Enumerable === BOT ? L_FALSE : Enumerable, Configurable === BOT ? L_FALSE : Configurable);
+      }
+
+  Property.default =
+      function ()
+      {
+        return new Property(new Defined(L_UNDEFINED), L_UNDEFINED, L_UNDEFINED, L_FALSE, L_FALSE, L_FALSE);
+      }
+
   Property.empty =
       function ()
       {
-        return new Property(BOT, BOT, BOT, BOT, BOT, BOT);
+        return new Property(ABSENT, L_UNDEFINED, L_UNDEFINED, L_UNDEFINED, L_UNDEFINED, L_UNDEFINED);
       }
-  
-  Property.fromValue =
-      function (value)
-      {
-        return new Property(value, BOT, BOT, BOT, BOT, BOT);
-      }
-  
+
   Property.prototype.equals =
       function (x)
       {
@@ -3724,19 +4214,6 @@ function createSemantics(lat, cc)
         return result;
       }
 
-  Property.prototype.update =
-      function (x)
-      {
-        return new Property(
-            this.Value.update(x.Value),
-            this.Get.update(x.Get),
-            this.Set.update(x.Set),
-            this.Writable.update(x.Writable),
-            this.Enumerable.update(x.Enumerable),
-            this.Configurable.update(x.Configurable)
-        );
-      }
-  
   Property.prototype.join =
       function (other)
       {
@@ -3753,30 +4230,172 @@ function createSemantics(lat, cc)
             this.Configurable.join(other.Configurable)
         );
       }
-  //
-  // Property.prototype.abst =
-  //     function ()
-  //     {
-  //       return this;
-  //     }
+
+  Property.prototype.isDefined =
+      function ()
+      {
+        return true;
+      }
+
+  Property.prototype.isUndefined =
+      function ()
+      {
+        return false;
+      }
+
+  Property.prototype.isValuePresent =
+      function ()
+  {
+    return this.Value.isPresent();
+  }
+
+  Property.prototype.isValueAbsent =
+      function ()
+  {
+    return this.Value.isAbsent();
+  }
+
+  Property.prototype.getValue
+   = function ()
+  {
+    return this.Value.getValue();
+  }
+
+  Property.prototype.setValue =
+      function (Value)
+  {
+    return new Property(Present.from(Value), this.Get, this.Set, this.Writable, this.Enumerable, this.Configurable);
+  }
+
+  Property.prototype.isGetPresent =
+      function ()
+  {
+    return this.Get.isDefined();
+  }
+
+  Property.prototype.isGetAbsent =
+      function ()
+  {
+    return this.Get.isUndefined();
+  }
+
+  Property.prototype.getGet =
+      function ()
+  {
+    return this.Get.projectDefined();
+  }
+
+  Property.prototype.setGet =
+      function (Get)
+  {
+    return new Property(this.Value, Get, this.Set, this.Writable, this.Enumerable, this.Configurable);
+  }
+
+  Property.prototype.isSetPresent =
+      function ()
+  {
+    return this.Set.isDefined();
+  }
+
+  Property.prototype.isSetAbsent =
+      function ()
+  {
+    return this.Set.isUndefined();
+  }
+
+  Property.prototype.getSet =
+      function ()
+  {
+    return this.Set.projectDefined();
+  }
+
+  Property.prototype.setSet =
+      function (Set__)
+  {
+    return new Property(this.Value, this.Get, Set__, this.Writable, this.Enumerable, this.Configurable);
+  }
+
+
+  Property.prototype.isWritablePresent =
+      function ()
+  {
+    return this.Writable.isDefined();
+  }
+
+  Property.prototype.isWritableAbsent =
+      function ()
+  {
+    return this.Writable.isUndefined();
+  }
+
+  Property.prototype.getWritable =
+       function ()
+  {
+    return this.Writable.projectDefined();
+  }
+
+  Property.prototype.setWritable =
+      function (Writable)
+  {
+    return new Property(this.Value, this.Get, this.Set, Writable, this.Enumerable, this.Configurable);
+  }
+
+  Property.prototype.isEnumerablePresent =
+      function ()
+  {
+    return this.Enumerable.isDefined();
+  }
+
+  Property.prototype.isEnumerableAbsent =
+      function ()
+  {
+    return this.Enumerable.isUndefined();
+  }
+
+  Property.prototype.getEnumerable =
+      function ()
+  {
+    return this.Enumerable.projectDefined();
+  }
+
+  Property.prototype.setEnumerable =
+      function (Enumerable)
+  {
+    return new Property(this.Value, this.Get, this.Set, this.Writable, Enumerable, this.Configurable);
+  }
+
+
+  Property.prototype.isConfigurablePresent
+  = function ()
+  {
+    return this.Configurable.isDefined();
+  }
+
+  Property.prototype.isConfigurableAbsent =
+      function ()
+  {
+    return this.Configurable.isUndefined();
+  }
+
+  Property.prototype.getConfigurable =
+      function ()
+  {
+    return this.Configurable.projectDefined();
+  }
+
+  Property.prototype.setConfigurable =
+      function (Configurable)
+  {
+    return new Property(this.Value, this.Get, this.Set, this.Writable, this.Enumerable, Configurable);
+  }
+
+
 
   Property.prototype.addresses =
       function ()
       {
-        return this.Value.addresses().join(this.Get.addresses()).join(this.Set.addresses());
+        return this.Value.projectDefined().addresses().join(this.Get.addresses()).join(this.Set.addresses());
       }
-
-  Property.prototype.isUndefined =
-  function ()
-  {
-    return false;
-  }
-
-  Property.prototype.isNonUndefined =
-  function ()
-  {
-    return true;
-  }
 
   Property.prototype.toString =
       function ()
@@ -3786,342 +4405,445 @@ function createSemantics(lat, cc)
             + "}";
       }
 
-
-  
   // 6.2.2
-  function Completion(Type, Value, Target)
-  {
-    this.Type = Type;
-    this.Value = Value;
-    this.Target = Target;
-  }
-  
-  Completion.normal = new String("normal");
-  Completion.break = new String("break");
-  Completion.continue = new String("continue");
-  Completion.return = new String("return");
-  Completion.throw = new String("throw");
-  Completion.empty = new String("empty");
-  
-  // 6.2.2.1
-  function NormalCompletion(argument)
-  {
-    return Completion(Completion.normal, value, Completion.empty);
-  }
+  // function Completion(Type, Value, Target)
+  // {
+  //   this.Type = Type;
+  //   this.Value = Value;
+  //   this.Target = Target;
+  // }
+  //
+  // Completion.normal = new String("normal");
+  // Completion.break = new String("break");
+  // Completion.continue = new String("continue");
+  // Completion.return = new String("return");
+  // Completion.throw = new String("throw");
+  // Completion.empty = new String("empty");
+  //
+  // // 6.2.2.1
+  // function NormalCompletion(argument)
+  // {
+  //   return Completion(Completion.normal, value, Completion.empty);
+  // }
 
   // 6.2.4.11
-  function InitializeReferenceBinding(nameNode, value, benv, kont, machine)
+  function InitializeReferencedBinding(nameNode, value, benv, kont, machine)
   {
     const name = nameNode.name;
     const addr = benv.lookup(name);
     machine.storeAlloc(addr, value);
   }
 
-  
   // 6.2.5.1
   function IsAccessorDescriptor(Desc)
   {
-    if (Desc.equals(L_UNDEFINED)) // TODO: assumption = descriptors not joinable
+    let result = BOT;
+    if (Desc.isUndefined())
     {
-      return false;
+      result = result.join(L_FALSE)
     }
-    if ((Desc.Get === BOT) && (Desc.Set === BOT))
+    if (Desc.isDefined())
     {
-      return false;
+      if (Desc.isGetAbsent() && Desc.isSetAbsent())
+      {
+        result = result.join(L_FALSE);
+      }
+      if (Desc.isGetPresent() || Desc.isSetPresent())
+      {
+        result = result.join(L_TRUE);
+      }
     }
-    return true;
+    return result;
   }
-  
+
   // 6.2.5.2
   function IsDataDescriptor(Desc)
   {
-    if (Desc.equals(L_UNDEFINED))
+    let result = BOT;
+    if (Desc.isUndefined())
     {
-      return false;
+      result = result.join(L_FALSE);
     }
-    if ((Desc.Value === BOT) && (Desc.Writable === BOT))
+    if (Desc.isDefined())
     {
-      return false;
+      if (Desc.isValueAbsent() && Desc.isWritableAbsent())
+      {
+        result = result.join(L_FALSE);
+      }
+      if (Desc.isValuePresent() || Desc.isWritablePresent())
+      {
+        result = result.join(L_TRUE);
+      }
     }
-    return true;
+    return result;
   }
-  
+
   // 6.2.5.3
   function IsGenericDescriptor(Desc)
   {
-    if (Desc.equals(L_UNDEFINED))
+    let result = BOT;
+    if (Desc.isUndefined())
     {
-      return false;
+      result = result.join(L_FALSE);
     }
-    if (!IsAccessorDescriptor(Desc) && !IsDataDescriptor(Desc))
+    if (Desc.isDefined())
     {
-      return true;
-    }
-    return false;
-  }
-  
-  // 6.2.5.4
-  // moving this kind of function to prelude requires turning Property into (regular?) obj with internal props
-  function FromPropertyDescriptor(Desc, node, lkont, kont, states)
-  {
-    if (Desc.equals(L_UNDEFINED))
-    {
-      return [L_UNDEFINED];
-    }
-    const result = [];
-    const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
-    const objAddr = states.machine.alloc.object(node, kont);
-    const objRef = lat.abstRef(objAddr);
-    states.machine.storeAlloc(objAddr, obj);
-
-    function writableCont()
-    {
-      if (Desc.Writable !== BOT)
+      if (IsAccessorDescriptor(Desc).isFalse() && IsDataDescriptor(Desc).isFalse())
       {
-        const writable = CreateDataProperty(objRef, lat.abst1("writable"), Desc.Writable, lkont, kont, states);
-        for (const success of writable)
-        {
-          assert(!success.isFalse());
-          getterCont();
-        }
+        result = result.join(L_TRUE);
       }
-      else
+      if (IsAccessorDescriptor(Desc).isTrue() || IsDataDescriptor(Desc).isTrue())
       {
-        getterCont();
+        result = result.join(L_FALSE);
       }
     }
-
-    function getterCont()
-    {
-      if (Desc.Get !== BOT)
-      {
-        const getter = CreateDataProperty(objRef, lat.abst1("get"), Desc.Get, lkont, kont, states);
-        for (const success of getter)
-        {
-          assert(!success.isFalse());
-          setterCont();
-        }
-      }
-      else
-      {
-        setterCont();
-      }
-    }
-
-    function setterCont()
-    {
-      if (Desc.Set !== BOT)
-      {
-        const setter = CreateDataProperty(objRef, lat.abst1("set"), Desc.Set, lkont, kont, states);
-        for (const success of setter)
-        {
-          assert(!success.isFalse());
-          enumCont();
-        }
-      }
-      else
-      {
-        enumCont();
-      }
-    }
-
-    function enumCont()
-    {
-      if (Desc.Enumerable !== BOT)
-      {
-        const enum_ = CreateDataProperty(objRef, lat.abst1("enumerable"), Desc.Enumerable, lkont, kont, states);
-        for (const success of enum_)
-        {
-          assert(!success.isFalse());
-          configCont();
-        }
-      }
-      else
-      {
-        configCont();
-      }
-    }
-
-    function configCont()
-    {
-      if (Desc.Configurable !== BOT)
-      {
-        const config = CreateDataProperty(objRef, lat.abst1("configurable"), Desc.Configurable, lkont, kont, states);
-        for (const success of config)
-        {
-          assert(!success.isFalse());
-          result.push(objRef);
-        }
-      }
-      else
-      {
-        result.push(objRef);
-      }
-    }
-
-    if (Desc.Value !== BOT)
-    {
-      const value = CreateDataProperty(objRef, lat.abst1("value"), Desc.Value, lkont, kont, states);
-      for (const success of value)
-      {
-        assert(!success.isFalse());
-        writableCont();
-      }
-    }
-    else
-    {
-      writableCont();
-    }
-
     return result;
   }
-  
-  // 6.2.5.5
-  function ToPropertyDescriptor(Obj, lkont, kont, states)
+
+  // 6.2.5.4
+  function FromPropertyDescriptor(Desc, node, lkont, kont, states, cont) // ? undefined | ref
   {
-    const result = [];
+    if (Desc.isUndefined())
+    {
+      cont(L_UNDEFINED);
+    }
+    if (Desc.isDefined())
+    {
+      const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
+      const objAddr = states.machine.alloc.object(node, kont);
+      const objRef = lat.abstRef(objAddr);
+      states.machine.storeAlloc(objAddr, obj);
+      if (Desc.isValuePresent())
+      {
+        CreateDataProperty(objRef, lat.abst1("value"), Desc.getValue(), lkont, kont, states, success =>
+        {
+          assert(!success.isFalse());
+        })
+      }
+      if (Desc.isWritablePresent())
+      {
+        CreateDataProperty(objRef, lat.abst1("writable"), Desc.getWritable(), lkont, kont, states, success =>
+        {
+          assert(!success.isFalse());
+        })
+      }
+      if (Desc.isGetPresent())
+      {
+        CreateDataProperty(objRef, lat.abst1("get"), Desc.getGet(), lkont, kont, states, success =>
+        {
+          assert(!success.isFalse());
+        })
+      }
+      if (Desc.isSetPresent())
+      {
+        CreateDataProperty(objRef, lat.abst1("set"), Desc.getSet(), lkont, kont, states, success =>
+        {
+          assert(!success.isFalse());
+        })
+      }
+      if (Desc.isEnumerablePresent())
+      {
+        CreateDataProperty(objRef, lat.abst1("enumerable"), Desc.getEnumerable(), lkont, kont, states, success =>
+        {
+          assert(!success.isFalse());
+        })
+      }
+      if (Desc.isConfigurablePresent())
+      {
+        CreateDataProperty(objRef, lat.abst1("configurable"), Desc.getConfigurable(), lkont, kont, states, success =>
+        {
+          assert(!success.isFalse());
+        })
+      }
+      cont(objRef);
+    }
+  }
+
+  // 6.2.5.5
+  function ToPropertyDescriptor(Obj, lkont, kont, states, cont) // ? Property
+  {
+    assert(typeof cont === "function");
     if (Obj.isNonRef())
     {
       states.throwTypeError("6.2.5.5", lkont, kont);
     }
     if (Obj.isRef())
     {
-      let desc = new Property(BOT, BOT, BOT, BOT, BOT, BOT);
-      const enum_ = HasProperty(Obj, lat.abst1("enumerable"), lkont, kont, states);
-      for (const hasValue of enum_)
+      let desc = Property.empty();
+      HasProperty(Obj, lat.abst1("enumerable"), lkont, kont, states, Cont(hasEnumerable =>
       {
-        if (hasValue.isTrue())
+        if (hasEnumerable.isTrue())
         {
-          const enum_ = Get(Obj, lat.abst1("enumerable"), lkont, kont, states);
-          for (const value of enum_)
+          Get(Obj, lat.abst1("enumerable"), lkont, kont, states, value =>
           {
-            desc.Enumerable = desc.Enumerable.join(value);
-            configCont(desc);
-          }
+            const enumerable = ToBoolean(value, lkont, kont, states);
+            step5(desc.setEnumerable(enumerable));
+          })
         }
-        if (hasValue.isFalse())
+        if (hasEnumerable.isFalse())
         {
-          configCont(desc);
+          step5(desc);
         }
-      }
+      }))
     }
 
-    function configCont(desc)
+    function step5(desc)
     {
-      const config = HasProperty(Obj, lat.abst1("configurable"), lkont, kont, states);
-      for (const hasValue of config)
+      HasProperty(Obj, lat.abst1("configurable"), lkont, kont, states, Cont(hasConfigurable =>
       {
-        if (hasValue.isTrue())
+        if (hasConfigurable.isTrue())
         {
-          const config = Get(Obj, lat.abst1("configurable"), lkont, kont, states)// TODO ToBoolean
-          for (const value of config)
+          Get(Obj, lat.abst1("configurable"), lkont, kont, states, value =>
           {
-            desc.Configurable = desc.Configurable.join(value);
-            valueCont(desc);
-          }
+            const configurable = ToBoolean(value, lkont, kont, states);
+            step7(desc.setConfigurable(configurable));
+          })
         }
-        if (hasValue.isFalse())
+        if (hasConfigurable.isFalse())
         {
-          valueCont(desc);
+          step7(desc);
         }
-      }
+      }))
     }
 
-    function valueCont(desc)
+    function step7(desc)
     {
-      const value = HasProperty(Obj, lat.abst1("value"), lkont, kont, states);
-      for (const hasValue of value)
+      HasProperty(Obj, lat.abst1("value"), lkont, kont, states, hasValue =>
       {
         if (hasValue.isTrue())
         {
-          const value_ = Get(Obj, lat.abst1("value"), lkont, kont, states);
-          for (const value of value_)
+          Get(Obj, lat.abst1("value"), lkont, kont, states, value =>
           {
-            desc.Value = desc.Value.join(value);
-            writeCont(desc);
-          }
+            step9(desc.setValue(value));
+          })
         }
         if (hasValue.isFalse())
         {
-          writeCont(desc);
+          step9(desc);
         }
-      }
+      })
     }
 
-    function writeCont(desc)
+    function step9(desc)
     {
-      const write = HasProperty(Obj, lat.abst1("writable"), lkont, kont, states);
-      for (const hasValue of write)
+      HasProperty(Obj, lat.abst1("writable"), lkont, kont, states, Cont(hasWritable =>
       {
-        if (hasValue.isTrue())
+        if (hasWritable.isTrue())
         {
-          const write = Get(Obj, lat.abst1("writable"), lkont, kont, states)// TODO ToBoolean
-          for (const value of write)
+          Get(Obj, lat.abst1("writable"), lkont, kont, states, value =>
           {
-            desc.Writable = desc.Writable.join(value);
-            getCont(desc);
-          }
+            const writable = ToBoolean(value, lkont, kont, states);
+            step11(desc.setWritable(writable))
+          })
         }
-        if (hasValue.isFalse())
+        if (hasWritable.isFalse())
         {
-          getCont(desc);
+          step11(desc)
         }
-      }
+      }))
     }
 
-    function getCont(desc)
+    function step11(desc)
     {
-      const getter = HasProperty(Obj, lat.abst1("get"), lkont, kont, states);
-      for (const hasValue of getter)
+      HasProperty(Obj, lat.abst1("get"), lkont, kont, states, Cont(hasGet =>
       {
-        if (hasValue.isTrue())
+        if (hasGet.isTrue())
         {
-          const getter = Get(Obj, lat.abst1("get"), lkont, kont, states);
-          for (const value of getter)
+          Get(Obj, lat.abst1("get"), lkont, kont, states, getter =>
           {
-            desc.Get = desc.Get.join(value); // TODO IsCallable, not undefined
-            setCont(desc);
-          }
+            if (IsCallable(getter, states.machine).isFalse() && getter.isDefined())
+            {
+              states.throwTypeError("6.2.5.5 - [[Get]]");
+            }
+            if (IsCallable(getter, states.machine).isTrue() || getter.isUndefined())
+            {
+              step13(desc.setGet(getter));
+            }
+          })
         }
-        if (hasValue.isFalse())
+        if (hasGet.isFalse())
         {
-          setCont(desc);
+          step13(desc);
         }
-      }
+      }))
     }
 
-    function setCont(desc)
+    function step13(desc)
     {
-      const setter = HasProperty(Obj, lat.abst1("set"), lkont, kont, states);
-      for (const hasValue of setter)
+      HasProperty(Obj, lat.abst1("set"), lkont, kont, states, Cont(hasSet =>
       {
-        if (hasValue.isTrue())
+        if (hasSet.isTrue())
         {
-          const setter = Get(Obj, lat.abst1("set"), lkont, kont, states);
-          for (const value of setter)
+          Get(Obj, lat.abst1("set"), lkont, kont, states, setter =>
           {
-            desc.Set = desc.Set.join(value); // TODO IsCallable, not undefined
-            result.push(desc);       // TODO final checks on presence of Get/Set and Value/Writable
-          }
+            if (IsCallable(setter, states.machine).isFalse() && setter.isDefined())
+            {
+              states.throwTypeError("6.2.5.5 - [[Set]]");
+            }
+            if (IsCallable(setter, states.machine).isTrue() || setter.isUndefined())
+            {
+              step15(desc.setSet(setter));
+            }
+          })
         }
-        if (hasValue.isFalse())
+        if (hasSet.isFalse())
         {
-          result.push(desc);      // TODO final checks on presence of Get/Set and Value/Writable
+          step15(desc);
         }
-      }
+      }))
     }
 
-    return result;
+    function step15(desc)
+    {
+      if (desc.isGetPresent() || desc.isSetPresent())
+      {
+        if (desc.isValuePresent() || desc.isWritablePresent())
+        {
+          states.throwTypeError("6.2.5.5 - Accessor + Data")
+        }
+        if (desc.isValueAbsent() && desc.isWritableAbsent())
+        {
+          cont(desc);
+        }
+      }
+      if (desc.isGetAbsent() && desc.isSetAbsent())
+      {
+        cont(desc);
+      }
+    }
   }
-  
-  // 7.1.1
-  // ToPrimitive: prelude
 
+  // function GenericKont(name, kctx, f)
+  // {
+  //   this.name = name;
+  //   this.kctx = kctx;
+  //   this.f = f;
+  // }
+  //
+  // GenericKont.prototype.equals =
+  //     function (x)
+  //     {
+  //       return x instanceof GenericKont
+  //           && this.name === x.name
+  //           && (this.kctx === x.kctx || this.kctx.equals(kctx))
+  //     }
+  // GenericKont.prototype.hashCode =
+  //     function ()
+  //     {
+  //       var prime = 31;
+  //       var result = 1;
+  //       result = prime * result + Hashcode.hashCode(this.name);
+  //       result = prime * result + this.kctx.hashCode();
+  //       return result;
+  //     }
+  // GenericKont.prototype.toString =
+  //     function ()
+  //     {
+  //       return name + "-" + this.kctx;
+  //     }
+  // GenericKont.prototype.addresses =
+  //     function ()
+  //     {
+  //       return this.kctx.addresses();
+  //     }
+  // GenericKont.prototype.apply =
+  //     function (value, lkont, kont, machine)
+  //     {
+  //       return this.f(value, lkont, kont, machine);
+  //     }
+
+  // 7.1.1
+  function ToPrimitive(input, PreferredType, lkont, kont, states, cont)
+  {
+    assert(typeof cont === "function");
+    // TODO: assert input is an ECMAScript language value
+    if (input.isRef())
+    {
+      let hint;
+      if (PreferredType === undefined)
+      {
+        hint = "default";
+      }
+      else if (PreferredType === "String")
+      {
+        hint = "string";
+      }
+      else
+      {
+        assert(PreferredType === "Number");
+        hint = "number";
+      }
+      // TODO exotic stuff
+      if (hint === "default")
+      {
+        hint = "number";
+      }
+      OrdinaryToPrimitive(input, hint, lkont, kont, states, cont);
+    }
+    if (input.isNonRef())
+    {
+      cont(input);
+    }
+  }
 
   // 7.1.1.1
-  // OrdinaryToPrimitive: prelude
+  function OrdinaryToPrimitive(O, hint, lkont, kont, states, cont)
+  {
+    assert(typeof cont === "function");
+    assert(TypeIsObject(O));
+    assert(hint === "string" || hint === "number");
+    let methodNames;
+    if (hint === "string")
+    {
+      methodNames = ["toString", "valueOf"];
+    } else
+    {
+      methodNames = ["valueOf", "toString"];
+    }
 
-  // 7.1.3
+    step5(0);
+
+    function step5(i)
+    {
+      if (i < methodNames.length)
+      {
+        Get(O, lat.abst1(methodNames[0]), lkont, kont, states, method =>
+        {
+          const isCallable = IsCallable(method, states.machine);
+          if (isCallable.isTrue())
+          {
+            Call(method, O, [], null, null, lkont, kont, states, (result, lkont, kont, machine) => // after Call, get everything TODO think about other/better/easier system?
+            {
+              if (result.isNonRef())
+              {
+                cont(result.projectPrimitive());
+              }
+              if (result.isRef())
+              {
+                step5(i + 1);
+              }
+            })
+          }
+          if (isCallable.isFalse())
+          {
+            step5(i + 1);
+          }
+        })
+      }
+      else
+      {
+        machine.throwTypeError("7.1.1.1", lkont, kont);
+      }
+    }
+  }
+
+  // 7.1.2
+  function ToBoolean(argument, states)
+  {
+    return argument.ToBoolean();
+  }
+
+// 7.1.3
   function ToNumber(argument, node, lkont, kont, states)
   {
     const result = [];
@@ -4131,11 +4853,40 @@ function createSemantics(lat, cc)
   }
 
   // 7.1.12
-  // ToString: prelude
-  // function ToString(arg, application, benv, lkont, kont, states)
-  // {
-  //
-  // }
+  function ToString(argument, lkont, kont, states, cont)
+  {
+    assert(typeof cont === "function");
+    if (argument.isUndefined())
+    {
+      cont(lat.abst1("undefined"));
+    }
+    if (argument.isNull())
+    {
+      cont(lat.abst1("null"));
+    }
+    if (argument.isTrue())
+    {
+      cont(lat.abst1("true"));
+    }
+    if (argument.isFalse())
+    {
+      cont(lat.abst1("false"));
+    }
+    if (argument.projectNumber() !== BOT)
+    {
+      cont(argument.projectNumber().ToString()); // TODO mmm...
+    }
+    if (argument.projectString() !== BOT)
+    {
+      cont(argument.projectString());
+    }
+    // TODO symbol
+    if (argument.isRef())
+    {
+      ToPrimitive(argument, "String", lkont, kont, states, primValue =>
+          ToString(primValue, lkont, kont, states, cont));
+    }
+  }
 
   // 7.1.13
   function ToObject(argument, node, lkont, kont, states)
@@ -4144,7 +4895,7 @@ function createSemantics(lat, cc)
     {
       return argument;
     }
-    
+
     let result = BOT;
     if (argument.isUndefined())
     {
@@ -4163,7 +4914,7 @@ function createSemantics(lat, cc)
     if (narg !== BOT)
     {
       let obj = ObjectCreate(kont.realm.Intrinsics.get("%NumberPrototype%"));
-      obj = obj.setInternal("[[NumberData]]", narg);
+      obj = obj.addInternal("[[NumberData]]", narg);
       const addr = states.machine.alloc.object(node, kont); // no number-specific alloc?
       states.machine.storeAlloc(addr, obj);
       const ref = lat.abstRef(addr);
@@ -4185,47 +4936,42 @@ function createSemantics(lat, cc)
     }
     return result;
   }
-  
+
   // 7.1.14
-  function ToPropertyKey(argument, lkont, kont, states)
+  function ToPropertyKey(argument, lkont, kont, states, cont)
   {
-    return [argument];
-    
-    // TODO:
-    // return ToPrimitive(argument, "String", node, benv, lkont, kont,
-    //   function (key)
-    //   {
-    //     // TODO: If Type(key) is Symbol, then Return key.
-    //     return ToString(key, lkont, kont, cont);
-    //   });
+    assert(typeof cont === "function");
+    ToPrimitive(argument, "String", lkont, kont, states, key =>
+      // TODO: If Type(key) is Symbol, then Return key
+      ToString(key, lkont, kont, states, cont));
   }
-  
+
   // 7.1.15
   function ToLength(argument, lkont, kont, states)
   {
     // TODO
-    return [argument];
+    return argument;
   }
 
   // 7.2.1
-  function RequireObjectCoercible(arg, lkont, kont, states)
+function RequireObjectCoercible(arg, lkont, kont, states)
   {
+    let result = BOT;
     if (arg.isUndefined() || arg.isNull())
     {
       states.throwTypeError("7.2.1");
     }
-    const result = [];
     if (arg.projectBoolean() !== BOT
         || arg.projectNumber() !== BOT
         || arg.projectString() !== BOT
         //|| arg.projectSymbol() TODO
         || arg.isRef())
     {
-      result.push(arg);
+      result = result.join(arg);
     }
     return result;
   }
-  
+
   // 7.2.3
   function IsCallable(argument, machine)
   {
@@ -4240,7 +4986,7 @@ function createSemantics(lat, cc)
     }
     return result;
   }
-  
+
   // 7.2.7
   function IsPropertyKey(argument)
   {
@@ -4258,8 +5004,8 @@ function createSemantics(lat, cc)
     }
     return result;
   }
-  
-  
+
+
   // 7.2.9
   function SameValue(x, y)
   {
@@ -4305,7 +5051,7 @@ function createSemantics(lat, cc)
     }
     return result;
   }
-  
+
   // 7.2.11
   function SameValueNonNumber(x, y)
   {
@@ -4339,30 +5085,30 @@ function createSemantics(lat, cc)
     }
     return result;
   }
-  
+
   // 7.3.1
-  function Get(O, P, lkont, kont, states)
+  function Get(O, P, lkont, kont, states, cont)
   {
-    return callInternal(O, "[[Get]]", [P, O], lkont, kont, states);
+    assertIsObject(O);
+    assert(IsPropertyKey(P).isTrue());
+    return callInternal(O, "[[Get]]", [P, O], lkont, kont, states, cont);
   }
-  
+
   // 7.3.4
-  function CreateDataProperty(O, P, V, lkont, kont, states)
+  function CreateDataProperty(O, P, V, lkont, kont, states, cont)
   {
     assertIsObject(O);
     assertIsPropertyKey(P);
-    const newDesc = new Property(V, BOT, BOT, L_TRUE, L_TRUE, L_TRUE);
-    return callInternal(O, "[[DefineOwnProperty]]", [P, newDesc], lkont, kont, states);
+    const newDesc = Property.fromData(V, L_TRUE, L_TRUE, L_TRUE);
+    callInternal(O, "[[DefineOwnProperty]]", [P, newDesc], lkont, kont, states, cont);
   }
-  
+
   // 7.3.6
-  function CreateDataPropertyOrThrow(O, P, V, lkont, kont, states)
+  function CreateDataPropertyOrThrow(O, P, V, lkont, kont, states, cont)
   {
     assertIsObject(O);
     assertIsPropertyKey(P);
-    const result = [];
-    const dataProperty = CreateDataProperty(O, P, V, lkont, kont, states);
-    for (const success of dataProperty)
+    CreateDataProperty(O, P, V, lkont, kont, states, success =>
     {
       if (success.isFalse())
       {
@@ -4370,69 +5116,58 @@ function createSemantics(lat, cc)
       }
       if (success.isTrue())
       {
-        result.push(success);
+        cont(L_TRUE);
       }
-    }
-    return result;
+    })
   }
-  
+
   // 7.3.7
-  function DefinePropertyOrThrow(O, P, desc, lkont, kont, states)
+  function DefinePropertyOrThrow(O, P, desc, lkont, kont, states, cont) // ? bool
   {
-    const ownProp = callInternal(O, "[[DefineOwnProperty]]", [P, desc], lkont, kont, states);
-    const result = [];
-    for (const success of ownProp)
+    assert(typeof cont === "function");
+    callInternal(O, "[[DefineOwnProperty]]", [P, desc], lkont, kont, states, success =>
     {
       if (success.isTrue())
       {
-        result.push(success);
+        cont(L_TRUE);
       }
       if (success.isFalse())
       {
         throw new Error("TODO");
       }
-    }
-    return result;
+    })
   }
-  
+
   // 7.3.10
-  function HasProperty(O, P, lkont, kont, states)
+  function HasProperty(O, P, lkont, kont, states, cont)
   {
-    return callInternal(O, "[[HasProperty]]", [P], lkont, kont, states);
+    assert(typeof cont === "function");
+    return callInternal(O, "[[HasProperty]]", [P], lkont, kont, states, cont);
   }
-  
+
   // 7.3.11
-  function HasOwnProperty(O, P, lkont, kont, states)
+  function HasOwnProperty(O, P, lkont, kont, states, cont)
   {
+    assert(typeof cont === "function");
     assertIsObject(O);
-    assertIsPropertyKey(P);
-    let result = BOT;
-    const as = O.addresses().values();
-    // TODO: call [[GetOwnProperty]]
-    for (const a of as)
+    assert(IsPropertyKey(P).isTrue());
+    callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, states, desc =>
     {
-      const obj = states.machine.storeLookup(a);
-      const prop = obj.lookup(P);
-      if (prop !== BOT)
+      if (desc.isUndefined())
       {
-        result = result.join(L_TRUE);
-        const present = prop.must; // TODO getter/setter
-        if (!present)
-        {
-          result = result.join(L_FALSE);
-        }
+        cont(L_FALSE);
       }
-      else
+      if (desc.isDefined())
       {
-        result = result.join(L_FALSE);
+        cont(L_TRUE);
       }
-    }
-    return [result];
+    })
   }
-  
+
   // 7.3.12
-  function Call(F, V, argumentsList, cont, node, benv, lkont, kont, states)
+  function Call(F, V, argumentsList, node, benv, lkont, kont, states, cont)
   {
+    assert(typeof cont === "function");
     // non-spec: argumentsList should be optional, and [] if not passed
     assert(Array.isArray(argumentsList));
     const ic = IsCallable(F, states.machine);
@@ -4486,9 +5221,15 @@ function createSemantics(lat, cc)
   CallKont.prototype.apply =
       function (value, lkont, kont, machine)
       {
-        return cont(value, lkont, kont, machine);
+        return this.cont(value, lkont, kont, machine); // for intra-step, ignore `lkont`, `kont`, and `machine`
       }
 
+  // 7.1.15
+  function ToLength(argument, lkont, kont, states)
+  {
+    // TODO!
+    return argument.projectNumber();
+  }
 
   // 7.3.16
   function CreateArrayFromList(elements, node, lkont, kont, states)///, cont)
@@ -4498,81 +5239,81 @@ function createSemantics(lat, cc)
     let arr = createArray(kont.realm);
     for (let i = 0; i < elements.length; i++)
     {
-      arr = arr.add(lat.abst1(String(i)), Property.fromValue(elements[i]));
+      arr = arr.addProperty(lat.abst1(String(i)), Property.fromData(elements[i], L_TRUE, L_TRUE, L_TRUE));
     }
-    arr = arr.add(P_LENGTH, Property.fromValue(lat.abst1(elements.length)));
+    arr = arr.addProperty(P_LENGTH, Property.fromData(lat.abst1(elements.length), L_TRUE, L_TRUE, L_TRUE));
 
 //      const arrAddress = alloc.array(node, kont);
     //machine.storeAlloc(arrAddress, arr);
-    
+
     //const arrRef = lat.abstRef(arrAddress);
     //return cont(arrRef, store);
-    return [arr];
+    return arr;
   }
-  
+
   // 7.3.17
-  function CreateListFromArrayLike(obj, elementTypes, lkont, kont, states)
+  function LengthOfArrayLike(obj, lkont, kont, states, cont)
   {
+    assert(obj.isRef());
+    Get(obj, P_LENGTH, lkont, kont, states, value =>
+        cont(ToLength(value, lkont, kont, states)));
+  }
+
+  // 7.3.18
+  function CreateListFromArrayLike(obj, elementTypes, lkont, kont, states, cont) // ? List
+  {
+    assert(typeof cont === "function");
     if (elementTypes === undefined)
     {
       elementTypes = Sets.of(Types.Undefined, Types.Null, Types.Boolean, Types.String, Types.Symbol, Types.Number, Types.Object);
     }
-    assert(elementTypes instanceof Set);
-    const result = [];
     if (obj.isNonRef())
     {
       states.throwTypeError("7.3.17", lkont, kont);
     }
     if (obj.isRef())
     {
-      const r1 = Get(obj, P_LENGTH, lkont, kont, states);
-      for (const lenVal of r1)
+      LengthOfArrayLike(obj, lkont, kont, states, len =>
       {
-        const length = ToLength(lenVal, lkont, kont, states);
-        for (const len of length)
+        const list = [];
+        let index = L_0;
+        let seen = ArraySet.empty();
+        while ((!seen.contains(index)) && lat.lt(index, len).isTrue())
         {
-          const list = [];
-          let index = L_0;
-          let seen = ArraySet.empty();
-          while ((!seen.contains(index)) && lat.lt(index, len).isTrue())
+          seen = seen.add(index);
+          const indexName = index.ToString(); // TODO actual ToString call
+          const next = doProtoLookup(indexName, obj.addresses(), states.machine); // TODO Get call
+          const typeNext = Type(next);
+          if (Sets.intersection(elementTypes, typeNext).size > 0)
           {
-            seen = seen.add(index);
-            const indexName = index.ToString(); // TODO actual ToString call
-            const next = doProtoLookup(indexName, obj.addresses(), states.machine); // TODO Get call
-            const typeNext = Type(next);
-            if (Sets.intersection(elementTypes, typeNext).size > 0)
-            {
-              list.push(next);
-            }
-            index = lat.add(index, L_1);
+            list.push(next);
           }
-          result.push(list);
+          index = lat.add(index, L_1);
         }
-      }
+        cont(list);
+      })
     }
-    return result;
   }
-  
-  // 7.3.19
-  function OrdinaryHasInstance(C, O, lkont, kont, states)
+
+  // 7.3.20
+  function OrdinaryHasInstance(C, O, lkont, kont, states, cont)
   {
-    const result = [];
+    const result = BOT;
     const ic = IsCallable(C, states.machine);
     if (ic.isFalse())
     {
-      result.push(L_FALSE);
+      cont(L_FALSE);
     }
     if (ic.isTrue())
     {
       // [[BoundTargetFunction]] // TODO
       if (O.isNonRef())
       {
-        result.push(L_FALSE);
+        cont(L_FALSE);
       }
       if (O.isRef())
       {
-        const prototype = Get(C, P_PROTOTYPE, lkont, kont, states);
-        for (const P of prototype)
+        Get(C, P_PROTOTYPE, lkont, kont, states, P =>
         {
           if (P.isNonRef())
           {
@@ -4584,35 +5325,32 @@ function createSemantics(lat, cc)
             while (W.length > 0)
             {
               const O = W.pop();
-              const getProto = callInternal(O, "[[GetPrototypeOf]]", [], lkont, kont, states);
-              for (const O of getProto)
+              const getProto = callInternal(O, "[[GetPrototypeOf]]", [], lkont, kont, states, O =>
               {
                 if (O.isNull())
                 {
-                  result.push(L_FALSE);
+                  cont(L_FALSE);
                 }
                 if (O.isNonNull())
                 {
                   const sv = SameValue(P, O);
                   if (sv.isTrue())
                   {
-                    result.push(L_TRUE);
-  
+                    cont(L_TRUE);
                   }
                   if (sv.isFalse())
                   {
                     W.push(O);
                   }
                 }
-              }
+              })
             }
           }
-        }
+        })
       }
     }
-    return result;
   }
-  
+
   // 8.2
   function Realm()
   {
@@ -4620,7 +5358,7 @@ function createSemantics(lat, cc)
     this.GlobalObject = undefined;
     this.GlobalEnvironment = undefined;
   }
-  
+
   Realm.prototype.equals =
       function (x)
       {
@@ -4628,10 +5366,10 @@ function createSemantics(lat, cc)
         {
           return true;
         }
-        
+
         throw new Error("TODO: multi-realm");
       }
-  
+
   // // 8.2.1
   // function CreateRealm()
   // {
@@ -4650,95 +5388,85 @@ function createSemantics(lat, cc)
   //   const objProtoa = alloc.object();
   //   intrinsics.add("%ObjectPrototype%", )
   // }
-  
+
   // 9.1.1.1
-  function OrdinaryGetPrototypeOf(O, lkont, kont, states)
+  function OrdinaryGetPrototypeOf(O, lkont, kont, states, cont) // ref | null
   {
+    assert(typeof cont === "function");
     const P = getInternal(O, "[[Prototype]]", states.machine);
-    return [P];
+    assert(P.isRef() || P.isNull())
+    cont(P);
   }
 
   // 9.1.2.1
-  function OrdinarySetPrototypeOf(O, V, lkont, kont, states)
+  function OrdinarySetPrototypeOf(O, V, lkont, kont, states, cont) // bool
   {
+    assert(typeof cont === "function");
     assertIsObjectOrNull(V);
     const extensible = getInternal(O, "[[Extensible]]", states.machine);
     const current = getInternal(O, "[[Prototype]]", states.machine);
     const sv = SameValue(V, current);
-    const result = [];
+    let result = BOT;
     if (sv.isTrue())
     {
-      result.push(L_TRUE);
+      result = result.join(L_TRUE);
     }
     if (sv.isFalse())
     {
       if (extensible.isFalse())
       {
-        result.push(L_FALSE);
+        result = result.join(L_FALSE);
       }
       if (extensible.isTrue())
       {
         // TODO: steps 6,7,8 (loop)
         assignInternal(O, "[[Prototype]]", V, states.machine);
-        result.push(L_TRUE);
+        result = result.join(L_TRUE);
       }
     }
-    return result;
+    cont(result);
   }
-  
+
   // 9.1.5.1
-  function OrdinaryGetOwnProperty(O, P, lkont, kont, states)
+  function OrdinaryGetOwnProperty(O, P, lkont, kont, states, cont) // undefined | Property
   {
-    assertIsPropertyKey(P);
-    const result = [];
-    const as = O.addresses().values();
-    for (const a of as)
+    assert(typeof cont === "function");
+    assert(IsPropertyKey(P).isTrue());
+    for (const a of O.addresses())
     {
       const obj = states.machine.storeLookup(a);
-      const X = obj.lookup(P);
-      if (X === BOT || !X.must)
+      if (obj.propertyPresent(P))
       {
-        result.push(L_UNDEFINED);
+        const D = obj.getProperty(P);
+        assert(D instanceof Property);
+        cont(D);
       }
-      if (X !== BOT && X.must)
+      if (obj.propertyAbsent(P))
       {
-        const D = Property.empty();
-        D.Value = X.value.Value;
-        D.Writable = X.value.Writable;
-        D.Get = X.value.Get;
-        D.Set = X.value.Set;
-        D.Enumerable = X.value.Enumerable;
-        D.Configurable = X.value.Configurable;
-        result.push(D);
+        cont(L_UNDEFINED);
       }
     }
-    return result;
   }
-  
+
   // 9.1.6.1
-  function OrdinaryDefineOwnProperty(O, P, Desc, lkont, kont, states)
+  function OrdinaryDefineOwnProperty(O, P, Desc, lkont, kont, states, cont) // bool
   {
-    const result = [];
-    const ownProps = callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, states);
-    for (const current of ownProps)
+    assert(typeof cont === "function");
+    callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, states, current =>
     {
       const extensible = lookupInternal(O, "[[Extensible]]", states.machine);
-      const valApp = ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current, lkont, kont, states);
-      for (const r of valApp)
-      {
-        result.push(r);
-      }
-    }
-    return result;
+      ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current, lkont, kont, states, cont)
+    });
   }
-  
+
   // 9.1.6.3
-  function ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current, lkont, kont, states)
+  function ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current, lkont, kont, states, cont) // bool
   {
+    assert(typeof cont === "function");
     // step 1
-    if (O.isNonUndefined())
+    if (O.isDefined())
     {
-      assertIsPropertyKey(P);
+      assert(IsPropertyKey(P).isTrue());
     }
     let result = BOT;
     // step 2
@@ -4750,30 +5478,31 @@ function createSemantics(lat, cc)
       }
       if (extensible.isTrue())
       {
-        if (IsGenericDescriptor(Desc) || IsDataDescriptor(Desc))
+        if (IsGenericDescriptor(Desc).isTrue() || IsDataDescriptor(Desc).isTrue())
         {
-          if (O.isNonUndefined())
+          if (O.isDefined())
           {
-            const D = new Property(Desc.Value === BOT ? L_UNDEFINED : Desc.Value, BOT, BOT, Desc.Writable === BOT ? L_FALSE : Desc.Writable, Desc.Enumerable === BOT ? L_FALSE : Desc.Enumerable, Desc.Configurable === BOT ? L_FALSE : Desc.Configurable);
-            const as = O.addresses().values();
+            const D = Property.fromData(Desc.getValue(), Desc.getWritable(), Desc.getEnumerable(), Desc.getConfigurable());
+            const as = O.addresses();
             for (const a of as)
             {
               let obj = states.machine.storeLookup(a);
-              obj = obj.add(P, D);
+              obj = obj.addProperty(P, D);
               states.machine.storeUpdate(a, obj);
             }
           }
         }
-        if (IsAccessorDescriptor(Desc))
+        if (IsGenericDescriptor(Desc).isFalse() && IsDataDescriptor(Desc).isFalse())
         {
-          if (O.isNonUndefined())
+          assert(IsAccessorDescriptor(Desc).isTrue())
+          if (O.isDefined())
           {
-            const D = new Property(BOT, Desc.Get === BOT ? L_UNDEFINED : Desc.Get, Desc.Set === BOT ? L_UNDEFINED : Desc.Set, /*Desc.Writable === BOT ? L_FALSE : Desc.Writable*/ BOT, Desc.Enumerable === BOT ? L_FALSE : Desc.Enumerable, Desc.Configurable === BOT ? L_FALSE : Desc.Configurable);
-            const as = O.addresses().values();
+            const D = Property.fromAccessor(Desc.getGet(), Desc.getSet(), Desc.getEnumerable(), Desc.getConfigurable());
+            const as = O.addresses();
             for (const a of as)
             {
               let obj = states.machine.storeLookup(a);
-              obj = obj.add(P, D);
+              obj = obj.addProperty(P, D);
               states.machine.storeUpdate(a, obj);
             }
           }
@@ -4782,216 +5511,125 @@ function createSemantics(lat, cc)
       }
     }
     // step 3
-    if (current.isNonUndefined())
+    let step5 = false;
+    if (current.isDefined())
     {
-      if (Desc.Value === Desc.Get === Desc.Set === Desc.Writable === Desc.Enumerable === Desc.Configurable === BOT)
+      if (Desc.isValueAbsent() && Desc.isGetAbsent() && Desc.isSetAbsent() && Desc.isWritableAbsent() && Desc.isEnumerableAbsent() && Desc.isConfigurableAbsent())
       {
         result = result.join(L_TRUE);
       }
-      else
+      if (Desc.isValuePresent() || Desc.isGetPresent() && Desc.isSetPresent() && Desc.isWritablePresent() && Desc.isEnumerablePresent() && Desc.isConfigurablePresent())
       {
-        // step 4
-        if (current.Configurable.isFalse())
+        if (current.getConfigurable().isFalse())
         {
-          if (Desc.Configurable !== BOT && Desc.Configurable.isTrue())
+          if (Desc.isConfigurablePresent() && Desc.getConfigurable().isTrue())
           {
             result = result.join(L_FALSE);
           }
-          if (Desc.Configurable === BOT || Desc.Configurable.isFalse())
+          if (Desc.isConfigurableAbsent() || Desc.getConfigurable().isFalse())
           {
-            if (Desc.Enumerable !== BOT && lat.neqq(current.Enumerable, Desc.Enumerable).isTrue())
+            if (Desc.isEnumerablePresent() && SameValue(Desc.getEnumerable(), current.getEnumerable()).isFalse())
             {
               result = result.join(L_FALSE);
-            }  
+            }
+            if (Desc.isEnumerableAbsent() || SameValue(Desc.getEnumerable(), current.getEnumerable()).isTrue())
+            {
+              step5 = true;
+            }
           }
         }
-        // step 5
-        if (current.Configurable.isTrue())
+        if (current.getConfigurable().isTrue())
         {
-          if (IsGenericDescriptor(Desc))
-          {
-            result = result.join(L_TRUE);
-          }
-          else
-          {
-            // step 6
-            if (IsDataDescriptor(current) !== IsDataDescriptor(Desc))
-            {
-              if (current.Configurable.isFalse())
-              {
-                result = result.join(L_FALSE);
-              }
-              if (current.Configurable.isTrue())
-              {
-                if (IsDataDescriptor(current))
-                {
-                  if (O.isNonUndefined())
-                  {
-                    const D = new Property(L_UNDEFINED, current.Get, current.Set, L_FALSE, current.Enumerable, current.Configurable);
-                    const as = O.addresses().values();
-                    for (const a of as)
-                    {
-                      let obj = states.machine.storeLookup(a);
-                      obj = obj.add(P, D);
-                      states.machine.storeUpdate(a, obj);
-                    }
-                  }
-                }
-                else
-                {
-                  if (O.isNonUndefined())
-                  {
-                    const D = new Property(current.Value, L_UNDEFINED, L_UNDEFINED, L_FALSE, current.Enumerable, current.Configurable);
-                    const as = O.addresses().values();
-                    for (const a of as)
-                    {
-                      let obj = states.machine.storeLookup(a);
-                      obj = obj.add(P, D);
-                      states.machine.storeUpdate(a, obj);
-                    }    
-                  }
-                }
-                result = result.join(L_TRUE); // not in spec?
-              }
-            }
-            else
-            {
-              // step 7
-              if (IsDataDescriptor(current) && IsDataDescriptor(Desc))
-              {
-                if (current.Configurable.isFalse() && current.Writable.isFalse())
-                {
-                  if (Desc.Writable !== BOT && Desc.Writable.isTrue())
-                  {
-                    result = result.join(L_FALSE);
-                  }
-                  if (Desc.Writable === BOT || Desc.Writable.isFalse())
-                  {
-                    if (Desc.Value !== BOT && SameValue(Desc.Value, current.Value).isFalse())
-                    {
-                      result = result.join(L_FALSE);
-                    }
-                    if (Desc.Value === BOT || SameValue(Desc.Value, current.Value).isTrue())
-                    {
-                      result = result.join(L_TRUE);
-                    }
-                  }
-                }
-                else //?
-                {
-                  step9();
-                }
-              }
-              else
-              {
-                  // step 8
-                if (IsAccessorDescriptor(current) && IsAccesorDescriptor(Desc))
-                {
-                  if (current.Configurable.isFalse())
-                  {
-                    if (Desc.Set !== BOT && SameValue(Desc.Set, current.Set).isFalse())
-                    {
-                      result = result.join(L_FALSE);
-                    }
-                    if (Desc.Set === BOT || SameValue(Desc.Set, current.Set).isTrue())
-                    {
-                      if (Desc.Get !== BOT && SameValue(Desc.Get, current.Get).isFalse())
-                      {
-                        result = result.join(L_FALSE);
-                      }
-                      if (Desc.Get === BOT || SameValue(Desc.Get, current.Get).isTrue())
-                      {
-                        result = result.join(L_TRUE);
-                      }                          
-                    }
-                  }
-                }
-                else
-                {
-                  step9();
-                }
-              }
-            }
-          }
+          step5 = true;
         }
       }
-    }
 
-    function step9()
-    {
-      if (O.isNonUndefined())
+      if (step5)
       {
-        const D = new Property(Desc.Value === BOT ? L_UNDEFINED : Desc.Value, Desc.Get === BOT ? L_UNDEFINED : Desc.Get, Desc.Set === BOT ? L_UNDEFINED : Desc.Set,
-            Desc.Writable === BOT ? L_FALSE : Desc.Writable, Desc.Enumerable === BOT ? L_FALSE : Desc.Enumerable, Desc.Configurable === BOT ? L_FALSE : Desc.Configurable);
-        const as = O.addresses().values();
-        for (const a of as)
+        if (IsGenericDescriptor(Desc).isTrue())
         {
-          let obj = states.machine.storeLookup(a);
-          obj = obj.add(P, D);
-          states.machine.storeUpdate(a, obj);
+          // no further validation is required
+        }
+        if (IsGenericDescriptor(Desc).isFalse())
+        {
+          throw new Error("NYI");
         }
       }
-      result = result.join(L_TRUE);
     }
-
-    return [result];
+    cont(result);
   }
-  
-  
-  // 9.1.7.1
-  function OrdinaryHasProperty(O, P, lkont, kont, states)
+
+  function Cont(cont)
   {
-    assertIsPropertyKey(P);
-    const result = [];
-    const ownProps = callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, states);
-    for (const hasOwn of ownProps)
+    let called = 0;
+    let continuedWith = ArraySet.empty();
+    return function(value)
     {
-      if (!hasOwn.equals(L_UNDEFINED))
+      called++;
+      //console.log("!! called " + called);
+      if (!continuedWith.contains(value))
       {
-        result.push(L_TRUE);
+        continuedWith = continuedWith.add(value);
+        cont(value);
       }
       else
       {
-        const proto = callInternal(O, "[[GetPrototypeOf]]", [], lkont, kont, states);
-        for (const parent of proto)
+        // console.log("eaten " + value + " (" + continuedWith + ")");
+      }
+    }
+  }
+
+
+  // 9.1.7.1
+  function OrdinaryHasProperty(O, P, lkont, kont, states, cont) // bool
+  {
+    assert(typeof cont === "function");
+    assert(IsPropertyKey(P).isTrue());
+    callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, states, hasOwn =>
+    {
+      if (hasOwn.isDefined())
+      {
+        cont(L_TRUE);
+      }
+      if (hasOwn.isUndefined())
+      {
+        const parent = callInternal(O, "[[GetPrototypeOf]]", [], lkont, kont, states, parent =>
         {
           if (parent.isNonNull())
           {
-            const hasProp = callInternal(parent, "[[HasProperty]]", [P], lkont, kont, states);
-            for (const r of hasProp)
-            {
-              result.push(r);
-            }
+            callInternal(parent, "[[HasProperty]]", [P], lkont, kont, states, cont);
           }
           if (parent.isNull())
           {
-            result.push(L_FALSE);
+            cont(L_FALSE);
           }
-        }
+        })
       }
-    }
-    return result;
+    })
   }
-  
+
+
   // 9.1.8.1
-  function OrdinaryGet(O, P, Receiver, lkont, kont, states)
+  function OrdinaryGet(O, P, Receiver, lkont, kont, states, cont)
   {
-    //return invokeMeta("OrdinaryGet", [O, P, Receiver], lkont, kont, as);
+    assert(typeof cont === "function");
     const value = doProtoLookup(P, O.addresses(), states.machine);
-    return [value];
+    cont(value);
   }
-  
+
   // 9.1.9.1
-  function OrdinarySet(O, P, V, Receiver)
+  function OrdinarySet(O, P, V, Receiver, cont)
   {
-    assertIsPropertyKey(P);
+    assert(typeof cont === "function");
+    assert(IsPropertyKey(P).isTrue());
     // TODO
     throw new Error("TODO 9.1.9.1");
   }
-  
+
   // 9.1.11.1
-  function OrdinaryOwnPropertyKeys(O, lkont, kont, states)
+  function OrdinaryOwnPropertyKeys(O, lkont, kont, states, cont)
   {
+    assert(typeof cont === "function");
     let keys = ArraySet.empty();
     const as = O.addresses().values();
     for (const a of as)
@@ -4999,21 +5637,20 @@ function createSemantics(lat, cc)
       const obj = states.machine.storeLookup(a);
       // TODO: symbols, ascending numeric, chronological order, etc.
       // TODO: subsumption checking
-      
+
       keys = keys.addAll(obj.names());
     }
-    return keys.values();
+    cont(keys.values());
   }
-  
+
   // 9.1.12
-  function ObjectCreate(proto, internalSlotsList)
+  function ObjectCreate(proto, internalSlotsList) // Obj
   {
     if (internalSlotsList === undefined)
     {
       internalSlotsList = [];
     }
-    //let obj = newObject; // cannot use template because of old-style internals
-    let obj = new Obj();
+    let obj = Obj.empty();
     internalSlotsList.forEach((slot) => obj = obj.setInternal(slot, BOT));
     // step 3
     // 9.1.1
@@ -5036,7 +5673,7 @@ function createSemantics(lat, cc)
     obj = obj.setInternal("[[Extensible]]", L_TRUE);
     return obj;
   }
-  
+
   // 9.1.13
   function OrdinaryCreateFromConstructor(constructor, intrinsicDefaultProto, internalSlotsList, lkont, kont, states)
   {
@@ -5044,7 +5681,7 @@ function createSemantics(lat, cc)
     const proto = GetPrototypeFromConstructor(constructor, intrinsicDefaultProto, lkont, kont, states);
     return ObjectCreate(proto, internalSlotsList);
   }
-  
+
   // 9.1.14
   function GetPrototypeFromConstructor(constructor, intrinsicDefaultProto, lkont, kont, states)
   {
@@ -5066,25 +5703,24 @@ function createSemantics(lat, cc)
     }
     return result;
   }
-  
+
   // 9.4.3.4
   function StringCreate(lprim, kont)
   {
-    let obj = new Obj();
+    let obj = Obj.empty();
     obj = obj.setInternal("[[Prototype]]", kont.realm.Intrinsics.get("%StringPrototype%"));
     obj = obj.setInternal("[[StringData]]", lprim);
     obj = obj.setInternal("[[Get]]", SetValueNoAddresses.from1(OrdinaryGet));
-    obj = obj.add(P_LENGTH, Property.fromValue(lprim.stringLength()));
+    obj = obj.addProperty(P_LENGTH, Property.fromData(lprim.stringLength(), L_TRUE, L_TRUE, L_TRUE));
     return obj;
   }
-  
+
   // 12.10.4
-  function InstanceofOperator(O, C, lkont, kont, states)
+  function InstanceofOperator(O, C, lkont, kont, states, cont)
   {
-    let result = [];
     if (O.isNonRef())
     {
-      states.continue(L_FALSE, lkont, kont);
+      cont(L_FALSE);
     }
     // TODO instHandler
     const c = IsCallable(C, states.machine);
@@ -5094,20 +5730,15 @@ function createSemantics(lat, cc)
     }
     if (c.isTrue())
     {
-      const hasInstance = OrdinaryHasInstance(C, O, lkont, kont, states);
-      for (const r of hasInstance)
-      {
-        result.push(r);
-      }
+      OrdinaryHasInstance(C, O, lkont, kont, states, cont)
     }
-    return result;
   }
-  
+
   // 13.7.5.12
   // function ForInOfHeadEvaluation(TDZnames, expr, iterationKind, lkont, kont, states)
 
   // 19.1.2.3.1
-  function ObjectDefineProperties(O, Properties, node, lkont, kont, states)
+  function ObjectDefineProperties(O, Properties, node, lkont, kont, states, cont)
   {
     if (O.isNonRef())
     {
@@ -5115,56 +5746,57 @@ function createSemantics(lat, cc)
     }
     if (O.isRef())
     {
-      const result = [];
       const props = ToObject(Properties, node, lkont, kont, states);
-      const keys = callInternal(props, "[[OwnPropertyKeys]]", [], lkont, kont, states);
-      const W = [{keys, descriptors: []}];
-      while (W.length > 0)
+      callInternal(props, "[[OwnPropertyKeys]]", [], lkont, kont, states, keys =>
       {
-        const {keys, descriptors} = W.pop();
+        step5(keys, []);
+      });
+
+      function step5(keys, descriptors)
+      {
         if (keys.length === 0)
         {
-          for (const pair of descriptors)
-          {
-            const [P, desc] = pair;
-            const dpot = DefinePropertyOrThrow(O, P, desc, lkont, kont, states);
-            for (const success of dpot)
-            {
-              if (success.isTrue())
-              {
-                result.push(O);
-              }
-            }
-          }
+          step6(descriptors);
         }
         else
         {
           const nextKey = keys[0];
-          const ownProp = callInternal(props, "[[GetOwnProperty]]", [nextKey], lkont, kont, states);
-          for (const propDesc of ownProp)
+          callInternal(props, "[[GetOwnProperty]]", [nextKey], lkont, kont, states, propDesc =>
           {
-            if (propDesc !== undefined && propDesc.Enumerable.isTrue())
+            if (propDesc.isDefined() && propDesc.getEnumerable().isTrue()) // TODO `isEnumerable` etc. should be API on `Property`
             {
-              const get = Get(props, nextKey, lkont, kont, states);
-              for (const descObj of get)
+              Get(props, nextKey, lkont, kont, states, descObj =>
               {
-                const toPropDesc = ToPropertyDescriptor(descObj, lkont, kont, states);
-                for (const desc of toPropDesc) // internal value
+                ToPropertyDescriptor(descObj, lkont, kont, states, desc =>
                 {
-                  const descriptors2 = descriptors.slice(0);
-                  descriptors2.push([nextKey, desc]);
-                  const keys2 = keys.slice(1);
-                  W.push({keys: keys2, descriptors: descriptors2});
-                }
-              }
+                  step5(keys.slice(1), Arrays.push([nextKey, desc], descriptors));
+                })
+              })
             }
-          }
+            if (propDesc.isUndefined() || propDesc.isEnumerableAbsent() || propDesc.getEnumerable().isFalse()) // TODO `isNotEnumerable` etc. should be API on `Property`
+            {
+              step5(keys.slice(1), descriptors);
+            }
+          })
         }
       }
-      return result;
+
+      function step6(descriptors)
+      {
+        if (descriptors.length > 0)
+        {
+          const pair = descriptors[0];
+          const P = pair[0];
+          const desc = pair[1];
+          DefinePropertyOrThrow(O, P, desc, lkont, kont, states, _ =>
+              step6(descriptors.slice(1)));
+        }
+      }
+
+      cont(O);
     }
   }
-  
+
   // 19.1.2.6
   function objectFreeze(application, operandValues, thisValue, benv, lkont, kont, states)
   {
@@ -5172,79 +5804,83 @@ function createSemantics(lat, cc)
     // TODO
     states.continue(O, lkont, kont);
   }
-  
+
+  // 19.1.2.8
+  function objectGetOwnPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, states)
+  {
+    const [O, P] = operandValues;
+    const obj = ToObject(O, application, lkont, kont, states);
+    ToPropertyKey(P, lkont, kont, states, key =>
+      callInternal(obj, "[[GetOwnProperty]]", [key], lkont, kont, states, desc =>
+          FromPropertyDescriptor(desc, application, lkont, kont, states, value =>
+              states.continue(value, lkont, kont))));
+  }
+
   // 19.1.2.9
   function objectGetOwnPropertyNames(application, operandValues, thisValue, benv, lkont, kont, states)
   {
     const [O] = operandValues;
-    const ownProps = GetOwnPropertyKeys(O, Sets.of(Types.String), application, lkont, kont, states);
-    for (const arrRef of ownProps)
+    GetOwnPropertyKeys(O, Sets.of(Types.String), application, lkont, kont, states, ownProps =>
     {
-      states.continue(arrRef, lkont, kont);
-    }
+      states.continue(ownProps, lkont, kont);
+    });
   }
-  
-  // 19.1.2.10.1
-  function GetOwnPropertyKeys(O, Type_, node, lkont, kont, states)
+
+  // 19.1.2.11.1
+  function GetOwnPropertyKeys(O, type, node, lkont, kont, states, cont)
   {
-    const result = [];
+    assert(typeof cont === "function");
     const obj = ToObject(O, node, lkont, kont, states);
-    const keys = callInternal(obj, "[[OwnPropertyKeys]]", [], lkont, kont, states);
-    let nameList = [];
-    for (const nextKey of keys)
+    callInternal(obj, "[[OwnPropertyKeys]]", [], lkont, kont, states, keys =>
     {
-      if (Sets.intersection(Type_, Type(nextKey)).size > 0)
+      let nameList = [];
+      for (const nextKey of keys)
       {
-        nameList.push(nextKey);
+        if (Sets.intersection(type, Type(nextKey)).size > 0)
+        {
+          nameList.push(nextKey);
+        }
       }
-    }
-    const create = CreateArrayFromList(nameList, node, lkont, kont, states);
-    for (const arr of create)
-    {
+      const arr = CreateArrayFromList(nameList, node, lkont, kont, states);
       const arrAddress = states.machine.alloc.array(node, kont);
       states.machine.storeAlloc(arrAddress, arr);
       const ref = lat.abstRef(arrAddress);
-      result.push(ref);
-    }
-    return result;
+      cont(ref);
+    });
   }
 
-  // 19.1.2.20
+  // 19.1.2.21
   function objectSetPrototypeOf(application, operandValues, thisValue, benv, lkont, kont, states)
   {
-    const [O, Proto] = operandValues;
-    const roc = RequireObjectCoercible(O, lkont, kont, states);
-    for (const O of roc)
+    const [Orand, Proto] = operandValues;
+    const O = RequireObjectCoercible(Orand, lkont, kont, states);
+    // const typeProto = Type(proto);
+    // const typeObjectNull = Sets.intersection(typeProto, new Set([Types.Object, Types.Null]))
+    // const neitherObjectNorNull = typeProto.size > typeObjectNull.size;
+    // const objectOrNull = typeObjectNull.size > 0;
+    if (isNeitherObjectNorNull(Proto))
     {
-      // const typeProto = Type(proto);
-      // const typeObjectNull = Sets.intersection(typeProto, new Set([Types.Object, Types.Null]))
-      // const neitherObjectNorNull = typeProto.size > typeObjectNull.size;
-      // const objectOrNull = typeObjectNull.size > 0;
-      if (isNeitherObjectNorNull(Proto))
+      states.throwTypeError("19.1.2.20-1", lkont, kont);
+    }
+    if (isObject(Proto) || isNull(Proto))
+    {
+      if (O.isNonRef())
       {
-        states.throwTypeError("19.1.2.20-1", lkont, kont);
+        states.continue(O, lkont, kont);
       }
-      if (isObject(Proto) || isNull(Proto))
+      if (O.isRef())
       {
-        if (O.isNonRef())
+        callInternal(O, "[[SetPrototypeOf]]", [Proto], lkont, kont, states, value =>
         {
-          states.continue(O, lkont, kont);
-        }
-        if (O.isRef())
-        {
-          const spo = callInternal(O, "[[SetPrototypeOf]]", [Proto], lkont, kont, states);
-          for (const value of spo)
+          if (value.isFalse())
           {
-            if (value.isFalse())
-            {
-              states.throwTypeError("19.1.2.20-2", lkont, kont);
-            }
-            if (value.isTrue())
-            {
-              states.continue(O, lkont, kont);
-            }
+            states.throwTypeError("19.1.2.20-2", lkont, kont);
           }
-        }
+          if (value.isTrue())
+          {
+            states.continue(O, lkont, kont);
+          }
+        })
       }
     }
   }
@@ -5287,16 +5923,15 @@ function createSemantics(lat, cc)
       }
       else
       {
-        const r1 = CreateListFromArrayLike(argArray, undefined, lkont, kont, states);
-        for (const argList of r1)
+        const r1 = CreateListFromArrayLike(argArray, undefined, lkont, kont, states, argList =>
         {
           // TODO: PrepareForTailCall()
           applyProc(application, thisValue, argList, thisArg, null, lkont, kont, states);
-        }
+        })
       }
     }
   }
-  
+
   // 19.2.3.3
   function functionCall(application, operandValues, thisValue, benv, lkont, kont, states)
   {
@@ -5314,20 +5949,20 @@ function createSemantics(lat, cc)
       applyProc(application, thisValue, argList, thisArg, null, lkont, kont, states);
     }
   }
-  
-  
+
+
   function createClosure(node, scope, realm)
   {
     var obj = createFunction(new ObjClosureCall(node, scope), realm);
     return obj;
   }
-  
+
   function createPrimitive(applyFunction, applyConstructor, realm)
   {
     var obj = createFunction(new ObjPrimitiveCall(applyFunction, applyConstructor), realm);
     return obj;
   }
-  
+
   function createFunction(Call, realm)
   {
     var obj = ObjectCreate(realm.Intrinsics.get("%FunctionPrototype%"));
@@ -5362,7 +5997,7 @@ function createSemantics(lat, cc)
     // ctx._sstorei = machine.getSstorei();
     return ctx;
   }
-  
+
   function JipdaContext(ex, thisValue, realm, userContext, as)
   {
     assert(thisValue);
@@ -5391,7 +6026,7 @@ function createSemantics(lat, cc)
             && this.userContext.equals(ctx.userContext)
             && this.as.equals(ctx.as)
       }
-  
+
   JipdaContext.prototype.intern =
       function (contexts)
       {
@@ -5406,13 +6041,13 @@ function createSemantics(lat, cc)
         this._id = contexts.push(this) - 1;
         return this;
       }
-  
+
   JipdaContext.prototype.addresses =
       function ()
       {
         return this.as.join(this.thisValue.addresses());
       }
-  
+
   JipdaContext.prototype.stackAddresses =
       function (lkont)
       {
@@ -5423,7 +6058,7 @@ function createSemantics(lat, cc)
         }
         return addresses;
       }
-  
+
   JipdaContext.prototype.getReachableContexts =
       function ()
       {
@@ -5443,13 +6078,13 @@ function createSemantics(lat, cc)
         }
         return reachable;
       }
-  
+
   // JipdaContext.prototype.topmostApplicationReachable = // is context.ex reachable?
   //     function ()
   //     {
   //       return ([...this.getReachableContexts()].map((ctx) => ctx.ex).includes(this.ex));
   //     }
-  
+
   JipdaContext.prototype.toString =
       function ()
       {
@@ -5457,15 +6092,15 @@ function createSemantics(lat, cc)
       }
 
   ////////////////////////////////
-  
-  
+
+
   function Stack(lkont, kont)
   {
     this.lkont = lkont;
     this.kont = kont;
     this._id = -1;
   }
-  
+
   Stack.prototype.equals =
       function (x)
       {
@@ -5476,30 +6111,30 @@ function createSemantics(lat, cc)
         return this.lkont.equals(x.lkont)
             && this.kont === x.kont;
       }
-  
+
   Stack.prototype.toString =
       function ()
       {
         return "[" + this.lkont + ", " + this.kont + "]";
       }
-  
+
   Stack.prototype.unroll =
       function ()
       {
         function unroll(stack, seen)
         {
-          
+
           if (seen[stack._id])
           {
             return [[stack, "*"]];
           }
           seen[stack._id] = true;
-          
+
           if (stack.kont._stacks.size === 0)
           {
             return [[stack]];
           }
-          
+
           const result = [];
           for (const stack2 of stack.kont._stacks)
           {
@@ -5511,11 +6146,11 @@ function createSemantics(lat, cc)
           }
           return result;
         }
-        
+
         return unroll(this, []);
       }
-  
-  
+
+
   function Stackget(st, machine)
   {
     for (let i = 0; i < machine.stacks.length; i++)
@@ -5532,35 +6167,36 @@ function createSemantics(lat, cc)
 
   function initialize(machine)
   {
-    
+
+    let nativeCounter = 0;
+
     function allocNative()
     {
-      return machine.alloc.native();
+      return "nat-" + nativeCounter++;
     }
-    
+
     function initialize2(benv)
     {
       const realm = new Realm();
       const intrinsics = new Intrinsics();
       realm.Intrinsics = intrinsics;
-      
+
       const globala = allocNative();
       const globalRef = lat.abstRef(globala);
       realm.GlobalObject = globalRef;
-      
+
       realm.GlobalEnv = benv;
-      
-      const queueA = "ScriptJobs";
-      machine.storeAlloc(queueA, new JobQueue());
-      
-      //var globalenva = "globalenv@0";
+
+      // const queueA = "ScriptJobs";
+      // machine.storeAlloc(queueA, new JobQueue());
+
       const objectPa = allocNative();
       const objectProtoRef = lat.abstRef(objectPa);
       intrinsics.add("%ObjectPrototype%", objectProtoRef);
       const functionPa = allocNative();
       const functionProtoRef = lat.abstRef(functionPa);
       intrinsics.add("%FunctionPrototype%", functionProtoRef);
-      
+
       function registerPrimitiveFunction(object, propertyName, applyFunction, applyConstructor)
       {
         var primFunObject = createPrimitive(applyFunction, applyConstructor, realm);
@@ -5568,62 +6204,63 @@ function createSemantics(lat, cc)
         machine.storeAlloc(primFunObjectAddress, primFunObject); // TODO: danger, relies on 'init store'
         return registerProperty(object, propertyName, lat.abstRef(primFunObjectAddress));
       }
-      
+
       function registerProperty(object, propertyName, value)
       {
-        object = object.add(lat.abst1(propertyName), new Property(value, BOT, BOT, L_FALSE, L_FALSE, L_FALSE));//Property.fromValue(value));
+        object = object.addProperty(lat.abst1(propertyName), Property.fromData(value, L_TRUE, L_FALSE, L_TRUE));
         return object;
       }
 
 // BEGIN GLOBAL
       var global = ObjectCreate(objectProtoRef);
-      
+
       // ECMA 15.1.1 value properties of the global object (no "null", ...)
       global = registerProperty(global, "undefined", L_UNDEFINED);
       global = registerProperty(global, "NaN", lat.abst1(NaN));
       global = registerProperty(global, "Infinity", lat.abst1(Infinity));
-      
+
       // specific interpreter functions
 //  global = registerPrimitiveFunction(global, globala, "$meta", $meta);
       global = registerPrimitiveFunction(global, "$join", $join);
       global = registerPrimitiveFunction(global, "print", _print);
       // end specific interpreter functions
-      
+
       // BEGIN OBJECT
       var objectP = ObjectCreate(L_NULL);
 //  objectP.toString = function () { return "~Object.prototype"; }; // debug
       var objecta = allocNative();
       objectP = registerProperty(objectP, "constructor", lat.abstRef(objecta));
       //objectP = registerPrimitiveFunction(objectP, "isPrototypeOf", objectPIsPrototypeOf);
-      
+
       var object = createPrimitive(null, objectConstructor, realm);
-      object = object.add(P_PROTOTYPE, Property.fromValue(objectProtoRef));//was objectProtoRef
-      global = global.add(lat.abst1("Object"), Property.fromValue(lat.abstRef(objecta)));
-      
+      object = object.addProperty(P_PROTOTYPE, Property.fromData(objectProtoRef, L_TRUE, L_TRUE, L_TRUE));
+      global = global.addProperty(lat.abst1("Object"), Property.fromData(lat.abstRef(objecta), L_TRUE, L_TRUE, L_TRUE));
+
       object = registerPrimitiveFunction(object, "freeze", objectFreeze);
+      object = registerPrimitiveFunction(object, "getOwnPropertyDescriptor", objectGetOwnPropertyDescriptor);
       //object = registerPrimitiveFunction(object, "create", objectCreate);
       //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
       //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
       object = registerPrimitiveFunction(object, "setPrototypeOf", objectSetPrototypeOf);
       machine.storeAlloc(objecta, object);
-      
+
       objectP = registerPrimitiveFunction(objectP, "hasOwnProperty", objectHasOwnProperty);
       objectP = registerPrimitiveFunction(objectP, "getOwnPropertyNames", objectGetOwnPropertyNames);
       machine.storeAlloc(objectPa, objectP);
       // END OBJECT
-      
-      
+
+
       // BEGIN FUNCTION
       var functionP = ObjectCreate(objectProtoRef);
       var functiona = allocNative();
       var functionP = registerProperty(functionP, "constructor", lat.abstRef(functiona));
-      
+
 
       var fun = createPrimitive(functionFunction, functionFunction, realm);
-      fun = fun.add(P_PROTOTYPE, Property.fromValue(functionProtoRef));
-      global = global.add(lat.abst1("Function"), Property.fromValue(lat.abstRef(functiona)));
+      fun = fun.addProperty(P_PROTOTYPE, Property.fromData(functionProtoRef, L_TRUE, L_TRUE, L_TRUE));
+      global = global.addProperty(lat.abst1("Function"), Property.fromData(lat.abstRef(functiona), L_TRUE, L_TRUE, L_TRUE));
       machine.storeAlloc(functiona, fun);
-      
+
       functionP = registerPrimitiveFunction(functionP, "call", functionCall);
       functionP = registerPrimitiveFunction(functionP, "apply", functionApply);
 
@@ -5650,19 +6287,19 @@ function createSemantics(lat, cc)
         }
       }
       // END FUNCTION
-      
-      
+
+
       // BEGIN ERROR
       const errorPa = allocNative();
       const errorProtoRef = lat.abstRef(errorPa);
       intrinsics.add("%ErrorPrototype%", errorProtoRef);
-      
+
       var errorP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
       var errora = allocNative();
       var errorP = registerProperty(errorP, "constructor", lat.abstRef(errora));
       var error = createPrimitive(errorFunction, errorConstructor, realm);
-      error = error.add(P_PROTOTYPE, Property.fromValue(errorProtoRef));
-      global = global.add(lat.abst1("Error"), Property.fromValue(lat.abstRef(errora)));
+      error = error.addProperty(P_PROTOTYPE, Property.fromData(errorProtoRef, L_TRUE, L_TRUE, L_TRUE));
+      global = global.addProperty(lat.abst1("Error"), Property.fromData(lat.abstRef(errora), L_TRUE, L_TRUE, L_TRUE));
       machine.storeAlloc(errora, error);
       machine.storeAlloc(errorPa, errorP);
       // END ERROR
@@ -5677,8 +6314,8 @@ function createSemantics(lat, cc)
       var stringa = allocNative();
       var stringP = registerProperty(stringP, "constructor", lat.abstRef(stringa));
       var string = createPrimitive(stringFunction, null, realm);
-      string = string.add(P_PROTOTYPE, Property.fromValue(intrinsics.get("%StringPrototype%")));
-      global = global.add(lat.abst1("String"), Property.fromValue(lat.abstRef(stringa)));
+      string = string.addProperty(P_PROTOTYPE, Property.fromData(intrinsics.get("%StringPrototype%"), L_TRUE, L_TRUE, L_TRUE));
+      global = global.addProperty(lat.abst1("String"), Property.fromData(lat.abstRef(stringa), L_TRUE, L_TRUE, L_TRUE));
       machine.storeAlloc(stringa, string);
 
 
@@ -5697,8 +6334,8 @@ function createSemantics(lat, cc)
       var numbera = allocNative();
       numberP = registerProperty(numberP, "constructor", lat.abstRef(numbera));
       var number = createPrimitive(numberFunction, numberConstructor, realm);
-      number = number.add(P_PROTOTYPE, Property.fromValue(intrinsics.get("%NumberPrototype%")));
-      global = global.add(lat.abst1("Number"), Property.fromValue(lat.abstRef(numbera)));
+      number = number.addProperty(P_PROTOTYPE, Property.fromData(intrinsics.get("%NumberPrototype%"), L_TRUE, L_TRUE, L_TRUE));
+      global = global.addProperty(lat.abst1("Number"), Property.fromData(lat.abstRef(numbera), L_TRUE, L_TRUE, L_TRUE));
       machine.storeAlloc(numbera, number);
 
       // stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
@@ -5713,22 +6350,22 @@ function createSemantics(lat, cc)
       const arrayPa = allocNative();
       const arrayProtoRef = lat.abstRef(arrayPa);
       intrinsics.add("%ArrayPrototype%", arrayProtoRef);
-      
+
       var arrayP = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
       var arraya = allocNative();
       var arrayP = registerProperty(arrayP, "constructor", lat.abstRef(arraya));
       var array = createPrimitive(arrayFunction, arrayConstructor, realm);
-      array = array.add(P_PROTOTYPE, Property.fromValue(arrayProtoRef));
-      global = global.add(lat.abst1("Array"), Property.fromValue(lat.abstRef(arraya)));
+      array = array.addProperty(P_PROTOTYPE, Property.fromData(arrayProtoRef, L_TRUE, L_TRUE, L_TRUE));
+      global = global.addProperty(lat.abst1("Array"), Property.fromData(lat.abstRef(arraya), L_TRUE, L_TRUE, L_TRUE));
       machine.storeAlloc(arraya, array);
-      
+
       arrayP = registerPrimitiveFunction(arrayP, "toString", arrayToString);
-      arrayP = registerPrimitiveFunction(arrayP, "concat", arrayConcat);
+      // arrayP = registerPrimitiveFunction(arrayP, "concat", arrayConcat);
       arrayP = registerPrimitiveFunction(arrayP, "push", arrayPush);
       machine.storeAlloc(arrayPa, arrayP);
       // END ARRAY
-      
-      
+
+
       // BEGIN MATH
       var math = ObjectCreate(intrinsics.get("%ObjectPrototype%"));
       var matha = allocNative();
@@ -5743,45 +6380,45 @@ function createSemantics(lat, cc)
       math = registerPrimitiveFunction(math, "min", mathMin);
 //  math = registerProperty(math, "PI", lat.abst1(Math.PI));
       machine.storeAlloc(matha, math);
-      global = global.add(lat.abst1("Math"), Property.fromValue(lat.abstRef(matha)));
-      
-      
+      global = global.addProperty(lat.abst1("Math"), Property.fromData(lat.abstRef(matha), L_TRUE, L_TRUE, L_TRUE));
+
+
       function mathSqrt(application, operandValues, thisValue, benv, lkont, kont, states)
       {
         var value = lat.sqrt(operandValues[0]);
         states.continue(value, lkont, kont);
       }
-      
+
       function mathAbs(application, operandValues, thisValue, benv, lkont, kont, states)
       {
         var value = lat.abs(operandValues[0]);
         states.continue(value, lkont, kont);
       }
-      
+
       function mathRound(application, operandValues, thisValue, benv, lkont, kont, states)
       {
         var value = lat.round(operandValues[0]);
         states.continue(value, lkont, kont);
       }
-      
+
       function mathFloor(application, operandValues, thisValue, benv, lkont, kont, states)
       {
         var value = lat.floor(operandValues[0]);
         states.continue(value, lkont, kont);
       }
-      
+
       function mathCos(application, operandValues, thisValue, benv, lkont, kont, states)
       {
         var value = lat.cos(operandValues[0]);
         states.continue(value, lkont, kont);
       }
-      
+
       function mathSin(application, operandValues, thisValue, benv, lkont, kont, states)
       {
         var value = lat.sin(operandValues[0]);
         states.continue(value, lkont, kont);
       }
-      
+
       var random = (function ()
       {
         var seed = 0x2F6E2B1;
@@ -5797,7 +6434,7 @@ function createSemantics(lat, cc)
           return (seed & 0xFFFFFFF) / 0x10000000;
         };
       }());
-      
+
       function mathRandom(application, operandValues, thisValue, benv, lkont, kont, states)
       {
         var value = lat.abst1(random());
@@ -5818,8 +6455,8 @@ function createSemantics(lat, cc)
         states.continue(value, lkont, kont);
       }
       // END MATH
-      
-      
+
+
       // BEGIN BASE
       var base = ObjectCreate(lat.abst1(null));
       var basea = allocNative();
@@ -5847,7 +6484,7 @@ function createSemantics(lat, cc)
       base = registerPrimitiveFunction(base, "NumberToString", baseNumberToString);
 
       machine.storeAlloc(basea, base);
-      global = global.add(lat.abst1("$BASE$"), Property.fromValue(lat.abstRef(basea)));
+      global = global.addProperty(lat.abst1("$BASE$"), Property.fromData(lat.abstRef(basea), L_TRUE, L_TRUE, L_TRUE));
       // END BASE
 
       // BEGIN PERFORMANCE
@@ -5994,19 +6631,16 @@ function createSemantics(lat, cc)
   // }
 
 
+  // 
   function objectHasOwnProperty(application, operandValues, thisValue, benv, lkont, kont, states)
   {
     const [V] = operandValues;
-    const key = ToPropertyKey(V, lkont, kont, states);
-    for (const P of key)
+    ToPropertyKey(V, lkont, kont, states, P =>
     {
       const O = ToObject(thisValue, application, lkont, kont, states);
-      const has = HasOwnProperty(O, P, lkont, kont, states);
-      for (const value of has)
-      {
-        states.continue(value, lkont, kont);
-      }
-    }
+      HasOwnProperty(O, P, lkont, kont, states, value =>
+        states.continue(value, lkont, kont));
+    });
   }
 
   function errorFunction(application, operandValues, thisValue, benv, lkont, kont, states)
@@ -6079,8 +6713,8 @@ function createSemantics(lat, cc)
     }
     else
     {
-      const operatorValue = baseReg.get("ToString");
-      applyProc(application, operatorValue, operandValues, thisValue, benv, lkont, kont, states);
+      ToString(operandValues[0], lkont, kont, states, value =>
+          states.continue(value, lkont, kont));
     }
   }
 
@@ -6126,51 +6760,6 @@ function createSemantics(lat, cc)
   // 21.1.3.25
   // toString: prelude
 
-  function arrayConcat(application, operandValues, thisValue, benv, lkont, kont, states)
-  {
-    if (operandValues.length !== 1)
-    {
-      throw new Error("TODO array.concat");
-    }
-    for (const thisa of thisValue.addresses())
-    {
-      var thisArr = states.machine.storeLookup(thisa);
-      var thisLen = thisArr.lookup(P_LENGTH).value.Value;
-      var argAddrs = operandValues[0].addresses();
-      var resultArr = createArray(kont.realm);
-      var i = L_0;
-      var seen = ArraySet.empty();
-      while ((!seen.contains(i)) && lat.lt(i, thisLen).isTrue())
-      {
-        seen = seen.add(i);
-        var iname = i.ToString();
-        var v = doProtoLookup(iname, ArraySet.from1(thisa), states.machine);
-        resultArr = resultArr.add(iname, Property.fromValue(v));
-        i = lat.add(i, L_1);
-      }
-      argAddrs.forEach(
-          function (argAddr)
-          {
-            var argArr = states.machine.storeLookup(argAddr);
-            var argLen = argArr.lookup(P_LENGTH).value.Value;
-            var i = L_0;
-            var seen = ArraySet.empty();
-            while ((!seen.contains(i)) && lat.lt(i, argLen).isTrue())
-            {
-              seen = seen.add(i);
-              var iname = i.ToString();
-              var v = doProtoLookup(iname, ArraySet.from1(argAddr), states.machine);
-              resultArr = resultArr.add(lat.add(thisLen, i).ToString(), Property.fromValue(argArr.lookup(iname).value.Value, BOT));
-              i = lat.add(i, L_1);
-            }
-            resultArr = resultArr.add(P_LENGTH, Property.fromValue(lat.add(thisLen, i)));
-          });
-      var arrAddress = states.machine.alloc.array(application, kont);
-      states.machine.storeAlloc(arrAddress, resultArr);
-      states.continue(lat.abstRef(arrAddress), lkont, kont);
-    }
-  }
-
   function arrayConstructor(application, operandValues, protoRef, benv, lkont, kont, states)
   {
     var arr = createArray(kont.realm);
@@ -6187,7 +6776,7 @@ function createSemantics(lat, cc)
     {
       throw new Error("TODO: " + operandValues.length);
     }
-    arr = arr.add(P_LENGTH, Property.fromValue(length));
+    arr = arr.addProperty(P_LENGTH, Property.fromData(length, L_TRUE, L_TRUE, L_TRUE));
 
     var arrAddress = states.machine.alloc.array(application, kont);
     states.machine.storeAlloc(arrAddress, arr);
@@ -6200,9 +6789,9 @@ function createSemantics(lat, cc)
     var arr = createArray(kont.realm);
     for (var i = 0; i < operandValues.length; i++)
     {
-      arr = arr.add(lat.abst1(String(i)), Property.fromValue(operandValues[i]));
+      arr = arr.addProperty(lat.abst1(String(i)), Property.fromData(operandValues[i], L_TRUE, L_TRUE, L_TRUE));
     }
-    arr = arr.add(P_LENGTH, Property.fromValue(lat.abst1(operandValues.length)));
+    arr = arr.addProperty(P_LENGTH, Property.fromData(lat.abst1(operandValues.length), L_TRUE, L_TRUE, L_TRUE));
 
     var arrAddress = states.machine.alloc.array(application, kont);
     states.machine.storeAlloc(arrAddress, arr);
@@ -6210,15 +6799,15 @@ function createSemantics(lat, cc)
     states.continue(arrRef, lkont, kont);
   }
 
+  // 22.1.3.1
+  // Array.prototype.concat
+
   function arrayToString(application, operandValues, thisValue, benv, lkont, kont, states)
   {
     assert(states);
     // TODO: this is a hack (no actual ToString called)
-    const create = CreateListFromArrayLike(thisValue, undefined, lkont, kont, states);
-    for (const list of create)
-    {
-      states.continue(lat.abst1(list.join()), lkont, kont);
-    }
+    const create = CreateListFromArrayLike(thisValue, undefined, lkont, kont, states, list =>
+      states.continue(lat.abst1(list.join()), lkont, kont));
   }
 
   // 22.1.3.15
@@ -6227,14 +6816,14 @@ function createSemantics(lat, cc)
   // 22.1.3.14
   function arrayPush(application, operandValues, thisValue, benv, lkont, kont, states)
   {
-    for (const thisa of thisValue.addresses().values())
+    for (const thisa of thisValue.addresses())
     {
       var arr = states.machine.storeLookup(thisa);
-      var len = arr.lookup(P_LENGTH).value.Value;
+      var len = arr.getProperty(P_LENGTH).getValue();
       var lenStr = len.ToString();
-      arr = arr.add(lenStr, Property.fromValue(operandValues[0]))
+      arr = arr.addProperty(lenStr, Property.fromData(operandValues[0], L_TRUE, L_TRUE, L_TRUE))
       var len1 = lat.add(len, L_1);
-      arr = arr.add(P_LENGTH, Property.fromValue(len1));
+      arr = arr.addProperty(P_LENGTH, Property.fromData(len1, L_TRUE, L_TRUE, L_TRUE));
       states.machine.storeUpdate(thisa, arr);
       states.continue(len1, lkont, kont);
     }
@@ -6258,57 +6847,42 @@ function createSemantics(lat, cc)
   function baseDefinePropertyOrThrow(application, operandValues, thisValue, benv, lkont, kont, states)
   {
     const [O, key, desc] = operandValues;
-    const int = DefinePropertyOrThrow(O, key, desc, lkont, kont, states);
-    for (const value of int)
-    {
-      states.continue(value, lkont, kont);
-    }
+    const int = DefinePropertyOrThrow(O, key, desc, lkont, kont, states, value =>
+      states.continue(value, lkont, kont));
   }
 
   function baseObjectDefineProperties(application, operandValues, thisValue, benv, lkont, kont, states)
   {
     const [O, Properties] = operandValues;
-    const int = ObjectDefineProperties(O, Properties, application, lkont, kont, states);
-    for (const value of int)
-    {
-      states.continue(value, lkont, kont);
-    }
+    const int = ObjectDefineProperties(O, Properties, application, lkont, kont, states, value =>
+      states.continue(value, lkont, kont));
   }
 
   function baseNewPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, states)
   {
-    const property = Property.fromValue(BOT);
+    const property = Property.empty();
     states.continue(property, lkont, kont);
   }
 
   function baseToPropertyKey(application, operandValues, thisValue, benv, lkont, kont, states)
   {
     const [argument] = operandValues;
-    const int = ToPropertyKey(argument, lkont, kont, states);
-    for (const value of int)
-    {
-      states.continue(value, lkont, kont);
-    }
+    const int = ToPropertyKey(argument, lkont, kont, states, value =>
+      states.continue(value, lkont, kont));
   }
 
   function baseToPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, states)
   {
     const [Attributes] = operandValues;
-    const int = ToPropertyDescriptor(Attributes, lkont, kont, states);
-    for (const desc of int)
-    {
-      states.continue(desc, lkont, kont);
-    }
+    ToPropertyDescriptor(Attributes, lkont, kont, states, desc =>
+      states.continue(desc, lkont, kont));
   }
 
   function baseFromPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, states)
   {
     const [Desc] = operandValues;
-    const int = FromPropertyDescriptor(Desc, application, lkont, kont, states);
-    for (const value of int)
-    {
-      states.continue(value, lkont, kont);
-    }
+    FromPropertyDescriptor(Desc, application, lkont, kont, states, value =>
+      states.continue(value, lkont, kont));
   }
 
   function baseStringCreate(application, operandValues, thisValue, benv, lkont, kont, states)
@@ -6430,13 +7004,10 @@ function createSemantics(lat, cc)
 
   function baseCallInternal(application, operandValues, thisValue, benv, lkont, kont, states)
   {
+    console.log("kont", kont._id);
     const [O, Name, ...args] = operandValues;
-    const call = callInternal(O, Name.conc1(), args, lkont, kont, states);
-    for (const value of call)
-    {
-      assertDefinedNotNull(value);
-      states.continue(value, lkont, kont);
-    }
+    const call = callInternal(O, Name.conc1(), args, lkont, kont, states, value =>
+      states.continue(value, lkont, kont));
   }
 
   function baseAssignInternal(application, operandValues, thisValue, benv, lkont, kont, states)
@@ -6450,14 +7021,14 @@ function createSemantics(lat, cc)
   {
     this.resource = resource;
   }
-  
+
   ScriptEvaluationJob.prototype.execute =
       function (lkont, kont, machine)
       {
         const ast = Ast.createAst(this.resource);
         return [machine.evaluate(ast, kont.realm.GlobalEnv, lkont, kont)];
       }
-  
+
   ScriptEvaluationJob.prototype.hashCode =
       function ()
       {
@@ -6467,7 +7038,7 @@ function createSemantics(lat, cc)
         result = prime * result + this.resource.hashCode();
         return result;
       }
-      
+
   ScriptEvaluationJob.prototype.addresses =
       function ()
       {
@@ -6477,59 +7048,9 @@ function createSemantics(lat, cc)
   return {
     initialize,
     evaluate: evaluate_, continue:continue_, return:return_, throw: throw_, break: break_,
-    gc: gc_, enqueueScriptEvaluation, enqueueJob,
+    gc: gc_, enqueueScriptEvaluation,
     $getProperty, $assignProperty, $call, $construct, $createFunction,
-      lat};
-}
-
-// function SetValue(set)
-// {
-//   this.set = set || new Set();
-// }
-//
-// SetValue.from1 =
-//     function (x)
-//     {
-//       return new SetValue(new Set([x]));
-//     }
-//
-// SetValue.prototype.add =
-//     function (x)
-//     {
-//       return new SetValue(Sets.add(this.set, x));
-//     }
-//
-// SetValue.prototype.join =
-//     function (x)
-//     {
-//       if (x === BOT)
-//       {
-//         return this;
-//       }
-//       return new SetValue(Sets.union(this.set, x.set));
-//     }
-//
-// SetValue.prototype.addresses =
-//     function ()
-//     {
-//       let as = ArraySet.empty();
-//       for (const x of this.set)
-//       {
-//         as = as.join(x.addresses());
-//       }
-//       return as;
-//     }
-//
-// SetValue.prototype[Symbol.iterator] =
-//     function* ()
-//     {
-//       yield* this.set;
-//     }
-
-// reminder: has `Set` semantics, i.e., based on `===`
-function SetValueNoAddresses(set)
-{
-  this.set = set || new Set();
+    lat}
 }
 
 SetValueNoAddresses.from1 =

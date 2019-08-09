@@ -1,5 +1,3 @@
-// https://github.com/tc39/proposal-global
-
 export function getGlobal()
 {
   if (typeof self !== 'undefined') { return self; }
@@ -212,6 +210,14 @@ Array.prototype.subsumes =
   };
     
 export const Arrays = {};
+
+Arrays.push =
+    function (x, arr)
+    {
+      const arr2 = arr.slice(0);
+      arr2.push(x);
+      return arr2;
+    }
 
 Arrays.indexOf =
   function (x, arr)

@@ -12,6 +12,7 @@ const EMPTY_SET = ArraySet.empty();
 const TRUTHY = STR | NUM | NUMSTR | BOOL;
 const FALSY = UND | NULL | STR | NUM | BOOL;
 
+const DEFINEDMASK = STR | NUM | NUMSTR | BOOL | NULL;
 const STRINGMASK = STR | NUMSTR;
 const STRINGERS = UND | NULL | BOOL | NUM;
 
@@ -109,7 +110,12 @@ export default {
 
 
   abst1,
-  
+
+  update:
+      function (oldValue, newValue)
+      {
+        return oldValue.join(newValue);
+      },
 
   add:
     function (x, y)
@@ -124,7 +130,7 @@ export default {
       }
       var x = x.abst();
       var y = y.abst();
-      
+
       var type = 0;
       if ((x.type & STR) || (y.type & STR))
       {
@@ -299,7 +305,7 @@ export default {
       {
         return new Some(x.prim != y.prim);
       }
-      
+
       return _BOOL;
     },
 
@@ -369,7 +375,7 @@ export default {
       {
         return new Some(!x.prim);
       }
-      
+
       return _BOOL;
     },
 
@@ -550,6 +556,12 @@ Some.prototype.ToNumber =
       return new Some(Number(this.prim));
     }
 
+Some.prototype.ToBoolean =
+    function ()
+    {
+      return new Some(Boolean(this.prim));
+    }
+
 Some.prototype.ToUint32 =
     function ()
     {
@@ -570,7 +582,7 @@ Some.prototype.subsumes =
       return false;
     }
 
-Some.prototype.update =
+Some.prototype.join =
     function (x)
     {
       if (x === BOT || this.equals(x))
@@ -585,8 +597,6 @@ Some.prototype.update =
       var x2 = x.abst();
       return x1.join(x2);
     }
-
-Some.prototype.join = Some.prototype.update;
 
 Some.prototype.meet =
     function (x)
@@ -636,7 +646,7 @@ Some.prototype.isUndefined =
       return this.prim === undefined;
     }
 
-Some.prototype.isNonUndefined =
+Some.prototype.isDefined =
     function ()
     {
       return this.prim !== undefined;
@@ -647,6 +657,19 @@ Some.prototype.toString =
     {
       return String(this.prim);
     }
+
+Some.prototype.projectPrimitive =
+    function ()
+    {
+      return this;
+    }
+
+Some.prototype.projectDefined =
+    function ()
+    {
+      return this.prim === undefined ? BOT : this;
+    }
+
 
 Some.prototype.projectString =
     function ()
@@ -800,7 +823,7 @@ TypeValue.prototype.isUndefined =
       return (this.type & UND);
     }
 
-TypeValue.prototype.isNonUndefined =
+TypeValue.prototype.isDefined =
     function ()
     {
       return (this.type ^ UND) || this.isRef();
@@ -839,6 +862,12 @@ TypeValue.prototype.ToNumber =
       return _NUM;
     }
 
+TypeValue.prototype.ToBoolean =
+    function ()
+    {
+      return _BOOL;
+    }
+
 TypeValue.prototype.ToUint32 =
     function ()
     {
@@ -865,7 +894,7 @@ TypeValue.prototype.subsumes =
         if ((type & STR) && (x.type & NUMSTR))
         {
           return true;
-        }  
+        }
         return ((~type & x.type) === 0) && as.subsumes(x.as);
       }
       // x is prim only
@@ -892,8 +921,6 @@ TypeValue.prototype.join =
       var x2 = x.abst();
       return new TypeValue(this.type | x2.type, this.as.join(x2.as));
     }
-
-TypeValue.prototype.update = TypeValue.prototype.join;
 
 TypeValue.prototype.meet =
     function (x)
@@ -970,6 +997,22 @@ TypeValue.prototype.projectObject =
       return BOT;
     }
 
+TypeValue.prototype.projectObject =
+    function ()
+    {
+      if (this.isRef())
+      {
+        return new TypeValue(0, this.as);
+      }
+      return BOT;
+    }
+
+TypeValue.prototype.projectPrimitive =
+    function ()
+    {
+      return new TypeValue(this.type, EMPTY_SET);
+    }
+
 TypeValue.prototype.projectString =
     function ()
     {
@@ -999,6 +1042,17 @@ TypeValue.prototype.projectBoolean =
       if (type)
       {
         return new TypeValue(type, EMPTY_SET);
+      }
+      return BOT;
+    }
+
+TypeValue.prototype.projectDefined =
+    function ()
+    {
+      const type = this.type & DEFINEDMASK;
+      if (type || this.isRef())
+      {
+        return new TypeValue(type, this.as);
       }
       return BOT;
     }
@@ -1055,7 +1109,7 @@ TypeValue.prototype.substring =
     {
       return _STR;
     }
-  
+
 
 TypeValue.prototype.parseInt =
     function ()

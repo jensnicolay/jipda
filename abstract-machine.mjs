@@ -1,28 +1,35 @@
 import {ArraySet, HashMap, HashCode, Sets, Formatter, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
-import {FileResource} from "./ast";
-import {initialStatesToDot, statesToDot} from "./export/dot-graph";
-import Store from "./store";
+import {FileResource} from "./ast.mjs";
+import {initialStatesToDot, statesToDot} from "./export/dot-graph.mjs";
+import Store from "./store.mjs";
 
 export function initializeMachine(semantics, alloc, kalloc, ...resources)
 {
   const machineConfig = createMachine(semantics, Store.empty(), undefined, alloc, kalloc, {errors:true, hardAsserts:true});
   const s0 = semantics.initialize(machineConfig.machine);
-  resources.forEach(resource => semantics.enqueueScriptEvaluation(resource, machineConfig.machine));
+  for (const resource of resources)
+  {
+    console.info("enqueing %s", resource);
+    semantics.enqueueScriptEvaluation(resource, machineConfig.machine);
+  }
+  console.debug("running %i init resources", resources.length);
+  const startTime = Date.now();
   const system0 = machineConfig.run([s0]);
+  const duration = Date.now() - startTime;
+  console.debug("initialization took %i ms", duration);
   const s1 = system0.endState;
-  // const store1 = system0.store;
-
   return createInternalMachine(semantics, s1, alloc, kalloc);
 }
 
 function createInternalMachine(semantics, s1, alloc, kalloc)
 {
-  function explore(...resources)
+  function explore(resource, cc)
   {
-    const machineConfig = createMachine(semantics, s1.store, s1.kont, alloc, kalloc, {errors: true, hardAsserts: true});
-    const s1Copy = new KontState(s1.value, s1.store, s1.lkont, s1.kont);
-    resources.forEach(resource => semantics.enqueueScriptEvaluation(resource, machineConfig.machine));
-    const system = machineConfig.explore([s1Copy]);
+    const machineConfig = createMachine(semantics, s1.store, s1.kont, alloc, kalloc, Object.assign((cc || {}), {errors: true, hardAsserts: true}));
+    // const s1Copy = new KontState(s1.value, s1.store, s1.lkont, s1.kont);
+    semantics.enqueueScriptEvaluation(resource, machineConfig.machine);
+    // resources.forEach(resource => semantics.enqueueScriptEvaluation(resource, machineConfig.machine));
+    const system = machineConfig.explore(machineConfig.machine.nextJob([], s1.kont));
     return system;
   }
 
@@ -38,6 +45,7 @@ function createInternalMachine(semantics, s1, alloc, kalloc)
 function createMachine(semantics, store, kont0, alloc, kalloc, cc)
 {
   // const rootSet = cc.rootSet || ArraySet.empty();
+  const pruneGraphOption = cc.pruneGraph === undefined ? true : cc.pruneGraph;
 
   // `store` is shortcut to stores[stores.length - 1]
   const stores = [store];
@@ -50,6 +58,7 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
 
   const contexts = kont0 ? [kont0] : [];
   const stacks = [];
+  const jobs = [];
   let sstorei = 0;
 
   const machine =
@@ -68,48 +77,10 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
 
         // not for semantics? (but are used!)
         contexts,
-        stacks
+        stacks,
+        enqueueJob,
+        nextJob,
       }
-
-  function storeAlloc(addr, value)
-  {
-    // if (addr === 155)
-    // {
-    //   console.log("!! alloc")
-    // }
-
-    //assert(addr>>>0===addr);
-    assert(value);
-    assert(value.toString);
-    assert(value.addresses);
-    const [store2, updated] = store.alloc(addr, value);
-    if (updated)
-    {
-      store = store2;
-      stores.push(store2);
-      // console.log("alloc", addr, value);
-    }
-  }
-
-  function storeUpdate(addr, value)
-  {
-    // if (addr === 155)
-    // {
-    //   console.log("!! update")
-    // }
-
-    //assert(addr>>>0===addr);
-    assert(value);
-    assert(value.toString);
-    assert(value.addresses);
-    const [store2, updated] = store.update(addr, value);
-    if (updated)
-    {
-      store = store2;
-      stores.push(store2);
-      // console.log("update", addr, value);
-    }
-  }
 
   function storeLookup(addr)
   {
@@ -118,33 +89,91 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     //   console.log("!! lookup")
     // }
 
-    // assert(addr>>>0===addr);
-    return store.lookup(addr);
+    const value = store.get(addr);
+    if (value)
+    {
+      return value;
+    }
+    throw new Error("no value at address " + addr);
   }
 
-  // function walkStack(kont, buf, S = new Set())
-  // {
-  //   if (S.has(kont))
-  //   {
-  //     buf.push("(already visited)");
-  //   }
-  //   S.add(kont);
-  //
-  //   if (kont.ex)
-  //   {
-  //     buf.push(kont.ex.toString());
-  //   }
-  //   else
-  //   {
-  //     buf.push("(bottom)");
-  //   }
-  //
-  //   for (const stack of kont._stacks)
-  //   {
-  //     walkStack(stack.kont, buf, S);
-  //   }
-  // }
+  function storeAlloc(addr, value)
+  {
 
+    // if (addr === 81)
+    // {
+    //   console.log("!! alloc 81")
+    // }
+
+    //assert(addr>>>0===addr);
+    assert(value);
+    assert(value.toString);
+    assert(value.addresses);
+    if (store.has(addr))
+    {
+      const current = store.get(addr);
+      const updated = semantics.lat.update(current, value);
+      if (!current.equals(updated))
+      {
+        store = store.set(addr, updated);
+        stores.push(store);
+        // console.log("alloc fresh " + addr);
+      }
+    }
+    else
+    {
+      store = store.set(addr, value);
+      stores.push(store);
+      // console.log("alloc update " + addr);
+    }
+  }
+
+  function storeUpdate(addr, value)
+  {
+    // if (addr === 81)
+    // {
+    //   console.log("!! update 81")
+    // }
+    //
+    // if (addr === 155)
+    // {
+    //   console.log("!! update 155")
+    // }
+
+    //assert(addr>>>0===addr);
+    assert(value);
+    assert(value.toString);
+    assert(value.addresses);
+    const current = store.get(addr);
+    const updated = semantics.lat.update(current, value);
+    if (!current.equals(updated))
+    {
+      store = store.set(addr, updated);
+      stores.push(store);
+      // console.log("update " + addr);
+    }
+  }
+
+  function enqueueJob(job)
+  {
+    jobs.push(job);
+  }
+
+  function nextJob(lkont, kont)
+  {
+    const job = jobs.shift();
+    if (job)
+    {
+      console.debug("popped %o", job);
+      const result = job.execute(lkont, kont, machine);
+      return result;
+    }
+    else
+    {
+      console.debug("no more jobs, done");
+      return [];
+    }
+  }
 
   function run(initialStates)
   {
@@ -179,10 +208,11 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     return {time: performance.now() - startTime, endState: [...endStates][0], store};
   }
 
-  function explore(initialStates, /*optional*/ stateReg)
+  function explore(initialStates, exploreCc)
   {
+    exploreCc = exploreCc || {};
     const startTime = performance.now();
-    const stateRegistry = stateReg || new StateRegistry();
+    const stateRegistry = exploreCc.stateReg || new StateRegistry();
     const endStates = new Set();
     const initialStatesInterned = initialStates.map(function (s)   // invariant: all to-do states are interned
     {
@@ -193,14 +223,16 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     const result = new Set();
     while (todo.length > 0)
     {
-      if (stateRegistry.states.length > 100000)
+      if (stateRegistry.states.length > 10_000)
       {
         console.log("STATE SIZE LIMIT", stateRegistry.states.length);
         break;
       }
       const s = todo.pop();
-      // console.log("popped " + s._id + " storei " + stores.indexOf(s.store) + " (" + (stores.length-1) + ") sstorei " + s._sstorei + " (" + sstorei + ")" + " ctx id " + s.kont._id);
-      //if (s.node) console.log("-->" + s.node);
+      console.log("popped " + s._id + " storei " + stores.indexOf(s.store) + " (" + (stores.length-1) + ") sstorei " + s._sstorei + " (" + sstorei + ")" + " ctx id " + s.kont._id);
+      if (s.isEvalState) {console.log("EVAL " + s.node)}
+      else if (s.isKontState) {console.log("KONT " + s.value)}
+      else if (s.isReturnState) {console.log("RET " + s.value)}
 
       // if (s.kont._sstorei > sstorei)
       // {
@@ -239,10 +271,19 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       }
       // console.log(s._id + " -> " + todo.map(ss => ss._id).join(",") +  " " + s.node);
     }
-    markResources(initialStatesInterned);
-    const initialStatesPruned = pruneGraph(initialStatesInterned);
-    //const initialStatesPruned = initialStatesInterned;
-    return {time: performance.now() - startTime, states:stateRegistry.states, initialStates: initialStatesPruned, endStates, store};
+    let initialStatesResult;
+    if (pruneGraphOption)
+    {
+      markResources(initialStatesInterned);
+      const initialStatesPruned = pruneGraph(initialStatesInterned);
+      initialStatesResult = initialStatesPruned;
+    }
+    else
+    {
+      console.warn("not pruning graph");
+      initialStatesResult = initialStatesInterned;
+    }
+    return {time: performance.now() - startTime, states:stateRegistry.states, initialStates: initialStatesResult, endStates, store};
   }
 
   return {machine, run, explore}

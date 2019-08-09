@@ -14,13 +14,13 @@ import tagAlloc from "../tag-alloc";
 const ast0resource = new FileResource("../prelude.js");
 const jsConcSemantics = createSemantics(concLattice, {errors: true});
 const jsTypeSemantics = createSemantics(typeLattice, {errors: true});
-const concMachine = initializeMachine(jsConcSemantics, concAlloc, concKalloc, ast0resource);
-const typeMachine = initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
+//const concMachine = initializeMachine(jsConcSemantics, concAlloc, concKalloc);
+const typeMachine = initializeMachine(jsTypeSemantics, concAlloc, concKalloc);
 
 
-function run(resource, machine)
+function run(resource, machine, cc)
 {
-  const system = machine.explore(resource);
+  const system = machine.explore(resource, cc);
   const actual = [...system.endStates].reduce((result, s) => isSuccessState(s) ? result.join(s.value) : result, machine.semantics.lat.bot());
   console.log("result value: "+ actual);
   return system;
@@ -31,18 +31,13 @@ function runSource(src, machine)
   return run(new StringResource(src), machine);
 }
 
-function runFile(path, machine)
+function runFile(path, machine, cc)
 {
-  return run(new FileResource(path), machine);
+  return run(new FileResource(path), machine, cc);
 }
 
 
-// runSource("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", false);
-// runSource("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);
-// runSource("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", false);
-
-
-const system = runSource("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", typeMachine);
+const system = runFile("../prelude.js", typeMachine, {pruneGraph:false});
 const initialStates = system.initialStates;
 const dot = initialStatesToDot(initialStates);
 fs.writeFileSync('graph.dot', dot);

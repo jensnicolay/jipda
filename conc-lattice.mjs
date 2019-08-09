@@ -35,6 +35,12 @@ export default {
       return new ConcAddr(addr);
     },
 
+  update:
+      function (currentValue, newValue)
+      {
+        return newValue;
+      },
+
   add:
     function (x, y)
     {
@@ -317,12 +323,6 @@ ConcValue.prototype.join =
       throw new Error("cannot join concrete values " + this + " and " + x);
     }
 
-ConcValue.prototype.update =
-    function (x)
-    {
-      return x;
-    }
-
 ConcValue.prototype.subsumes =
     function (x)
     {
@@ -363,6 +363,18 @@ ConcValue.prototype.projectObject =
     function ()
     {
       return BOT;
+    }
+
+ConcValue.prototype.projectPrimitive =
+  function ()
+  {
+    return this;
+  }    
+
+ConcValue.prototype.projectDefined =
+    function ()
+    {
+      return this.value === undefined ? BOT : this;
     }
 
 ConcValue.prototype.ToString =
@@ -411,6 +423,12 @@ ConcValue.prototype.ToNumber =
     function (x)
     {
       return new ConcValue(Number(this.value));
+    }
+
+ConcValue.prototype.ToBoolean =
+    function (x)
+    {
+      return new ConcValue(Boolean(this.value));
     }
 
 ConcValue.prototype.ToUint32 =
@@ -473,7 +491,7 @@ ConcValue.prototype.isUndefined =
       return this.value === undefined;
     }
 
-ConcValue.prototype.isNonUndefined =
+ConcValue.prototype.isDefined =
     function ()
     {
       return this.value !== undefined;
@@ -526,12 +544,6 @@ ConcAddr.prototype.toString =
     function ()
     {
       return "<addr " + this.addr + ">";
-    }
-
-ConcAddr.prototype.update =
-    function (x)
-    {
-      return x;
     }
 
 ConcAddr.prototype.join =
@@ -604,7 +616,7 @@ ConcAddr.prototype.isUndefined =
       return false;
     }
 
-ConcAddr.prototype.isNonUndefined =
+ConcAddr.prototype.isDefined =
     function ()
     {
       return true;
@@ -634,6 +646,12 @@ ConcAddr.prototype.projectObject =
       return this;
     }
 
+ConcAddr.prototype.projectDefined =
+    function ()
+    {
+      return this;
+    }
+
 ConcAddr.prototype.projectUndefined =
     function ()
     {
@@ -657,3 +675,9 @@ ConcAddr.prototype.hasSameStringValue =
     {
       return new ConcValue(false);
     }
+
+ConcAddr.prototype.ToBoolean =
+  function ()
+  {
+    return new ConcValue(true);
+  }

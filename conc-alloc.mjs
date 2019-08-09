@@ -1,7 +1,7 @@
 let counter = 0;
 
 export default {
-  native: () => counter++, // native allocator interface
+  // native: () => counter++, // native allocator interface
   object: () => counter++,
   closure: () => counter++,
   closureProtoObject: () => counter++,

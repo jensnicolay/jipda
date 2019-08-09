@@ -1,15 +1,15 @@
 import fs from 'fs';
 
-import {assertEquals, assert} from '../common';
-import {FileResource, StringResource} from "../ast";
-import concLattice from '../conc-lattice';
-import concAlloc from '../conc-alloc';
-import concKalloc from '../conc-kalloc';
-import createSemantics from '../js-semantics';
-import {initializeMachine, isSuccessState} from '../abstract-machine';
-import typeLattice from "../type-lattice";
-import aacKalloc from "../aac-kalloc";
-import tagAlloc from "../tag-alloc";
+import {assertEquals, assert} from '../common.mjs';
+import {FileResource, StringResource} from "../ast.mjs";
+import concLattice from '../conc-lattice.mjs';
+import concAlloc from '../conc-alloc.mjs';
+import concKalloc from '../conc-kalloc.mjs';
+import createSemantics from '../js-semantics.mjs';
+import {initializeMachine, isSuccessState} from '../abstract-machine.mjs';
+import typeLattice from "../type-lattice.mjs";
+import aacKalloc from "../aac-kalloc.mjs";
+import tagAlloc from "../tag-alloc.mjs";
 
 const ast0resource = new FileResource("../prelude.js");
 
@@ -17,7 +17,7 @@ const jsConcSemantics = createSemantics(concLattice, {errors: true});
 const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
 
 const concMachine = initializeMachine(jsConcSemantics, concAlloc, concKalloc, ast0resource);
-const typeMachine = initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource);
+const typeMachine = initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
 
 let c = 0;
 
@@ -29,7 +29,7 @@ function handleState(value, s)
   }
   else if (s.isThrowState)
   {
-    console.warn(s.value + "\n" + s.value.addresses().map(addr => s.store.lookup(addr).lookup(jsConcSemantics.lat.abst1("message")).Value).join());
+    console.warn(s.value);
     return value;
   }
   else if (s.isErrorState)
@@ -132,6 +132,7 @@ runSource("var f = function() { if (0 === 0) { if (0 === 1) { return 'true1';} e
 runSource("var f = function() { if (0 === 0) { return 'true'; } return 'false'}; f();", "true");
 runSource("var f = function() { if (0 !== 0) { return 'true'; } return 'false'}; f();", "false");
 runSource("var count = function (n) {if (n===0) {return 'done';} else {return count(n-1);}}; count(20);", "done");
+runSource("[1,2,3][1]", 2);
 runSource("[1,2,3].concat([4,5])[0]", 1);
 runSource("[1,2,3].concat([4,5])[1]", 2);
 runSource("[1,2,3].concat([4,5])[2]", 3);
@@ -386,6 +387,7 @@ runSource("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropert
 runSource("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", true);
 runSource("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", true);
 runSource("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", true);
+runSource("Object.getOwnPropertyDescriptor(Object.prototype, 'hasOwnProperty').enumerable", false);
 runSource("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); typeof p.get", "function");
 runSource("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", undefined);
 runSource("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);
