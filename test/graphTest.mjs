@@ -56,8 +56,8 @@ function runFile(path, machine, cc)
 
 
 //runSource("var glob = []; for (var p in {x:42}) {glob.push(p)}; glob.length===1 && glob[0]==='x'", true);
-//Object.getOwnPropertyDescriptor(Object.prototype, 'hasOwnProperty').enumerable
-const system = runSource("'8249823789237'.substring(3, 5)", concMachine(), {pruneGraph: false});
+//
+const system = runSource("'0,1,hello'.split(',').length", typeMachine(), {pruneGraph: false});
 const initialStates = system.initialStates;
 const dot = initialStatesToDot(initialStates);
 fs.writeFileSync('graph.dot', dot);

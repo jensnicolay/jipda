@@ -1,12 +1,12 @@
 import fs from 'fs';
 
-import {assertEquals} from '../common';
-import concLattice from '../conc-lattice';
-import concAlloc from '../conc-alloc';
-import concKalloc from '../conc-kalloc';
-import createSemantics from '../js-semantics';
-import {initializeMachine, isSuccessState} from '../abstract-machine';
-import {FileResource, StringResource} from "../ast";
+import {assertEquals} from '../common.mjs';
+import concLattice from '../conc-lattice.mjs';
+import concAlloc from '../conc-alloc.mjs';
+import concKalloc from '../conc-kalloc.mjs';
+import createSemantics from '../js-semantics.mjs';
+import {initializeMachine, isSuccessState} from '../abstract-machine.mjs';
+import {FileResource, StringResource} from "../ast.mjs";
 
 const ast0resource = new FileResource("../prelude.js");
 const jsSemantics = createSemantics(concLattice, {errors: true});

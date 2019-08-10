@@ -6,17 +6,18 @@ import Store from "./store.mjs";
 export function initializeMachine(semantics, alloc, kalloc, ...resources)
 {
   const machineConfig = createMachine(semantics, Store.empty(), undefined, alloc, kalloc, {errors:true, hardAsserts:true});
-  const s0 = semantics.initialize(machineConfig.machine);
+  const kont0 = semantics.initialize(machineConfig.machine);
   for (const resource of resources)
   {
     console.info("enqueing %s", resource);
     semantics.enqueueScriptEvaluation(resource, machineConfig.machine);
   }
-  console.debug("running %i init resources", resources.length);
+  // console.debug("running %i init resources", resources.length);
   const startTime = Date.now();
-  const system0 = machineConfig.run([s0]);
+  machineConfig.machine.nextJob([], kont0);
+  const system0 = machineConfig.run();
   const duration = Date.now() - startTime;
-  console.debug("initialization took %i ms", duration);
+  // console.debug("initialization took %i ms", duration);
   const s1 = system0.endState;
   return createInternalMachine(semantics, s1, alloc, kalloc);
 }
@@ -47,7 +48,7 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
   // const rootSet = cc.rootSet || ArraySet.empty();
   const pruneGraphOption = cc.pruneGraph === undefined ? true : cc.pruneGraph;
 
-  // `store` is shortcut to stores[stores.length - 1]
+  // `store` (param) is shortcut to stores[stores.length - 1]
   const stores = [store];
 
   if (kont0)
@@ -61,13 +62,16 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
   const jobs = [];
   let sstorei = 0;
 
+  const states = [];
+
+
   const machine =
       {
-        evaluate: (exp, benv, lkont, kont) => new EvalState(exp, benv, store, lkont, kont),
-        continue: (value, lkont, kont) => new KontState(value, store, lkont, kont),
-        return: (value, lkont, kont) => new ReturnState(value, store, lkont, kont),
-        throw: (value, lkont, kont) => new ThrowState(value, store, lkont, kont),
-        break: (lkont, kont) => new BreakState(store, lkont, kont),
+        evaluate: (exp, benv, lkont, kont) => states.push(new EvalState(exp, benv, store, lkont, kont)),
+        continue: (value, lkont, kont) => states.push(new KontState(value, store, lkont, kont)),
+        return: (value, lkont, kont) => states.push(new ReturnState(value, store, lkont, kont)),
+        throw: (value, lkont, kont) => states.push(new ThrowState(value, store, lkont, kont)),
+        break: (lkont, kont) => states.push(new BreakState(store, lkont, kont)),
         alloc,
         kalloc,
         // getSstorei: () => sstorei,
@@ -80,6 +84,8 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         stacks,
         enqueueJob,
         nextJob,
+
+        states
       }
 
   function storeLookup(addr)
@@ -164,31 +170,31 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     const job = jobs.shift();
     if (job)
     {
-      console.debug("popped %o", job);
-      const result = job.execute(lkont, kont, machine);
-      return result;
+      // console.debug("popped %o", job);
+      job.execute(lkont, kont, machine);
     }
     else
     {
-      console.debug("no more jobs, done");
-      return [];
+      // console.debug("no more jobs, done");
     }
   }
 
-  function run(initialStates)
+  function run()
   {
     const startTime = performance.now();
-    const todo = initialStates;
+    const todo = [...machine.states];
+    machine.states.length = 0;
     const endStates = new Set();
     while (todo.length > 0)
     {
       const s = todo.pop();
-      const next = s.next(semantics, machine);
+      s.next(semantics, machine);
       let length = 0;
-      for (const s2 of next)
+      while (machine.states.length > 0)
       {
-        length++;
+        const s2 = machine.states.pop();
         todo.push(s2);
+        length++;
       }
       if (length === 0)
       {
@@ -208,13 +214,13 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     return {time: performance.now() - startTime, endState: [...endStates][0], store};
   }
 
-  function explore(initialStates, exploreCc)
+  function explore(exploreCc)
   {
     exploreCc = exploreCc || {};
     const startTime = performance.now();
     const stateRegistry = exploreCc.stateReg || new StateRegistry();
     const endStates = new Set();
-    const initialStatesInterned = initialStates.map(function (s)   // invariant: all to-do states are interned
+    const initialStatesInterned = machine.states.map(function (s)   // invariant: all to-do states are interned
     {
       const s2 = stateRegistry.getState(s);
       return s2;
@@ -229,10 +235,11 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         break;
       }
       const s = todo.pop();
-      console.log("popped " + s._id + " storei " + stores.indexOf(s.store) + " (" + (stores.length-1) + ") sstorei " + s._sstorei + " (" + sstorei + ")" + " ctx id " + s.kont._id);
-      if (s.isEvalState) {console.log("EVAL " + s.node)}
-      else if (s.isKontState) {console.log("KONT " + s.value)}
-      else if (s.isReturnState) {console.log("RET " + s.value)}
+      // console.log("popped " + s._id + " storei " + stores.indexOf(s.store) + " (" + (stores.length-1) + ") sstorei " + s._sstorei + " (" + sstorei + ")" + " ctx id " + s.kont._id);
+      // if (s.isEvalState) {console.log("EVAL " + s.node)}
+      // else if (s.isKontState) {console.log("KONT " + s.value)}
+      // else if (s.isReturnState) {console.log("RET " + s.value)}
+      // else if (s.isThrowState) {console.log("THROW " + s.msg)}
 
       // if (s.kont._sstorei > sstorei)
       // {
@@ -244,30 +251,28 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         continue;
       }
       s._sstorei = sstorei;
-      const next = [...s.next(semantics, machine)];
-      s._successors = next;
-      if (next.length === 0)
+
+      s.next(semantics, machine); // `states` gets pushed
+
+      s._successors = [];
+      if (machine.states.length === 0)
       {
         endStates.add(s);
         continue;
       }
-      for (let i = 0; i < next.length; i++)
+      while (machine.states.length > 0)
       {
-        const successor = next[i];
+        const successor = machine.states.pop();
         const successorInterned = stateRegistry.getState(successor);
-        if (successor !== successorInterned) // existing state
+        s._successors.push(successorInterned);
+        todo.push(successorInterned);
+        if (successor === successorInterned) // new state 
         {
-          next[i] = successorInterned;
-        }
-        else
-        {
-          // new state
           if (stateRegistry.states.length % 10000 === 0)
           {
             console.log(Formatter.displayTime(performance.now() - startTime), "states", stateRegistry.states.length, "todo", todo.length, "stores", stores.length, "contexts", contexts.length);
           }
         }
-        todo.push(successorInterned);
       }
       // console.log(s._id + " -> " + todo.map(ss => ss._id).join(",") +  " " + s.node);
     }
@@ -497,6 +502,7 @@ function pruneGraph(initialStates)
 
 function EvalState(node, benv, store, lkont, kont)
 {
+  assertDefinedNotNull(node);
   assertDefinedNotNull(kont);
   this.node = node;
   this.benv = benv;

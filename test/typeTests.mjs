@@ -1,16 +1,16 @@
 import fs from 'fs';
 
-import {assert} from '../common';
-import {FileResource, StringResource} from "../ast";
-import {BOT} from '../lattice';
-import concAlloc from '../conc-alloc';
-import concKalloc from '../conc-kalloc';
-import typeLattice from '../type-lattice';
-import tagAlloc from '../tag-alloc';
-import aacKalloc from '../aac-kalloc';
-import {computeInitialCeskState, explore, isSuccessState} from '../abstract-machine';
-import createSemantics from '../js-semantics';
-import {TestSuite} from '../test';
+import {assert} from '../common.mjs';
+import {FileResource, StringResource} from "../ast.mjs";
+import {BOT} from '../lattice.mjs';
+import concAlloc from '../conc-alloc.mjs';
+import concKalloc from '../conc-kalloc.mjs';
+import typeLattice from '../type-lattice.mjs';
+import tagAlloc from '../tag-alloc.mjs';
+import aacKalloc from '../aac-kalloc.mjs';
+import {isSuccessState, initializeMachine} from '../abstract-machine.mjs';
+import createSemantics from '../js-semantics.mjs';
+import {TestSuite} from '../test.mjs';
 
 typeLattice.sanity();
 
@@ -18,41 +18,52 @@ const ast0resource = new FileResource("../prelude.js");
 
 var module = new TestSuite("suiteJipdaTests");
 
-const typeJsSemantics = createSemantics(typeLattice, {errors:true});
-const s0 = computeInitialCeskState(typeJsSemantics, concAlloc, concKalloc, ast0resource);
+const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
+const typeMachine = initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
 
 let c = 0;
 
+function handleState(value, s)
+{
+  if (isSuccessState(s))
+  {
+    return value.join(s.value);
+  }
+  else if (s.isThrowState)
+  {
+    console.warn(s.value);
+    return value;
+  }
+  else if (s.isErrorState)
+  {
+    throw new Error(s.node.loc.start.line + ": " + s.msg);
+  }
+  else
+  {
+    throw new Error("no progress: " + s);
+  }
+}
+
 function run(resource, expected)
 {
-  console.log("type " + ++c + "\t" + resource);
-  const s1 = s0.switchMachine(typeJsSemantics, tagAlloc, aacKalloc, {gc:true});
-  const s2 = s1.enqueueScriptEvaluation(resource);
-  let actual = typeJsSemantics.lat.bot();
-  const system = explore([s2], s => {
-    if (isSuccessState(s))
-    {
-      actual = actual.join(s.value);
-    }
-    else if (s.isThrowState)
-    {
-      console.log("Error thrown: " + s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsSemantics.lat.abst1("message")).value.Value).join());
-    }
-    else if (s.isErrorState)
-    {
-      throw new Error(s.node.loc.start.line + ": " + s.msg);
-    }
-    else
-    {
-      throw new Error("no progress: " + s);
-    }
-  });
-  assert(actual.equals(expected));
+  console.log(++c + "\t" + resource);
+
+  process.stdout.write("type ");
+  const typeMachine2 = typeMachine.switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
+  const systemType = typeMachine2.explore(resource);
+  const actualType = [...systemType.endStates].reduce(handleState, jsTypeSemantics.lat.bot());
+  assert(actualType.equals(expected))
+  console.log();
 }
 
 function runSource(src, expected)
 {
   return run(new StringResource(src), expected);
+}
+
+function runFile(path, expected)
+{
+  return run(new FileResource(path), expected);
 }
 
 

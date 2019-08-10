@@ -50,55 +50,16 @@ function createSemantics(lat, cc)
     return store;
   }
 
-  // function pushKont_(applyFun, lkont)
-  // {
-  //   const frame = new GenericKont(applyFun);
-  //   [frame].concat(lkont)
-  // }
-
-
-  function States(machine)
+  function throwTypeError(msg, lkont, kont, machine) // TODO this is not a type error!! // TODO temporary!
   {
-    this.states = [];
-    this.machine = machine;
+    console.debug("throwTypeError: " + msg);
+    assert(typeof msg === "string");
+    const obj = createError(lat.abst1(msg), kont.realm);
+    const addr = machine.alloc.error("@" + msg, kont);
+    machine.storeAlloc(addr, obj);
+    const ref = lat.abstRef(addr);
+    machine.throw(ref, lkont, kont);
   }
-
-  States.prototype[Symbol.iterator] =
-      function* ()
-      {
-        yield* this.states;
-      }
-
-  States.prototype.evaluate =
-      function (node, benv, lkont, kont)
-      {
-        this.states.push(this.machine.evaluate(node, benv, lkont, kont));
-      }
-
-  States.prototype.continue =
-      function (value, lkont, kont)
-      {
-        this.states.push(this.machine.continue(value, lkont, kont));
-      }
-
-  States.prototype.throw =
-      function (value, lkont, kont)
-      {
-        this.states.push(this.machine.throw(value, lkont, kont));
-      }
-
-  States.prototype.throwTypeError = // TODO this is not a type error!!
-      function (msg, lkont, kont)
-      {
-        console.debug("throwTypeError: " + msg);
-        assert(typeof msg === "string");
-        const obj = createError(lat.abst1(msg), kont.realm);
-        const addr = this.machine.alloc.error("@" + msg, kont);
-        this.machine.storeAlloc(addr, obj);
-        const ref = lat.abstRef(addr);
-        this.states.push(this.machine.throw(ref, lkont, kont));
-      }
-
 
   function evaluate_(node, benv, lkont, kont, machine)
   {
@@ -179,25 +140,25 @@ function createSemantics(lat, cc)
 
   function evalEmptyStatement(node, benv, lkont, kont, machine)
   {
-    return [machine.continue(L_UNDEFINED, lkont, kont)];
+    machine.continue(L_UNDEFINED, lkont, kont);
   }
 
   function evalLiteral(node, benv, lkont, kont, machine)
   {
     var value = lat.abst1(node.value);
-    return [machine.continue(value, lkont, kont)];
+    machine.continue(value, lkont, kont);
   }
 
   function evalIdentifier(node, benv, lkont, kont, machine)
   {
     var value = doScopeLookup(node, benv, kont, machine);
-    return [machine.continue(value, lkont, kont)];
+    machine.continue(value, lkont, kont);
   }
 
   function evalThisExpression(node, benv, lkont, kont, machine)
   {
     const value = kont.thisValue;
-    return [machine.continue(value, lkont, kont)];
+    machine.continue(value, lkont, kont);
   }
 
   function evalProgram(node, benv, lkont, kont, machine)
@@ -238,15 +199,16 @@ function createSemantics(lat, cc)
     var nodes = node.body;
     if (nodes.length === 0)
     {
-      return [machine.continue(L_UNDEFINED, lkont, kont)];
+      machine.continue(L_UNDEFINED, lkont, kont);
+      return;
     }
     if (nodes.length === 1)
     {
-      //return evaluate_(nodes[0], benv, lkont, kont, machine);
-      return [machine.evaluate(nodes[0], benv, lkont, kont)];
+      machine.evaluate(nodes[0], benv, lkont, kont);
+      return;
     }
     var frame = new BodyKont(node, 1, benv);
-    return [machine.evaluate(nodes[0], benv, [frame].concat(lkont), kont)];
+    machine.evaluate(nodes[0], benv, [frame].concat(lkont), kont);
   }
 
 ///
@@ -263,12 +225,14 @@ function createSemantics(lat, cc)
       case 'var':
       {
         const frame = new VarDeclarationKont(node, 1, benv);
-        return [machine.evaluate(declarations[0], benv, [frame].concat(lkont), kont, machine)];
+        machine.evaluate(declarations[0], benv, [frame].concat(lkont), kont, machine);
+        return;
       }
       case 'let':
       {
         const frame = new LetDeclarationKont(node, 1, benv);
-        return [machine.evaluate(declarations[0], benv, [frame].concat(lkont), kont, machine)];
+        machine.evaluate(declarations[0], benv, [frame].concat(lkont), kont, machine);
+        return;
       }
       default:
         throw new Error("unsupported variable kind: " + kind);
@@ -280,9 +244,11 @@ function createSemantics(lat, cc)
     var init = node.init;
     if (init === null)
     {
-      return [machine.continue(L_UNDEFINED, lkont, kont)];
+      machine.continue(L_UNDEFINED, lkont, kont);
+      return;
     }
-    return [machine.evaluate(init, benv, lkont, kont)];
+    machine.evaluate(init, benv, lkont, kont);
+    return;
   }
 
   function VarDeclarationKont(node, i, benv)
@@ -337,10 +303,11 @@ function createSemantics(lat, cc)
         doScopeSet(id, value, benv, kont, machine);
         if (i === declarations.length)
         {
-          return [machine.continue(L_UNDEFINED, lkont, kont, machine)];
+          machine.continue(L_UNDEFINED, lkont, kont, machine);
+          return;
         }
         const frame = new VarDeclarationKont(node, i + 1, benv);
-        return [machine.evaluate(declarations[i], benv, [frame].concat(lkont), kont, machine)]
+        machine.evaluate(declarations[i], benv, [frame].concat(lkont), kont, machine);
       }
 
 
@@ -396,28 +363,29 @@ function createSemantics(lat, cc)
         InitializeReferencedBinding(id, value, benv, kont, machine);
         if (i === declarations.length)
         {
-          return [machine.continue(L_UNDEFINED, lkont, kont, machine)];
+          machine.continue(L_UNDEFINED, lkont, kont, machine);
+          return;
         }
         const frame = new LetDeclarationKont(node, i + 1, benv);
-        return [machine.evaluate(declarations[i], benv, [frame].concat(lkont), kont, machine)]
+        machine.evaluate(declarations[i], benv, [frame].concat(lkont), kont, machine);
       }
 
   function evalUnaryExpression(node, benv, lkont, kont, machine)
   {
     var frame = new UnaryKont(node);
-    return [machine.evaluate(node.argument, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(node.argument, benv, [frame].concat(lkont), kont);
   }
 
   function evalBinaryExpression(node, benv, lkont, kont, machine)
   {
     var frame = new LeftKont(node, benv);
-    return [machine.evaluate(node.left, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(node.left, benv, [frame].concat(lkont), kont);
   }
 
   function evalLogicalExpression(node, benv, lkont, kont, machine)
   {
     var frame = new LogicalLeftKont(node, benv);
-    return [machine.evaluate(node.left, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(node.left, benv, [frame].concat(lkont), kont);
   }
 
   function evalAssignmentExpression(node, benv, lkont, kont, machine)
@@ -429,13 +397,15 @@ function createSemantics(lat, cc)
       {
         var right = node.right;
         var frame = new AssignIdentifierKont(node, benv);
-        return [machine.evaluate(right, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(right, benv, [frame].concat(lkont), kont);
+        return;
       }
       case "MemberExpression":
       {
         var object = left.object;
         var frame = new AssignMemberKont(node, benv);
-        return [machine.evaluate(object, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(object, benv, [frame].concat(lkont), kont);
+        return;
       }
       default:
       {
@@ -474,13 +444,15 @@ function createSemantics(lat, cc)
         }
         doScopeSet(argument, updatedValue, benv, kont, machine);
         var resultingValue = node.prefix ? updatedValue : value;
-        return [machine.continue(resultingValue, lkont, kont)];
+        machine.continue(resultingValue, lkont, kont);
+        return;
       }
       case "MemberExpression":
       {
         var object = argument.object;
         var frame = new UpdateMemberKont(node, benv);
-        return [machine.evaluate(object, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(object, benv, [frame].concat(lkont), kont);
+        return;
       }
       default:
       {
@@ -509,12 +481,12 @@ function createSemantics(lat, cc)
   function evalFunctionExpression(node, benv, lkont, kont, machine)
   {
     var closureRef = allocateClosure(node, benv, lkont, kont, machine);
-    return [machine.continue(closureRef, lkont, kont)];
+    machine.continue(closureRef, lkont, kont);
   }
 
   function evalFunctionDeclaration(node, benv, lkont, kont, machine)
   {
-    return [machine.continue(L_UNDEFINED, lkont, kont)];
+    machine.continue(L_UNDEFINED, lkont, kont);
   }
 
   function evalCallExpression(node, benv, lkont, kont, machine)
@@ -525,44 +497,43 @@ function createSemantics(lat, cc)
     {
       var object = calleeNode.object;
       var frame = new CallMemberKont(node, benv);
-      return [machine.evaluate(object, benv, [frame].concat(lkont), kont)];
+      machine.evaluate(object, benv, [frame].concat(lkont), kont);
+      return;
     }
 
     var frame = new OperatorKont(node, benv);
-    return [machine.evaluate(calleeNode, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(calleeNode, benv, [frame].concat(lkont), kont);
   }
 
 
-  function applyProc(application, operatorValue, operandValues, thisValue, benv, lkont, kont, states)
+  function applyProc(application, operatorValue, operandValues, thisValue, benv, lkont, kont, machine)
   {
     var operatorAs = operatorValue.addresses();
     if (errors)
     {
       if (operatorAs.count() === 0)
       {
-        states.throwTypeError(application.callee + " is not a function (" + operatorValue + ")", lkont, kont);
+        throwTypeError(application.callee + " is not a function (" + operatorValue + ")", lkont, kont, machine);
       }
     }
 
     for (const operatora of operatorAs.values())
     {
-      const operatorObj = states.machine.storeLookup(operatora);
+      const operatorObj = machine.storeLookup(operatora);
       const Call = operatorObj.getInternal("[[Call]]");
       for (const callable of Call)
       {
         //if (!callable.applyFunction) {print(application, callable, Object.keys(callable))};
-        callable.applyFunction(application, operandValues, thisValue, benv, lkont, kont, states);
+        callable.applyFunction(application, operandValues, thisValue, benv, lkont, kont, machine);
       }
     }
   }
 
   function $call(operatorValue, thisValue, operandValues, benv, lkont, kont, machine)
   {
-    const states = new States(machine);
     const syntheticApplication = {type: "CallExpression"};
     Ast.tagNode(syntheticApplication);
-    applyProc(syntheticApplication, operatorValue, operandValues, thisValue, benv, lkont, kont, states);
-    return states;
+    applyProc(syntheticApplication, operatorValue, operandValues, thisValue, benv, lkont, kont, machine);
   }
 
 
@@ -579,28 +550,26 @@ function createSemantics(lat, cc)
   // }
 
   // cloned from 'applyProc', invokes 'applyConstructor' iso. 'applyFunction' on callables
-  function applyCons(application, operatorValue, operandValues, benv, lkont, kont, states)
+  function applyCons(application, operatorValue, operandValues, benv, lkont, kont, machine)
   {
     const operatorAs = operatorValue.addresses();
     for (const operatora of operatorAs.values())
     {
-      const obj = states.machine.storeLookup(operatora);
+      const obj = machine.storeLookup(operatora);
       const protoRef = obj.getProperty(P_PROTOTYPE).getValue();
       const Call = obj.getInternal("[[Call]]");
       for (const callable of Call)
       {
-        callable.applyConstructor(application, operandValues, protoRef, benv, lkont, kont, states);
+        callable.applyConstructor(application, operandValues, protoRef, benv, lkont, kont, machine);
       }
     }
   }
 
   function $construct(operatorValue, operandValues, benv, lkont, kont, machine)
   {
-    const states = new States(machine);
     const syntheticApplication = {type: "NewExpression"};
     Ast.tagNode(syntheticApplication);
-    applyCons(syntheticApplication, operatorValue, operandValues, benv, lkont, kont, states);
-    return states;
+    applyCons(syntheticApplication, operatorValue, operandValues, benv, lkont, kont, machine);
   }
 
   function evalReturnStatement(node, benv, lkont, kont, machine)
@@ -608,44 +577,45 @@ function createSemantics(lat, cc)
     var argumentNode = node.argument;
     if (argumentNode === null)
     {
-      return [machine.return(L_UNDEFINED, lkont, kont)];
+      machine.return(L_UNDEFINED, lkont, kont);
+      return;
     }
 
     var frame = new ReturnKont(node);
-    return [machine.evaluate(argumentNode, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(argumentNode, benv, [frame].concat(lkont), kont);
   }
 
   function evalBreakStatement(node, benv, lkont, kont, machine)
   {
-    return [machine.break(lkont, kont)];
+    machine.break(lkont, kont);
   }
 
   function evalTryStatement(node, benv, lkont, kont, machine)
   {
     var block = node.block;
     var frame = new TryKont(node, benv);
-    return [machine.evaluate(block, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(block, benv, [frame].concat(lkont), kont);
   }
 
   function evalThrowStatement(node, benv, lkont, kont, machine)
   {
     var argumentNode = node.argument;
     var frame = new ThrowKont(node);
-    return [machine.evaluate(argumentNode, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(argumentNode, benv, [frame].concat(lkont), kont);
   }
 
   function evalIfStatement(node, benv, lkont, kont, machine)
   {
     var testNode = node.test;
     var frame = new IfKont(node, benv);
-    return [machine.evaluate(testNode, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(testNode, benv, [frame].concat(lkont), kont);
   }
 
   function evalConditionalExpression(node, benv, lkont, kont, machine)
   {
     var testNode = node.test;
     var frame = new IfKont(node, benv);
-    return [machine.evaluate(testNode, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(testNode, benv, [frame].concat(lkont), kont);
   }
 
   function evalForStatement(node, benv, lkont, kont, machine)
@@ -654,32 +624,37 @@ function createSemantics(lat, cc)
     if (init)
     {
       var frame = new ForInitKont(node, benv);
-      return [machine.evaluate(init, benv, [frame].concat(lkont), kont)];
+      machine.evaluate(init, benv, [frame].concat(lkont), kont);
+      return;
     }
     var test = node.test;
     var frame = new ForTestKont(node, L_UNDEFINED, benv);
-    return [machine.evaluate(test, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(test, benv, [frame].concat(lkont), kont);
+    return;
   }
 
   function evalForInStatement(node, benv, lkont, kont, machine)
   {
     var right = node.right;
     var frame = new ForInRightKont(node, benv);
-    return [machine.evaluate(right, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(right, benv, [frame].concat(lkont), kont);
+    return;
   }
 
   function evalWhileStatement(node, benv, lkont, kont, machine)
   {
     var test = node.test;
     var frame = new WhileTestKont(node, benv);
-    return [machine.evaluate(test, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(test, benv, [frame].concat(lkont), kont);
+    return;
   }
 
   function evalDoWhileStatement(node, benv, lkont, kont, machine)
   {
     var body = node.body;
     var frame = new WhileBodyKont(node, benv);
-    return [machine.evaluate(body, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(body, benv, [frame].concat(lkont), kont);
+    return;
   }
 
   function evalObjectExpression(node, benv, lkont, kont, machine)
@@ -691,10 +666,11 @@ function createSemantics(lat, cc)
       var objectAddress = machine.alloc.object(node, kont);
       machine.storeAlloc(objectAddress, obj);
       var objectRef = lat.abstRef(objectAddress);
-      return [machine.continue(objectRef, lkont, kont)];
+      machine.continue(objectRef, lkont, kont);
+      return;
     }
     var frame = new ObjectKont(node, 1, benv, []);
-    return [machine.evaluate(properties[0].value, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(properties[0].value, benv, [frame].concat(lkont), kont);
   }
 
   function evalArrayExpression(node, benv, lkont, kont, machine)
@@ -707,17 +683,18 @@ function createSemantics(lat, cc)
       var arrAddress = machine.alloc.array(node, kont);
       machine.storeAlloc(arrAddress, arr);
       var arrRef = lat.abstRef(arrAddress);
-      return [machine.continue(arrRef, lkont, kont)];
+      machine.continue(arrRef, lkont, kont);
+      return;
     }
     var frame = new ArrayKont(node, 1, benv, []);
-    return [machine.evaluate(elements[0], benv, [frame].concat(lkont), kont)];
+    machine.evaluate(elements[0], benv, [frame].concat(lkont), kont);
   }
 
   function evalMemberExpression(node, benv, lkont, kont, machine)
   {
     var object = node.object;
     var frame = new MemberKont(node, benv);
-    return [machine.evaluate(object, benv, [frame].concat(lkont), kont)];
+    machine.evaluate(object, benv, [frame].concat(lkont), kont);
   }
 
   function createError(message, realm)
@@ -754,12 +731,12 @@ function createSemantics(lat, cc)
         value = L_UNDEFINED;
       }
 
-      const result = [];
       for (const stack of kont._stacks)
       {
-        result.push(machine.continue(value, stack.lkont, stack.kont));
+        machine.continue(value, stack.lkont, stack.kont);
       }
-      return result;
+
+      return;
     }
 
     return lkont[0].apply(value, lkont.slice(1), kont, machine);
@@ -792,13 +769,10 @@ function createSemantics(lat, cc)
       value = returnValue;
     }
 
-    const result = [];
     for (const stack of kont._stacks)
     {
-      result.push(machine.continue(value, stack.lkont, stack.kont));
+      machine.continue(value, stack.lkont, stack.kont);
     }
-
-    return result;
   }
 
   function throw_(value, lkont, kont, machine)
@@ -1065,13 +1039,13 @@ function createSemantics(lat, cc)
         return result;
       }
 
-  function performApply(operandValues, funNode, scope, lkont, kont, ctx, states)
+  function performApply(operandValues, funNode, scope, lkont, kont, ctx, machine)
   {
     const bodyNode = funNode.body;
     const nodes = bodyNode.body;
     if (nodes.length === 0)
     {
-      states.continue(L_UNDEFINED, [], ctx);
+      machine.continue(L_UNDEFINED, [], ctx);
     } else
     {
       let extendedBenv = scope.extend();
@@ -1083,7 +1057,7 @@ function createSemantics(lat, cc)
         var nodeAddr = names.map(function (name)
         {
           var node = funScopeDecls[name];
-          var addr = states.machine.alloc.vr(node.id || node, ctx); // new ctx!
+          var addr = machine.alloc.vr(node.id || node, ctx); // new ctx!
           extendedBenv = extendedBenv.add(name, addr);
           return [node, addr];
         });
@@ -1095,24 +1069,24 @@ function createSemantics(lat, cc)
           const addr = na[1];
           if (Ast.isIdentifier(node)) // param
           {
-            states.machine.storeAlloc(addr, node.i < operandValues.length ? operandValues[node.i] : L_UNDEFINED);
+            machine.storeAlloc(addr, node.i < operandValues.length ? operandValues[node.i] : L_UNDEFINED);
           } 
           else if (Ast.isFunctionDeclaration(node))
           {
-            var closureRef = allocateClosure(node, extendedBenv, lkont, kont, states.machine);
-            states.machine.storeAlloc(addr, closureRef);
+            var closureRef = allocateClosure(node, extendedBenv, lkont, kont, machine);
+            machine.storeAlloc(addr, closureRef);
           } 
           else if (Ast.isVariableDeclarator(node))
           {
-            states.machine.storeAlloc(addr, L_UNDEFINED);
+            machine.storeAlloc(addr, L_UNDEFINED);
           } 
           else if (Ast.isRestElement(node))
           {
-            const arr = CreateArrayFromList(operandValues.slice(node.i), node, lkont, kont, states);
-            const arrAddress = states.machine.alloc.array(node, ctx);
-            states.machine.storeAlloc(arrAddress, arr);
+            const arr = CreateArrayFromList(operandValues.slice(node.i), node, lkont, kont, machine);
+            const arrAddress = machine.alloc.array(node, ctx);
+            machine.storeAlloc(arrAddress, arr);
             const arrRef = lat.abstRef(arrAddress);
-            states.machine.storeAlloc(addr, arrRef);
+            machine.storeAlloc(addr, arrRef);
           }
           else
           {
@@ -1124,40 +1098,40 @@ function createSemantics(lat, cc)
       const blockScopeDecls = blockScopeDeclarations(funNode);
       for (const [name, decl] of blockScopeDecls)
       {
-        const addr = states.machine.alloc.vr(decl.id, ctx); // new ctx!
+        const addr = machine.alloc.vr(decl.id, ctx); // new ctx!
         extendedBenv = extendedBenv.add(name, addr);
-        states.machine.storeAlloc(addr, BOT);
+        machine.storeAlloc(addr, BOT);
       }
 
-      states.evaluate(bodyNode, extendedBenv, [], ctx);
+      machine.evaluate(bodyNode, extendedBenv, [], ctx);
     }
   }
 
 
   ObjClosureCall.prototype.applyFunction =
-      function (application, operandValues, thisValue, TODO_REMOVE, lkont, kont, states)
+      function (application, operandValues, thisValue, TODO_REMOVE, lkont, kont, machine)
       {
-        const userContext = states.machine.kalloc(this, operandValues);
-        var previousStack = Stackget(new Stack(lkont, kont), states.machine);
+        const userContext = machine.kalloc(this, operandValues);
+        var previousStack = Stackget(new Stack(lkont, kont), machine);
         var stackAs = kont.stackAddresses(lkont).join(this.addresses());
-        var ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack, states.machine);
-        performApply(operandValues, this.node, this.scope, lkont, kont, ctx, states);
+        var ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack, machine);
+        performApply(operandValues, this.node, this.scope, lkont, kont, ctx, machine);
       }
 
   ObjClosureCall.prototype.applyConstructor =
-      function (application, operandValues, protoRef, TODO_REMOVE, lkont, kont, states)
+      function (application, operandValues, protoRef, TODO_REMOVE, lkont, kont, machine)
       {
         // call store should not contain freshly allocated `this`
-        const userContext = states.machine.kalloc(this, operandValues);
+        const userContext = machine.kalloc(this, operandValues);
         const funNode = this.node;
         const obj = ObjectCreate(protoRef);
-        const thisa = states.machine.alloc.constructor(funNode, kont, application);
-        states.machine.storeAlloc(thisa, obj);
+        const thisa = machine.alloc.constructor(funNode, kont, application);
+        machine.storeAlloc(thisa, obj);
         const thisValue = lat.abstRef(thisa);
         const stackAs = kont.stackAddresses(lkont).join(this.addresses());
-        const previousStack = Stackget(new Stack(lkont, kont), states.machine);
-        const ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack, states.machine);
-        return performApply(operandValues, funNode, this.scope, lkont, kont, ctx, states);
+        const previousStack = Stackget(new Stack(lkont, kont), machine);
+        const ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack, machine);
+        return performApply(operandValues, funNode, this.scope, lkont, kont, ctx, machine);
       }
 
   ObjClosureCall.prototype.addresses =
@@ -1209,7 +1183,7 @@ function createSemantics(lat, cc)
         var node = this.node;
         var benv = this.benv;
         var frame = new RightKont(node, leftValue);
-        return [machine.evaluate(node.right, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(node.right, benv, [frame].concat(lkont), kont);
       }
 
   function LogicalLeftKont(node, benv)
@@ -1255,19 +1229,17 @@ function createSemantics(lat, cc)
         var node = this.node;
         var benv = this.benv;
         var operator = node.operator;
-        var result = [];
         switch (operator)
         {
           case "&&":
           {
-
             if (leftValue.isTruthy())
             {
-              result = result.concat([machine.evaluate(node.right, benv, lkont, kont)]);
+              machine.evaluate(node.right, benv, lkont, kont);
             }
             if (leftValue.isFalsy())
             {
-              result = result.concat([machine.continue(leftValue, lkont, kont)]);
+              machine.continue(leftValue, lkont, kont);
             }
             break;
           }
@@ -1275,18 +1247,17 @@ function createSemantics(lat, cc)
           {
             if (leftValue.isTruthy())
             {
-              result = result.concat([machine.continue(leftValue, lkont, kont)]);
+              machine.continue(leftValue, lkont, kont);
             }
             if (leftValue.isFalsy())
             {
-              result = result.concat([machine.evaluate(node.right, benv, lkont, kont)]);
+              machine.evaluate(node.right, benv, lkont, kont);
             }
             break;
           }
           default:
             throw new Error("cannot handle logical operator " + operator);
         }
-        return result;
       }
 
 
@@ -1393,7 +1364,7 @@ function createSemantics(lat, cc)
           default:
             throw new Error("cannot handle unary operator " + node.operator);
         }
-        return [machine.continue(resultValue, lkont, kont)];
+        machine.continue(resultValue, lkont, kont);
       }
 
   function RightKont(node, leftValue)
@@ -1448,105 +1419,122 @@ function createSemantics(lat, cc)
     {
       case "+":
       {
-        return [machine.continue(lat.add(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.add(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "*":
       {
-        return [machine.continue(lat.mul(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.mul(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "-":
       {
-        return [machine.continue(lat.sub(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.sub(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "/":
       {
-        return [machine.continue(lat.div(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.div(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "%":
       {
-        return [machine.continue(lat.rem(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.rem(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "===":
       {
-        return [machine.continue(lat.eqq(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.eqq(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "!==":
       {
-        return [machine.continue(lat.neqq(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.neqq(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "==":
       {
-        return [machine.continue(lat.eq(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.eq(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "!=":
       {
-        return [machine.continue(lat.neq(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.neq(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "<":
       {
-        return [machine.continue(lat.lt(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.lt(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "<=":
       {
-        return [machine.continue(lat.lte(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.lte(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case ">":
       {
-        return [machine.continue(lat.gt(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.gt(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case ">=":
       {
-        return [machine.continue(lat.gte(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.gte(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "&":
       {
-        return [machine.continue(lat.binand(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.binand(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "|":
       {
-        return [machine.continue(lat.binor(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.binor(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "^":
       {
-        return [machine.continue(lat.binxor(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.binxor(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "<<":
       {
-        return [machine.continue(lat.shl(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.shl(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case ">>":
       {
-        return [machine.continue(lat.shr(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.shr(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case ">>>":
       {
-        return [machine.continue(lat.shrr(leftValue, rightValue), lkont, kont, machine)];
+        machine.continue(lat.shrr(leftValue, rightValue), lkont, kont, machine);
+        return;
       }
       case "instanceof":
       {
-        const states = new States(machine);
-        InstanceofOperator(leftValue, rightValue, lkont, kont, states, value =>
-          states.continue(value, lkont, kont));
-        return states;
+        InstanceofOperator(leftValue, rightValue, lkont, kont, machine, value =>
+          machine.continue(value, lkont, kont));
+        return;
       }
       case "in":
       {
-        const states = new States(machine);
         if (rightValue.isNonRef())
         {
-          states.throwTypeError("in: not an object", lkont, kont);
+          throwTypeError("in: not an object", lkont, kont, machine);
         }
         if (rightValue.isRef())
         {
-          ToPropertyKey(leftValue, lkont, kont, states, P =>
+          ToPropertyKey(leftValue, lkont, kont, machine, P =>
           {
-            HasProperty(rightValue, P, lkont, kont, states, result =>
+            HasProperty(rightValue, P, lkont, kont, machine, result =>
             {
-              states.continue(result, lkont, kont);
+              machine.continue(result, lkont, kont);
             })
           })
         }
-        return states;
+        return;
       }
       default:
         throw new Error("cannot handle binary operator " + operator);
@@ -1640,7 +1628,7 @@ function createSemantics(lat, cc)
         //   newValue = newValue.abst();
         // }
         doScopeSet(node.left, newValue, benv, kont, machine);
-        return [machine.continue(newValue, lkont, kont)];
+        machine.continue(newValue, lkont, kont);
       }
 
   function OperatorKont(node, benv)
@@ -1689,18 +1677,18 @@ function createSemantics(lat, cc)
 
         if (operands.length === 0)
         {
-          const states = new States(machine);
           if (Ast.isNewExpression(node))
           {
-            applyCons(node, operatorValue, [], benv, lkont, kont, states);
-          } else
-          {
-            applyProc(node, operatorValue, [], kont.realm.GlobalObject, benv, lkont, kont, states);
+            applyCons(node, operatorValue, [], benv, lkont, kont, machine);
           }
-          return states;
+          else
+          {
+            applyProc(node, operatorValue, [], kont.realm.GlobalObject, benv, lkont, kont, machine);
+          }
+          return;
         }
         const frame = new OperandsKont(node, 1, benv, operatorValue, [], kont.realm.GlobalObject);
-        return [machine.evaluate(operands[0], benv, [frame].concat(lkont), kont)];
+        machine.evaluate(operands[0], benv, [frame].concat(lkont), kont);
       }
 
   function OperandsKont(node, i, benv, operatorValue, operandValues, thisValue)
@@ -1773,18 +1761,18 @@ function createSemantics(lat, cc)
 
         if (i === operands.length)
         {
-          const states = new States(machine);
           if (Ast.isNewExpression(node))
           {
-            applyCons(node, operatorValue, operandValues.addLast(operandValue), benv, lkont, kont, states);
-          } else
-          {
-            applyProc(node, operatorValue, operandValues.addLast(operandValue), thisValue, benv, lkont, kont, states);
+            applyCons(node, operatorValue, operandValues.addLast(operandValue), benv, lkont, kont, machine);
           }
-          return states;
+          else
+          {
+            applyProc(node, operatorValue, operandValues.addLast(operandValue), thisValue, benv, lkont, kont, machine);
+          }
+          return;
         }
         const frame = new OperandsKont(node, i + 1, benv, operatorValue, operandValues.addLast(operandValue), thisValue);
-        return [machine.evaluate(operands[i], benv, [frame].concat(lkont), kont)];
+        machine.evaluate(operands[i], benv, [frame].concat(lkont), kont);
       }
 
   function BodyKont(node, i, benv)
@@ -1837,10 +1825,11 @@ function createSemantics(lat, cc)
         var nodes = node.body;
         if (i === nodes.length - 1)
         {
-          return [machine.evaluate(nodes[i], benv, lkont, kont)];
+          machine.evaluate(nodes[i], benv, lkont, kont);
+          return;
         }
         var frame = new BodyKont(node, i + 1, benv);
-        return [machine.evaluate(nodes[i], benv, [frame].concat(lkont), kont)];
+        machine.evaluate(nodes[i], benv, [frame].concat(lkont), kont);
       }
 
   function ReturnKont(node)
@@ -1881,7 +1870,7 @@ function createSemantics(lat, cc)
       function (value, lkont, kont, machine)
       {
         var node = this.node;
-        return [machine.return(value, lkont, kont)];
+        machine.return(value, lkont, kont);
       }
 
   function TryKont(node, benv)
@@ -1929,13 +1918,14 @@ function createSemantics(lat, cc)
           const finalizerBody = finalizer.body;
           if (finalizerBody.length === 0)
           {
-            return [machine.continue(tryValue, lkont, kont)];
+            machine.continue(tryValue, lkont, kont);
+            return;
           }
           const benv = this.benv;
           const frame = new FinalizerKont(node, tryValue, false);
           return evalStatementList(finalizer, benv, [frame].concat(lkont), kont, machine);
         }
-        return [machine.continue(tryValue, lkont, kont)];
+        machine.continue(tryValue, lkont, kont);
       }
   TryKont.prototype.applyThrow =
       function (throwValue, lkont, kont, machine)
@@ -1950,7 +1940,8 @@ function createSemantics(lat, cc)
           const finalizerBody = finalizer.body;
           if (finalizerBody.length === 0)
           {
-            return [machine.throw(throwValue, lkont, kont)];
+            machine.throw(throwValue, lkont, kont);
+            return;
           }
           const frame = new FinalizerKont(node, throwValue, true);
           return evalStatementList(finalizer, benv, [frame].concat(lkont), kont, machine);
@@ -1960,7 +1951,8 @@ function createSemantics(lat, cc)
         var nodes = body.body;
         if (nodes.length === 0)
         {
-          return [machine.continue(L_UNDEFINED, lkont, kont)];
+          machine.continue(L_UNDEFINED, lkont, kont);
+          return;
         }
 
         var extendedBenv = this.benv.extend();
@@ -2019,9 +2011,10 @@ function createSemantics(lat, cc)
         const thrw = this.thrw;
         if (thrw)
         {
-          return [machine.throw(value, lkont, kont)];
+          machine.throw(value, lkont, kont);
+          return;
         }
-        return [machine.continue(value, lkont, kont)];
+        machine.continue(value, lkont, kont);
       }
 
   function ThrowKont(node)
@@ -2063,7 +2056,7 @@ function createSemantics(lat, cc)
       {
         assertFalse(throwValue instanceof Obj)
         var node = this.node;
-        return [machine.throw(throwValue, lkont, kont)];
+        machine.throw(throwValue, lkont, kont);
       }
 
   function IfKont(node, benv)
@@ -2110,22 +2103,21 @@ function createSemantics(lat, cc)
         var benv = this.benv;
         var consequent = node.consequent;
         var alternate = node.alternate;
-        var result = [];
         if (conditionValue.isTruthy())
         {
-          result = result.concat([machine.evaluate(consequent, benv, lkont, kont)]);
+          machine.evaluate(consequent, benv, lkont, kont);
         }
         if (conditionValue.isFalsy())
         {
           if (alternate === null)
           {
-            result = result.concat([machine.continue(L_UNDEFINED, lkont, kont)]);
-          } else
+            machine.continue(L_UNDEFINED, lkont, kont);
+          } 
+          else
           {
-            result = result.concat([machine.evaluate(alternate, benv, lkont, kont)]);
+            machine.evaluate(alternate, benv, lkont, kont);
           }
         }
-        return result;
       }
 
   function ForInitKont(node, benv)
@@ -2172,7 +2164,7 @@ function createSemantics(lat, cc)
         var benv = this.benv;
         var test = node.test;
         var frame = new ForTestKont(node, L_UNDEFINED, benv);
-        return [machine.evaluate(test, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(test, benv, [frame].concat(lkont), kont);
       }
 
   function ForTestKont(node, bodyValue, benv)
@@ -2220,18 +2212,16 @@ function createSemantics(lat, cc)
       {
         var node = this.node;
         var benv = this.benv;
-        var result = [];
         if (testValue.isTruthy())
         {
           var body = node.body;
           var frame = new ForBodyKont(node, benv);
-          result = result.concat([machine.evaluate(body, benv, [frame].concat(lkont), kont)]);
+          machine.evaluate(body, benv, [frame].concat(lkont), kont);
         }
         if (testValue.isFalsy())
         {
-          result = result.concat([machine.continue(this.bodyValue, lkont, kont)]);
+          machine.continue(this.bodyValue, lkont, kont);
         }
-        return result;
       }
 
   function ForBodyKont(node, benv)
@@ -2278,12 +2268,12 @@ function createSemantics(lat, cc)
         var benv = this.benv;
         var update = node.update;
         var frame = new ForUpdateKont(node, bodyValue, benv);
-        return [machine.evaluate(update, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(update, benv, [frame].concat(lkont), kont);
       }
   ForBodyKont.prototype.applyBreak =
       function (lkont, kont, machine)
       {
-        return [machine.continue(L_UNDEFINED, lkont.slice(1), kont)];
+        machine.continue(L_UNDEFINED, lkont.slice(1), kont);
       }
 
   function ForUpdateKont(node, bodyValue, benv)
@@ -2334,7 +2324,7 @@ function createSemantics(lat, cc)
         var benv = this.benv;
         var test = node.test;
         var frame = new ForTestKont(node, this.bodyValue, benv);
-        return [machine.evaluate(test, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(test, benv, [frame].concat(lkont), kont);
       }
 
   function ForInRightKont(node, benv)
@@ -2389,43 +2379,41 @@ function createSemantics(lat, cc)
           default:
             throw new Error("cannot handle left expression " + left + " (" + left.type + ")");
         }
-        const states = new States(machine);
-        callInternal(ref, "[[OwnPropertyKeys]]", [], lkont, kont, states, ownKeys =>
-          forInHelper(node, nameNode, ref, ownKeys, 0, benv, lkont, kont, states));
-        return states;
+        callInternal(ref, "[[OwnPropertyKeys]]", [], lkont, kont, machine, ownKeys =>
+          forInHelper(node, nameNode, ref, ownKeys, 0, benv, lkont, kont, machine));
       }
 
-  function forInHelper(node, nameNode, ref, ownKeys, i, benv, lkont, kont, states)
+  function forInHelper(node, nameNode, ref, ownKeys, i, benv, lkont, kont, machine)
   {
     if (i === ownKeys.length)
     {
-      callInternal(ref, "[[GetPrototypeOf]]", [], lkont, kont, states, protoRef =>
+      callInternal(ref, "[[GetPrototypeOf]]", [], lkont, kont, machine, protoRef =>
       {
         if (protoRef.isNull())
         {
-          states.continue(L_UNDEFINED, lkont, kont);
+          machine.continue(L_UNDEFINED, lkont, kont);
         }
         if (protoRef.isNonNull()) // TODO: check for non-null ref/non-ref?
         {
-          callInternal(protoRef, "[[OwnPropertyKeys]]", [], lkont, kont, states, ownKeys =>
-            forInHelper(node, nameNode, protoRef, ownKeys, 0, benv, lkont, kont, states));
+          callInternal(protoRef, "[[OwnPropertyKeys]]", [], lkont, kont, machine, ownKeys =>
+            forInHelper(node, nameNode, protoRef, ownKeys, 0, benv, lkont, kont, machine));
         }
       })
     }
     else
     {
       const ownKey = ownKeys[i];
-      callInternal(ref, "[[GetOwnProperty]]", [ownKey], lkont, kont, states, desc =>
+      callInternal(ref, "[[GetOwnProperty]]", [ownKey], lkont, kont, machine, desc =>
       {
         if (desc.isDefined() && desc.getEnumerable().isTrue())
         {
-          doScopeSet(nameNode, ownKey, benv, kont, states.machine);
+          doScopeSet(nameNode, ownKey, benv, kont, machine);
           const frame = new ForInBodyKont(node, nameNode, ref, ownKeys, i, benv);
-          states.evaluate(node.body, benv, [frame].concat(lkont), kont);
+          machine.evaluate(node.body, benv, [frame].concat(lkont), kont);
         }
         if (desc.isUndefined() || desc.isEnumerableAbsent() || desc.getEnumerable().isFalse())
         {
-          forInHelper(node, nameNode, ref, ownKeys, i + 1, benv, lkont, kont, states);
+          forInHelper(node, nameNode, ref, ownKeys, i + 1, benv, lkont, kont, machine);
         }
       })
     }
@@ -2488,9 +2476,7 @@ function createSemantics(lat, cc)
         const ownKeys = this.ownKeys;
         const i = this.i;
         const benv = this.benv;
-        const states = new States(machine);
-        forInHelper(node, nameNode, ref, ownKeys, i + 1, benv, lkont, kont, states);
-        return states;
+        forInHelper(node, nameNode, ref, ownKeys, i + 1, benv, lkont, kont, machine);
       }
 
 
@@ -2541,13 +2527,12 @@ function createSemantics(lat, cc)
         if (testValue.isTruthy())
         {
           var frame = new WhileBodyKont(node, benv);
-          result = result.concat([machine.evaluate(body, benv, [frame].concat(lkont), kont)]);
+          machine.evaluate(body, benv, [frame].concat(lkont), kont);
         }
         if (testValue.isFalsy())
         {
-          result = result.concat([machine.continue(L_UNDEFINED, lkont, kont)]);
+          machine.continue(L_UNDEFINED, lkont, kont);
         }
-        return result;
       }
 
   function WhileBodyKont(node, benv)
@@ -2594,12 +2579,12 @@ function createSemantics(lat, cc)
         var benv = this.benv;
         var test = node.test;
         var frame = new WhileTestKont(node, benv);
-        return [machine.evaluate(test, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(test, benv, [frame].concat(lkont), kont);
       }
   WhileBodyKont.prototype.applyBreak =
       function (lkont, kont, machine)
       {
-        return [machine.continue(L_UNDEFINED, lkont.slice(1), kont)];
+        machine.continue(L_UNDEFINED, lkont.slice(1), kont);
       }
 
   function ObjectKont(node, i, benv, initValues)
@@ -2665,19 +2650,18 @@ function createSemantics(lat, cc)
           const objectAddress = machine.alloc.object(node, kont);
           machine.storeAlloc(objectAddress, obj);
           const object = lat.abstRef(objectAddress);
-          const states = new States(machine);
 
           function cont(j)
           {
             if (j === i)
             {
-              states.continue(object, lkont, kont);
+              machine.continue(object, lkont, kont);
             }
             else
             {
               const propName = lat.abst1(properties[j].key.name);
               const propValue = initValues[j];
-              CreateDataPropertyOrThrow(object, propName, propValue, lkont, kont, states, success =>
+              CreateDataPropertyOrThrow(object, propName, propValue, lkont, kont, machine, success =>
               {
                 if (success.isFalse())
                 {
@@ -2692,10 +2676,10 @@ function createSemantics(lat, cc)
           }
 
           cont(0);
-          return states;
+          return;
         }
         var frame = new ObjectKont(node, i + 1, benv, initValues);
-        return [machine.evaluate(properties[i].value, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(properties[i].value, benv, [frame].concat(lkont), kont);
       }
 
   function ArrayKont(node, i, benv, initValues)
@@ -2766,10 +2750,11 @@ function createSemantics(lat, cc)
           }
           arr = arr.addProperty(P_LENGTH, Property.fromData(lat.abst1(i), L_TRUE, L_TRUE, L_TRUE));
           machine.storeAlloc(arrAddress, arr);
-          return [machine.continue(lat.abstRef(arrAddress), lkont, kont)];
+          machine.continue(lat.abstRef(arrAddress), lkont, kont);
+          return;
         }
         var frame = new ArrayKont(node, i + 1, benv, initValues);
-        return [machine.evaluate(elements[i], benv, [frame].concat(lkont), kont)];
+        machine.evaluate(elements[i], benv, [frame].concat(lkont), kont);
       }
 
   function MemberKont(node, benv)
@@ -2815,18 +2800,16 @@ function createSemantics(lat, cc)
         var node = this.node;
         var benv = this.benv;
         var property = node.property;
-        const states = new States(machine);
-        const objectRef = ToObject(objectValue, node, lkont, kont, states);
+        const objectRef = ToObject(objectValue, node, lkont, kont, machine);
         if (node.computed)
         {
           const frame = new MemberPropertyKont(node, benv, objectRef);
-          states.evaluate(property, benv, [frame].concat(lkont), kont);
+          machine.evaluate(property, benv, [frame].concat(lkont), kont);
         } else
         {
           const value = doProtoLookup(lat.abst1(property.name), objectRef.addresses(), machine);
-          states.continue(value, lkont, kont);
+          machine.continue(value, lkont, kont);
         }
-        return states;
       }
 
   function MemberPropertyKont(node, benv, objectRef)
@@ -2885,7 +2868,7 @@ function createSemantics(lat, cc)
   function $getProperty(obj, name, lkont, kont, machine)
   {
     const value = doProtoLookup(name, obj.addresses(), machine);
-    return [machine.continue(value, lkont, kont)];
+    machine.continue(value, lkont, kont);
   }
 
 
@@ -2937,30 +2920,28 @@ function createSemantics(lat, cc)
           throw new Error("TODO");
         }
         const nameValue = lat.abst1(property.name);
-        const states = new States(machine);
-        const objectRef = ToObject(objectValue, node, lkont, kont, states);
+        const objectRef = ToObject(objectValue, node, lkont, kont, machine);
         const operands = node.arguments;
-        invoke(node, objectRef, nameValue, operands, benv, lkont, kont, states);
-        return states;
+        invoke(node, objectRef, nameValue, operands, benv, lkont, kont, machine);
       }
 
 
-  function invoke(application, thisValue, nameValue, operands, benv, lkont, kont, states)
+  function invoke(application, thisValue, nameValue, operands, benv, lkont, kont, machine)
   {
-    var operatorValue = doProtoLookup(nameValue, thisValue.addresses(), states.machine);
+    var operatorValue = doProtoLookup(nameValue, thisValue.addresses(), machine);
     if (operands.length === 0)
     {
       if (Ast.isNewExpression(application))
       {
-        applyCons(application, operatorValue, [], benv, lkont, kont, states);
+        applyCons(application, operatorValue, [], benv, lkont, kont, machine);
       } else
       {
-        applyProc(application, operatorValue, [], thisValue, null, lkont, kont, states);
+        applyProc(application, operatorValue, [], thisValue, null, lkont, kont, machine);
       }
     } else
     {
       const frame = new OperandsKont(application, 1, benv, operatorValue, [], thisValue);
-      states.evaluate(operands[0], benv, [frame].concat(lkont), kont);
+      machine.evaluate(operands[0], benv, [frame].concat(lkont), kont);
     }
   }
 
@@ -3011,12 +2992,13 @@ function createSemantics(lat, cc)
         if (left.computed)
         {
           var frame = new AssignMemberPropertyKont(node, benv, objectRef);
-          return [machine.evaluate(property, benv, [frame].concat(lkont), kont)];
+          machine.evaluate(property, benv, [frame].concat(lkont), kont);
+          return;
         }
         var right = node.right;
         var nameValue = lat.abst1(property.name);
         var frame = new MemberAssignmentValueKont(node, benv, objectRef, nameValue);
-        return [machine.evaluate(right, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(right, benv, [frame].concat(lkont), kont);
       }
 
   function UpdateMemberKont(node, benv)
@@ -3066,7 +3048,8 @@ function createSemantics(lat, cc)
         if (argument.computed)
         {
           var frame = new UpdateMemberPropertyKont(node, benv, objectRef); // TODO
-          return [machine.evaluate(property, benv, [frame].concat(lkont), kont)];
+          machine.evaluate(property, benv, [frame].concat(lkont), kont);
+          return;
         }
         var name = lat.abst1(property.name);
         var value = doProtoLookup(name, objectRef.addresses(), machine);
@@ -3096,7 +3079,7 @@ function createSemantics(lat, cc)
         }
         doProtoSet(name, updatedValue, objectRef, machine);
         var resultingValue = node.prefix ? updatedValue : value;
-        return [machine.continue(resultingValue, lkont, kont)];
+        machine.continue(resultingValue, lkont, kont);
       }
 
   function AssignMemberPropertyKont(node, benv, objectRef)
@@ -3152,7 +3135,7 @@ function createSemantics(lat, cc)
         var objectRef = this.objectRef;
         var nameValue = propertyValue.ToString();
         var frame = new MemberAssignmentValueKont(node, benv, objectRef, nameValue);
-        return [machine.evaluate(right, benv, [frame].concat(lkont), kont)];
+        machine.evaluate(right, benv, [frame].concat(lkont), kont);
       }
 
   function MemberAssignmentValueKont(node, benv, objectRef, nameValue)
@@ -3244,7 +3227,7 @@ function createSemantics(lat, cc)
   function $assignProperty(obj, name, value, lkont, kont, machine)
   {
     doProtoSet(name, value, obj, machine);
-    return [machine.continue(value, lkont, kont)];
+    machine.continue(value, lkont, kont);
   }
 
   function doScopeLookup(nameNode, benv, kont, machine)
@@ -3314,13 +3297,13 @@ function createSemantics(lat, cc)
     return result;
   }
 
-  function callInternal(O, name, args, lkont, kont, states, cont)
+  function callInternal(O, name, args, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
     const as = O.addresses();
     for (const a of as)
     {
-      const obj = states.machine.storeLookup(a);
+      const obj = machine.storeLookup(a);
       const fs = obj.getInternal(name);
       if (!fs)
       {
@@ -3328,7 +3311,7 @@ function createSemantics(lat, cc)
       }
       for (const f of fs)
       {
-        const apply = f.apply(null, [O].concat(args).concat([lkont, kont, states, cont]));
+        f.apply(null, [O].concat(args).concat([lkont, kont, machine, cont]));
       }
     }
   }
@@ -4501,7 +4484,7 @@ function createSemantics(lat, cc)
   }
 
   // 6.2.5.4
-  function FromPropertyDescriptor(Desc, node, lkont, kont, states, cont) // ? undefined | ref
+  function FromPropertyDescriptor(Desc, node, lkont, kont, machine, cont) // ? undefined | ref
   {
     if (Desc.isUndefined())
     {
@@ -4510,47 +4493,47 @@ function createSemantics(lat, cc)
     if (Desc.isDefined())
     {
       const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
-      const objAddr = states.machine.alloc.object(node, kont);
+      const objAddr = machine.alloc.object(node, kont);
       const objRef = lat.abstRef(objAddr);
-      states.machine.storeAlloc(objAddr, obj);
+      machine.storeAlloc(objAddr, obj);
       if (Desc.isValuePresent())
       {
-        CreateDataProperty(objRef, lat.abst1("value"), Desc.getValue(), lkont, kont, states, success =>
+        CreateDataProperty(objRef, lat.abst1("value"), Desc.getValue(), lkont, kont, machine, success =>
         {
           assert(!success.isFalse());
         })
       }
       if (Desc.isWritablePresent())
       {
-        CreateDataProperty(objRef, lat.abst1("writable"), Desc.getWritable(), lkont, kont, states, success =>
+        CreateDataProperty(objRef, lat.abst1("writable"), Desc.getWritable(), lkont, kont, machine, success =>
         {
           assert(!success.isFalse());
         })
       }
       if (Desc.isGetPresent())
       {
-        CreateDataProperty(objRef, lat.abst1("get"), Desc.getGet(), lkont, kont, states, success =>
+        CreateDataProperty(objRef, lat.abst1("get"), Desc.getGet(), lkont, kont, machine, success =>
         {
           assert(!success.isFalse());
         })
       }
       if (Desc.isSetPresent())
       {
-        CreateDataProperty(objRef, lat.abst1("set"), Desc.getSet(), lkont, kont, states, success =>
+        CreateDataProperty(objRef, lat.abst1("set"), Desc.getSet(), lkont, kont, machine, success =>
         {
           assert(!success.isFalse());
         })
       }
       if (Desc.isEnumerablePresent())
       {
-        CreateDataProperty(objRef, lat.abst1("enumerable"), Desc.getEnumerable(), lkont, kont, states, success =>
+        CreateDataProperty(objRef, lat.abst1("enumerable"), Desc.getEnumerable(), lkont, kont, machine, success =>
         {
           assert(!success.isFalse());
         })
       }
       if (Desc.isConfigurablePresent())
       {
-        CreateDataProperty(objRef, lat.abst1("configurable"), Desc.getConfigurable(), lkont, kont, states, success =>
+        CreateDataProperty(objRef, lat.abst1("configurable"), Desc.getConfigurable(), lkont, kont, machine, success =>
         {
           assert(!success.isFalse());
         })
@@ -4560,23 +4543,23 @@ function createSemantics(lat, cc)
   }
 
   // 6.2.5.5
-  function ToPropertyDescriptor(Obj, lkont, kont, states, cont) // ? Property
+  function ToPropertyDescriptor(Obj, lkont, kont, machine, cont) // ? Property
   {
     assert(typeof cont === "function");
     if (Obj.isNonRef())
     {
-      states.throwTypeError("6.2.5.5", lkont, kont);
+      throwTypeError("6.2.5.5", lkont, kont, machine);
     }
     if (Obj.isRef())
     {
       let desc = Property.empty();
-      HasProperty(Obj, lat.abst1("enumerable"), lkont, kont, states, Cont(hasEnumerable =>
+      HasProperty(Obj, lat.abst1("enumerable"), lkont, kont, machine, Cont(hasEnumerable =>
       {
         if (hasEnumerable.isTrue())
         {
-          Get(Obj, lat.abst1("enumerable"), lkont, kont, states, value =>
+          Get(Obj, lat.abst1("enumerable"), lkont, kont, machine, value =>
           {
-            const enumerable = ToBoolean(value, lkont, kont, states);
+            const enumerable = ToBoolean(value, lkont, kont, machine);
             step5(desc.setEnumerable(enumerable));
           })
         }
@@ -4589,13 +4572,13 @@ function createSemantics(lat, cc)
 
     function step5(desc)
     {
-      HasProperty(Obj, lat.abst1("configurable"), lkont, kont, states, Cont(hasConfigurable =>
+      HasProperty(Obj, lat.abst1("configurable"), lkont, kont, machine, Cont(hasConfigurable =>
       {
         if (hasConfigurable.isTrue())
         {
-          Get(Obj, lat.abst1("configurable"), lkont, kont, states, value =>
+          Get(Obj, lat.abst1("configurable"), lkont, kont, machine, value =>
           {
-            const configurable = ToBoolean(value, lkont, kont, states);
+            const configurable = ToBoolean(value, lkont, kont, machine);
             step7(desc.setConfigurable(configurable));
           })
         }
@@ -4608,11 +4591,11 @@ function createSemantics(lat, cc)
 
     function step7(desc)
     {
-      HasProperty(Obj, lat.abst1("value"), lkont, kont, states, hasValue =>
+      HasProperty(Obj, lat.abst1("value"), lkont, kont, machine, hasValue =>
       {
         if (hasValue.isTrue())
         {
-          Get(Obj, lat.abst1("value"), lkont, kont, states, value =>
+          Get(Obj, lat.abst1("value"), lkont, kont, machine, value =>
           {
             step9(desc.setValue(value));
           })
@@ -4626,13 +4609,13 @@ function createSemantics(lat, cc)
 
     function step9(desc)
     {
-      HasProperty(Obj, lat.abst1("writable"), lkont, kont, states, Cont(hasWritable =>
+      HasProperty(Obj, lat.abst1("writable"), lkont, kont, machine, Cont(hasWritable =>
       {
         if (hasWritable.isTrue())
         {
-          Get(Obj, lat.abst1("writable"), lkont, kont, states, value =>
+          Get(Obj, lat.abst1("writable"), lkont, kont, machine, value =>
           {
-            const writable = ToBoolean(value, lkont, kont, states);
+            const writable = ToBoolean(value, lkont, kont, machine);
             step11(desc.setWritable(writable))
           })
         }
@@ -4645,17 +4628,17 @@ function createSemantics(lat, cc)
 
     function step11(desc)
     {
-      HasProperty(Obj, lat.abst1("get"), lkont, kont, states, Cont(hasGet =>
+      HasProperty(Obj, lat.abst1("get"), lkont, kont, machine, Cont(hasGet =>
       {
         if (hasGet.isTrue())
         {
-          Get(Obj, lat.abst1("get"), lkont, kont, states, getter =>
+          Get(Obj, lat.abst1("get"), lkont, kont, machine, getter =>
           {
-            if (IsCallable(getter, states.machine).isFalse() && getter.isDefined())
+            if (IsCallable(getter, machine).isFalse() && getter.isDefined())
             {
-              states.throwTypeError("6.2.5.5 - [[Get]]");
+              throwTypeError("6.2.5.5 - [[Get]]", lkont, kont, machine);
             }
-            if (IsCallable(getter, states.machine).isTrue() || getter.isUndefined())
+            if (IsCallable(getter, machine).isTrue() || getter.isUndefined())
             {
               step13(desc.setGet(getter));
             }
@@ -4670,17 +4653,17 @@ function createSemantics(lat, cc)
 
     function step13(desc)
     {
-      HasProperty(Obj, lat.abst1("set"), lkont, kont, states, Cont(hasSet =>
+      HasProperty(Obj, lat.abst1("set"), lkont, kont, machine, Cont(hasSet =>
       {
         if (hasSet.isTrue())
         {
-          Get(Obj, lat.abst1("set"), lkont, kont, states, setter =>
+          Get(Obj, lat.abst1("set"), lkont, kont, machine, setter =>
           {
-            if (IsCallable(setter, states.machine).isFalse() && setter.isDefined())
+            if (IsCallable(setter, machine).isFalse() && setter.isDefined())
             {
-              states.throwTypeError("6.2.5.5 - [[Set]]");
+              throwTypeError("6.2.5.5 - [[Set]]", lkont, kont, machine);
             }
-            if (IsCallable(setter, states.machine).isTrue() || setter.isUndefined())
+            if (IsCallable(setter, machine).isTrue() || setter.isUndefined())
             {
               step15(desc.setSet(setter));
             }
@@ -4699,7 +4682,7 @@ function createSemantics(lat, cc)
       {
         if (desc.isValuePresent() || desc.isWritablePresent())
         {
-          states.throwTypeError("6.2.5.5 - Accessor + Data")
+          throwTypeError("6.2.5.5 - Accessor + Data", lkont, kont, machine);
         }
         if (desc.isValueAbsent() && desc.isWritableAbsent())
         {
@@ -4753,7 +4736,7 @@ function createSemantics(lat, cc)
   //     }
 
   // 7.1.1
-  function ToPrimitive(input, PreferredType, lkont, kont, states, cont)
+  function ToPrimitive(input, PreferredType, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
     // TODO: assert input is an ECMAScript language value
@@ -4778,7 +4761,7 @@ function createSemantics(lat, cc)
       {
         hint = "number";
       }
-      OrdinaryToPrimitive(input, hint, lkont, kont, states, cont);
+      OrdinaryToPrimitive(input, hint, lkont, kont, machine, cont);
     }
     if (input.isNonRef())
     {
@@ -4787,7 +4770,7 @@ function createSemantics(lat, cc)
   }
 
   // 7.1.1.1
-  function OrdinaryToPrimitive(O, hint, lkont, kont, states, cont)
+  function OrdinaryToPrimitive(O, hint, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
     assert(TypeIsObject(O));
@@ -4807,12 +4790,12 @@ function createSemantics(lat, cc)
     {
       if (i < methodNames.length)
       {
-        Get(O, lat.abst1(methodNames[0]), lkont, kont, states, method =>
+        Get(O, lat.abst1(methodNames[i]), lkont, kont, machine, method =>
         {
-          const isCallable = IsCallable(method, states.machine);
+          const isCallable = IsCallable(method, machine);
           if (isCallable.isTrue())
           {
-            Call(method, O, [], null, null, lkont, kont, states, (result, lkont, kont, machine) => // after Call, get everything TODO think about other/better/easier system?
+            Call(method, O, [], null, null, lkont, kont, machine, result =>
             {
               if (result.isNonRef())
               {
@@ -4832,19 +4815,19 @@ function createSemantics(lat, cc)
       }
       else
       {
-        machine.throwTypeError("7.1.1.1", lkont, kont);
+        throwTypeError("7.1.1.1", lkont, kont, machine);
       }
     }
   }
 
   // 7.1.2
-  function ToBoolean(argument, states)
+  function ToBoolean(argument, machine)
   {
     return argument.ToBoolean();
   }
 
 // 7.1.3
-  function ToNumber(argument, node, lkont, kont, states)
+  function ToNumber(argument, node, lkont, kont, machine)
   {
     const result = [];
     // TODO
@@ -4853,7 +4836,7 @@ function createSemantics(lat, cc)
   }
 
   // 7.1.12
-  function ToString(argument, lkont, kont, states, cont)
+  function ToString(argument, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
     if (argument.isUndefined())
@@ -4883,13 +4866,13 @@ function createSemantics(lat, cc)
     // TODO symbol
     if (argument.isRef())
     {
-      ToPrimitive(argument, "String", lkont, kont, states, primValue =>
-          ToString(primValue, lkont, kont, states, cont));
+      ToPrimitive(argument, "String", lkont, kont, machine, primValue =>
+          ToString(primValue, lkont, kont, machine, cont));
     }
   }
 
   // 7.1.13
-  function ToObject(argument, node, lkont, kont, states)
+  function ToObject(argument, node, lkont, kont, machine)
   {
     if (fastPath && !argument.isNonRef())
     {
@@ -4899,11 +4882,11 @@ function createSemantics(lat, cc)
     let result = BOT;
     if (argument.isUndefined())
     {
-      states.throw(lat.abst1("7.1.13 - Undefined"), lkont, kont);
+      machine.throw(lat.abst1("7.1.13 - Undefined"), lkont, kont);
     }
     if (argument.isNull())
     {
-      states.throw(lat.abst1("7.1.13 - Null"), lkont, kont);
+      machine.throw(lat.abst1("7.1.13 - Null"), lkont, kont);
     }
     const barg = argument.projectBoolean();
     if (barg !== BOT)
@@ -4915,8 +4898,8 @@ function createSemantics(lat, cc)
     {
       let obj = ObjectCreate(kont.realm.Intrinsics.get("%NumberPrototype%"));
       obj = obj.addInternal("[[NumberData]]", narg);
-      const addr = states.machine.alloc.object(node, kont); // no number-specific alloc?
-      states.machine.storeAlloc(addr, obj);
+      const addr = machine.alloc.object(node, kont); // no number-specific alloc?
+      machine.storeAlloc(addr, obj);
       const ref = lat.abstRef(addr);
       result = result.join(ref);
     }
@@ -4924,8 +4907,8 @@ function createSemantics(lat, cc)
     if (sarg !== BOT)
     {
       let obj = StringCreate(sarg, kont);
-      const addr = states.machine.alloc.string(node, kont);
-      states.machine.storeAlloc(addr, obj);
+      const addr = machine.alloc.string(node, kont);
+      machine.storeAlloc(addr, obj);
       const ref = lat.abstRef(addr);
       result = result.join(ref);
     }
@@ -4938,28 +4921,28 @@ function createSemantics(lat, cc)
   }
 
   // 7.1.14
-  function ToPropertyKey(argument, lkont, kont, states, cont)
+  function ToPropertyKey(argument, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
-    ToPrimitive(argument, "String", lkont, kont, states, key =>
+    ToPrimitive(argument, "String", lkont, kont, machine, key =>
       // TODO: If Type(key) is Symbol, then Return key
-      ToString(key, lkont, kont, states, cont));
+      ToString(key, lkont, kont, machine, cont));
   }
 
   // 7.1.15
-  function ToLength(argument, lkont, kont, states)
+  function ToLength(argument, lkont, kont, machine)
   {
     // TODO
     return argument;
   }
 
   // 7.2.1
-function RequireObjectCoercible(arg, lkont, kont, states)
+function RequireObjectCoercible(arg, lkont, kont, machine)
   {
     let result = BOT;
     if (arg.isUndefined() || arg.isNull())
     {
-      states.throwTypeError("7.2.1");
+      throwTypeError("7.2.1", lkont, kont, machine);
     }
     if (arg.projectBoolean() !== BOT
         || arg.projectNumber() !== BOT
@@ -5087,32 +5070,32 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 7.3.1
-  function Get(O, P, lkont, kont, states, cont)
+  function Get(O, P, lkont, kont, machine, cont)
   {
     assertIsObject(O);
     assert(IsPropertyKey(P).isTrue());
-    return callInternal(O, "[[Get]]", [P, O], lkont, kont, states, cont);
+    return callInternal(O, "[[Get]]", [P, O], lkont, kont, machine, cont);
   }
 
   // 7.3.4
-  function CreateDataProperty(O, P, V, lkont, kont, states, cont)
+  function CreateDataProperty(O, P, V, lkont, kont, machine, cont)
   {
     assertIsObject(O);
     assertIsPropertyKey(P);
     const newDesc = Property.fromData(V, L_TRUE, L_TRUE, L_TRUE);
-    callInternal(O, "[[DefineOwnProperty]]", [P, newDesc], lkont, kont, states, cont);
+    callInternal(O, "[[DefineOwnProperty]]", [P, newDesc], lkont, kont, machine, cont);
   }
 
   // 7.3.6
-  function CreateDataPropertyOrThrow(O, P, V, lkont, kont, states, cont)
+  function CreateDataPropertyOrThrow(O, P, V, lkont, kont, machine, cont)
   {
     assertIsObject(O);
     assertIsPropertyKey(P);
-    CreateDataProperty(O, P, V, lkont, kont, states, success =>
+    CreateDataProperty(O, P, V, lkont, kont, machine, success =>
     {
       if (success.isFalse())
       {
-        states.throwTypeError("7.3.6", lkont, kont);
+        throwTypeError("7.3.6", lkont, kont, machine);
       }
       if (success.isTrue())
       {
@@ -5122,10 +5105,10 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 7.3.7
-  function DefinePropertyOrThrow(O, P, desc, lkont, kont, states, cont) // ? bool
+  function DefinePropertyOrThrow(O, P, desc, lkont, kont, machine, cont) // ? bool
   {
     assert(typeof cont === "function");
-    callInternal(O, "[[DefineOwnProperty]]", [P, desc], lkont, kont, states, success =>
+    callInternal(O, "[[DefineOwnProperty]]", [P, desc], lkont, kont, machine, success =>
     {
       if (success.isTrue())
       {
@@ -5139,19 +5122,19 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 7.3.10
-  function HasProperty(O, P, lkont, kont, states, cont)
+  function HasProperty(O, P, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
-    return callInternal(O, "[[HasProperty]]", [P], lkont, kont, states, cont);
+    return callInternal(O, "[[HasProperty]]", [P], lkont, kont, machine, cont);
   }
 
   // 7.3.11
-  function HasOwnProperty(O, P, lkont, kont, states, cont)
+  function HasOwnProperty(O, P, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
     assertIsObject(O);
     assert(IsPropertyKey(P).isTrue());
-    callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, states, desc =>
+    callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, machine, desc =>
     {
       if (desc.isUndefined())
       {
@@ -5165,53 +5148,59 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 7.3.12
-  function Call(F, V, argumentsList, node, benv, lkont, kont, states, cont)
+  function Call(F, V, argumentsList, node, benv, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
     // non-spec: argumentsList should be optional, and [] if not passed
     assert(Array.isArray(argumentsList));
-    const ic = IsCallable(F, states.machine);
+    const ic = IsCallable(F, machine);
     if (ic.isFalse())
     {
-      states.throwTypeError("not a function", lkont, kont);
+      throwTypeError("not a function", lkont, kont, machine);
     }
     if (ic.isTrue())
     {
-      const frame = new CallKont(cont, node);
-      applyProc(node, F, argumentsList, V, benv, [frame].concat(lkont), kont, states);
+      const frame = new CallKont(cont, F, V, argumentsList, node, benv);
+      applyProc(node, F, argumentsList, V, benv, [frame].concat(lkont), kont, machine);
     }
   }
 
-  function CallKont(cont, node)
+  function CallKont(cont, F, V, argumentsList, node, benv)
   {
     this.cont = cont;
+    this.F = F;
+    this.V = V;
+    this.argumentsList = argumentsList;
     this.node = node;
+    this.benv = benv;
   }
 
   CallKont.prototype.equals =
       function (x)
       {
         return x instanceof CallKont
-            && this.cont === x.cont
+            && this.F.equals(x.F)
+            && this.V.equals(x.V)
+            && this.argumentsList.equals(x.argumentsList)
             && this.node === x.node
+            && (this.benv === x.benv || this.benv.equals(x.benv))
       }
   CallKont.prototype.hashCode =
       function ()
       {
         var prime = 31;
         var result = 1;
+        result = prime * result + this.F.hashCode();
+        result = prime * result + this.V.hashCode();
+        result = prime * result + this.argumentsList.hashCode();
         result = prime * result + this.node.hashCode();
+        result = prime * result + this.benv.hashCode();
         return result;
       }
   CallKont.prototype.toString =
       function ()
       {
-        return "call-" + this.node.tag;
-      }
-  CallKont.prototype.nice =
-      function ()
-      {
-        return "call-" + this.node.tag;
+        return "call-" + this.V + "-" + this.node.tag;
       }
   CallKont.prototype.addresses =
       function ()
@@ -5221,18 +5210,18 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   CallKont.prototype.apply =
       function (value, lkont, kont, machine)
       {
-        return this.cont(value, lkont, kont, machine); // for intra-step, ignore `lkont`, `kont`, and `machine`
+        return this.cont(value); // assume no change in other params
       }
 
   // 7.1.15
-  function ToLength(argument, lkont, kont, states)
+  function ToLength(argument, lkont, kont, machine)
   {
     // TODO!
     return argument.projectNumber();
   }
 
   // 7.3.16
-  function CreateArrayFromList(elements, node, lkont, kont, states)///, cont)
+  function CreateArrayFromList(elements, node, lkont, kont, machine)///, cont)
   {
     assert(Array.isArray(elements)); // TODO: this is a weaker assert than in spec
     // TODO: spec
@@ -5252,15 +5241,15 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 7.3.17
-  function LengthOfArrayLike(obj, lkont, kont, states, cont)
+  function LengthOfArrayLike(obj, lkont, kont, machine, cont)
   {
     assert(obj.isRef());
-    Get(obj, P_LENGTH, lkont, kont, states, value =>
-        cont(ToLength(value, lkont, kont, states)));
+    Get(obj, P_LENGTH, lkont, kont, machine, value =>
+        cont(ToLength(value, lkont, kont, machine)));
   }
 
   // 7.3.18
-  function CreateListFromArrayLike(obj, elementTypes, lkont, kont, states, cont) // ? List
+  function CreateListFromArrayLike(obj, elementTypes, lkont, kont, machine, cont) // ? List
   {
     assert(typeof cont === "function");
     if (elementTypes === undefined)
@@ -5269,11 +5258,11 @@ function RequireObjectCoercible(arg, lkont, kont, states)
     }
     if (obj.isNonRef())
     {
-      states.throwTypeError("7.3.17", lkont, kont);
+      throwTypeError("7.3.17", lkont, kont, machine);
     }
     if (obj.isRef())
     {
-      LengthOfArrayLike(obj, lkont, kont, states, len =>
+      LengthOfArrayLike(obj, lkont, kont, machine, len =>
       {
         const list = [];
         let index = L_0;
@@ -5282,7 +5271,7 @@ function RequireObjectCoercible(arg, lkont, kont, states)
         {
           seen = seen.add(index);
           const indexName = index.ToString(); // TODO actual ToString call
-          const next = doProtoLookup(indexName, obj.addresses(), states.machine); // TODO Get call
+          const next = doProtoLookup(indexName, obj.addresses(), machine); // TODO Get call
           const typeNext = Type(next);
           if (Sets.intersection(elementTypes, typeNext).size > 0)
           {
@@ -5296,10 +5285,10 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 7.3.20
-  function OrdinaryHasInstance(C, O, lkont, kont, states, cont)
+  function OrdinaryHasInstance(C, O, lkont, kont, machine, cont)
   {
     const result = BOT;
-    const ic = IsCallable(C, states.machine);
+    const ic = IsCallable(C, machine);
     if (ic.isFalse())
     {
       cont(L_FALSE);
@@ -5313,11 +5302,11 @@ function RequireObjectCoercible(arg, lkont, kont, states)
       }
       if (O.isRef())
       {
-        Get(C, P_PROTOTYPE, lkont, kont, states, P =>
+        Get(C, P_PROTOTYPE, lkont, kont, machine, P =>
         {
           if (P.isNonRef())
           {
-            states.throwTypeError("7.3.19", lkont, kont);
+            throwTypeError("7.3.19", lkont, kont, machine);
           }
           if (P.isRef())
           {
@@ -5325,7 +5314,7 @@ function RequireObjectCoercible(arg, lkont, kont, states)
             while (W.length > 0)
             {
               const O = W.pop();
-              const getProto = callInternal(O, "[[GetPrototypeOf]]", [], lkont, kont, states, O =>
+              const getProto = callInternal(O, "[[GetPrototypeOf]]", [], lkont, kont, machine, O =>
               {
                 if (O.isNull())
                 {
@@ -5390,21 +5379,21 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   // }
 
   // 9.1.1.1
-  function OrdinaryGetPrototypeOf(O, lkont, kont, states, cont) // ref | null
+  function OrdinaryGetPrototypeOf(O, lkont, kont, machine, cont) // ref | null
   {
     assert(typeof cont === "function");
-    const P = getInternal(O, "[[Prototype]]", states.machine);
+    const P = getInternal(O, "[[Prototype]]", machine);
     assert(P.isRef() || P.isNull())
     cont(P);
   }
 
   // 9.1.2.1
-  function OrdinarySetPrototypeOf(O, V, lkont, kont, states, cont) // bool
+  function OrdinarySetPrototypeOf(O, V, lkont, kont, machine, cont) // bool
   {
     assert(typeof cont === "function");
     assertIsObjectOrNull(V);
-    const extensible = getInternal(O, "[[Extensible]]", states.machine);
-    const current = getInternal(O, "[[Prototype]]", states.machine);
+    const extensible = getInternal(O, "[[Extensible]]", machine);
+    const current = getInternal(O, "[[Prototype]]", machine);
     const sv = SameValue(V, current);
     let result = BOT;
     if (sv.isTrue())
@@ -5420,7 +5409,7 @@ function RequireObjectCoercible(arg, lkont, kont, states)
       if (extensible.isTrue())
       {
         // TODO: steps 6,7,8 (loop)
-        assignInternal(O, "[[Prototype]]", V, states.machine);
+        assignInternal(O, "[[Prototype]]", V, machine);
         result = result.join(L_TRUE);
       }
     }
@@ -5428,13 +5417,13 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 9.1.5.1
-  function OrdinaryGetOwnProperty(O, P, lkont, kont, states, cont) // undefined | Property
+  function OrdinaryGetOwnProperty(O, P, lkont, kont, machine, cont) // undefined | Property
   {
     assert(typeof cont === "function");
     assert(IsPropertyKey(P).isTrue());
     for (const a of O.addresses())
     {
-      const obj = states.machine.storeLookup(a);
+      const obj = machine.storeLookup(a);
       if (obj.propertyPresent(P))
       {
         const D = obj.getProperty(P);
@@ -5449,18 +5438,18 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 9.1.6.1
-  function OrdinaryDefineOwnProperty(O, P, Desc, lkont, kont, states, cont) // bool
+  function OrdinaryDefineOwnProperty(O, P, Desc, lkont, kont, machine, cont) // bool
   {
     assert(typeof cont === "function");
-    callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, states, current =>
+    callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, machine, current =>
     {
-      const extensible = lookupInternal(O, "[[Extensible]]", states.machine);
-      ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current, lkont, kont, states, cont)
+      const extensible = lookupInternal(O, "[[Extensible]]", machine);
+      ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current, lkont, kont, machine, cont)
     });
   }
 
   // 9.1.6.3
-  function ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current, lkont, kont, states, cont) // bool
+  function ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current, lkont, kont, machine, cont) // bool
   {
     assert(typeof cont === "function");
     // step 1
@@ -5486,9 +5475,9 @@ function RequireObjectCoercible(arg, lkont, kont, states)
             const as = O.addresses();
             for (const a of as)
             {
-              let obj = states.machine.storeLookup(a);
+              let obj = machine.storeLookup(a);
               obj = obj.addProperty(P, D);
-              states.machine.storeUpdate(a, obj);
+              machine.storeUpdate(a, obj);
             }
           }
         }
@@ -5501,9 +5490,9 @@ function RequireObjectCoercible(arg, lkont, kont, states)
             const as = O.addresses();
             for (const a of as)
             {
-              let obj = states.machine.storeLookup(a);
+              let obj = machine.storeLookup(a);
               obj = obj.addProperty(P, D);
-              states.machine.storeUpdate(a, obj);
+              machine.storeUpdate(a, obj);
             }
           }
         }
@@ -5552,7 +5541,7 @@ function RequireObjectCoercible(arg, lkont, kont, states)
         }
         if (IsGenericDescriptor(Desc).isFalse())
         {
-          throw new Error("NYI");
+          machine.throw(lat.abst1("NYI"), lkont, kont);
         }
       }
     }
@@ -5581,11 +5570,11 @@ function RequireObjectCoercible(arg, lkont, kont, states)
 
 
   // 9.1.7.1
-  function OrdinaryHasProperty(O, P, lkont, kont, states, cont) // bool
+  function OrdinaryHasProperty(O, P, lkont, kont, machine, cont) // bool
   {
     assert(typeof cont === "function");
     assert(IsPropertyKey(P).isTrue());
-    callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, states, hasOwn =>
+    callInternal(O, "[[GetOwnProperty]]", [P], lkont, kont, machine, hasOwn =>
     {
       if (hasOwn.isDefined())
       {
@@ -5593,11 +5582,11 @@ function RequireObjectCoercible(arg, lkont, kont, states)
       }
       if (hasOwn.isUndefined())
       {
-        const parent = callInternal(O, "[[GetPrototypeOf]]", [], lkont, kont, states, parent =>
+        const parent = callInternal(O, "[[GetPrototypeOf]]", [], lkont, kont, machine, parent =>
         {
           if (parent.isNonNull())
           {
-            callInternal(parent, "[[HasProperty]]", [P], lkont, kont, states, cont);
+            callInternal(parent, "[[HasProperty]]", [P], lkont, kont, machine, cont);
           }
           if (parent.isNull())
           {
@@ -5610,10 +5599,10 @@ function RequireObjectCoercible(arg, lkont, kont, states)
 
 
   // 9.1.8.1
-  function OrdinaryGet(O, P, Receiver, lkont, kont, states, cont)
+  function OrdinaryGet(O, P, Receiver, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
-    const value = doProtoLookup(P, O.addresses(), states.machine);
+    const value = doProtoLookup(P, O.addresses(), machine);
     cont(value);
   }
 
@@ -5627,14 +5616,14 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 9.1.11.1
-  function OrdinaryOwnPropertyKeys(O, lkont, kont, states, cont)
+  function OrdinaryOwnPropertyKeys(O, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
     let keys = ArraySet.empty();
     const as = O.addresses().values();
     for (const a of as)
     {
-      const obj = states.machine.storeLookup(a);
+      const obj = machine.storeLookup(a);
       // TODO: symbols, ascending numeric, chronological order, etc.
       // TODO: subsumption checking
 
@@ -5675,19 +5664,19 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 9.1.13
-  function OrdinaryCreateFromConstructor(constructor, intrinsicDefaultProto, internalSlotsList, lkont, kont, states)
+  function OrdinaryCreateFromConstructor(constructor, intrinsicDefaultProto, internalSlotsList, lkont, kont, machine)
   {
     assert(kont.realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
-    const proto = GetPrototypeFromConstructor(constructor, intrinsicDefaultProto, lkont, kont, states);
+    const proto = GetPrototypeFromConstructor(constructor, intrinsicDefaultProto, lkont, kont, machine);
     return ObjectCreate(proto, internalSlotsList);
   }
 
   // 9.1.14
-  function GetPrototypeFromConstructor(constructor, intrinsicDefaultProto, lkont, kont, states)
+  function GetPrototypeFromConstructor(constructor, intrinsicDefaultProto, lkont, kont, machine)
   {
     assert(kont.realm.Intrinsics.has(intrinsicDefaultProto)); // TODO 'intension' part
-    assert(IsCallable(constructor, states.machine));
-    const get = Get(constructor, P_PROTOTYPE, lkont, kont, states);
+    assert(IsCallable(constructor, machine));
+    const get = Get(constructor, P_PROTOTYPE, lkont, kont, machine);
     const result = [];
     for (const proto of get)
     {
@@ -5716,38 +5705,71 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 12.10.4
-  function InstanceofOperator(O, C, lkont, kont, states, cont)
+  function InstanceofOperator(O, C, lkont, kont, machine, cont)
   {
     if (O.isNonRef())
     {
       cont(L_FALSE);
     }
     // TODO instHandler
-    const c = IsCallable(C, states.machine);
+    const c = IsCallable(C, machine);
     if (c.isFalse())
     {
       throw new Error("TODO");
     }
     if (c.isTrue())
     {
-      OrdinaryHasInstance(C, O, lkont, kont, states, cont)
+      OrdinaryHasInstance(C, O, lkont, kont, machine, cont)
     }
   }
 
   // 13.7.5.12
-  // function ForInOfHeadEvaluation(TDZnames, expr, iterationKind, lkont, kont, states)
+  // function ForInOfHeadEvaluation(TDZnames, expr, iterationKind, lkont, kont, machine)
+
+  // 19.1.2.2
+  function objectCreate(application, operandValues, thisValue, benv, lkont, kont, machine)
+  {
+    const [O, Properties] = operandValues;
+    if (O.isNonRef() && O.isNonNull())
+    {
+      throwTypeError("19.1.2.2", lkont, kont, machine);
+    }
+    if (O.isRef() || O.isNull())
+    {
+      const objo = ObjectCreate(O);
+      const obja = machine.alloc.object(application, kont);
+      machine.storeAlloc(obja, objo);
+      const obj = lat.abstRef(obja);
+      if (Properties && Properties.isDefined())
+      {
+        ObjectDefineProperties(obj, Properties, application, lkont, kont, machine, value =>
+          machine.continue(value, lkont, kont));
+      }
+      if (!Properties || Properties.isUndefined())
+      {
+        machine.continue(obj, lkont, kont);
+      }
+    }
+  }
+
+  // 19.1.2.3
+  function objectDefineProperties(O, Properties, node, lkont, kont, machine)
+  {
+    ObjectDefineProperties(O, Properties, node, lkont, kont, machine, value =>
+      machine.continue(value, lkont, kont));
+  }
 
   // 19.1.2.3.1
-  function ObjectDefineProperties(O, Properties, node, lkont, kont, states, cont)
+  function ObjectDefineProperties(O, Properties, node, lkont, kont, machine, cont)
   {
     if (O.isNonRef())
     {
-      states.throwTypeError("19.1.2.3.1", lkont, kont);
+      throwTypeError("19.1.2.3.1", lkont, kont, machine);
     }
     if (O.isRef())
     {
-      const props = ToObject(Properties, node, lkont, kont, states);
-      callInternal(props, "[[OwnPropertyKeys]]", [], lkont, kont, states, keys =>
+      const props = ToObject(Properties, node, lkont, kont, machine);
+      callInternal(props, "[[OwnPropertyKeys]]", [], lkont, kont, machine, keys =>
       {
         step5(keys, []);
       });
@@ -5761,13 +5783,13 @@ function RequireObjectCoercible(arg, lkont, kont, states)
         else
         {
           const nextKey = keys[0];
-          callInternal(props, "[[GetOwnProperty]]", [nextKey], lkont, kont, states, propDesc =>
+          callInternal(props, "[[GetOwnProperty]]", [nextKey], lkont, kont, machine, propDesc =>
           {
             if (propDesc.isDefined() && propDesc.getEnumerable().isTrue()) // TODO `isEnumerable` etc. should be API on `Property`
             {
-              Get(props, nextKey, lkont, kont, states, descObj =>
+              Get(props, nextKey, lkont, kont, machine, descObj =>
               {
-                ToPropertyDescriptor(descObj, lkont, kont, states, desc =>
+                ToPropertyDescriptor(descObj, lkont, kont, machine, desc =>
                 {
                   step5(keys.slice(1), Arrays.push([nextKey, desc], descriptors));
                 })
@@ -5788,7 +5810,7 @@ function RequireObjectCoercible(arg, lkont, kont, states)
           const pair = descriptors[0];
           const P = pair[0];
           const desc = pair[1];
-          DefinePropertyOrThrow(O, P, desc, lkont, kont, states, _ =>
+          DefinePropertyOrThrow(O, P, desc, lkont, kont, machine, _ =>
               step6(descriptors.slice(1)));
         }
       }
@@ -5797,41 +5819,58 @@ function RequireObjectCoercible(arg, lkont, kont, states)
     }
   }
 
+  // 19.1.2.4
+  function objectDefineProperty(application, operandValues, thisValue, benv, lkont, kont, machine)
+  {
+    const [O, P, Attributes] = operandValues;
+    if (O.isNonRef())
+    {
+      throwTypeError("19.1.2.4", lkont, kont, machine);
+    }
+    if (O.isRef())
+    {
+      ToPropertyKey(P, lkont, kont, machine, key =>
+        ToPropertyDescriptor(Attributes, lkont, kont, machine, desc =>
+          DefinePropertyOrThrow(O, key, desc, lkont, kont, machine, _ =>
+            machine.continue(O, lkont, kont))));
+    }
+  }
+
   // 19.1.2.6
-  function objectFreeze(application, operandValues, thisValue, benv, lkont, kont, states)
+  function objectFreeze(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [O] = operandValues;
     // TODO
-    states.continue(O, lkont, kont);
+    machine.continue(O, lkont, kont);
   }
 
   // 19.1.2.8
-  function objectGetOwnPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, states)
+  function objectGetOwnPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [O, P] = operandValues;
-    const obj = ToObject(O, application, lkont, kont, states);
-    ToPropertyKey(P, lkont, kont, states, key =>
-      callInternal(obj, "[[GetOwnProperty]]", [key], lkont, kont, states, desc =>
-          FromPropertyDescriptor(desc, application, lkont, kont, states, value =>
-              states.continue(value, lkont, kont))));
+    const obj = ToObject(O, application, lkont, kont, machine);
+    ToPropertyKey(P, lkont, kont, machine, key =>
+      callInternal(obj, "[[GetOwnProperty]]", [key], lkont, kont, machine, desc =>
+          FromPropertyDescriptor(desc, application, lkont, kont, machine, value =>
+              machine.continue(value, lkont, kont))));
   }
 
   // 19.1.2.9
-  function objectGetOwnPropertyNames(application, operandValues, thisValue, benv, lkont, kont, states)
+  function objectGetOwnPropertyNames(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [O] = operandValues;
-    GetOwnPropertyKeys(O, Sets.of(Types.String), application, lkont, kont, states, ownProps =>
+    GetOwnPropertyKeys(O, Sets.of(Types.String), application, lkont, kont, machine, ownProps =>
     {
-      states.continue(ownProps, lkont, kont);
+      machine.continue(ownProps, lkont, kont);
     });
   }
 
   // 19.1.2.11.1
-  function GetOwnPropertyKeys(O, type, node, lkont, kont, states, cont)
+  function GetOwnPropertyKeys(O, type, node, lkont, kont, machine, cont)
   {
     assert(typeof cont === "function");
-    const obj = ToObject(O, node, lkont, kont, states);
-    callInternal(obj, "[[OwnPropertyKeys]]", [], lkont, kont, states, keys =>
+    const obj = ToObject(O, node, lkont, kont, machine);
+    callInternal(obj, "[[OwnPropertyKeys]]", [], lkont, kont, machine, keys =>
     {
       let nameList = [];
       for (const nextKey of keys)
@@ -5841,44 +5880,53 @@ function RequireObjectCoercible(arg, lkont, kont, states)
           nameList.push(nextKey);
         }
       }
-      const arr = CreateArrayFromList(nameList, node, lkont, kont, states);
-      const arrAddress = states.machine.alloc.array(node, kont);
-      states.machine.storeAlloc(arrAddress, arr);
+      const arr = CreateArrayFromList(nameList, node, lkont, kont, machine);
+      const arrAddress = machine.alloc.array(node, kont);
+      machine.storeAlloc(arrAddress, arr);
       const ref = lat.abstRef(arrAddress);
       cont(ref);
     });
   }
 
+  // 19.1.2.12
+  function objectGetPrototypeOf(application, operandValues, thisValue, benv, lkont, kont, machine)
+  {
+    const [O] = operandValues;
+    const obj = ToObject(O, application, lkont, kont, machine);
+    callInternal(O, "[[GetPrototypeOf]]", [], lkont, kont, machine, value =>
+      machine.continue(value, lkont, kont));
+  }
+
   // 19.1.2.21
-  function objectSetPrototypeOf(application, operandValues, thisValue, benv, lkont, kont, states)
+  function objectSetPrototypeOf(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [Orand, Proto] = operandValues;
-    const O = RequireObjectCoercible(Orand, lkont, kont, states);
+    const O = RequireObjectCoercible(Orand, lkont, kont, machine);
     // const typeProto = Type(proto);
     // const typeObjectNull = Sets.intersection(typeProto, new Set([Types.Object, Types.Null]))
     // const neitherObjectNorNull = typeProto.size > typeObjectNull.size;
     // const objectOrNull = typeObjectNull.size > 0;
     if (isNeitherObjectNorNull(Proto))
     {
-      states.throwTypeError("19.1.2.20-1", lkont, kont);
+      throwTypeError("19.1.2.20-1", lkont, kont, machine);
     }
     if (isObject(Proto) || isNull(Proto))
     {
       if (O.isNonRef())
       {
-        states.continue(O, lkont, kont);
+        machine.continue(O, lkont, kont);
       }
       if (O.isRef())
       {
-        callInternal(O, "[[SetPrototypeOf]]", [Proto], lkont, kont, states, value =>
+        callInternal(O, "[[SetPrototypeOf]]", [Proto], lkont, kont, machine, value =>
         {
           if (value.isFalse())
           {
-            states.throwTypeError("19.1.2.20-2", lkont, kont);
+            throwTypeError("19.1.2.20-2", lkont, kont, machine);
           }
           if (value.isTrue())
           {
-            states.continue(O, lkont, kont);
+            machine.continue(O, lkont, kont);
           }
         })
       }
@@ -5886,31 +5934,29 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   }
 
   // 19.2.1.1.1: placeholder, not even close to spec
-//  function createDynamicFunction(constructor, newTarget, kind, args, benv, lkont, kont, states) // specc sig
-  function createDynamicFunction(argsText, bodyText, benv, lkont, kont, states)
+//  function createDynamicFunction(constructor, newTarget, kind, args, benv, lkont, kont, machine) // specc sig
+  function createDynamicFunction(argsText, bodyText, benv, lkont, kont, machine)
   {
     const functionText = "(function (" + argsText.join(", ") + ") {" + bodyText + "})";
     const functionNode = Ast.createAst(new StringResource(functionText)).body[0].expression;
-    const closureRef = allocateClosure(functionNode, benv, lkont, kont, states.machine);
-    states.continue(closureRef, lkont, kont);
+    const closureRef = allocateClosure(functionNode, benv, lkont, kont, machine);
+    machine.continue(closureRef, lkont, kont);
   }
 
   function $createFunction(argsText, bodyText, benv, lkont, kont, machine)
   {
-    const states = new States(machine);
-    createDynamicFunction(argsText, bodyText, benv, lkont, kont, states);
-    return states;
+    createDynamicFunction(argsText, bodyText, benv, lkont, kont, machine);
   }
 
 
 
   // 19.2.3.1
-  function functionApply(application, operandValues, thisValue, benv, lkont, kont, states)
+  function functionApply(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
-    const ic = IsCallable(thisValue, states.machine);
+    const ic = IsCallable(thisValue, machine);
     if (ic.isFalse())
     {
-      states.throwTypeError("19.2.3.1", lkont, kont);
+      throwTypeError("19.2.3.1", lkont, kont, machine);
     }
     if (ic.isTrue())
     {
@@ -5919,34 +5965,34 @@ function RequireObjectCoercible(arg, lkont, kont, states)
       // TODO: PrepareForTailCall()
       if (!argArray)
       {
-        applyProc(application, thisValue, [], thisArg, null, lkont, kont, states);
+        applyProc(application, thisValue, [], thisArg, null, lkont, kont, machine);
       }
       else
       {
-        const r1 = CreateListFromArrayLike(argArray, undefined, lkont, kont, states, argList =>
+        const r1 = CreateListFromArrayLike(argArray, undefined, lkont, kont, machine, argList =>
         {
           // TODO: PrepareForTailCall()
-          applyProc(application, thisValue, argList, thisArg, null, lkont, kont, states);
+          applyProc(application, thisValue, argList, thisArg, null, lkont, kont, machine);
         })
       }
     }
   }
 
   // 19.2.3.3
-  function functionCall(application, operandValues, thisValue, benv, lkont, kont, states)
+  function functionCall(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     let result = [];
-    const ic = IsCallable(thisValue, states.machine);
+    const ic = IsCallable(thisValue, machine);
     if (ic.isFalse())
     {
-      states.throwTypeError("19.2.3.3", lkont, kont);
+      throwTypeError("19.2.3.3", lkont, kont, machine);
     }
     if (ic.isTrue())
     {
       const thisArg = operandValues[0];
       const argList = operandValues.slice(1);
       // TODO: PrepareForTailCall()
-      applyProc(application, thisValue, argList, thisArg, null, lkont, kont, states);
+      applyProc(application, thisValue, argList, thisArg, null, lkont, kont, machine);
     }
   }
 
@@ -6236,16 +6282,21 @@ function RequireObjectCoercible(arg, lkont, kont, states)
       object = object.addProperty(P_PROTOTYPE, Property.fromData(objectProtoRef, L_TRUE, L_TRUE, L_TRUE));
       global = global.addProperty(lat.abst1("Object"), Property.fromData(lat.abstRef(objecta), L_TRUE, L_TRUE, L_TRUE));
 
+      // 19.1.2
+      object = registerPrimitiveFunction(object, "create", objectCreate);
+      object = registerPrimitiveFunction(object, "defineProperties", objectDefineProperties);
+      object = registerPrimitiveFunction(object, "defineProperty", objectDefineProperty);
       object = registerPrimitiveFunction(object, "freeze", objectFreeze);
       object = registerPrimitiveFunction(object, "getOwnPropertyDescriptor", objectGetOwnPropertyDescriptor);
-      //object = registerPrimitiveFunction(object, "create", objectCreate);
-      //object = registerPrimitiveFunction(object, objecta, "getPrototypeOf", objectGetPrototypeOf);
+      object = registerPrimitiveFunction(object, "getOwnPropertyNames", objectGetOwnPropertyNames);
+      object = registerPrimitiveFunction(object, "getPrototypeOf", objectGetPrototypeOf);
       //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
       object = registerPrimitiveFunction(object, "setPrototypeOf", objectSetPrototypeOf);
       machine.storeAlloc(objecta, object);
 
-      objectP = registerPrimitiveFunction(objectP, "hasOwnProperty", objectHasOwnProperty);
-      objectP = registerPrimitiveFunction(objectP, "getOwnPropertyNames", objectGetOwnPropertyNames);
+      // 19.1.3
+      objectP = registerPrimitiveFunction(objectP, "hasOwnProperty", objectProtoHasOwnProperty);
+      objectP = registerPrimitiveFunction(objectP, "isPrototypeOf", objectProtoIsPrototypeOf);
       machine.storeAlloc(objectPa, objectP);
       // END OBJECT
 
@@ -6268,12 +6319,12 @@ function RequireObjectCoercible(arg, lkont, kont, states)
 
       const emptyFunctionNode = Ast.createAst(new StringResource("(function () {})")).body[0].expression;
 
-      function functionFunction(application, operandValues, thisValue, benv, lkont, kont, states)
+      function functionFunction(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         if (operandValues.length === 0)
         {
-          const closureRef = allocateClosure(emptyFunctionNode, benv, lkont, kont, states.machine);
-          states.continue(closureRef, lkont, kont);
+          const closureRef = allocateClosure(emptyFunctionNode, benv, lkont, kont, machine);
+          machine.continue(closureRef, lkont, kont);
         }
         else
         {
@@ -6283,7 +6334,7 @@ function RequireObjectCoercible(arg, lkont, kont, states)
           {
             argsText.push(operandValues[i].conc1());
           }
-          createDynamicFunction(argsText, bodyText, benv, lkont, kont, states);
+          createDynamicFunction(argsText, bodyText, benv, lkont, kont, machine);
         }
       }
       // END FUNCTION
@@ -6383,40 +6434,40 @@ function RequireObjectCoercible(arg, lkont, kont, states)
       global = global.addProperty(lat.abst1("Math"), Property.fromData(lat.abstRef(matha), L_TRUE, L_TRUE, L_TRUE));
 
 
-      function mathSqrt(application, operandValues, thisValue, benv, lkont, kont, states)
+      function mathSqrt(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = lat.sqrt(operandValues[0]);
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
 
-      function mathAbs(application, operandValues, thisValue, benv, lkont, kont, states)
+      function mathAbs(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = lat.abs(operandValues[0]);
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
 
-      function mathRound(application, operandValues, thisValue, benv, lkont, kont, states)
+      function mathRound(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = lat.round(operandValues[0]);
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
 
-      function mathFloor(application, operandValues, thisValue, benv, lkont, kont, states)
+      function mathFloor(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = lat.floor(operandValues[0]);
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
 
-      function mathCos(application, operandValues, thisValue, benv, lkont, kont, states)
+      function mathCos(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = lat.cos(operandValues[0]);
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
 
-      function mathSin(application, operandValues, thisValue, benv, lkont, kont, states)
+      function mathSin(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = lat.sin(operandValues[0]);
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
 
       var random = (function ()
@@ -6435,24 +6486,24 @@ function RequireObjectCoercible(arg, lkont, kont, states)
         };
       }());
 
-      function mathRandom(application, operandValues, thisValue, benv, lkont, kont, states)
+      function mathRandom(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = lat.abst1(random());
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
 
       // 20.2.2.24
-      function mathMax(application, operandValues, thisValue, benv, lkont, kont, states)
+      function mathMax(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = lat.max(operandValues[0], operandValues[1]);
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
 
       // 20.2.2.25
-      function mathMin(application, operandValues, thisValue, benv, lkont, kont, states)
+      function mathMin(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = lat.min(operandValues[0], operandValues[1]);
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
       // END MATH
 
@@ -6494,35 +6545,35 @@ function RequireObjectCoercible(arg, lkont, kont, states)
       machine.storeAlloc(perfa, perf);
       global = registerProperty(global, "performance", lat.abstRef(perfa));
 
-      function performanceNow(application, operandValues, thisValue, benv, lkont, kont, states)
+      function performanceNow(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = lat.abst1(performance.now());
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
 
       // END PERFORMANCE
 
 
-      function $join(application, operandValues, thisValue, benv, lkont, kont, states)
+      function $join(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = operandValues.reduce(Lattice.join, BOT);
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
 
-      function _print(application, operandValues, thisValue, benv, lkont, kont, states)
+      function _print(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         console.log.apply(null, operandValues);
-        states.continue(L_UNDEFINED, lkont, kont);
+        machine.continue(L_UNDEFINED, lkont, kont);
       }
 
-      function globalParseInt(application, operandValues, thisValue, benv, lkont, kont, states)
+      function globalParseInt(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         var value = operandValues[0].parseInt(); // TODO: 2nd (base) arg
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
       global = registerPrimitiveFunction(global, "parseInt", globalParseInt);
 
-      function globalWrapService(application, operandValues, thisValue, benv, lkont, kont, states)
+      function globalWrapService(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
         const [Obj, Name] = operandValues;
         const serviceName = Name.conc1();
@@ -6541,16 +6592,16 @@ function RequireObjectCoercible(arg, lkont, kont, states)
           }
         }
         let service = ObjectCreate(lat.abst1(null));
-        const servicea = states.machine.alloc.object(application, kont);
+        const servicea = machine.alloc.object(application, kont);
         for (const [operationName, ops] of model)
         {
-          const applyFunction = function (application, operandValues, thisValue, benv, lkont, kont, states)
+          const applyFunction = function (application, operandValues, thisValue, benv, lkont, kont, machine)
           {
             for (const {args, result} of ops)
             {
               if (args.equals(operandValues))
               {
-                states.continue(result, lkont, kont);
+                machine.continue(result, lkont, kont);
               }
             }
           };
@@ -6560,7 +6611,7 @@ function RequireObjectCoercible(arg, lkont, kont, states)
           service = registerProperty(service, operationName, lat.abstRef(primFunObjectAddress));
         }
         machine.storeAlloc(servicea, service);
-        states.continue(lat.abstRef(servicea), lkont, kont);
+        machine.continue(lat.abstRef(servicea), lkont, kont);
       }
       global = registerPrimitiveFunction(global, "wrapService", globalWrapService);
 
@@ -6574,17 +6625,16 @@ function RequireObjectCoercible(arg, lkont, kont, states)
     } // end initialize2
 
     const initialKont = initialize2(Benv.empty());
-    const koState = machine.continue(L_UNDEFINED, [], initialKont);
-    return koState;
+    return initialKont;
   }
 
-  function objectConstructor(application, operandValues, protoRef, benv, lkont, kont, states)
+  function objectConstructor(application, operandValues, protoRef, benv, lkont, kont, machine)
   {
     var obj = ObjectCreate(protoRef);
-    var objectAddress = states.machine.alloc.object(application, kont);
-    states.machine.storeAlloc(objectAddress, obj);
+    var objectAddress = machine.alloc.object(application, kont);
+    machine.storeAlloc(objectAddress, obj);
     var objRef = lat.abstRef(objectAddress);
-    states.continue(objRef, lkont, kont);
+    machine.continue(objRef, lkont, kont);
   }
 
   // // 19.1.2.2
@@ -6631,57 +6681,95 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   // }
 
 
-  // 
-  function objectHasOwnProperty(application, operandValues, thisValue, benv, lkont, kont, states)
+  // 19.1.3.2
+  function objectProtoHasOwnProperty(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [V] = operandValues;
-    ToPropertyKey(V, lkont, kont, states, P =>
+    ToPropertyKey(V, lkont, kont, machine, P =>
     {
-      const O = ToObject(thisValue, application, lkont, kont, states);
-      HasOwnProperty(O, P, lkont, kont, states, value =>
-        states.continue(value, lkont, kont));
+      const O = ToObject(thisValue, application, lkont, kont, machine);
+      HasOwnProperty(O, P, lkont, kont, machine, value =>
+        machine.continue(value, lkont, kont));
     });
   }
 
-  function errorFunction(application, operandValues, thisValue, benv, lkont, kont, states)
+  // 19.1.3.3
+  function objectProtoIsPrototypeOf(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
-    return errorInitializer(application, operandValues, benv, lkont, kont, states);
+    const [V] = operandValues;
+    if (V.isNonRef())
+    {
+      machine.continue(L_FALSE, lkont, kont, machine);
+    }
+    if (V.isRef())
+    {
+      const O = ToObject(thisValue, application, lkont, kont, machine);
+      step3(O, V);
+    }
+
+    function step3(O, V)
+    {
+      callInternal(V, "[[GetPrototypeOf]]", [], lkont, kont, machine, V =>
+      {
+        if (V.isNull())
+        {
+          machine.continue(L_FALSE, lkont, kont, machine);
+        }
+        if (V.isNonNull())
+        {
+          const sv = SameValue(O, V);
+          if (sv.isTrue())
+          {
+            machine.continue(L_TRUE, lkont, kont, machine);
+          }
+          if (sv.isFalse())
+          {
+            step3(O, V);
+          }
+        }
+      })
+    }
   }
 
-  function errorConstructor(application, operandValues, protoRef, benv, lkont, kont, states)
+  function errorFunction(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
-    return errorInitializer(application, operandValues, benv, lkont, kont, states);
+    return errorInitializer(application, operandValues, benv, lkont, kont, machine);
   }
 
-  function errorInitializer(application, operandValues, benv, lkont, kont, states)
+  function errorConstructor(application, operandValues, protoRef, benv, lkont, kont, machine)
+  {
+    return errorInitializer(application, operandValues, benv, lkont, kont, machine);
+  }
+
+  function errorInitializer(application, operandValues, benv, lkont, kont, machine)
   {
     const message = operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING;
     const obj = createError(message, kont.realm);
-    var errAddress = states.machine.alloc.error(application, kont);
-    states.machine.storeAlloc(errAddress, obj);
+    var errAddress = machine.alloc.error(application, kont);
+    machine.storeAlloc(errAddress, obj);
     var errRef = lat.abstRef(errAddress);
-    states.continue(errRef, lkont, kont);
+    machine.continue(errRef, lkont, kont);
   }
 
   // 20.1.1.1
-  function numberFunction(application, operandValues, thisValue, benv, lkont, kont, states)
+  function numberFunction(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     if (operandValues.length === 0)
     {
-      states.continue(L_0, lkont, kont);
+      machine.continue(L_0, lkont, kont);
     }
     else
     {
-      const tn = ToNumber(operandValues[0], application, lkont, kont, states);
+      const tn = ToNumber(operandValues[0], application, lkont, kont, machine);
       for (const value of tn)
       {
-        states.continue(value, lkont, kont);
+        machine.continue(value, lkont, kont);
       }
     }
   }
 
   // 20.1.1.1
-  function numberConstructor(application, operandValues, protoRef, benv, lkont, kont, states)
+  function numberConstructor(application, operandValues, protoRef, benv, lkont, kont, machine)
   {
 
     let tn;
@@ -6691,47 +6779,47 @@ function RequireObjectCoercible(arg, lkont, kont, states)
     }
     else
     {
-      tn = ToNumber(operandValues[0], application, lkont, kont, states);
+      tn = ToNumber(operandValues[0], application, lkont, kont, machine);
     }
     for (const value of tn)
     {
       let obj = ObjectCreate(kont.realm.Intrinsics.get("%NumberPrototype%")); // TODO OrdinaryCreateFromConstructor
       obj = obj.setInternal("[[NumberData]]", value);
-      const addr = states.machine.alloc.object(application, kont); // no number-specific alloc?
-      states.machine.storeAlloc(addr, obj);
+      const addr = machine.alloc.object(application, kont); // no number-specific alloc?
+      machine.storeAlloc(addr, obj);
       const ref = lat.abstRef(addr);
-      states.continue(ref, lkont, kont);
+      machine.continue(ref, lkont, kont);
     }
   }
 
   // 21.1.1.1
-  function stringFunction(application, operandValues, thisValue, benv, lkont, kont, states)
+  function stringFunction(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     if (operandValues.length === 0)
     {
-      states.continue(L_EMPTY_STRING, lkont, kont);
+      machine.continue(L_EMPTY_STRING, lkont, kont);
     }
     else
     {
-      ToString(operandValues[0], lkont, kont, states, value =>
-          states.continue(value, lkont, kont));
+      ToString(operandValues[0], lkont, kont, machine, value =>
+          machine.continue(value, lkont, kont));
     }
   }
 
   // 21.1.3.1
-  function stringCharAt(application, operandValues, thisValue, benv, lkont, kont, states)
+  function stringCharAt(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
-    var lprim = getInternal(thisValue, "[[StringData]]", states.machine);
+    var lprim = getInternal(thisValue, "[[StringData]]", machine);
     var value = lprim.charAt(operandValues[0]);
-    states.continue(value, lkont, kont);
+    machine.continue(value, lkont, kont);
   }
 
   // 21.1.3.2
-  function stringCharCodeAt(application, operandValues, thisValue, benv, lkont, kont, states)
+  function stringCharCodeAt(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
-    var lprim = getInternal(thisValue, "[[StringData]]", states.machine);
+    var lprim = getInternal(thisValue, "[[StringData]]", machine);
     var value = lprim.charCodeAt(operandValues[0]);
-    states.continue(value, lkont, kont);
+    machine.continue(value, lkont, kont);
   }
 
   // 21.1.3.7
@@ -6747,11 +6835,11 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   // split: prelude
 
   // 21.1.3.21
-  function stringStartsWith(application, operandValues, thisValue, benv, lkont, kont, states)
+  function stringStartsWith(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
-    var lprim = getInternal(thisValue, "[[StringData]]", states.machine);
+    var lprim = getInternal(thisValue, "[[StringData]]", machine);
     var value = lprim.startsWith(operandValues[0]);
-    states.continue(value, lkont, kont);
+    machine.continue(value, lkont, kont);
   }
 
   // 21.1.3.22
@@ -6760,7 +6848,7 @@ function RequireObjectCoercible(arg, lkont, kont, states)
   // 21.1.3.25
   // toString: prelude
 
-  function arrayConstructor(application, operandValues, protoRef, benv, lkont, kont, states)
+  function arrayConstructor(application, operandValues, protoRef, benv, lkont, kont, machine)
   {
     var arr = createArray(kont.realm);
     var length;
@@ -6778,13 +6866,13 @@ function RequireObjectCoercible(arg, lkont, kont, states)
     }
     arr = arr.addProperty(P_LENGTH, Property.fromData(length, L_TRUE, L_TRUE, L_TRUE));
 
-    var arrAddress = states.machine.alloc.array(application, kont);
-    states.machine.storeAlloc(arrAddress, arr);
+    var arrAddress = machine.alloc.array(application, kont);
+    machine.storeAlloc(arrAddress, arr);
     var arrRef = lat.abstRef(arrAddress);
-    states.continue(arrRef, lkont, kont);
+    machine.continue(arrRef, lkont, kont);
   }
 
-  function arrayFunction(application, operandValues, thisValue, benv, lkont, kont, states)
+  function arrayFunction(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     var arr = createArray(kont.realm);
     for (var i = 0; i < operandValues.length; i++)
@@ -6793,139 +6881,139 @@ function RequireObjectCoercible(arg, lkont, kont, states)
     }
     arr = arr.addProperty(P_LENGTH, Property.fromData(lat.abst1(operandValues.length), L_TRUE, L_TRUE, L_TRUE));
 
-    var arrAddress = states.machine.alloc.array(application, kont);
-    states.machine.storeAlloc(arrAddress, arr);
+    var arrAddress = machine.alloc.array(application, kont);
+    machine.storeAlloc(arrAddress, arr);
     var arrRef = lat.abstRef(arrAddress);
-    states.continue(arrRef, lkont, kont);
+    machine.continue(arrRef, lkont, kont);
   }
 
   // 22.1.3.1
   // Array.prototype.concat
 
-  function arrayToString(application, operandValues, thisValue, benv, lkont, kont, states)
+  function arrayToString(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
-    assert(states);
+    assert(machine);
     // TODO: this is a hack (no actual ToString called)
-    const create = CreateListFromArrayLike(thisValue, undefined, lkont, kont, states, list =>
-      states.continue(lat.abst1(list.join()), lkont, kont));
+    const create = CreateListFromArrayLike(thisValue, undefined, lkont, kont, machine, list =>
+      machine.continue(lat.abst1(list.join()), lkont, kont));
   }
 
   // 22.1.3.15
   // Array.prototype.join: prelude
 
   // 22.1.3.14
-  function arrayPush(application, operandValues, thisValue, benv, lkont, kont, states)
+  function arrayPush(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     for (const thisa of thisValue.addresses())
     {
-      var arr = states.machine.storeLookup(thisa);
+      var arr = machine.storeLookup(thisa);
       var len = arr.getProperty(P_LENGTH).getValue();
       var lenStr = len.ToString();
       arr = arr.addProperty(lenStr, Property.fromData(operandValues[0], L_TRUE, L_TRUE, L_TRUE))
       var len1 = lat.add(len, L_1);
       arr = arr.addProperty(P_LENGTH, Property.fromData(len1, L_TRUE, L_TRUE, L_TRUE));
-      states.machine.storeUpdate(thisa, arr);
-      states.continue(len1, lkont, kont);
+      machine.storeUpdate(thisa, arr);
+      machine.continue(len1, lkont, kont);
     }
   }
 
   const baseReg = new Map(); // TODO: state!!!
 
-  function baseNumberToString(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseNumberToString(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [m] = operandValues;
-    states.continue(m.ToString(), lkont, kont);
+    machine.continue(m.ToString(), lkont, kont);
   }
 
-  function baseRegister(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseRegister(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [key, F] = operandValues;
     baseReg.set(key.conc1(), F);
-    states.continue(L_TRUE, lkont, kont);
+    machine.continue(L_TRUE, lkont, kont);
   }
 
-  function baseDefinePropertyOrThrow(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseDefinePropertyOrThrow(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [O, key, desc] = operandValues;
-    const int = DefinePropertyOrThrow(O, key, desc, lkont, kont, states, value =>
-      states.continue(value, lkont, kont));
+    const int = DefinePropertyOrThrow(O, key, desc, lkont, kont, machine, value =>
+      machine.continue(value, lkont, kont));
   }
 
-  function baseObjectDefineProperties(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseObjectDefineProperties(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [O, Properties] = operandValues;
-    const int = ObjectDefineProperties(O, Properties, application, lkont, kont, states, value =>
-      states.continue(value, lkont, kont));
+    const int = ObjectDefineProperties(O, Properties, application, lkont, kont, machine, value =>
+      machine.continue(value, lkont, kont));
   }
 
-  function baseNewPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseNewPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const property = Property.empty();
-    states.continue(property, lkont, kont);
+    machine.continue(property, lkont, kont);
   }
 
-  function baseToPropertyKey(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseToPropertyKey(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [argument] = operandValues;
-    const int = ToPropertyKey(argument, lkont, kont, states, value =>
-      states.continue(value, lkont, kont));
+    const int = ToPropertyKey(argument, lkont, kont, machine, value =>
+      machine.continue(value, lkont, kont));
   }
 
-  function baseToPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseToPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [Attributes] = operandValues;
-    ToPropertyDescriptor(Attributes, lkont, kont, states, desc =>
-      states.continue(desc, lkont, kont));
+    ToPropertyDescriptor(Attributes, lkont, kont, machine, desc =>
+      machine.continue(desc, lkont, kont));
   }
 
-  function baseFromPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseFromPropertyDescriptor(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [Desc] = operandValues;
-    FromPropertyDescriptor(Desc, application, lkont, kont, states, value =>
-      states.continue(value, lkont, kont));
+    FromPropertyDescriptor(Desc, application, lkont, kont, machine, value =>
+      machine.continue(value, lkont, kont));
   }
 
-  function baseStringCreate(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseStringCreate(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [value] = operandValues; // TODO pass prototype as second param
     const obj = StringCreate(value, kont);
-    const obja = states.machine.alloc.string(application, kont);
-    states.machine.storeAlloc(obja, obj);
+    const obja = machine.alloc.string(application, kont);
+    machine.storeAlloc(obja, obj);
     const ref = lat.abstRef(obja);
-    states.continue(ref, lkont, kont);
+    machine.continue(ref, lkont, kont);
   }
 
-  function baseObjectCreate(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseObjectCreate(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [proto, internalSlotsList] = operandValues;
     const obj = ObjectCreate(proto, internalSlotsList);
-    const objAddr = states.machine.alloc.object(application, kont);
-    states.machine.storeAlloc(objAddr, obj);
+    const objAddr = machine.alloc.object(application, kont);
+    machine.storeAlloc(objAddr, obj);
     const ref = lat.abstRef(objAddr);
-    states.continue(ref, lkont, kont);
+    machine.continue(ref, lkont, kont);
   }
 
-  function baseToObject(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseToObject(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [O] = operandValues;
-    const objectRef = ToObject(O, application, lkont, kont, states);
-    states.continue(objectRef, lkont, kont);
+    const objectRef = ToObject(O, application, lkont, kont, machine);
+    machine.continue(objectRef, lkont, kont);
   }
 
-  function baseSameValue(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseSameValue(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [x, y] = operandValues;
     const value = SameValue(x,y);
-    states.continue(value, lkont, kont);
+    machine.continue(value, lkont, kont);
   }
 
-  function baseSameNumberValue(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseSameNumberValue(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [x, y] = operandValues;
-    states.continue(x.hasSameNumberValue(y), lkont, kont);
+    machine.continue(x.hasSameNumberValue(y), lkont, kont);
   }
 
-  function baseSameBooleanValue(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseSameBooleanValue(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [x, y] = operandValues;
     let result = BOT;
@@ -6944,16 +7032,16 @@ function RequireObjectCoercible(arg, lkont, kont, states)
     {
       result = result.join(L_FALSE);
     }
-    states.continue(result, lkont, kont);
+    machine.continue(result, lkont, kont);
   }
 
-  function baseSameStringValue(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseSameStringValue(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [x, y] = operandValues;
-    states.continue(x.hasSameStringValue(y), lkont, kont);
+    machine.continue(x.hasSameStringValue(y), lkont, kont);
   }
 
-  function baseSameObjectValue(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseSameObjectValue(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [x, y] = operandValues;
     let result = BOT;
@@ -6978,43 +7066,43 @@ function RequireObjectCoercible(arg, lkont, kont, states)
     {
       result = result.join(L_FALSE);
     }
-    states.continue(result, lkont, kont);
+    machine.continue(result, lkont, kont);
   }
 
-  function baseAddIntrinsic(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseAddIntrinsic(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [Name, Value] = operandValues;
     kont.realm.Intrinsics.add(Name.conc1(), Value);
-    states.continue(lat.abst1(undefined), lkont, kont);
+    machine.continue(lat.abst1(undefined), lkont, kont);
   }
 
-  function baseHasInternal(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseHasInternal(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [O, Name] = operandValues;
-    const result = hasInternal(O, Name.conc1(), states.machine);
-    states.continue(result, lkont, kont);
+    const result = hasInternal(O, Name.conc1(), machine);
+    machine.continue(result, lkont, kont);
   }
 
-  function baseLookupInternal(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseLookupInternal(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [O, Name] = operandValues;
-    const result = lookupInternal(O, Name.conc1(), states.machine);
-    states.continue(result, lkont, kont);
+    const result = lookupInternal(O, Name.conc1(), machine);
+    machine.continue(result, lkont, kont);
   }
 
-  function baseCallInternal(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseCallInternal(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     console.log("kont", kont._id);
     const [O, Name, ...args] = operandValues;
-    const call = callInternal(O, Name.conc1(), args, lkont, kont, states, value =>
-      states.continue(value, lkont, kont));
+    const call = callInternal(O, Name.conc1(), args, lkont, kont, machine, value =>
+      machine.continue(value, lkont, kont));
   }
 
-  function baseAssignInternal(application, operandValues, thisValue, benv, lkont, kont, states)
+  function baseAssignInternal(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
     const [O, Name, Value] = operandValues;
-    assignInternal(O, Name.conc1(), Value, states.machine);
-    states.continue(lat.abst1(undefined), lkont, kont);
+    assignInternal(O, Name.conc1(), Value, machine);
+    machine.continue(lat.abst1(undefined), lkont, kont);
   }
 
   function ScriptEvaluationJob(resource)
@@ -7026,7 +7114,7 @@ function RequireObjectCoercible(arg, lkont, kont, states)
       function (lkont, kont, machine)
       {
         const ast = Ast.createAst(this.resource);
-        return [machine.evaluate(ast, kont.realm.GlobalEnv, lkont, kont)];
+        machine.evaluate(ast, kont.realm.GlobalEnv, lkont, kont);
       }
 
   ScriptEvaluationJob.prototype.hashCode =

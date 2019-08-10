@@ -21,7 +21,7 @@ function stateToLabel(s)
   }
   else if (s.isBreakState)
   {
-    return s.value.toString() + kontLabel(s);
+    return kontLabel(s);
   }
   else if (s.isThrowState)
   {

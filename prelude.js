@@ -10,110 +10,28 @@
   }
 
   // 19.1.2.2
-  Object.create =
-      function (O, Properties)
-      {
-        if (!(typeof O === "object" || O === null))
-        {
-          throw new TypeError("19.1.2.2");
-        }
-        let obj = $BASE$.ObjectCreate(O);
-        if (Properties !== undefined)
-        {
-          return $BASE$.ObjectDefineProperties(obj, Properties);
-        }
-        return obj;
-      }
+  //Object.create
       
   // 19.1.2.3
-  Object.defineProperties = $BASE$.ObjectDefineProperties;
-  
-  // // 19.1.2.3.1
-  // function ObjectDefineProperties(O, Properties)
-  //   {
-  //     if (typeof O !== "object")
-  //     {
-  //       throw new TypeError();
-  //     }
-  //     var props = $BASE$.ToObject(Properties);
-  //     var keys = $BASE$.callInternal(props, "[[OwnPropertyKeys]]");
-  //     var descriptors = [];
-  //     for (var nextKey of keys)
-  //     {
-  //       var propDesc = $BASE$.callInternal(props, "[[GetOwnProperty]]", nextKey);
-  //       if (propDesc !== undefined && $BASE$.lookupInternal(propDesc, "[[Enumerable]]"))
-  //       {
-  //         var descObj = $BASE$.callInternal(props, "[[Get]]", nextKey);
-  //         var desc = $BASE$.ToPropertyDescriptor(descObj);
-  //         descriptors.push([nextKey, desc]);
-  //       }
-  //     }
-  //     for (var pair of descriptors)
-  //     {
-  //       var P = pair[0];
-  //       var desc = pair[1];
-  //       $BASE$.DefinePropertyOrThrow(O, P, desc);
-  //     }
-  //     return O;
-  //   }
+  // Object.defineProperties
   
   // 19.1.2.4
-  Object.defineProperty =
-      function (O, P, Attributes)
-      {
-        if (typeof O !== "object")
-        {
-          throw new TypeError("Object.defineProperty called on non-object");
-        }
-        let key = $BASE$.ToPropertyKey(P);
-        let desc = $BASE$.ToPropertyDescriptor(Attributes);
-        $BASE$.DefinePropertyOrThrow(O, key, desc);
-        return O;
-      }
+  // Object.defineProperty
 
   // 19.1.2.8
-  // Object.getOwnPropertyDescriptor =
+  // Object.getOwnPropertyDescriptor
 
   // 19.1.2.11
-  Object.getPrototypeOf =
-      function (O)
-      {
-        var obj = $BASE$.ToObject(O);
-        return $BASE$.callInternal(obj, "[[GetPrototypeOf]]");
-      }
+  // Object.getPrototypeOf    
 
   // 19.1.3.3
-  Object.defineProperty(Object.prototype, "isPrototypeOf",
-      {
-        value:
-            function (V)
-            {
-              if (typeof V !== "object")
-              {
-                return false;
-              }
-              var O = $BASE$.ToObject(this);
-              while (true)
-              {
-                V = $BASE$.callInternal(V, "[[GetPrototypeOf]]");
-                if (V === null)
-                {
-                  return false;
-                }
-                if ($BASE$.SameValue(O, V))
-                {
-                  return true;
-                }
-              }
-            },
-        writable:true, enumerable:false, configurable: true
-      })
+  //  Object.prototype.isPrototypeOf
 
   // 19.5.3.4
   Error.prototype.toString =
       function ()
       {
-        var name = this.name;
+        let name = this.name;
         if (name === undefined)
         {
           name = "Error";
@@ -122,7 +40,7 @@
         {
           name = name.toString();
         }
-        var message = this.message;
+        let message = this.message;
         if (message === undefined)
         {
           message = "";
@@ -195,9 +113,9 @@
   String.prototype.split =
     function (spl)
     {
-      var stringValue = thisStringValue(this);
-      var result = [];
-      var cur = 0;
+      let stringValue = thisStringValue(this);
+      let result = [];
+      let cur = 0;
       while (cur < stringValue.length)
       {
         var next = stringValue.indexOf(spl, cur);
@@ -217,9 +135,9 @@
   String.prototype.substring =
       function (start, end)
       {
-        var S = String(this);
-        var len = S.length;
-        var intStart = start; // TODO ToInteger
+        let S = String(this);
+        let len = S.length;
+        let intStart = start; // TODO ToInteger
         var intEnd;
         if (end === undefined)
         {
@@ -229,12 +147,12 @@
         {
           intEnd = end; // TODO ToInteger
         }
-        var finalStart = Math.min(Math.max(intStart, 0), len);
-        var finalEnd = Math.min(Math.max(intEnd, 0), len);
-        var from = Math.min(finalStart, finalEnd);
-        var to = Math.max(finalStart, finalEnd);
+        let finalStart = Math.min(Math.max(intStart, 0), len);
+        let finalEnd = Math.min(Math.max(intEnd, 0), len);
+        let from = Math.min(finalStart, finalEnd);
+        let to = Math.max(finalStart, finalEnd);
 
-        var R = "";
+        let R = "";
         for (var i = from; i < to; i++)
         {
           R += S.charAt(i);
@@ -251,7 +169,7 @@
 
   // 21.1.3.8
   String.prototype.indexOf = 
-      function(searchString, start) 
+      function (searchString, start) 
       { 
         if (typeof start !== 'number') 
         {
@@ -260,7 +178,8 @@
         if (searchString === undefined) 
         {
           return -1;
-        } else if (searchString === '') 
+        } 
+        else if (searchString === '') 
         {
           return this.length < start ? this.length : start;
         } 
@@ -280,7 +199,8 @@
                 {
                   return i;
                 }
-              } else 
+              } 
+              else 
               {
                 count = 0;
                 break;
