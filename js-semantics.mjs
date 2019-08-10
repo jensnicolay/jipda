@@ -4553,7 +4553,7 @@ function createSemantics(lat, cc)
     if (Obj.isRef())
     {
       let desc = Property.empty();
-      HasProperty(Obj, lat.abst1("enumerable"), lkont, kont, machine, Cont(hasEnumerable =>
+      HasProperty(Obj, lat.abst1("enumerable"), lkont, kont, machine, hasEnumerable =>
       {
         if (hasEnumerable.isTrue())
         {
@@ -4567,12 +4567,12 @@ function createSemantics(lat, cc)
         {
           step5(desc);
         }
-      }))
+      })
     }
 
     function step5(desc)
     {
-      HasProperty(Obj, lat.abst1("configurable"), lkont, kont, machine, Cont(hasConfigurable =>
+      HasProperty(Obj, lat.abst1("configurable"), lkont, kont, machine, hasConfigurable =>
       {
         if (hasConfigurable.isTrue())
         {
@@ -4586,7 +4586,7 @@ function createSemantics(lat, cc)
         {
           step7(desc);
         }
-      }))
+      })
     }
 
     function step7(desc)
@@ -4609,7 +4609,7 @@ function createSemantics(lat, cc)
 
     function step9(desc)
     {
-      HasProperty(Obj, lat.abst1("writable"), lkont, kont, machine, Cont(hasWritable =>
+      HasProperty(Obj, lat.abst1("writable"), lkont, kont, machine, hasWritable =>
       {
         if (hasWritable.isTrue())
         {
@@ -4623,12 +4623,12 @@ function createSemantics(lat, cc)
         {
           step11(desc)
         }
-      }))
+      })
     }
 
     function step11(desc)
     {
-      HasProperty(Obj, lat.abst1("get"), lkont, kont, machine, Cont(hasGet =>
+      HasProperty(Obj, lat.abst1("get"), lkont, kont, machine, hasGet =>
       {
         if (hasGet.isTrue())
         {
@@ -4648,12 +4648,12 @@ function createSemantics(lat, cc)
         {
           step13(desc);
         }
-      }))
+      })
     }
 
     function step13(desc)
     {
-      HasProperty(Obj, lat.abst1("set"), lkont, kont, machine, Cont(hasSet =>
+      HasProperty(Obj, lat.abst1("set"), lkont, kont, machine, hasSet =>
       {
         if (hasSet.isTrue())
         {
@@ -4673,7 +4673,7 @@ function createSemantics(lat, cc)
         {
           step15(desc);
         }
-      }))
+      })
     }
 
     function step15(desc)
@@ -5547,27 +5547,6 @@ function RequireObjectCoercible(arg, lkont, kont, machine)
     }
     cont(result);
   }
-
-  function Cont(cont)
-  {
-    let called = 0;
-    let continuedWith = ArraySet.empty();
-    return function(value)
-    {
-      called++;
-      //console.log("!! called " + called);
-      if (!continuedWith.contains(value))
-      {
-        continuedWith = continuedWith.add(value);
-        cont(value);
-      }
-      else
-      {
-        // console.log("eaten " + value + " (" + continuedWith + ")");
-      }
-    }
-  }
-
 
   // 9.1.7.1
   function OrdinaryHasProperty(O, P, lkont, kont, machine, cont) // bool
