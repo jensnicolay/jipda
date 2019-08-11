@@ -317,6 +317,12 @@ ConcValue.prototype.join =
       throw new Error("cannot join concrete values " + this + " and " + x);
     }
 
+ConcValue.prototype.update =
+    function (x)
+    {
+      return x;
+    }
+
 ConcValue.prototype.subsumes =
     function (x)
     {
@@ -522,13 +528,19 @@ ConcAddr.prototype.toString =
       return "<addr " + this.addr + ">";
     }
 
+ConcAddr.prototype.update =
+    function (x)
+    {
+      return x;
+    }
+
 ConcAddr.prototype.join =
     function (x)
     {
-      if (x === BOT)
-      {
-        return this;
-      }
+      // if (x === BOT)
+      // {
+      //   return this;
+      // }
       throw new Error("cannot join concrete addresses " + this + " and " + x);
     }
 

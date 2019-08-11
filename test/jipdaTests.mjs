@@ -107,9 +107,6 @@ function runEval(...tests)
   }
 }
 
-runSource("var x = 9; this.x", 9);
-runSource("let x = 9; this.x", undefined);
-
 runSource("42", 42);
 runSource("undefined", undefined);
 runSource("41; 42;", 42);
@@ -119,12 +116,23 @@ runSource("var a = 2; a+a;", 4);
 runSource("var a = 2, b = 3; a*b;", 6);
 runSource("var a = 3, b = 4, c = 5; a-b-c;", -6);
 runSource("var a = 4; a = 5; a;", 5);
-// runSource("let a = 1;", undefined);
-// runSource("let a = 1; a;", 1);
-// runSource("let a = 2; a+a;", 4);
-// runSource("let a = 2, b = 3; a*b;", 6);
-// runSource("let a = 3, b = 4, c = 5; a-b-c;", -6);
-// runSource("let a = 4; a = 5; a;", 5);
+runSource("var x = 9; this.x", 9);
+
+runSource("let a = 1;", undefined);
+runSource("let a = 1; a;", 1);
+runSource("let a = 2; a+a;", 4);
+runSource("let a = 2, b = 3; a*b;", 6);
+runSource("let a = 3, b = 4, c = 5; a-b-c;", -6);
+runSource("let a = 4; a = 5; a;", 5);
+runSource("let x = 9; this.x", undefined);
+
+runSource("(function () {let a = 1})()", undefined);
+runSource("(function () {let a = 1; return a})()", 1);
+runSource("(function () {let a = 2; return a+a})()", 4);
+runSource("(function () {let a = 2, b = 3; return a*b})()", 6);
+runSource("(function () {let a = 3, b = 4, c = 5; return a-b-c})()", -6);
+runSource("(function () {let a = 4; a = 5; return a})()", 5);
+
 runSource("function f(){}; f()", undefined);
 runSource("var pi = function () {return 3;}; pi(); pi();", 3);
 runSource("function pi() {return 3;}; pi(); pi();", 3);
@@ -526,7 +534,7 @@ runSource("'8249823789237'.substring(3, 5)", "98");
 runSource("String.prototype.substring.apply('8249823789237', [3, 5])", "98");
 
 
-String.prototype.split
+//String.prototype.split
 runSource("'0,1,hello'.split(',').length", 3 );
 runSource("'0,1,hello'.split(',')[0]", "0" );
 runSource("'0,1,hello'.split(',')[2]", "hello");
@@ -535,11 +543,11 @@ runSource("'hd.com?access_token=sshshs'.split('access_token=').length",2);
 runSource("'hd.com?access_token=sshshs'.split('access_token=')[1]","sshshs");
 
 
-22.1.3.15 join
+// 22.1.3.15 join
 runSource("[].join()", "");
 runSource("[1,2,3].join()", "1,2,3");
 runSource("[1,2,3].join('-')", "1-2-3");
 
 
-String.prototype.slice
-runSource("'To be, or not to be, that is the question.'.slice(0,7)", "To be, ");     
+//String.prototype.slice
+// runSource("'To be, or not to be, that is the question.'.slice(0,7)", "To be, ");

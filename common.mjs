@@ -1,5 +1,4 @@
 // https://github.com/tc39/proposal-global
-import Store from "./countingStore";
 
 export function getGlobal()
 {
@@ -1653,6 +1652,18 @@ ArraySet.prototype[Symbol.iterator] =
     function* ()
     {
       yield* this._arr;
+    }
+
+ArraySet.prototype.first =
+    function ()
+    {
+      return this._arr[0];
+    }
+
+ArraySet.prototype.rest =
+    function ()
+    {
+      return new ArraySet(this._arr.slice(1));
     }
 
 ArraySet.prototype.map =

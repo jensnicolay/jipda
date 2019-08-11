@@ -40,7 +40,7 @@ function stateToLabel(s)
 
 function stateToTooltip(s)
 {
-  return s.kont.resource;
+  return String(s.kont.resource).substring(0, 40);
 }
 
 function stateToColor(s)

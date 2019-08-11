@@ -36,6 +36,7 @@
       var otp = OrdinaryToPrimitive(input, hint);
       return otp;
     }
+    return input;
   }
 
   // 7.1.1.1
@@ -43,7 +44,7 @@
   {
     assert(typeof(O) === "object");
     assert(hint === "string" || hint === "number");
-    var methodNames;
+    let methodNames;
     if (hint === "string")
     {
       methodNames = ["toString", "valueOf"];
@@ -52,23 +53,23 @@
     {
       methodNames = ["valueOf", "toString"];
     }
-    var method = O[methodNames[0]];
+    let method0 = O[methodNames[0]];
     //print("method0 is", method, methodNames[0]);
-    if (typeof method === "function")
+    if (typeof method0 === "function")
     {
-      var result = method.call(O);
-      if (typeof result !== "object")
+      let result0 = method0.call(O);
+      if (typeof result0 !== "object")
       {
-        return result;
+        return result0;
       }
 
-      var method = O[methodNames[1]];
-      if (typeof method === "function")
+      let method1 = O[methodNames[1]];
+      if (typeof method1 === "function")
       {
-        var result = method.call(O);
-        if (typeof result !== "object")
+        let result1 = method1.call(O);
+        if (typeof result1 !== "object")
         {
-          return result;
+          return result1;
         }
 
         throw new TypeError("7.1.1.1")
@@ -111,7 +112,7 @@
       return argument;
     }
     // TODO symbol
-    var primValue = ToPrimitive(argument, "String");
+    let primValue = ToPrimitive(argument, "String");
     //print("ToPrim for", argument, "returns", primValue);
     return ToString(primValue);
   }
@@ -131,7 +132,7 @@
         {
           throw new TypeError("19.1.2.2");
         }
-        var obj = $BASE$.ObjectCreate(O);
+        let obj = $BASE$.ObjectCreate(O);
         if (Properties !== undefined)
         {
           return $BASE$.ObjectDefineProperties(obj, Properties);
@@ -179,8 +180,8 @@
         {
           throw new TypeError("Object.defineProperty called on non-object");
         }
-        var key = $BASE$.ToPropertyKey(P);
-        var desc = $BASE$.ToPropertyDescriptor(Attributes);
+        let key = $BASE$.ToPropertyKey(P);
+        let desc = $BASE$.ToPropertyDescriptor(Attributes);
         $BASE$.DefinePropertyOrThrow(O, key, desc);
         return O;
       }
@@ -189,9 +190,9 @@
   Object.getOwnPropertyDescriptor =
       function (O, P)
       {
-        var obj = $BASE$.ToObject(O);
-        var key = $BASE$.ToPropertyKey(P);
-        var desc = $BASE$.callInternal(obj, "[[GetOwnProperty]]", key);
+        let obj = $BASE$.ToObject(O);
+        let key = $BASE$.ToPropertyKey(P);
+        let desc = $BASE$.callInternal(obj, "[[GetOwnProperty]]", key);
         return $BASE$.FromPropertyDescriptor(desc);
       }
   
@@ -264,7 +265,7 @@
       }
   
   // 19.5.6.2
-  var TypeErrorPrototype = Object.create(Error.prototype);
+  let TypeErrorPrototype = Object.create(Error.prototype);
   $BASE$.addIntrinsic("%TypeError%", TypeErrorPrototype)
   
   // 19.5.6.3.2

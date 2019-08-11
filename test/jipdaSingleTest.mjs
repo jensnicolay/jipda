@@ -17,7 +17,7 @@ const ast0resource = new FileResource("../prelude.js");
 const jsConcSemantics = createSemantics(concLattice, {errors: true});
 const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
 
-const s0Conc = computeInitialCeskState(jsConcSemantics, concAlloc, concKalloc, ast0resource);
+//const s0Conc = computeInitialCeskState(jsConcSemantics, concAlloc, concKalloc, ast0resource);
 const s0Type = computeInitialCeskState(jsTypeSemantics, concAlloc, concKalloc, ast0resource);
 
 let c = 0;
@@ -59,10 +59,15 @@ function run(resource, expected)
   const s1Type = s0Type.switchMachine(jsTypeSemantics, tagCtxAlloc, aacKalloc, {hardAsserts: true});
   const s2Type = s1Type.enqueueScriptEvaluation(resource);
   let actualType = jsTypeSemantics.lat.bot();
+
+  let sss = null;
+
   const systemType = explore([s2Type], s => {
     if (isSuccessState(s))
     {
-      console.log("abstract success value: " + s.value);
+      // console.log("abstract success value: " + s.value);
+      // if (sss) {console.log(s.store.diff(sss))};
+      // sss = s.store;
       actualType = actualType.join(s.value);
     }
     else if (s.isThrowState)
@@ -111,5 +116,5 @@ function runEval(...tests)
 
 
 
-runSource("'0,1,hello'.split(',').length", 3 );
+runSource("42", 42 );
 

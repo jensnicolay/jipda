@@ -2,6 +2,7 @@ import {ArraySet} from './common.mjs';
 
 export const BOT = Object.create(null); // should be 'const', but gives problems with rebuilding
 BOT.join = function (other) { return other };
+BOT.update = function (other) { return other };
 BOT.meet = function (other) { return BOT };
 BOT.hashCode = function () { return 0 };
 BOT.equals = function (x) { return x === BOT };

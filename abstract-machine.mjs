@@ -7,7 +7,6 @@ export function createMachine(semantics, alloc, kalloc, cc)
   //const initializers = Array.isArray(cc.initializers) ? cc.initializers : [];
   //const hardSemanticAsserts = cc.hardAsserts === undefined ? false : cc.hardAsserts;
   const rootSet = cc.rootSet || ArraySet.empty();
-
   const contexts = cc.contexts || [];
   const stacks = [];
   let sstorei = 0;
@@ -91,11 +90,11 @@ export function createMachine(semantics, alloc, kalloc, cc)
         }
         return semantics.evaluate(this.node, this.benv, store, this.lkont, this.kont, machine);
       }
-  EvalState.prototype.gc =
-      function ()
-      {
-        return new EvalState(this.node, this.benv, Agc.collect(this.store, this.addresses()), this.lkont, this.kont);
-      }
+  // EvalState.prototype.gc =
+  //     function ()
+  //     {
+  //       return new EvalState(this.node, this.benv, Agc.collect(this.store, this.addresses()), this.lkont, this.kont);
+  //     }
   EvalState.prototype.addresses =
       function ()
       {
