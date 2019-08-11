@@ -555,7 +555,10 @@ export class StringResource
 
   toString()
   {
-    return this.src.substring(0, 80).replace(/(\r\n\t|\n|\r\t)/gm, ' ') + (this.parentResource ? this.parentResource : "");
+    if(this.src.substring){
+     return this.src.substring(0, 80).replace(/(\r\n\t|\n|\r\t)/gm, ' ') + (this.parentResource ? this.parentResource : "");
+    }
+    return "{ERROR}"
   }
 }
 

@@ -80,6 +80,10 @@ Browser.prototype.parseElement =
         case 'SCRIPT': return this.parseScript(element, jsChildren);
         case 'TITLE': return this.parseTitle(element, jsChildren);
         case 'INPUT': return this.parseInput(element, jsChildren);
+        case 'TD': return this.parseTd(element, jsChildren);
+        case 'TR': return this.parseTr(element, jsChildren);
+        case 'TABLE': return this.parseTable(element, jsChildren);
+        case 'TBODY': return this.parseTBody(element, jsChildren);
         default: throw new Error("cannot handle element name " + element.nodeName);
       }
     }
@@ -184,6 +188,63 @@ Browser.prototype.parseInput =
       }
       this.parseChildren(input, jsInput);
       return jsInput;
+    }
+
+Browser.prototype.parseTd =
+    function (td, jsChildren)
+    {
+      const jsTd = this.jsContext.globalObject().getProperty("HTMLTableCellElement").construct([]);
+      jsChildren.push(jsTd);
+      const id = td.getAttribute("id");
+      if (id)
+      {
+        jsTd.assignProperty("id", id);
+      }
+      this.parseChildren(td, jsTd);
+      return jsTd;
+    }
+
+Browser.prototype.parseTr =
+    function (tr, jsChildren)
+    {
+      const jsTr = this.jsContext.globalObject().getProperty("HTMLTableRowElement").construct([]);
+      jsChildren.push(jsTr);
+      const id = tr.getAttribute("id");
+      if (id)
+      {
+        jsTr.assignProperty("id", id);
+      }
+      this.parseChildren(tr, jsTr);
+      return jsTr;
+    } 
+
+Browser.prototype.parseTBody =
+    function (tbody,jsChildren)
+    {
+      const jsTBody = this.jsContext.globalObject().getProperty("HTMLTableSectionElement").construct([]);
+      jsChildren.push(jsTBody);
+
+      const id = tbody.getAttribute("id");
+      if (id)
+      {
+        jsTBody.assignProperty("id", id);
+      }
+       this.parseChildren(tbody, jsTBody);
+      return jsTBody;
+    }
+
+Browser.prototype.parseTable =
+    function (table, jsChildren)
+    {
+      const jsTable = this.jsContext.globalObject().getProperty("HTMLTableElement").construct([]);
+      jsChildren.push(jsTable);
+      const id = table.getAttribute("id");
+      if (id)
+      {
+        jsTable.assignProperty("id", id);
+      }
+      this.parseChildren(table, jsTable);
+      return jsTable;
     }
 
 Browser.prototype.click =
