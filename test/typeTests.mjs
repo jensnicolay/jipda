@@ -15,8 +15,6 @@ typeLattice.sanity();
 
 const ast0resource = new FileResource("../prelude.js");
 
-var module = new TestSuite("suiteJipdaTests");
-
 const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
 const typeMachine = createEvalMachine(initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource)).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
 

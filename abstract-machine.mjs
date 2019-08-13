@@ -237,11 +237,6 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     machine.states.length = 0;
     while (todo.length > 0)
     {
-      if (stateRegistry.states.length > 1000)
-      {
-        console.log("STATE SIZE LIMIT", stateRegistry.states.length);
-        break;
-      }
       const s = todo.pop();
       // console.log("popped " + s._id + " storei " + stores.indexOf(s.store) + " (" + (stores.length-1) + ") sstorei " + s._sstorei + " (" + sstorei + ")" + " ctx id " + s.kont._id);
       // if (s.isEvalState) {console.log("EVAL " + s.node)}
@@ -283,6 +278,12 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         }
       }
       // console.log(s._id + " -> " + todo.map(ss => ss._id).join(",") +  " " + s.node);
+      if (stateRegistry.states.length > 10000)
+      {
+        // do this after treating successors so they are present on state and interned
+        console.log("STATE SIZE LIMIT", stateRegistry.states.length);
+        break;
+      }
     }
     let initialStatesResult;
     if (pruneGraphOption)

@@ -41,6 +41,22 @@ SetValue.prototype.add =
       return new SetValue(this.set.add(x));
     }
 
+SetValue.prototype.hashCode =
+    function ()
+    {
+      return this.set.hashCode();
+    }
+
+SetValue.prototype.equals =
+    function (x)
+    {
+      if (this === x)
+      {
+        return true;
+      }
+      return this.set.equals(x.set);
+    }
+
 SetValue.prototype.join =
     function (x)
     {
