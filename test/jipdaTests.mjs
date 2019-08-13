@@ -1,81 +1,63 @@
 import fs from 'fs';
 
-import {assertEquals, assert} from '../common';
-import {FileResource, StringResource} from "../ast";
-import concLattice from '../conc-lattice';
-import concAlloc from '../conc-alloc';
-import concKalloc from '../conc-kalloc';
-import createSemantics from '../js-semantics';
-import {computeInitialCeskState, explore, isSuccessState} from '../abstract-machine';
-import typeLattice from "../type-lattice";
-import aacKalloc from "../aac-kalloc";
-import tagAlloc from "../tag-alloc";
+import {assertEquals, assert} from '../common.mjs';
+import {FileResource, StringResource} from "../ast.mjs";
+import concLattice from '../conc-lattice.mjs';
+import concAlloc from '../conc-alloc.mjs';
+import concKalloc from '../conc-kalloc.mjs';
+import createSemantics from '../js-semantics.mjs';
+import {initializeMachine, createEvalMachine, isSuccessState} from '../abstract-machine.mjs';
+import typeLattice from "../type-lattice.mjs";
+import aacKalloc from "../aac-kalloc.mjs";
+import tagAlloc from "../tag-alloc.mjs";
 
 const ast0resource = new FileResource("../prelude.js");
 
 const jsConcSemantics = createSemantics(concLattice, {errors: true});
 const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
 
-const s0Conc = computeInitialCeskState(jsConcSemantics, concAlloc, concKalloc, ast0resource);
-const s0Type = computeInitialCeskState(jsTypeSemantics, concAlloc, concKalloc, ast0resource);
+const concMachine = createEvalMachine(initializeMachine(jsConcSemantics, concAlloc, concKalloc, ast0resource));
+const typeMachine = createEvalMachine(initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource)).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
 
 let c = 0;
+
+function handleState(value, s)
+{
+  if (isSuccessState(s))
+  {
+    return value.join(s.value);
+  }
+  else if (s.isThrowState)
+  {
+    console.warn(s.value);
+    return value;
+  }
+  else if (s.isErrorState)
+  {
+    throw new Error(s.node.loc.start.line + ": " + s.msg);
+  }
+  else
+  {
+    throw new Error("no progress: " + s);
+  }
+}
 
 function run(resource, expected)
 {
   console.log(++c + "\t" + resource);
 
   process.stdout.write("conc ");
-  const s1Conc = s0Conc.switchMachine(jsConcSemantics, concAlloc, concKalloc, {hardAsserts: true});
-
-  const s2Conc = s1Conc.enqueueScriptEvaluation(resource);
-  let actualConc = jsConcSemantics.lat.bot();
-  const systemConc = explore([s2Conc], s =>
-  {
-    if (isSuccessState(s))
-    {
-      actualConc = actualConc.join(s.value);
-    }
-    else if (s.isThrowState)
-    {
-      throw new Error(s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsConcSemantics.lat.abst1("message")).value.Value).join());
-    }
-    else if (s.isErrorState)
-    {
-      throw new Error(s.node.loc.start.line + ": " + s.msg);
-    }
-    else
-    {
-      throw new Error("no progress: " + s);
-    }
-  });
+  const systemConc = concMachine.explore(resource);
+  const actualConc = [...systemConc.endStates].reduce(handleState, jsConcSemantics.lat.bot());
   if (!concLattice.abst1(expected).equals(actualConc))
   {
     throw new Error("expected " + expected + ", got " + actualConc);
   }
 
   process.stdout.write("type ");
-  const s1Type = s0Type.switchMachine(jsTypeSemantics, tagAlloc, aacKalloc, {hardAsserts: true});
-  const s2Type = s1Type.enqueueScriptEvaluation(resource);
-  let actualType = jsTypeSemantics.lat.bot();
-  const systemType = explore([s2Type], s => {
-    if (isSuccessState(s))
-    {
-      actualType = actualType.join(s.value);
-    }
-    else if (s.isThrowState)
-    {
-      console.warn(s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsTypeSemantics.lat.abst1("message")).value.Value).join());
-    }
-    else if (s.isErrorState)
-    {
-      throw new Error(s.node.loc.start.line + ": " + s.msg);
-    }
-    else
-    {
-      throw new Error("no progress: " + s);
-    }
-  });
+  const typeMachine2 = typeMachine.switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
+  const systemType = typeMachine2.explore(resource);
+  const actualType = [...systemType.endStates].reduce(handleState, jsTypeSemantics.lat.bot());
   if (!actualType.subsumes(jsTypeSemantics.lat.abst1(expected)))
   {
     if (!actualType.abst().subsumes(jsTypeSemantics.lat.abst1(expected)))
@@ -150,6 +132,7 @@ runSource("var f = function() { if (0 === 0) { if (0 === 1) { return 'true1';} e
 runSource("var f = function() { if (0 === 0) { return 'true'; } return 'false'}; f();", "true");
 runSource("var f = function() { if (0 !== 0) { return 'true'; } return 'false'}; f();", "false");
 runSource("var count = function (n) {if (n===0) {return 'done';} else {return count(n-1);}}; count(20);", "done");
+runSource("[1,2,3][1]", 2);
 runSource("[1,2,3].concat([4,5])[0]", 1);
 runSource("[1,2,3].concat([4,5])[1]", 2);
 runSource("[1,2,3].concat([4,5])[2]", 3);
@@ -404,6 +387,7 @@ runSource("var o=Object.create({}, {x:{value:42}}); var p = Object.getOwnPropert
 runSource("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", true);
 runSource("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", true);
 runSource("var o={x:42}; var p = Object.getOwnPropertyDescriptor(o, 'x'); p.configurable", true);
+runSource("Object.getOwnPropertyDescriptor(Object.prototype, 'hasOwnProperty').enumerable", false);
 runSource("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); typeof p.get", "function");
 runSource("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.writable", undefined);
 runSource("var o = Object.defineProperty({}, 'x',{get:function(){return 42}}); var p = Object.getOwnPropertyDescriptor(o, 'x'); p.enumerable", false);

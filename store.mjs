@@ -1,5 +1,5 @@
-import {HashMap} from './common';
-import {BOT} from './lattice';
+import {BOT} from './lattice.mjs';
+import {Maps} from "./common.mjs";
 
 export default function Store(map)
 {
@@ -9,31 +9,22 @@ export default function Store(map)
 Store.empty =
   function ()
   {
-    return new Store(HashMap.empty());
+    return new Store(new Map());
   }
 
 Store.prototype.equals =
+  // reminder: `alloc` and `update` only create new `Store` instance when actual change occurs,
+  // therefore in monotonic scenario `===` can be used to check store equality (mucho cheaper!)
   function (x)
   {
+    console.warn("unintended?");
     if (!(x instanceof Store))
     {
       return false;
     }
-    return this.map.equals(x.map);
+    return Maps.equals(this.map, x.map, (x, y) => x.equals(y));
   }
 
-Store.prototype.hashCode =
-  function ()
-  {
-    return this.map.hashCode();
-  }
-
-//Store.prototype.compareTo =
-//  function (x)
-//  {
-//    return Lattice.subsumeComparison(this, x);
-//  }
-  
 Store.prototype.subsumes =
   function (x)
   {
@@ -41,109 +32,94 @@ Store.prototype.subsumes =
     {
       return false;
     }
-    return this.map.subsumes(x.map);
+    return Maps.subsumes(this.map, x.map, x.subsumes(y), BOT);
   }
 
-Store.prototype.diff = // debug
-  function (x)
-  {
-    const diff = [];
-    const entries = this.map.entries();
-    for (let i = 0; i < entries.length; i++)
-    {
-      const entry = entries[i];
-      const address = entry[0];
-      const value = entry[1];
-      const xvalue = x.map.get(address);
-      if (xvalue)
-      {
-        if (!value.equals(xvalue))
-        {
-//          else
-//          {
-            diff.push(address + ":\n\t" + value + "\n\t" + xvalue);            
-//          }
-          if (value.aval.constructor.name === "Obj" && xvalue.aval.constructor.name === "Obj")
-          {
-            diff.push(value.aval.diff(xvalue.aval))
-          }
-        }
-      }
-      else
-      {
-        diff.push(address + ":\n\t" + value + "\n\t<undefined>");
-      }
-    }
-    const xentries = x.map.entries();
-    for (i = 0; i < xentries.length; i++)
-    {
-      const xentry = xentries[i];
-      const address = xentry[0];
-      const xvalue = xentry[1];
-      const value = this.map.get(address);
-      if (!value)
-      {
-        diff.push(address + ":\n\t<undefined>\n\t" + xvalue);
-      }
-    }
-    return diff.join("\n");
-  }
+// Store.prototype.join =
+//     function (store)
+//     {
+//       return new Store(this.map.join(store.map, BOT));
+//     }
+
+// Store.prototype.diff = // debug
+//   function (x)
+//   {
+//     const diff = [];
+//     const entries = this.map.entries();
+//     for (let i = 0; i < entries.length; i++)
+//     {
+//       const entry = entries[i];
+//       const address = entry[0];
+//       const value = entry[1];
+//       const xvalue = x.map.get(address);
+//       if (xvalue)
+//       {
+//         if (!value.equals(xvalue))
+//         {
+// //          else
+// //          {
+//             diff.push(address + ":\n\t" + value + "\n\t" + xvalue);
+// //          }
+//           if (value.constructor.name === "Obj" && xvalue.constructor.name === "Obj")
+//           {
+//             diff.push(value.diff(xvalue))
+//           }
+//         }
+//       }
+//       else
+//       {
+//         diff.push(address + ":\n\t" + value + "\n\t<undefined>");
+//       }
+//     }
+//     const xentries = x.map.entries();
+//     for (let i = 0; i < xentries.length; i++)
+//     {
+//       const xentry = xentries[i];
+//       const address = xentry[0];
+//       const xvalue = xentry[1];
+//       const value = this.map.get(address);
+//       if (!value)
+//       {
+//         diff.push(address + ":\n\t<undefined>\n\t" + xvalue);
+//       }
+//     }
+//     return diff.join("\n");
+//   }
 
 Store.prototype.toString =
   function ()
   {
-    return this.map.toString();
+    return String(this.map);
   }
 
 Store.prototype.nice =
   function ()
   {
-    return this.map.nice(); 
+    return String(this.map);
   }
 
-Store.prototype.lookupAval =
-  function (address)
-  {
-    const value = this.map.get(address);
-    if (value)
+Store.prototype.get =
+    function (addr)
     {
-      return value;
+      return this.map.get(addr);
     }
-    throw new Error("no value at address " + address + "\n" + this.nice());
-  }
-  
-Store.prototype.allocAval =
-  function (address, aval)
-  {
-    const map = this.map;
-    const newValue = (map.get(address) || BOT).update(aval);
-    return new Store(map.put(address, newValue));
-  }
-    
-Store.prototype.updateAval =
-  function (address, aval)
-  {
-    const map = this.map;
-    const value = map.get(address);
-    if (value === undefined)
+Store.prototype.set =
+    function (addr, value)
     {
-      throw new Error("no value at address " + address);  
+      const newMap = new Map(this.map);
+      newMap.set(addr, value);
+      return new Store(newMap);
     }
-    if (!value.update)
+
+Store.prototype.has =
+    function (addr)
     {
-      throw new Error("NO UPDATE " + value);
+      return this.map.has(addr);
     }
-    return new Store(map.put(address, value.update(aval)));
-  }
-  
+
 Store.prototype.narrow =
   function (addresses)
   {
-    return new Store(this.map.narrow(addresses));
-  }
-
-Store.prototype.keys =
-  function ()
-  {
-    return this.map.keys();
+    throw new Error("TODO");
+    // return new Store(this.map.narrow(addresses));
   }

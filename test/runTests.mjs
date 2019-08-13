@@ -1,5 +1,3 @@
-import {} from './jipdaTests';
-import {} from './concreteTests';
-import {} from './typeTests';
-
-
+import {} from './jipdaTests.mjs';
+import {} from './concreteTests.mjs';
+import {} from './typeTests.mjs';

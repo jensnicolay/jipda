@@ -1,4 +1,4 @@
-import {isSuccessState} from "../abstract-machine";
+import {isSuccessState} from "../abstract-machine.mjs";
 
 function stateToLabel(s)
 {
@@ -21,12 +21,12 @@ function stateToLabel(s)
   }
   else if (s.isBreakState)
   {
-    return s.value.toString() + kontLabel(s);
+    return kontLabel(s);
   }
   else if (s.isThrowState)
   {
 //    return s.value + "\n" + s.value.addresses().map(addr => s.store.lookupAval(addr).lookup(jsSemantics.lat.abst1("message")).value.Value).join() + kontLabel(s);
-    return s.value + " " + s.value.addresses().map(addr => s.store.lookupAval(addr).nice()).join() + kontLabel(s);
+    return s.value + " " + kontLabel(s);
   }
   else if (s.isErrorState)
   {
@@ -95,9 +95,12 @@ export function statesToDot(states)
   for (const s of states)
   {
     sb += stateToVertex(s) + "\n";
-    for (const s2 of s._successors)
+    if (s._successors)
     {
-      sb += dotTransition(s, s2) + "\n";
+      for (const s2 of s._successors)
+      {
+        sb += dotTransition(s, s2) + "\n";
+      }
     }
   }
   sb += "}";
@@ -119,11 +122,11 @@ export function initialStatesToDot(initialStates)
     }
     S[s._id] = true;
     sb += stateToVertex(s) + "\n";
-    for (const s2 of s._successors)
+    for (const s2 of s._successors || [])
     {
       sb += dotTransition(s, s2) + "\n";
+      W.push(s2)
     }
-    s._successors.forEach(s2 => W.push(s2));
   }
   sb += "}";
   return sb;

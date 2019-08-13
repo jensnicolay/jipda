@@ -1,39 +1,28 @@
 import fs from 'fs';
 
-import {assertEquals} from '../common';
-import concLattice from '../conc-lattice';
-import concAlloc from '../conc-alloc';
-import concKalloc from '../conc-kalloc';
-import createSemantics from '../js-semantics';
-import {Browser} from '../browser';
-import {JsContext} from '../js-context';
-import {explore, computeInitialCeskState} from "../abstract-machine.mjs";
-import {StateRegistry} from "../abstract-machine";
-import {StringResource, FileResource} from "../ast";
+import {assertEquals} from '../common.mjs';
+import concLattice from '../conc-lattice.mjs';
+import concAlloc from '../conc-alloc.mjs';
+import concKalloc from '../conc-kalloc.mjs';
+import createSemantics from '../js-semantics.mjs';
+import {Browser} from '../browser.mjs';
+import {JsContext} from '../js-context.mjs';
+import {initializeMachine} from "../abstract-machine.mjs";
+import {StringResource, FileResource} from "../ast.mjs";
 
 const read = name => fs.readFileSync(name).toString();
-const ast0resource = new FileResource("../prelude.js");
-const ast1resource = new FileResource("../web-prelude.js");
-const jsSemantics = createSemantics(concLattice, {errors: true});
-const {store:store0, kont:kont0} = computeInitialCeskState(jsSemantics, concAlloc, concKalloc, ast0resource, ast1resource);
+const preludeResource = new FileResource("../prelude.js");
+const webPreludeResource = new FileResource("../web-prelude.js");
+const jsConcSemantics = createSemantics(concLattice, {errors: true});
 
-function Explorer()
-{
-  this.stateRegistry = new StateRegistry();
-}
-
-Explorer.prototype.explore =
-    function (initialStates, onEndState)
-    {
-      return explore(initialStates, onEndState, undefined, undefined, this.stateRegistry);
-    }
+const system0 = initializeMachine(jsConcSemantics, concAlloc, concKalloc, preludeResource, webPreludeResource);
 
 let c = 0;
 
 function run(html, expected)
 {
   console.log(++c + "\t" + html.substring(0, 80).replace(/(\r\n\t|\n|\r\t)/gm, ' '));
-  const jsContext = new JsContext(jsSemantics, new Explorer(), concAlloc, concKalloc, store0, kont0);
+  const jsContext = new JsContext(system0.semantics, system0.store, system0.kont0, system0.alloc, system0.kalloc);
   const browser = new Browser(jsContext);
   browser.parse(new StringResource(html));
   const result = jsContext.globalObject().getProperty("$result$");

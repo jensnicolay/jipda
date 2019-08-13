@@ -1,5 +1,6 @@
 (function (global)
 {
+
   function assert(c)
   {
     if (!c)
@@ -8,234 +9,29 @@
     }
   }
 
-  // 7.1.1
-  function ToPrimitive(input, PreferredType)
-  {
-    // TODO assert input is an ECMAScript language value
-    if (typeof input === "object")
-    {
-      var hint;
-      if (PreferredType === undefined)
-      {
-        hint = "default";
-      }
-      else if (PreferredType === "String")
-      {
-        hint = "string";
-      }
-      else
-      {
-        assert(PreferredType === "Number");
-        hint = "number";
-      }
-      // TODO exotic stuff
-      if (hint === "default")
-      {
-        hint = "number";
-      }
-      var otp = OrdinaryToPrimitive(input, hint);
-      return otp;
-    }
-    return input;
-  }
-
-  // 7.1.1.1
-  function OrdinaryToPrimitive(O, hint)
-  {
-    assert(typeof(O) === "object");
-    assert(hint === "string" || hint === "number");
-    let methodNames;
-    if (hint === "string")
-    {
-      methodNames = ["toString", "valueOf"];
-    }
-    else
-    {
-      methodNames = ["valueOf", "toString"];
-    }
-    let method0 = O[methodNames[0]];
-    //print("method0 is", method, methodNames[0]);
-    if (typeof method0 === "function")
-    {
-      let result0 = method0.call(O);
-      if (typeof result0 !== "object")
-      {
-        return result0;
-      }
-
-      let method1 = O[methodNames[1]];
-      if (typeof method1 === "function")
-      {
-        let result1 = method1.call(O);
-        if (typeof result1 !== "object")
-        {
-          return result1;
-        }
-
-        throw new TypeError("7.1.1.1")
-      }
-    }
-  }
-
-  // 7.1.12
-  $BASE$.register("ToString", ToString);
-  function ToString(argument)
-  {
-    //print("enter ToString", argument);
-    if (argument === undefined)
-    {
-      // print("exit ToString", argument, "UNDEFINED");
-      return "undefined";
-    }
-    if (argument === null)
-    {
-      // print("exit ToString", argument, "NULL");
-      return "null";
-    }
-    if (argument === true)
-    {
-      // print("exit ToString", argument, "TRUE");
-      return "true";
-    }
-    if (argument === false)
-    {
-      // print("exit ToString", argument, "FALSE");
-      return "false";
-    }
-    if (typeof argument === "number")
-    {
-      return NumberToString(argument);
-    }
-    if (typeof argument === "string")
-    {
-      //print("exit ToString", argument, "FALSE");
-      return argument;
-    }
-    // TODO symbol
-    let primValue = ToPrimitive(argument, "String");
-    //print("ToPrim for", argument, "returns", primValue);
-    return ToString(primValue);
-  }
-
-  // 7.1.12.1
-  function NumberToString(m)
-  {
-    return $BASE$.NumberToString(m);
-  }
-
-
   // 19.1.2.2
-  Object.create =
-      function (O, Properties)
-      {
-        if (!(typeof O === "object" || O === null))
-        {
-          throw new TypeError("19.1.2.2");
-        }
-        let obj = $BASE$.ObjectCreate(O);
-        if (Properties !== undefined)
-        {
-          return $BASE$.ObjectDefineProperties(obj, Properties);
-        }
-        return obj;
-      }
+  //Object.create
       
   // 19.1.2.3
-  Object.defineProperties = $BASE$.ObjectDefineProperties;
-  
-  // // 19.1.2.3.1
-  // function ObjectDefineProperties(O, Properties)
-  //   {
-  //     if (typeof O !== "object")
-  //     {
-  //       throw new TypeError();
-  //     }
-  //     var props = $BASE$.ToObject(Properties);
-  //     var keys = $BASE$.callInternal(props, "[[OwnPropertyKeys]]");
-  //     var descriptors = [];
-  //     for (var nextKey of keys)
-  //     {
-  //       var propDesc = $BASE$.callInternal(props, "[[GetOwnProperty]]", nextKey);
-  //       if (propDesc !== undefined && $BASE$.lookupInternal(propDesc, "[[Enumerable]]"))
-  //       {
-  //         var descObj = $BASE$.callInternal(props, "[[Get]]", nextKey);
-  //         var desc = $BASE$.ToPropertyDescriptor(descObj);
-  //         descriptors.push([nextKey, desc]);
-  //       }
-  //     }
-  //     for (var pair of descriptors)
-  //     {
-  //       var P = pair[0];
-  //       var desc = pair[1];
-  //       $BASE$.DefinePropertyOrThrow(O, P, desc);
-  //     }
-  //     return O;
-  //   }
+  // Object.defineProperties
   
   // 19.1.2.4
-  Object.defineProperty =
-      function (O, P, Attributes)
-      {
-        if (typeof O !== "object")
-        {
-          throw new TypeError("Object.defineProperty called on non-object");
-        }
-        let key = $BASE$.ToPropertyKey(P);
-        let desc = $BASE$.ToPropertyDescriptor(Attributes);
-        $BASE$.DefinePropertyOrThrow(O, key, desc);
-        return O;
-      }
-  
-  // 19.1.2.7
-  Object.getOwnPropertyDescriptor =
-      function (O, P)
-      {
-        let obj = $BASE$.ToObject(O);
-        let key = $BASE$.ToPropertyKey(P);
-        let desc = $BASE$.callInternal(obj, "[[GetOwnProperty]]", key);
-        return $BASE$.FromPropertyDescriptor(desc);
-      }
-  
+  // Object.defineProperty
+
+  // 19.1.2.8
+  // Object.getOwnPropertyDescriptor
+
   // 19.1.2.11
-  Object.getPrototypeOf =
-      function (O)
-      {
-        var obj = $BASE$.ToObject(O);
-        return $BASE$.callInternal(obj, "[[GetPrototypeOf]]");
-      }
+  // Object.getPrototypeOf    
 
   // 19.1.3.3
-  Object.defineProperty(Object.prototype, "isPrototypeOf",
-      {
-        value:
-            function (V)
-            {
-              if (typeof V !== "object")
-              {
-                return false;
-              }
-              var O = $BASE$.ToObject(this);
-              while (true)
-              {
-                V = $BASE$.callInternal(V, "[[GetPrototypeOf]]");
-                if (V === null)
-                {
-                  return false;
-                }
-                if ($BASE$.SameValue(O, V))
-                {
-                  return true;
-                }
-              }
-            },
-        writable:true, enumerable:false, configurable: true
-      })
+  //  Object.prototype.isPrototypeOf
 
   // 19.5.3.4
   Error.prototype.toString =
       function ()
       {
-        var name = this.name;
+        let name = this.name;
         if (name === undefined)
         {
           name = "Error";
@@ -244,7 +40,7 @@
         {
           name = name.toString();
         }
-        var message = this.message;
+        let message = this.message;
         if (message === undefined)
         {
           message = "";
@@ -317,9 +113,9 @@
   String.prototype.split =
     function (spl)
     {
-      var stringValue = thisStringValue(this);
-      var result = [];
-      var cur = 0;
+      let stringValue = thisStringValue(this);
+      let result = [];
+      let cur = 0;
       while (cur < stringValue.length)
       {
         var next = stringValue.indexOf(spl, cur);
@@ -339,9 +135,9 @@
   String.prototype.substring =
       function (start, end)
       {
-        var S = String(this);
-        var len = S.length;
-        var intStart = start; // TODO ToInteger
+        let S = String(this);
+        let len = S.length;
+        let intStart = start; // TODO ToInteger
         var intEnd;
         if (end === undefined)
         {
@@ -351,12 +147,12 @@
         {
           intEnd = end; // TODO ToInteger
         }
-        var finalStart = Math.min(Math.max(intStart, 0), len);
-        var finalEnd = Math.min(Math.max(intEnd, 0), len);
-        var from = Math.min(finalStart, finalEnd);
-        var to = Math.max(finalStart, finalEnd);
+        let finalStart = Math.min(Math.max(intStart, 0), len);
+        let finalEnd = Math.min(Math.max(intEnd, 0), len);
+        let from = Math.min(finalStart, finalEnd);
+        let to = Math.max(finalStart, finalEnd);
 
-        var R = "";
+        let R = "";
         for (var i = from; i < to; i++)
         {
           R += S.charAt(i);
@@ -373,7 +169,7 @@
 
   // 21.1.3.8
   String.prototype.indexOf = 
-      function(searchString, start) 
+      function (searchString, start) 
       { 
         if (typeof start !== 'number') 
         {
@@ -382,7 +178,8 @@
         if (searchString === undefined) 
         {
           return -1;
-        } else if (searchString === '') 
+        } 
+        else if (searchString === '') 
         {
           return this.length < start ? this.length : start;
         } 
@@ -402,7 +199,8 @@
                 {
                   return i;
                 }
-              } else 
+              } 
+              else 
               {
                 count = 0;
                 break;
@@ -430,6 +228,22 @@
         {
           return this.indexOf(searchString, start) !== -1;
         }
+      }
+
+  // 22.1.3.1
+  Array.prototype.concat =
+      function (argument) // TODO: multiple args
+      {
+        let result = [];
+        for (var i = 0; i < this.length; i++)
+        {
+          result.push(this[i]);
+        }
+        for (var j = 0; j < argument.length; j++)
+        {
+          result.push(argument[j]);
+        }
+        return result;
       }
 
   // 22.1.3.5
@@ -545,8 +359,8 @@
   Array.prototype.map =
       function (f, thisArg)
       {
-        var result = [];
-        for (var i = 0; i < this.length; i++)
+        let result = [];
+        for (let i = 0; i < this.length; i++)
         {
           var x = this[i];
           if (x === undefined)

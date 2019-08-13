@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 import {parseScript} from './lib/esprima/esprima.mjs';
-import {Strings} from './common';
+import {Strings} from './common.mjs';
 
 function nodeToString(node)
 {
