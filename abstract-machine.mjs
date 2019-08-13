@@ -237,7 +237,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     machine.states.length = 0;
     while (todo.length > 0)
     {
-      if (stateRegistry.states.length > 10_000)
+      if (stateRegistry.states.length > 1000)
       {
         console.log("STATE SIZE LIMIT", stateRegistry.states.length);
         break;

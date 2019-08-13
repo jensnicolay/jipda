@@ -44,9 +44,9 @@ function createSemantics(lat, cc)
   const P_MESSAGE = lat.abst1("message");
 
 
-  function gc_(rootSet)
+  function gc_(store, rootSet)
   {
-    store = Agc.collect(rootSet);
+    store = Agc.collect(store, rootSet);
     return store;
   }
 
@@ -3804,6 +3804,7 @@ function createSemantics(lat, cc)
   Record.prototype.add =
       function (name, value)
       {
+        assert(value.addresses);
         const newMap = new Map(this.map);
         newMap.set(name, Present.from(value));
         return new Record(newMap);
@@ -4377,7 +4378,7 @@ function createSemantics(lat, cc)
   Property.prototype.addresses =
       function ()
       {
-        return this.Value.projectDefined().addresses().join(this.Get.addresses()).join(this.Set.addresses());
+        return this.Value.addresses().join(this.Get.addresses()).join(this.Set.addresses());
       }
 
   Property.prototype.toString =
@@ -7205,10 +7206,10 @@ Intrinsics.prototype.has =
 const Agc = {};
 
 Agc.collect =
-    function (rootSet)
+    function (store, rootSet)
     {
       const reachable = MutableHashSet.empty();
-      Agc.addressesReachable(rootSet, reachable);
+      Agc.addressesReachable(rootSet, store, reachable);
       
       // const cleanup = Arrays.removeAll(reachable.values(), store.map.keys())
       // if (cleanup.length > 0)
@@ -7225,25 +7226,25 @@ Agc.collect =
     }
 
 Agc.addressesReachable =
-    function (addresses, reachable)
+    function (addresses, store, reachable)
     {
       addresses.forEach(
           function (address)
           {
-            Agc.addressReachable(address, reachable)
+            Agc.addressReachable(address, store, reachable)
           });
     }
 
 Agc.addressReachable =
-    function (address, reachable)
+    function (address, store, reachable)
     {
       if (reachable.contains(address))
       {
         return;
       }
-      const aval = store.lookupAval(address);
-      const addresses = aval.addresses();
+      const value = store.get(address);
+      const addresses = value.addresses();
       reachable.add(address);
-      Agc.addressesReachable(addresses, reachable);
+      Agc.addressesReachable(addresses, store, reachable);
     }
     
