@@ -1,6 +1,6 @@
 import {createAst, StringResource} from "./ast.mjs";
 import {ArraySet, assert, assertDefinedNotNull, Sets} from "./common.mjs";
-import {initializeMachine, createMachine, isSuccessState} from "./abstract-machine.mjs";
+import {StateRegistry, createMachine, isSuccessState} from "./abstract-machine.mjs";
 
 
 export function JsContext(semantics, store, kont, alloc, kalloc)
@@ -13,6 +13,7 @@ export function JsContext(semantics, store, kont, alloc, kalloc)
   this.store = store;
   this.kont0 = kont;
   this.initialStates = [];
+  this.stateRegistry = new StateRegistry();
 }
 
 JsContext.prototype.createMachine =
@@ -27,7 +28,7 @@ JsContext.prototype.explore =
     function (machine)
     {
       assertDefinedNotNull(machine);
-      const system = machine.explore();
+      const system = machine.explore({stateRegistry: this.stateRegistry});
       this.initialStates = this.initialStates.concat(system.initialStates);
       let value = this.semantics.lat.bot();
       const resultStates = system.endStates;
