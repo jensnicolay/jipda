@@ -6,7 +6,7 @@ import concLattice from '../conc-lattice.mjs';
 import concAlloc from '../conc-alloc.mjs';
 import concKalloc from '../conc-kalloc.mjs';
 import createSemantics from '../js-semantics.mjs';
-import {initializeMachine, isSuccessState} from '../abstract-machine.mjs';
+import {initializeMachine, createEvalMachine, isSuccessState} from '../abstract-machine.mjs';
 import typeLattice from "../type-lattice.mjs";
 import aacKalloc from "../aac-kalloc.mjs";
 import tagAlloc from "../tag-alloc.mjs";
@@ -16,8 +16,8 @@ const ast0resource = new FileResource("../prelude.js");
 const jsConcSemantics = createSemantics(concLattice, {errors: true});
 const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
 
-const concMachine = initializeMachine(jsConcSemantics, concAlloc, concKalloc, ast0resource);
-const typeMachine = initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
+const concMachine = createEvalMachine(initializeMachine(jsConcSemantics, concAlloc, concKalloc, ast0resource));
+const typeMachine = createEvalMachine(initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource)).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
 
 let c = 0;
 

@@ -9,7 +9,7 @@ export function initializeMachine(semantics, alloc, kalloc, ...resources)
   const kont0 = semantics.initialize(machineConfig.machine);
   for (const resource of resources)
   {
-    console.info("enqueing %s", resource);
+    //console.info("enqueing %s", resource);
     semantics.enqueueScriptEvaluation(resource, machineConfig.machine);
   }
   // console.debug("running %i init resources", resources.length);
@@ -18,33 +18,37 @@ export function initializeMachine(semantics, alloc, kalloc, ...resources)
   const system0 = machineConfig.run();
   const duration = Date.now() - startTime;
   // console.debug("initialization took %i ms", duration);
-  const s1 = system0.endState;
-  return createInternalMachine(semantics, s1, alloc, kalloc);
+  return system0;
 }
 
-function createInternalMachine(semantics, s1, alloc, kalloc)
+function createInternalMachine(semantics, store, kont, alloc, kalloc)
 {
+  assertDefinedNotNull(kont);
+
   function explore(resource, cc)
   {
-    const machineConfig = createMachine(semantics, s1.store, s1.kont, alloc, kalloc, Object.assign((cc || {}), {errors: true, hardAsserts: true}));
-    // const s1Copy = new KontState(s1.value, s1.store, s1.lkont, s1.kont);
+    const machineConfig = createMachine(semantics, store, kont, alloc, kalloc, Object.assign((cc || {}), {errors: true, hardAsserts: true}));
     semantics.enqueueScriptEvaluation(resource, machineConfig.machine);
-    // resources.forEach(resource => semantics.enqueueScriptEvaluation(resource, machineConfig.machine));
-    const system = machineConfig.explore(machineConfig.machine.nextJob([], s1.kont));
+    const system = machineConfig.explore(machineConfig.machine.nextJob([], kont));
     return system;
   }
 
   function switchConfiguration(semantics, alloc, kalloc, cc)
   {
-    return createInternalMachine(semantics, s1, alloc, kalloc);
+    return createInternalMachine(semantics, store, kont, alloc, kalloc, cc);
   }
 
   return {explore, switchConfiguration, semantics};
 }
 
-
-function createMachine(semantics, store, kont0, alloc, kalloc, cc)
+export function createEvalMachine(system)
 {
+  return createInternalMachine(system.semantics, system.store, system.kont0, system.alloc, system.kalloc);
+}
+
+export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
+{
+  cc = cc || {};
   // const rootSet = cc.rootSet || ArraySet.empty();
   const pruneGraphOption = cc.pruneGraph === undefined ? true : cc.pruneGraph;
 
@@ -211,7 +215,11 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       throw new Error("wrong number of prelude results: " + endStates.size);
     }
 
-    return {time: performance.now() - startTime, endState: [...endStates][0], store};
+    const system = {time: performance.now() - startTime, 
+      endState: [...endStates][0], 
+      semantics, alloc, kalloc,
+      store, kont0: contexts[0]};
+    return system;
   }
 
   function explore(exploreCc)
@@ -226,7 +234,7 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       return s2;
     });
     const todo = [...initialStatesInterned]; // additional copy to be able to return initialStatesInterned
-    const result = new Set();
+    machine.states.length = 0;
     while (todo.length > 0)
     {
       if (stateRegistry.states.length > 10_000)
@@ -288,10 +296,13 @@ function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       console.warn("not pruning graph");
       initialStatesResult = initialStatesInterned;
     }
-    return {time: performance.now() - startTime, states:stateRegistry.states, initialStates: initialStatesResult, endStates, store};
+    const system = {time: performance.now() - startTime, 
+      states:stateRegistry.states, initialStates: initialStatesResult, endStates,
+      store, kont0: contexts[0]};
+    return system;
   }
 
-  return {machine, run, explore}
+  return {machine, run, explore};
 }
 
 
@@ -431,6 +442,10 @@ function markResources(initialStates)
       resource = s.kont.resource;
     }
 
+    if (!resource)
+    {
+      resource = "???";
+    }
     return resource;
   }
 

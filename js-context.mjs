@@ -1,31 +1,35 @@
-import {createAst, StringResource} from "./ast";
-import {ArraySet, assert} from "./common";
-import {createMachine, explore, isSuccessState} from "./abstract-machine";
+import {createAst, StringResource} from "./ast.mjs";
+import {ArraySet, assert, assertDefinedNotNull} from "./common.mjs";
+import {initializeMachine, createMachine, isSuccessState} from "./abstract-machine.mjs";
 
 
-export function JsContext(semantics, explorer, alloc, kalloc, store, kont)
+export function JsContext(semantics, store, kont, alloc, kalloc)
 {
   assert(store);
   assert(kont);
   this.semantics = semantics;
-  this.explorer = explorer;
   this.alloc = alloc;
   this.kalloc = kalloc;
   this.store = store;
   this.kont0 = kont;
-  this.managedValues = ArraySet.empty();
+  // this.managedValues = ArraySet.empty();
 }
 
+JsContext.prototype.createMachine =
+  function ()
+  {
+    const machine = createMachine(this.semantics, this.store, this.kont, this.alloc, this.kalloc);
+    return machine;
+  }
+
+
 JsContext.prototype.explore =
-    function (S)
+    function (machine)
     {
-      const resultStates = new Set();
-      const initialStates = [...S];
-      assert(initialStates.length > 0);
-      this.explorer.explore(initialStates, s => resultStates.add(s));
+      assertDefinedNotNull(machine);
+      const system = machine.explore();
       let value = this.semantics.lat.bot();
-      let store = this.semantics.lat.bot();
-      //let kont = null;
+      const resultStates = system.endStates;
       if (resultStates.size === 0)
       {
         //throw new Error("TODO: no result states");
@@ -35,34 +39,9 @@ JsContext.prototype.explore =
         if (isSuccessState(s))
         {
           value = value.join(s.value);
-          store = store.join(s.store);
-          // if (kont)
-          // {
-          //   if (s.kont !== kont)
-          //   {
-          //     throw new Error("?");
-          //   }
-          // }
-          // else
-          // {
-          //   kont = s.kont;
-          // }
         }
         else if (s.isThrowState)
         {
-          this.managedValues = this.managedValues.add(s.value);
-          store = store.join(s.store);
-          // if (kont)
-          // {
-          //   if (s.kont !== kont)
-          //   {
-          //     throw new Error("?");
-          //   }
-          // }
-          // else
-          // {
-          //   kont = s.kont;
-          // }
           // warning: NESTING JsContexts!
           // cannot wrap jsValue here, because context store doesn't match; therefore: new JsValue(..., new JsC(...))
           console.warn("Uncaught exception: " + new JsValue(s.value, new JsContext(this.semantics, this.explorer, this.alloc, this.kalloc, s.store, this.kont0)).introspectiveToString());
@@ -73,13 +52,9 @@ JsContext.prototype.explore =
           console.warn("warning: ignoring non-success state " + s)
         }
       }
-      assert(store);
-      //assert(kont);
-      this.store = store;
       //this.kont = kont;
-      this.managedValues = this.managedValues.add(value);
+      this.store = system.store;
       assert(typeof value.addresses === 'function');
-      //console.log("managing " + s.value.addresses());
       return new JsValue(value, this);
     }
 
@@ -101,11 +76,10 @@ JsContext.prototype.createFunction =
       const semantics = this.semantics;
       const machine = this.createMachine();
       const benv = this.kont0.realm.GlobalEnv; // ??
-      const store = this.store;
       const lkont = [];
       const kont = this.kont0;
-      const S = semantics.$createFunction(argsText, bodyText, benv, store, lkont, kont, machine);
-      return this.explore(S);
+      semantics.$createFunction(argsText, bodyText, benv, lkont, kont, machine.machine);
+      return this.explore(machine);
     }
 
 JsContext.prototype.evaluateScript =
@@ -114,24 +88,12 @@ JsContext.prototype.evaluateScript =
       const semantics = this.semantics;
       const ast = createAst(typeof resource === "string" ? new StringResource(resource) : resource);
       const benv = this.kont0.realm.GlobalEnv;
-      const store = this.store;
       const lkont = [];
       const kont = this.kont0;
       const machine = this.createMachine();
-      const S = [machine.evaluate(ast, benv, store, lkont, kont, machine)];
-      return this.explore(S);
+      machine.machine.evaluate(ast, benv, lkont, kont);
+      return this.explore(machine);    
     }
-
-JsContext.prototype.createMachine =
-  function ()
-  {
-    const rootSet = this.managedValues.reduce(
-        function (acc, d)
-        {
-          return acc.join(d.addresses())
-        }, ArraySet.empty());
-    return createMachine(this.semantics, this.alloc, this.kalloc, {rootSet, contexts: [this.kont0]});
-  }
 
 JsContext.prototype.wrapValue =
   function (d)
@@ -157,7 +119,7 @@ function JsValue(d, context)
 JsValue.prototype.isNonUndefined =
     function ()
     {
-      return this.d.isNonUndefined();
+      return this.d.isDefined();
     }
 
 JsValue.prototype.isNonNull =
@@ -170,14 +132,13 @@ JsValue.prototype.getProperty =
     function (name)
     {
       const semantics = this.context.semantics;
-      const nameValue = typeof name === "string" ? semantics.lat.abst1(name) : name.d;
+      const nameValue = typeof name === "string" ? this.context.semantics.lat.abst1(name) : name.d;
       const obj = this.d;
-      const store = this.context.store;
       const lkont = [];
       const kont = this.context.kont0;
       const machine = this.context.createMachine();
-      const S = semantics.$getProperty(obj, nameValue, store, lkont, kont, machine);
-      return this.context.explore(S);
+      semantics.$getProperty(obj, nameValue, lkont, kont, machine.machine); // TODO ugly (`machine.machine`)
+      return this.context.explore(machine);
     }
 
 JsValue.prototype.assignProperty =
@@ -187,12 +148,11 @@ JsValue.prototype.assignProperty =
       const dName = name instanceof JsValue ? name.d : semantics.lat.abst1(name);
       const dValue = value instanceof JsValue ? value.d : semantics.lat.abst1(value);
       const obj = this.d;
-      const store = this.context.store;
       const lkont = [];
       const kont = this.context.kont0;
       const machine = this.context.createMachine();
-      const S = semantics.$assignProperty(obj, dName, dValue, store, lkont, kont, machine);
-      return this.context.explore(S);
+      semantics.$assignProperty(obj, dName, dValue, lkont, kont, machine.machine);
+      return this.context.explore(machine);
     }
 
 JsValue.prototype.construct =
@@ -201,13 +161,12 @@ JsValue.prototype.construct =
       const semantics = this.context.semantics;
       const obj = this.d;
       const operandValues = args.map(v => v.d);
-      const store = this.context.store;
       const benv = this.context.kont0.realm.GlobalEnv;
       const lkont = [];
       const kont = this.context.kont0;
       const machine = this.context.createMachine();
-      const S = semantics.$construct(obj, operandValues, benv, store, lkont, kont, machine);
-      return this.context.explore(S);
+      semantics.$construct(obj, operandValues, benv, lkont, kont, machine.machine);
+      return this.context.explore(machine);
     }
 
 JsValue.prototype.push =
@@ -216,15 +175,14 @@ JsValue.prototype.push =
     const semantics = this.context.semantics;
     const obj = this.d;
     const operandValues = [v.d];
-    const store = this.context.store;
     const benv = this.context.kont0.realm.GlobalEnv;
     const lkont = [];
     const kont = this.context.kont0;
     const machine = this.context.createMachine();
-    const S = semantics.$getProperty(obj, semantics.lat.abst1("push"), store, lkont, kont, machine);
-    const pushMethod = this.context.explore(S);
-    const S2 = semantics.$call(pushMethod.d, obj, operandValues, benv, this.context.store, lkont, this.context.kont0, machine);
-    return this.context.explore(S2);
+    semantics.$getProperty(obj, semantics.lat.abst1("push"), lkont, kont, machine.machine);
+    const pushMethod = this.context.explore(machine);
+    semantics.$call(pushMethod.d, obj, operandValues, benv, lkont, this.context.kont0, machine.machine);
+    return this.context.explore(machine);
   }
 
 // JsValue.prototype[Symbol.iterator] =
@@ -247,8 +205,8 @@ JsValue.prototype.call =
     const benv = this.context.kont0.realm.GlobalEnv;
     const lkont = [];
     const machine = this.context.createMachine();
-    const S = semantics.$call(this.d, thisArg.d, args.map(x => x.d), benv, this.context.store, lkont, this.context.kont0, machine);
-    return this.context.explore(S);
+    const S = semantics.$call(this.d, thisArg.d, args.map(x => x.d), benv, lkont, this.context.kont0, machine.machine);
+    return this.context.explore(machine);
   }
 
 JsValue.prototype.String =
@@ -260,8 +218,8 @@ JsValue.prototype.String =
       const lkont = [];
       const machine = this.context.createMachine();
       const thisArg = semantics.lat.abst1(null);
-      const S = semantics.$call(rator, thisArg, [this.d], benv, this.context.store, lkont, this.context.kont0, machine);
-      return this.context.explore(S);
+      const S = semantics.$call(rator, thisArg, [this.d], benv, lkont, this.context.kont0, machine.machine);
+      return this.context.explore(machine);
     }
 
 

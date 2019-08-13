@@ -1,16 +1,14 @@
-import fs from 'fs';
-
 import {assertEquals} from '../common.mjs';
 import concLattice from '../conc-lattice.mjs';
 import concAlloc from '../conc-alloc.mjs';
 import concKalloc from '../conc-kalloc.mjs';
 import createSemantics from '../js-semantics.mjs';
-import {initializeMachine, isSuccessState} from '../abstract-machine.mjs';
+import {initializeMachine, createEvalMachine, isSuccessState} from '../abstract-machine.mjs';
 import {FileResource, StringResource} from "../ast.mjs";
 
-const ast0resource = new FileResource("../prelude.js");
+const preludeResource = new FileResource("../prelude.js");
 const jsSemantics = createSemantics(concLattice, {errors: true});
-const machine = initializeMachine(jsSemantics, concAlloc, concKalloc, ast0resource);
+const machine = createEvalMachine(initializeMachine(jsSemantics, concAlloc, concKalloc, preludeResource));
 
 let c = 0;
 
@@ -37,3 +35,5 @@ runSource("var x = []; x.push(1); x.toString();", "1");
 runSource("var glob=[]; try { try {throw new Error('oops')} finally {glob.push(1)}} catch (ex) {glob.push(ex.message)};glob.toString()", "1,oops");
 runSource("var numbers=[4,2,5,1,3];numbers.sort(function (a, b) {return a - b});numbers.toString()", "1,2,3,4,5");
 runSource("var myFish = ['angel', 'clown', 'mandarin', 'sturgeon']; myFish.splice(2, 1);myFish.toString()", "angel,clown,sturgeon");
+
+console.log("done");

@@ -1,7 +1,7 @@
-import {assert} from './common';
+import {assert} from './common.mjs';
 import jsdom  from "jsdom";
-import {explore} from "./abstract-machine";
-import {StringResource} from "./ast";
+import {} from "./abstract-machine.mjs";
+import {StringResource} from "./ast.mjs";
 
 
 const { JSDOM } = jsdom;
