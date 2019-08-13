@@ -22,6 +22,52 @@ function SetValueNoAddresses(set)
   this.set = set || new Set();
 }
 
+function SetValue(set)
+{
+  this.set = set || ArraySet.empty();
+}
+
+SetValue.from1 =
+    function (x)
+    {
+      assert(x.addresses);
+      return new SetValue(ArraySet.from1(x));
+    }
+
+SetValue.prototype.add =
+    function (x)
+    {
+      assert(x.addresses);
+      return new SetValue(this.set.add(x));
+    }
+
+SetValue.prototype.join =
+    function (x)
+    {
+      if (x === BOT)
+      {
+        return this;
+      }
+      return new SetValue(this.set.join(x.set));
+    }
+
+SetValue.prototype.addresses =
+    function ()
+    {
+      let as = ArraySet.empty();
+      for (const x of this.set)
+      {
+        as = as.join(x.addresses());
+      }
+      return as;
+    }
+
+SetValue.prototype[Symbol.iterator] =
+    function* ()
+    {
+      yield* this.set;
+    }
+
 function createSemantics(lat, cc)
 {
   const errors = cc.errors === undefined ? false : cc.errors;
@@ -5992,7 +6038,7 @@ function RequireObjectCoercible(arg, lkont, kont, machine)
   function createFunction(Call, realm)
   {
     var obj = ObjectCreate(realm.Intrinsics.get("%FunctionPrototype%"));
-    obj = obj.setInternal("[[Call]]", ArraySet.from1(Call));
+    obj = obj.setInternal("[[Call]]", SetValue.from1(Call));
     return obj;
   }
 
