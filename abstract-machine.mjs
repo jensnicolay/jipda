@@ -226,7 +226,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
   {
     exploreCc = exploreCc || {};
     const startTime = performance.now();
-    const stateRegistry = exploreCc.stateReg || new StateRegistry();
+    const stateRegistry = exploreCc.stateRegistry || new StateRegistry();
     const endStates = new Set();
     const initialStatesInterned = machine.states.map(function (s)   // invariant: all to-do states are interned
     {

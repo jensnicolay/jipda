@@ -60,6 +60,15 @@ JsContext.prototype.explore =
       return new JsValue(value, this);
     }
 
+JsContext.prototype.system =
+  function ()
+  {
+    const system = {
+      states:this.stateRegistry.states, initialStates:this.initialStates, //endStates,
+      store:this.store, kont0: this.kont0};
+    return system;
+  }    
+
 JsContext.prototype.globalObject =
     function ()
     {

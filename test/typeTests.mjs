@@ -10,7 +10,6 @@ import tagAlloc from '../tag-alloc.mjs';
 import aacKalloc from '../aac-kalloc.mjs';
 import {isSuccessState, initializeMachine, createEvalMachine} from '../abstract-machine.mjs';
 import createSemantics from '../js-semantics.mjs';
-import {TestSuite} from '../test.mjs';
 
 typeLattice.sanity();
 

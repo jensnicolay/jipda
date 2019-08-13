@@ -1,6 +1,6 @@
 {
   "name": "jipda",
-  "version": "2018.2.3",
+  "version": "2019.3.0",
   "description": "Generic static analysis framework",
   "main": "jipda.mjs",
   "directories": {
@@ -8,9 +8,10 @@
     "test": "test"
   },
   "dependencies": {
-    "express": "^4.16.4",
-    "jsdom": "^11.6.2",
-    "minimist": "^1.2.0"
+    "bufferutil": "^4.0.1",
+    "canvas": "^2.5.0",
+    "jsdom": "^15.1.1",
+    "utf-8-validate": "^5.0.2"
   },
   "devDependencies": {},
   "scripts": {
