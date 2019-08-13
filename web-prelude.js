@@ -28,6 +28,10 @@
   global.HTMLIframeElement = HTMLIframeElement;
   global.HTMLImageElement = HTMLImageElement;
   global.HTMLScriptElement = HTMLScriptElement;
+  global.HTMLTableElement = HTMLTableElement;
+  global.HTMLTableRowElement = HTMLTableRowElement;
+  global.HTMLTableCellElement = HTMLTableCellElement;
+  global.HTMLTableSectionElement = HTMLTableSectionElement;
   global.HTMLTitleElement = HTMLTitleElement;
   global.Node = Node;
   global.Text = Text;
@@ -137,7 +141,27 @@
         {
           return new HTMLImageElement();
         }
-        throw new Error("no custom element support yet");
+        if (localName === "table")
+        {
+          return new HTMLTableElement();
+        }
+        if (localName === "tr")
+        {
+          return new HTMLTableRowElement();
+        }
+        if (localName === "td")
+        {
+          return new HTMLTableCellElement();
+        }
+        if (localName === "tbody")
+        {
+          return new HTMLTableSectionElement();
+        }
+        if (localName === "input")
+        {
+          return new HTMLInputElement();
+        }
+        throw new Error("no custom element support yet ["+localName+"]");
       }
 
   Document.prototype.createTextNode =
@@ -259,6 +283,48 @@
   HTMLInputElement.prototype = Object.create(HTMLElement.prototype);
   HTMLInputElement.prototype.constructor = HTMLInputElement;
   HTMLInputElement.prototype.tagName = "INPUT";
+
+  function HTMLTableElement()
+  {
+    HTMLElement.call(this);
+  }
+  HTMLTableElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLTableElement.prototype.constructor = HTMLTableElement;
+  HTMLTableElement.prototype.tagName = "TABLE";
+
+  function HTMLTableCellElement()
+  {
+    HTMLElement.call(this);
+  }
+  HTMLTableCellElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLTableCellElement.prototype.constructor = HTMLTableCellElement ;
+  HTMLTableCellElement.prototype.tagName = "TD";
+
+  function HTMLTableRowElement()
+  {
+    HTMLElement.call(this);
+  }
+  HTMLTableRowElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLTableRowElement.prototype.constructor = HTMLTableRowElement;
+  HTMLTableRowElement.prototype.tagName = "TR";
+
+  function HTMLTableSectionElement()
+  {
+    HTMLElement.call(this);
+  }
+  HTMLTableSectionElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLTableSectionElement.prototype.constructor = HTMLTableSectionElement;
+  HTMLTableSectionElement.prototype.tagName = "TBODY";
+
+  function HTMLCollection()
+  {
+    //TODO: fill this https://dom.spec.whatwg.org/#interface-htmlcollection
+  }
+
+  
+
+  
+
 
   function EventTarget(){
     this.listeners = {} // new Map? if they are implemented!
