@@ -554,6 +554,17 @@ Maps.toString =
       return b.join(",");
     }
 
+Maps.setAll =
+    function (x, y)
+    {
+      const result = new Map(x);
+      for (const [key, yvalue] of y)
+      {
+        result.set(key, yvalue);
+      }
+      return result;
+    }
+
 
 export const MutableSets = {};
 MutableSets.union = function(x, y) {
