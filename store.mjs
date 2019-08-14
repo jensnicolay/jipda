@@ -118,8 +118,15 @@ Store.prototype.has =
     }
 
 Store.prototype.narrow =
-  function (addresses)
+function (addresses)
+{
+  const newMap = new Map();
+  for (const [key, value] of this.map)
   {
-    throw new Error("TODO");
-    // return new Store(this.map.narrow(addresses));
+    if (addresses.contains(key))
+    {
+      newMap.set(key, value);
+    }
   }
+  return new Store(newMap);
+}

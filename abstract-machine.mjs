@@ -261,8 +261,10 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       if (machine.states.length === 0)
       {
         endStates.add(s);
+        // console.log("end state", s._id);
         continue;
       }
+      // console.log(s._id + " -> " + machine.states.map(s => s._id).join());
       while (machine.states.length > 0)
       {
         const successor = machine.states.pop();
@@ -277,7 +279,6 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
           }
         }
       }
-      // console.log(s._id + " -> " + todo.map(ss => ss._id).join(",") +  " " + s.node);
       if (stateRegistry.states.length > 10000)
       {
         // do this after treating successors so they are present on state and interned
@@ -286,7 +287,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       }
     }
     let initialStatesResult;
-    if (pruneGraphOption)
+    if (false)//pruneGraphOption)
     {
       markResources(initialStatesInterned);
       const initialStatesPruned = pruneGraph(initialStatesInterned);
@@ -294,7 +295,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     }
     else
     {
-      console.warn("not pruning graph");
+      // console.warn("not pruning graph");
       initialStatesResult = initialStatesInterned;
     }
     const system = {time: performance.now() - startTime, 
