@@ -17,7 +17,7 @@ Store.prototype.equals =
   // therefore in monotonic scenario `===` can be used to check store equality (mucho cheaper!)
   function (x)
   {
-    console.warn("unintended?");
+    // console.warn("unintended?");
     if (!(x instanceof Store))
     {
       return false;
