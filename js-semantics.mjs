@@ -7235,7 +7235,7 @@ Agc.collect =
       //   console.debug("cleaning up", cleanup);
       // }
       
-      if (reachable.count() === store.map.count()) // we can do this since we have subsumption
+      if (reachable.count() === store.map.size) // we can do this since we have subsumption
       {
         return store;
       }

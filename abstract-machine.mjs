@@ -271,8 +271,10 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       if (machine.states.length === 0)
       {
         endStates.add(s);
+        // console.log("end state", s._id);
         continue;
       }
+      // console.log(s._id + " -> " + machine.states.map(s => s._id).join());
       while (machine.states.length > 0)
       {
         const successor = machine.states.pop();
