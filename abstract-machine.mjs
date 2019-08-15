@@ -33,6 +33,14 @@ function createInternalMachine(semantics, store, kont, alloc, kalloc)
     return system;
   }
 
+  // function run(resource, cc)
+  // {
+  //   const machineConfig = createMachine(semantics, store, kont, alloc, kalloc, Object.assign((cc || {}), {errors: true, hardAsserts: true}));
+  //   semantics.enqueueScriptEvaluation(resource, machineConfig.machine);
+  //   const system = machineConfig.run(machineConfig.machine.nextJob([], kont));
+  //   return system;
+  // }
+
   function switchConfiguration(semantics, alloc, kalloc, cc)
   {
     return createInternalMachine(semantics, store, kont, alloc, kalloc, cc);
@@ -225,6 +233,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
   function explore(exploreCc)
   {
     exploreCc = exploreCc || {};
+
     const startTime = performance.now();
     const stateRegistry = exploreCc.stateRegistry || new StateRegistry();
     const endStates = new Set();
@@ -238,6 +247,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     while (todo.length > 0)
     {
       const s = todo.pop();
+      assert(typeof s._id === "number");
       // console.log("popped " + s._id + " storei " + stores.indexOf(s.store) + " (" + (stores.length-1) + ") sstorei " + s._sstorei + " (" + sstorei + ")" + " ctx id " + s.kont._id);
       // if (s.isEvalState) {console.log("EVAL " + s.node)}
       // else if (s.isKontState) {console.log("KONT " + s.value)}
@@ -278,28 +288,36 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         }
       }
       // console.log(s._id + " -> " + todo.map(ss => ss._id).join(",") +  " " + s.node);
-      if (stateRegistry.states.length > 10000)
+      if (stateRegistry.states.length > 1_000_000)
       {
-        // do this after treating successors so they are present on state and interned
         console.log("STATE SIZE LIMIT", stateRegistry.states.length);
         break;
       }
     }
+
+    const statistics = {};
+    statistics.numStatesVisited = stateRegistry.states.length;
     let initialStatesResult;
+    const reachable = reachableStates(initialStatesInterned);
+    statistics.numStatesReachable = reachable.length;
+    markResources(reachable);
     if (pruneGraphOption)
     {
-      markResources(initialStatesInterned);
-      const initialStatesPruned = pruneGraph(initialStatesInterned);
+      const initialStatesPruned = pruneMarkedGraph(initialStatesInterned);
+      const reachablePruned = reachableStates(initialStatesPruned); // fold count into pruneMarkedGraph
+      statistics.pruned = true;
+      statistics.numStatesReachablePruned = reachablePruned.length;
       initialStatesResult = initialStatesPruned;
     }
     else
     {
+      statistics.pruned = false;
       console.warn("not pruning graph");
       initialStatesResult = initialStatesInterned;
     }
     const system = {time: performance.now() - startTime, 
       states:stateRegistry.states, initialStates: initialStatesResult, endStates,
-      store, kont0: contexts[0]};
+      store, kont0: contexts[0], statistics};
     return system;
   }
 
@@ -419,55 +437,62 @@ StateRegistry.prototype.getState =
       return s;
     }
 
-
-function markResources(initialStates)
+function reachableStates(initialStates)
 {
-
-  function getResource(s)
-  {
-    let resource;
-    if (s.isEvalState)
-    {
-      resource = s.node.root.resource;
-      if (resource.parentResource)
-      {
-        resource = resource.parentResource;
-      }
-      if (!s.kont.resource)
-      {
-        s.kont.resource = resource;
-      }
-    }
-    else
-    {
-      resource = s.kont.resource;
-    }
-
-    if (!resource)
-    {
-      resource = "???";
-    }
-    return resource;
-  }
-
-
+  const result = [];
+  const V = [];
   const W = [...initialStates];
   while (W.length > 0)
   {
     const s = W.pop();
-    if (s.resource)
+    assert(typeof s._id === "number");
+    if (V[s._id])
     {
       continue;
     }
-    let resource = getResource(s);
-    s.resource = resource;
+    V[s._id] = true;
+    result.push(s);
     s._successors && s._successors.forEach(s2 => W.push(s2));
   }
+  return result;
 }
 
-function pruneGraph(initialStates)
+
+function getResource(s)
 {
-  function preludeState(s)
+  let resource;
+  if (s.isEvalState)
+  {
+    resource = s.node.root.resource;
+    if (resource.parentResource)
+    {
+      resource = resource.parentResource;
+    }
+    if (!s.kont.resource)
+    {
+      s.kont.resource = resource;
+    }
+  }
+  else
+  {
+    resource = s.kont.resource;
+  }
+
+  if (!resource)
+  {
+    resource = "???";
+  }
+  return resource;
+}
+
+function markResources(states)
+{
+  states.forEach(s => s.resource = getResource(s));
+}
+
+function pruneMarkedGraph(initialStates)
+{
+  function isPreludeState(s)
   {
     const resource = s.resource;
     return resource && resource instanceof FileResource && resource.path.includes("prelude");
@@ -481,12 +506,13 @@ function pruneGraph(initialStates)
     while (W.length > 0)
     {
       const s = W.pop();
+      assert(typeof s._id === "number");
       if (S[s._id])
       {
         continue;
       }
       S[s._id] = true;
-      if (preludeState(s))
+      if (isPreludeState(s))
       {
         s._successors.forEach(s2 => W.push(s2));
       }
@@ -498,23 +524,23 @@ function pruneGraph(initialStates)
     return nonPreludeStates;
   }
 
-  const W = [...initialStates].filter(s => !preludeState(s));
+  const W = [...initialStates].filter(s => !isPreludeState(s));
   const W2 = [...W];
   const S = [];
   while (W.length > 0)
   {
     const s = W.pop();
+    assert(typeof s._id === "number");
     if (S[s._id])
     {
       continue;
     }
     S[s._id] = true;
-    s._successors = scanForNonPreludeStates(s._successors);
+    s._successors = scanForNonPreludeStates(s._successors || []);
     s._successors.forEach(s2 => W.push(s2));
   }
   return W2;
 }
-
 
 function EvalState(node, benv, store, lkont, kont)
 {

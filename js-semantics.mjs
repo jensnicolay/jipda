@@ -6679,50 +6679,6 @@ function RequireObjectCoercible(arg, lkont, kont, machine)
     machine.continue(objRef, lkont, kont);
   }
 
-  // // 19.1.2.2
-  // function objectCreate(application, operandValues, thisValue, benv, lkont, kont, machine)
-  // {
-  //   const [O, Properties] = operandValues;
-  //   var obj = ObjectCreate(O);
-  //
-  //   // step 3
-  //   if (Properties !== undefined)
-  //   {
-  //     return ObjectDefineProperties(obj, Properties, application, lkont, kont, objectCreateCont);
-  //   }
-  //   return objectCreateCont(obj, store);
-  //
-  //   // step 4
-  //   function objectCreateCont(obj, store)
-  //   {
-  //     const objectAddress = alloc.object(application, kont);
-  //     machine.storeAlloc(objectAddress, obj);
-  //     const objRef = lat.abstRef(objectAddress);
-  //     return [{state: machine.continue(objRef, lkont, kont, machine)}];
-  //   }
-  // }
-
-  // // 19.1.2.4
-  // function objectDefineProperty(application, operandValues, thisa, benv, lkont, kont, machine)
-  // {
-  //   const [O, P, Attributes] = operandValues;
-  //   // const result = [];
-  //   // if (O.isNonRef())
-  //   // {
-  //   //   return [{state:new ThrowState()}];
-  //   // }
-  //   // var objectAddresses = operandValues[0].addresses();
-  //   // var result = BOT;
-  //   // objectAddresses.forEach(
-  //   //     function (objectAddress)
-  //   //     {
-  //   //       var obj = machine.storeLookup(objectAddress);
-  //   //       result = result.join(obj.Prototype);
-  //   //     });
-  //   // return [{state:machine.continue(result, lkont, kont)];
-  // }
-
-
   // 19.1.3.2
   function objectProtoHasOwnProperty(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
