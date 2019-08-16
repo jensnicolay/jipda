@@ -6314,27 +6314,39 @@ function RequireObjectCoercible(arg, lkont, kont, machine)
       // end specific interpreter functions
 
       // BEGIN OBJECT
-      var objectP = ObjectCreate(L_NULL);
+      let objectP = ObjectCreate(L_NULL);
 //  objectP.toString = function () { return "~Object.prototype"; }; // debug
-      var objecta = allocNative();
-      objectP = registerProperty(objectP, "constructor", lat.abstRef(objecta));
-      //objectP = registerPrimitiveFunction(objectP, "isPrototypeOf", objectPIsPrototypeOf);
-
-      var object = createPrimitive(null, objectConstructor, realm);
-      object = object.addProperty(P_PROTOTYPE, Property.fromData(objectProtoRef, L_TRUE, L_TRUE, L_TRUE));
-      global = global.addProperty(lat.abst1("Object"), Property.fromData(lat.abstRef(objecta), L_TRUE, L_TRUE, L_TRUE));
-
+      const objecta = allocNative();
+      const object = lat.abstRef(objecta);
+      objectP = registerProperty(objectP, "constructor", object);
+      global = global.addProperty(lat.abst1("Object"), Property.fromData(object, L_TRUE, L_TRUE, L_TRUE));
+      let objecto = createPrimitive(null, objectConstructor, realm);
+      
       // 19.1.2
-      object = registerPrimitiveFunction(object, "create", objectCreate);
-      object = registerPrimitiveFunction(object, "defineProperties", objectDefineProperties);
-      object = registerPrimitiveFunction(object, "defineProperty", objectDefineProperty);
-      object = registerPrimitiveFunction(object, "freeze", objectFreeze);
-      object = registerPrimitiveFunction(object, "getOwnPropertyDescriptor", objectGetOwnPropertyDescriptor);
-      object = registerPrimitiveFunction(object, "getOwnPropertyNames", objectGetOwnPropertyNames);
-      object = registerPrimitiveFunction(object, "getPrototypeOf", objectGetPrototypeOf);
-      //object = registerPrimitiveFunction(object, objecta, "defineProperty", objectDefineProperty);
-      object = registerPrimitiveFunction(object, "setPrototypeOf", objectSetPrototypeOf);
-      machine.storeAlloc(objecta, object);
+      // TODO objecto = registerPrimitiveFunction(objecto, "assign", objectAssign);
+      objecto = registerPrimitiveFunction(objecto, "create", objectCreate);
+      objecto = registerPrimitiveFunction(objecto, "defineProperties", objectDefineProperties);
+      objecto = registerPrimitiveFunction(objecto, "defineProperty", objectDefineProperty);
+      // TODO objecto = registerPrimitiveFunction(objecto, "entries", objectEntries);
+      objecto = registerPrimitiveFunction(objecto, "freeze", objectFreeze);
+      // TODO objecto = registerPrimitiveFunction(objecto, "fromEntries", objectFromEntries);
+      objecto = registerPrimitiveFunction(objecto, "getOwnPropertyDescriptor", objectGetOwnPropertyDescriptor);
+      // TODO objecto = registerPrimitiveFunction(objecto, "getOwnPropertyDescriptors", objectGetOwnPropertyDescriptors);
+      objecto = registerPrimitiveFunction(objecto, "getOwnPropertyNames", objectGetOwnPropertyNames);
+      // TODO objecto = registerPrimitiveFunction(objecto, "getOwnPropertySymbols", objectGetOwnPropertySymbols);
+      objecto = registerPrimitiveFunction(objecto, "getPrototypeOf", objectGetPrototypeOf);
+      // TODO objecto = registerPrimitiveFunction(objecto, "is", objectIs);
+      // TODO objecto = registerPrimitiveFunction(objecto, "isExtensible", objectIsExtensible);
+      // TODO objecto = registerPrimitiveFunction(objecto, "isFrozen", objectIsFrozen);
+      // TODO objecto = registerPrimitiveFunction(objecto, "isSealed", objectIsSealed);
+      // TODO objecto = registerPrimitiveFunction(objecto, "keys", objectKeys);
+      // TODO objecto = registerPrimitiveFunction(objecto, "preventExtensions", objectPreventExtensions);
+      objecto = objecto.addProperty(P_PROTOTYPE, Property.fromData(objectProtoRef, L_TRUE, L_TRUE, L_TRUE));
+      // TODO object = registerPrimitiveFunction(object, "seal", objectSeal);
+      objecto = registerPrimitiveFunction(objecto, "setPrototypeOf", objectSetPrototypeOf);
+      // TODO object = registerPrimitiveFunction(objecto, "values", objectValues);
+
+      machine.storeAlloc(objecta, objecto);
 
       // 19.1.3
       objectP = registerPrimitiveFunction(objectP, "hasOwnProperty", objectProtoHasOwnProperty);

@@ -9,24 +9,6 @@
     }
   }
 
-  // 19.1.2.2
-  //Object.create
-      
-  // 19.1.2.3
-  // Object.defineProperties
-  
-  // 19.1.2.4
-  // Object.defineProperty
-
-  // 19.1.2.8
-  // Object.getOwnPropertyDescriptor
-
-  // 19.1.2.11
-  // Object.getPrototypeOf    
-
-  // 19.1.3.3
-  //  Object.prototype.isPrototypeOf
-
   // 19.5.3.4
   Error.prototype.toString =
       function ()
