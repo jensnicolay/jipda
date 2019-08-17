@@ -55,10 +55,10 @@ function runFile(path, machine, cc)
 }
 
 
-//runSource("var glob = []; for (var p in {x:42}) {glob.push(p)}; glob.length===1 && glob[0]==='x'", true);
-//
-//const system = runSource("var ar=[1,2,3].map(function (x) { return x*x*x }); ar[1]", typeMachine(), {pruneGraph: true});
-const system = runFile("resources/octane/navier-stokes.js", typeMachine(), {pruneGraph: true});
+//runSource("function f() {let a = 1; {let a = 2; return a}}; f()", 2);
+
+const system = runSource("let i = 999; for (let i=0; i<3; i++) i; i;", concMachine(), {pruneGraph: true});
+// const system = runFile("resources/octane/navier-stokes.js", typeMachine(), {pruneGraph: true});
 console.log("visited states: %i", system.statistics.numStatesVisited);
 console.log("reachable states: %i", system.statistics.numStatesReachable);
 if (system.statistics.pruned)

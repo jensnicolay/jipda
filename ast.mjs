@@ -843,19 +843,6 @@ export function blockScopeDeclarations(nodeWithBody)
   const result = new Map(); // name -> declarationNode
   if (nodeWithBody.params)
   {
-    // nodeWithBody.params.forEach(
-    //     function (param, i)
-    //     {
-    //       if (isIdentifier(param))
-    //       {
-    //         result[param.name] = param;
-    //       }
-    //       else // rest param
-    //       {
-    //         result[param.argument.name] = param;
-    //       }
-    //       param.i = i;
-    //     });
     helper(nodeWithBody.body);
   }
   else
@@ -865,7 +852,7 @@ export function blockScopeDeclarations(nodeWithBody)
 
   function helper(node)
   {
-    if (node === null || isFunctionExpression(node))
+    if (node === null || isFunctionExpression(node))// || isBlockStatement(node))
     {
       return;
     }

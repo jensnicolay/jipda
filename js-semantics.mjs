@@ -5,6 +5,7 @@ import Benv from './benv.mjs';
 import Store from './store.mjs';
 import {Arrays, HashMap, Maps} from "./common.mjs";
 import {blockScopeDeclarations, StringResource} from "./ast.mjs";
+import { isVariableDeclaration } from './ast.mjs';
 
 export default createSemantics;
 
@@ -186,7 +187,7 @@ function createSemantics(lat, cc)
       case "VariableDeclarator":
         return evalVariableDeclarator(node, benv, lkont, kont, machine);
       case "BlockStatement":
-        return evalStatementList(node, benv, lkont, kont, machine);
+        return evalBlockStatement(node, benv, lkont, kont, machine);
       case "EmptyStatement":
         return evalEmptyStatement(node, benv, lkont, kont, machine);
       case "TryStatement":
@@ -254,6 +255,20 @@ function createSemantics(lat, cc)
     }
 
     return evalStatementList(node, benv, lkont, kont, machine);
+  }
+
+  function evalBlockStatement(node, benv, lkont, kont, machine)
+  {
+    // currently only called to eval nested BlockStatement but never for evalling body of fun/prog
+    let extendedBenv = benv.extend();
+    const blockScopeDecls = blockScopeDeclarations(node);
+    for (const [name, decl] of blockScopeDecls)
+    {
+      const addr = machine.alloc.vr(decl.id, kont);
+      extendedBenv = extendedBenv.add(name, addr);
+      machine.storeAlloc(addr, BOT);
+    }
+    return evalStatementList(node, extendedBenv, lkont, kont, machine);
   }
 
   function evalStatementList(node, benv, lkont, kont, machine)
@@ -685,8 +700,23 @@ function createSemantics(lat, cc)
     var init = node.init;
     if (init)
     {
-      var frame = new ForInitKont(node, benv);
-      machine.evaluate(init, benv, [frame].concat(lkont), kont);
+      let forEnv;
+      if (isVariableDeclaration(init) && init.kind === "let")
+      {
+        forEnv = benv.extend();
+        for (const decl of init.declarations)
+        {
+          const addr = machine.alloc.vr(decl.id, kont);
+          forEnv = forEnv.add(decl.id.name, addr);
+          machine.storeAlloc(addr, BOT);    
+        }
+      }
+      else
+      {
+        forEnv = benv;
+      }
+      var frame = new ForInitKont(node, forEnv);
+      machine.evaluate(init, forEnv, [frame].concat(lkont), kont);
       return;
     }
     var test = node.test;
@@ -1165,7 +1195,8 @@ function createSemantics(lat, cc)
         machine.storeAlloc(addr, BOT);
       }
 
-      machine.evaluate(bodyNode, extendedBenv, [], ctx);
+      //machine.evaluate(bodyNode, extendedBenv, [], ctx); // to avoid `evalBlockStatement`
+      evalStatementList(bodyNode, extendedBenv, [], ctx, machine);
     }
   }
 

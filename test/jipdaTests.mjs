@@ -115,6 +115,9 @@ runSource("(function () {let a = 2, b = 3; return a*b})()", 6);
 runSource("(function () {let a = 3, b = 4, c = 5; return a-b-c})()", -6);
 runSource("(function () {let a = 4; a = 5; return a})()", 5);
 
+runSource("function f() {let a = 1; {let a = 2; return a}}; f()", 2);
+runSource("function f() {let a = 1; {let a = 2}; return a}; f()", 1);
+
 runSource("function f(){}; f()", undefined);
 runSource("var pi = function () {return 3;}; pi(); pi();", 3);
 runSource("function pi() {return 3;}; pi(); pi();", 3);
@@ -211,6 +214,7 @@ runSource("var o = {x:3}; o.x++ + o.x;", 7);
 runSource("var o = {x:3}; ++o.x + o.x;", 8);
 //     run("var o={x:3}; var f=function() {return o}; f()['x']++ + o.x;", 7);
 //     run("var o={x:3}; var f=function() {return o}; ++f()['x'] + o.x;", 8);
+
 runSource("for (var i=0; i<3; i++) i;", 2);
 runSource("for (var i=0; i<3; i++) i; i;", 3);
 runSource("for (var i=0; false; i++) 123; i;", 0);
@@ -219,6 +223,21 @@ runSource("var ar = []; for (var i = 0; i < 10; i++) {ar[i] = i;}; ar.length", 1
 runSource("var ar = []; for (var i = 0; i < 10; i++) {ar[i] = i;}; ar[0]+ar[1]+ar[2]+ar[3]+ar[4]+ar[5]", 0+1+2+3+4+5);
 runSource("var ar = []; for (var i = 0; i < 10; i++) {ar[i] = i;}; ar[9]", 9);
 runSource("var ar = []; for (var i = 0; i < 10; i++) {ar[i] = i;}; ar[10]", undefined);
+runSource("(function () {for (var i=0; i<3; i++) i})()", undefined);
+runSource("(function () {for (var i=0; i<3; i++) i; return i})()", 3);
+runSource("(function () {for (var i=0; false; i++) 123; return i})()", 0);
+
+runSource("let i = 999; for (let i=0; i<3; i++) i;", 2);
+runSource("let i = 999; for (let i=0; i<3; i++) i; i;", 999);
+runSource("let i = 999; for (let i=0; false; i++) 123; i;", 999);
+runSource("for (let i=0; false; i++) 123;", undefined);
+runSource("let ar = []; for (let i = 0; i < 10; i++) {ar[i] = i;}; ar.length", 10);
+runSource("(function () {let i = 999; for (let i=0; i<3; i++) i; return i})()", 999);
+runSource("(function () {let i = 999; for (let i=0; false; i++) 123; return i})()", 999);
+runSource("(function () {let ar = []; for (let i = 0; i < 10; i++) {ar[i] = i;}; return ar.length})()", 10);
+
+// TODO per-iteration bindings!
+
 runSource("function Xyz(n) { this.n = n }; var p = Xyz; p(123); n;", 123);
 runSource("Object.prototype === Function.prototype", false);
 runSource("Function.prototype === String.prototype", false);
