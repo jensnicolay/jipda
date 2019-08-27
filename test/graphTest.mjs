@@ -7,7 +7,7 @@ import createSemantics from '../js-semantics.mjs';
 import {initializeMachine, createEvalMachine, isSuccessState} from '../abstract-machine.mjs';
 import {FileResource, StringResource} from "../ast.mjs";
 import {initialStatesToDot} from "../export/dot-graph.mjs";
-import typeLattice from "../type-lattice.mjs";
+import typeLattice from "../precise-type-lattice.mjs";
 import aacKalloc from "../aac-kalloc.mjs";
 import tagAlloc from "../tag-alloc.mjs";
 
@@ -57,7 +57,7 @@ function runFile(path, machine, cc)
 
 //runSource("function f() {let a = 1; {let a = 2; return a}}; f()", 2);
 
-const system = runSource("let i = 999; for (let i=0; i<3; i++) i; i;", concMachine(), {pruneGraph: true});
+const system = runSource("for (let i=0; i<3; i++) i; i;", typeMachine(), {pruneGraph: true});
 // const system = runFile("resources/octane/navier-stokes.js", typeMachine(), {pruneGraph: true});
 console.log("visited states: %i", system.statistics.numStatesVisited);
 console.log("reachable states: %i", system.statistics.numStatesReachable);

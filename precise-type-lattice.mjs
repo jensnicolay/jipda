@@ -31,7 +31,7 @@ function abst1(value)
   }
   if (typeof value === "number")
   {
-    return _NUM;
+    return new Some(value);
   }
   if (value === true || value === false)
   {
@@ -43,7 +43,7 @@ function abst1(value)
   }
   if (value === null)
   {
-    return new Some(null); // _NULL;
+    return new Some(null); //not _NULL;
   }
   throw new Error("cannot abstract value " + value);
 }
@@ -122,11 +122,7 @@ export default {
     {
       if (x instanceof Some && y instanceof Some)
       {
-        var result = x.prim + y.prim;
-        if (typeof result === "string" && result.length < 33)
-        {
-          return new Some(result);
-        }
+        return new Some(x.prim + y.prim);
       }
       var x = x.abst();
       var y = y.abst();
@@ -165,57 +161,82 @@ export default {
   lt:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim < y.prim);
+      }
       return _BOOL;
     },
 
   lte:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim <= y.prim);
+      }
       return _BOOL;
     },
 
   gt:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim > y.prim);
+      }
       return _BOOL;
     },
 
   gte:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim >= y.prim);
+      }
       return _BOOL;
     },
 
   sub:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim - y.prim);
+      }
       return _NUM;
     },
 
   mul:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim * y.prim);
+      }
       return _NUM;
     },
 
   div:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim / y.prim);
+      }
       return _NUM;
     },
 
   rem:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim % y.prim);
+      }
       return _NUM;
     },
-
-  // eqq: function (x, y)
-  // {
-  //   const r = this.eqqH(x, y);
-  //   console.log(x + " === " + y + " = " + r);
-  //   return r;
-  // },
 
   eqq:
     function (x, y)
@@ -319,55 +340,86 @@ export default {
         {
           return new Some(x.prim !== y.prim);
         }
-
         return _BOOL;
       },
 
   binor:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim | y.prim);
+      }
       return _NUM;
     },
 
   binxor:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim ^ y.prim);
+      }
       return _NUM;
     },
 
   binand:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim & y.prim);
+      }
       return _NUM;
     },
 
   shl:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim << y.prim);
+      }
       return _NUM;
     },
 
   shr:
     function (x, y)
     {
+      if (x instanceof Some && y instanceof Some)
+      {
+        return new Some(x.prim >> y.prim);
+      }
       return _NUM;
     },
 
   shrr:
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          return new Some(x.prim >>> y.prim);
+        }  
         return _NUM;
       },
 
   max:
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          return new Some(Math.max(x.prim, y.prim));
+        }  
         return _NUM;
       },
 
   min:
       function (x, y)
       {
+        if (x instanceof Some && y instanceof Some)
+        {
+          return new Some(Math.min(x.prim, y.prim));
+        }  
         return _NUM;
       },
 
@@ -385,61 +437,97 @@ export default {
   pos: // unary +
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(+x.prim);
+      }  
       return _NUM;
     },
 
   neg: // unary -
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(-x.prim);
+      }  
       return _NUM;
     },
 
   binnot:
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(~x.prim);
+      }  
       return _NUM;
     },
 
   sqrt:
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(Math.sqrt(x.prim));
+      }  
       return _NUM;
     },
 
   sin:
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(Math.sin(x.prim));
+      }  
       return _NUM;
     },
 
   cos:
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(Math.cos(x.prim));
+      }  
       return _NUM;
     },
 
   abs:
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(Math.abs(x.prim));
+      }  
       return _NUM;
     },
 
   round:
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(Math.round(x.prim));
+      }  
       return _NUM;
     },
 
   floor:
     function (x)
     {
+      if (x instanceof Some)
+      {
+        return new Some(Math.floor(x.prim));
+      }  
       return _NUM;
     },
 
   toString:
     function ()
     {
-      return "type-lattice";
+      return "precise-type-lattice";
     },
 
   sanity:
