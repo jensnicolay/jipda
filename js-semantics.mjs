@@ -493,13 +493,13 @@ function createSemantics(lat, cc)
 
   function evalUpdateExpression(node, benv, lkont, kont, machine)
   {
-    var argument = node.argument;
+    const argument = node.argument;
     switch (argument.type)
     {
       case "Identifier":
       {
-        var value = doScopeLookup(argument, benv, kont, machine);
-        var updatedValue;
+        const value = doScopeLookup(argument, benv, kont, machine);
+        let updatedValue;
         switch (node.operator)
         {
           case "++":
@@ -520,14 +520,14 @@ function createSemantics(lat, cc)
           return [];
         }
         doScopeSet(argument, updatedValue, benv, kont, machine);
-        var resultingValue = node.prefix ? updatedValue : value;
+        const resultingValue = node.prefix ? updatedValue : value;
         machine.continue(resultingValue, lkont, kont);
         return;
       }
       case "MemberExpression":
       {
-        var object = argument.object;
-        var frame = new UpdateMemberKont(node, benv);
+        const object = argument.object;
+        const frame = new UpdateMemberKont(node, benv);
         machine.evaluate(object, benv, [frame].concat(lkont), kont);
         return;
       }
@@ -3451,13 +3451,14 @@ function createSemantics(lat, cc)
 
   function doScopeSet(nameNode, value, benv, kont, machine)
   {
-    var name = nameNode.name;
-    var a = benv.lookup(name);
+    const name = nameNode.name;
+    const a = benv.lookup(name);
     if (a === BOT)
     {
-      var aname = lat.abst1(name);
+      const aname = lat.abst1(name);
       doProtoSet(aname, value, kont.realm.GlobalObject, machine);
-    } else
+    }
+    else
     {
       machine.storeUpdate(a, value);
     }

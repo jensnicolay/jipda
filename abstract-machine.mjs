@@ -217,11 +217,10 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         throw new Error("Nondeterministic prelude at " + s);
       }
     }
-    //console.log("prelude time: " + prelSystem.time);
-    if (endStates.size !== 1) // maybe check this in a dedicated concExplore?
-    {
-      throw new Error("wrong number of prelude results: " + endStates.size);
-    }
+    // if (endStates.size !== 1) // maybe check this in a dedicated concExplore? Also: if no preludes, then this fails!!!!
+    // {
+    //   throw new Error("wrong number of prelude results: " + endStates.size);
+    // }
 
     const system = {time: performance.now() - startTime, 
       endState: [...endStates][0], 
