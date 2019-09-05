@@ -74,6 +74,8 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
   const jobs = [];
   let sstorei = 0;
 
+  const ctxCounters = [];
+
   const states = [];
 
 
@@ -89,7 +91,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         // getSstorei: () => sstorei,
         increaseSstorei: () => ++sstorei,
         storeAlloc, storeUpdate, storeLookup,
-        //initialize: initialState => semantics.initialize(initialState, this)
+        ctxAlloc, ctxUpdate,
 
         // not for semantics? (but are used!)
         contexts,
@@ -102,11 +104,6 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
 
   function storeLookup(addr)
   {
-    // if (addr === 155)
-    // {
-    //   console.log("!! lookup")
-    // }
-
     const value = store.get(addr);
     if (value)
     {
@@ -117,13 +114,6 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
 
   function storeAlloc(addr, value)
   {
-
-    // if (addr === 81)
-    // {
-    //   console.log("!! alloc 81")
-    // }
-
-    //assert(addr>>>0===addr);
     assert(value);
     assert(value.toString);
     assert(value.addresses);
@@ -135,30 +125,35 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       {
         store = store.set(addr, updated);
         stores.push(store);
-        // console.log("alloc fresh " + addr);
       }
     }
     else
     {
       store = store.set(addr, value);
       stores.push(store);
-      // console.log("alloc update " + addr);
     }
   }
 
+
+  function ctxAlloc(ctx, addr, value)
+  {
+    if ((ctxCounters[ctx._id] || 0) <= 1)
+    {
+      store = store.set(addr, value);
+      stores.push(store);
+      // console.log("ctxAllox %s %s %s", ctx._id, addr, value);
+    }
+    else
+    {
+      console.warning("ctx alloc while exploring more than one branch");
+      //throw new Error("ctx alloc while exploring more than one branch");
+      storeAlloc(addr, value);
+    }
+  }
+
+  
   function storeUpdate(addr, value)
   {
-    // if (addr === 81)
-    // {
-    //   console.log("!! update 81")
-    // }
-    //
-    // if (addr === 155)
-    // {
-    //   console.log("!! update 155")
-    // }
-
-    //assert(addr>>>0===addr);
     assert(value);
     assert(value.toString);
     assert(value.addresses);
@@ -168,7 +163,21 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     {
       store = store.set(addr, updated);
       stores.push(store);
-      // console.log("update " + addr);
+    }
+  }
+
+  function ctxUpdate(ctx, addr, value)
+  {
+    if ((ctxCounters[ctx._id] || 0) <= 1)
+    {
+      // console.log("ctxUpdate %s %s %s", ctx._id, addr, value);
+      store = store.set(addr, value);
+      stores.push(store);
+    }
+    else
+    {
+      storeUpdate(addr, value);
+      // console.log("fallback to regular update ctxUpdate %s %s %s", ctx._id, addr, value);
     }
   }
 
@@ -241,6 +250,9 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       const s2 = stateRegistry.getState(s);
       return s2;
     });
+
+    initialStatesInterned.forEach(s => ctxCounters[s.kont._id] = (ctxCounters[s.kont._id] || 0) + 1);
+
     const todo = [...initialStatesInterned]; // additional copy to be able to return initialStatesInterned
     machine.states.length = 0;
     while (todo.length > 0)
@@ -258,8 +270,14 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       //   sstorei = s.kont._sstorei;
       // }
 
+      // if (ctxCounters[s.kont._id] === 1)
+      // {
+      //   console.log("%i: %i", s._id, ctxCounters[s.kont._id]);
+      // }
+
       if (s._sstorei === sstorei)
       {
+        ctxCounters[s.kont._id]--;
         continue;
       }
       s._sstorei = sstorei;
@@ -271,6 +289,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       {
         endStates.add(s);
         // console.log("end state", s._id);
+        ctxCounters[s.kont._id]--;
         continue;
       }
       // console.log(s._id + " -> " + machine.states.map(s => s._id).join());
@@ -280,6 +299,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         const successorInterned = stateRegistry.getState(successor);
         s._successors.push(successorInterned);
         todo.push(successorInterned);
+        ctxCounters[successorInterned.kont._id] = (ctxCounters[successorInterned.kont._id] || 0) + 1;
         if (successor === successorInterned) // new state 
         {
           if (stateRegistry.states.length % 10000 === 0)
@@ -288,6 +308,8 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
           }
         }
       }
+      ctxCounters[s.kont._id]--;
+
       // console.log(s._id + " -> " + todo.map(ss => ss._id).join(",") +  " " + s.node);
       if (stateRegistry.states.length > 1_000_000)
       {

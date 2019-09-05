@@ -302,7 +302,7 @@
   Array.prototype.join =
     function (separator)
     {
-      var len = this.length;
+      let len = this.length;
       if (separator === undefined)
       {
         sep = ",";
@@ -311,16 +311,16 @@
       {
         sep = String(separator);
       }
-      var R = "";
-      var k = 0;
-      while (k < len)
+      let R = "";
+      let $$$k = 0;
+      while ($$$k < len)
       {
-        if (k > 0)
+        if ($$$k > 0)
         {
           R += sep;
         }
-        var element = this[k];
-        var next;
+        let element = this[$$$k];
+        let next;
         if (element === undefined || element === null)
         {
           next = "";
@@ -331,7 +331,7 @@
           //print("element", element, "next", next);
         }
         R += next;
-        k += 1;
+        $$$k += 1;
         //print("::", R, k);
       }
       return R;
