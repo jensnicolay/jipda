@@ -6,12 +6,14 @@ import {BOT} from '../lattice.mjs';
 import concAlloc from '../conc-alloc.mjs';
 import concKalloc from '../conc-kalloc.mjs';
 import typeLattice from '../type-lattice.mjs';
+import preciseTypeLattice from '../precise-type-lattice.mjs';
 import tagAlloc from '../tag-alloc.mjs';
 import aacKalloc from '../aac-kalloc.mjs';
 import {isSuccessState, initializeMachine, createEvalMachine} from '../abstract-machine.mjs';
 import createSemantics from '../js-semantics.mjs';
 
 typeLattice.sanity();
+preciseTypeLattice.sanity();
 
 const ast0resource = new FileResource("../prelude.js");
 

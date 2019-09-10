@@ -89,6 +89,8 @@ function runEval(...tests)
   }
 }
 
+const startTime = Date.now();
+
 runSource("42", 42);
 runSource("undefined", undefined);
 runSource("41; 42;", 42);
@@ -226,6 +228,7 @@ runSource("var ar = []; for (var i = 0; i < 10; i++) {ar[i] = i;}; ar[10]", unde
 runSource("(function () {for (var i=0; i<3; i++) i})()", undefined);
 runSource("(function () {for (var i=0; i<3; i++) i; return i})()", 3);
 runSource("(function () {for (var i=0; false; i++) 123; return i})()", 0);
+runSource("let arr = []; arr[0] = 1; arr[1]", undefined);
 
 runSource("let i = 999; for (let i=0; i<3; i++) i;", 2);
 runSource("let i = 999; for (let i=0; i<3; i++) i; i;", 999);
@@ -554,3 +557,8 @@ runSource("[1,2,3].join('-')", "1-2-3");
 
 //String.prototype.slice
 // runSource("'To be, or not to be, that is the question.'.slice(0,7)", "To be, ");
+
+
+
+const endTime = Date.now();
+console.log("tooks %i ms", endTime - startTime);

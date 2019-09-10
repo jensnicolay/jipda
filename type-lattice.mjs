@@ -3,25 +3,31 @@ import {BOT} from './lattice.mjs';
 
 const UND = 1 << 0;
 const NULL = 1 << 1;
-const STR = 1 << 2;
+const NONNUMSTR = 1 << 2;
 const NUM = 1 << 3;
 const NUMSTR = 1 << 4;
 const BOOL = 1 << 5;
 const EMPTY_SET = ArraySet.empty();
 
-const TRUTHY = STR | NUM | NUMSTR | BOOL;
-const FALSY = UND | NULL | STR | NUM | BOOL;
+const STR = NONNUMSTR | NUMSTR;
+const DEFINED = STR | NUM | BOOL | NULL;
+const NONSTR = UND | NULL | BOOL | NUM; // only prims (not including refs)
 
-const DEFINEDMASK = STR | NUM | NUMSTR | BOOL | NULL;
-const STRINGMASK = STR | NUMSTR;
-const STRINGERS = UND | NULL | BOOL | NUM;
+const TRUTHY = STR | NUM | BOOL;
+const FALSY = UND | NULL | NONNUMSTR | NUM | BOOL; // a NUMSTR is never falsy, only empty NONNUMSTR is falsy
+
 
 const _NUM = new TypeValue(NUM, EMPTY_SET);
 const _STR = new TypeValue(STR, EMPTY_SET);
 const _BOOL = new TypeValue(BOOL, EMPTY_SET);
 const _NUMSTR = new TypeValue(NUMSTR, EMPTY_SET);
+const _NONNUMSTR = new TypeValue(NONNUMSTR, EMPTY_SET);
 const _UND = new TypeValue(UND, EMPTY_SET);
 const _NULL = new TypeValue(NULL, EMPTY_SET);
+const __TRUE = new Some(true);
+const __FALSE = new Some(false);
+const __NULL = new Some(null);
+const __UNDEFINED = new Some(undefined);
 
 function abst1(value)
 {
@@ -33,17 +39,21 @@ function abst1(value)
   {
     return _NUM;
   }
-  if (value === true || value === false)
+  if (value === true)
   {
-    return new Some(value);
+    return __TRUE;
+  }
+  if (value === false)
+  {
+    return __FALSE;
   }
   if (value === undefined)
   {
-    return new Some(undefined); // don't use _UND: not recognized as 'precise' Some
+    return __UNDEFINED; // don't use _UND: not recognized as 'precise' Some
   }
   if (value === null)
   {
-    return new Some(null); // _NULL;
+    return __NULL; // don't use _NULL;
   }
   throw new Error("cannot abstract value " + value);
 }
@@ -54,11 +64,11 @@ function eqqHelper1(prim, tvy)
   {
    if (tvy === UND)
    {
-     return new Some(true);
+     return __TRUE;
    }
    if (!(tvy & UND))
    {
-     return new Some(false);
+     return __FALSE;
    }
    return _BOOL;
   }
@@ -66,25 +76,25 @@ function eqqHelper1(prim, tvy)
   {
     if (tvy === NULL)
     {
-      return new Some(true);
+      return __TRUE;
     }
     if (!(tvy & NULL))
     {
-      return new Some(false);
+      return __FALSE;
     }
     return _BOOL;
   }
   if (typeof prim === "number" && !(tvy & NUM))
   {
-    return new Some(false);
+    return __FALSE;
   }
   if ((prim === true || prim === false) && !(tvy & BOOL))
   {
-    return new Some(false);
+    return __FALSE;
   }
-  if (typeof prim === "string" && !((tvy & STR) || (tvy & NUMSTR)))
+  if (typeof prim === "string" && !(tvy & STR))
   {
-    return new Some(false);
+    return __FALSE;
   }
   return _BOOL;
 }
@@ -132,30 +142,34 @@ export default {
       var y = y.abst();
 
       var type = 0;
+      // if ((x.type & STR) || (y.type & NONNUMSTR)) // TODO: commented out block handles `"" + {NonNumStr,NumStr}` wrong 
+      // {
+      //   type |= NONNUMSTR;
+      // }
+      // if (x.type & NUMSTR) 
+      // {
+      //   if (y.type & (NUMSTR | NUM))
+      //   {
+      //     type |= NUMSTR;
+      //   }
+      //   if ((y.type ^ NUMSTR) || y.isRef())
+      //   {
+      //     type |= NONNUMSTR;
+      //   }
+      // }
+      // else if (y.type & NUMSTR)
+      // {
+      //   if (x.type & NUM)
+      //   {
+      //     type |= NUMSTR;
+      //   }
+      //   type |= NONNUMSTR;
+      // }
       if ((x.type & STR) || (y.type & STR))
       {
         type |= STR;
       }
-      if (x.type & NUMSTR)
-      {
-        if (y.type & (NUMSTR | NUM))
-        {
-          type |= NUMSTR;
-        }
-        if ((y.type ^ NUMSTR) || y.isRef())
-        {
-          type |= STR;
-        }
-      }
-      else if (y.type & NUMSTR)
-      {
-        if (x.type & NUM)
-        {
-          type |= NUMSTR;
-        }
-        type |= STR;
-      }
-      if (((x.type & STRINGERS) || x.isRef()) && ((y.type & STRINGERS) || y.isRef()))
+      if (((x.type & NONSTR) || x.isRef()) && ((y.type & NONSTR) || y.isRef()))
       {
         type |= NUM;
       }
@@ -210,13 +224,6 @@ export default {
       return _NUM;
     },
 
-  // eqq: function (x, y)
-  // {
-  //   const r = this.eqqH(x, y);
-  //   console.log(x + " === " + y + " = " + r);
-  //   return r;
-  // },
-
   eqq:
     function (x, y)
     {
@@ -230,7 +237,7 @@ export default {
         if (y.type === 0)
         {
           // y ref without prim part, x only prim
-          return new Some(false);
+          return __FALSE;
         }
         else if (!y.isRef())
         {
@@ -245,7 +252,7 @@ export default {
         if (x.type === 0)
         {
           // x ref without prim part, y only prim
-          return new Some(false);
+          return __FALSE;
         }
         else if (!x.isRef())
         {
@@ -263,19 +270,23 @@ export default {
         const tvy = y.type;
         if ((tvx === UND || tvx === NULL) && tvx === tvy)
         {
-          return new Some(true);
+          return __TRUE;
         }
         if ((tvx & NUM) && !(tvy & NUM))
         {
-          return new Some(false);
+          return __FALSE;
         }
         if ((tvx & BOOL) && !(tvy & BOOL))
         {
-          return new Some(false);
+          return __FALSE;
         }
-        if ((tvx & STR) && !((tvy & STR) || (tvy & NUMSTR)))
+        if ((tvx & NUMSTR) && !(tvy & NUMSTR))
         {
-          return new Some(false);
+          return __FALSE;
+        }
+        if ((tvx & NONNUMSTR) && !(tvy & NONNUMSTR))
+        {
+          return __FALSE;
         }
         return _BOOL;
       }
@@ -285,7 +296,7 @@ export default {
         const xn = x.as.size();
         if (xn === 1 && x.as.equals(y.as))
         {
-          return new Some(true);
+          return __TRUE;
         }
       }
 
@@ -449,6 +460,9 @@ export default {
       assert(_NUM.isFalsy());
       assert(_BOOL.isTruthy());
       assert(_BOOL.isFalsy());
+      assert(__TRUE.isTruthy());
+      assert(__FALSE.isFalsy());
+
       assert(this.abst1(0).isFalsy());
       assert(this.abst1(1).isTruthy());
       assert(this.abst1(-1).isTruthy());
@@ -457,17 +471,36 @@ export default {
       assert(this.abst1("xyz").isTruthy());
       assert(this.abst1(true).isTruthy());
       assert(this.abst1(false).isFalsy());
+
+      assert(this.abst1(0).abst().isFalsy());
+      assert(this.abst1(1).abst().isTruthy());
+      assert(this.abst1(-1).abst().isTruthy());
+      assert(this.abst1("").abst().isFalsy());
+      assert(this.abst1("0").abst().isTruthy());
+      assert(this.abst1("xyz").abst().isTruthy());
+      assert(this.abst1(true).abst().isTruthy());
+      assert(this.abst1(false).abst().isFalsy());
+
+      assert(_NUMSTR.subsumes(this.abst1("123")));
+      assert(_NONNUMSTR.subsumes(this.abst1("length")));
       assert((_STR.join(_UND)).subsumes(this.abst1("0")));
+
       assert(_STR.subsumes(_STR));
-      assert(_NUMSTR.subsumes(_NUMSTR));
       assert(_STR.subsumes(_NUMSTR));
+      assert(_STR.subsumes(_NONNUMSTR));
+
+      assert(_NUMSTR.subsumes(_NUMSTR));
       assertFalse(_NUMSTR.subsumes(_STR));
+      assertFalse(_NUMSTR.subsumes(_NONNUMSTR));
+
+      assert(_NONNUMSTR.subsumes(_NONNUMSTR));
+      assertFalse(_NONNUMSTR.subsumes(_STR));
+      assertFalse(_NONNUMSTR.subsumes(_NUMSTR));
     }
 }
 
 function Some(prim)
 {
-  // assertFalse(typeof prim === "object" && prim !== null && prim.constructor.name === "Property", prim)
   this.prim = prim;
 }
 
@@ -502,7 +535,7 @@ Some.prototype.abst =
         {
           return _NUMSTR;
         }
-        return _STR;
+        return _NONNUMSTR;
       }
       if (typeof prim === "number")
       {
@@ -546,6 +579,7 @@ Some.prototype.isFalse =
     {
       return this.prim === false;
     }
+
 
 Some.prototype.ToString =
     function ()
@@ -604,13 +638,15 @@ Some.prototype.join =
 Some.prototype.meet =
     function (x)
     {
-      if (x === BOT || this.equals(x))
+      if (x instanceof Some)
       {
+        if (this.equals(x))
+        {
+          return this;
+        }  
         return BOT;
       }
-      var x1 = this.abst();
-      var x2 = x.abst();
-      return x1.meet(x2);
+      return this.abst().meet(x.abst());
     }
 
 Some.prototype.addresses =
@@ -775,6 +811,10 @@ Some.prototype.conc1 =
 
 function TypeValue(type, as)
 {
+  if (!(type || as.size()))
+  {
+    return BOT;
+  }
   this.type = type;
   this.as = as;
 }
@@ -829,7 +869,7 @@ TypeValue.prototype.isUndefined =
 TypeValue.prototype.isDefined =
     function ()
     {
-      return (this.type ^ UND) || this.isRef();
+      return (this.type & DEFINED) || this.isRef();
     }
 
 TypeValue.prototype.isNull =
@@ -847,8 +887,8 @@ TypeValue.prototype.isNonNull =
 TypeValue.prototype.ToString =
     function ()
     {
-      var type = (this.type & STRINGMASK);
-      if ((this.type & (UND | NULL | BOOL )) || this.isRef())
+      let type = (this.type & STR);
+      if ((this.type & (UND | NULL | BOOL)) || this.isRef()) // don't use NONSTR: NUM check!
       {
         type |= STR;
       }
@@ -890,14 +930,10 @@ TypeValue.prototype.subsumes =
       {
         return true;
       }
-      var type = this.type;
-      var as = this.as;
+      const type = this.type;
+      const as = this.as;
       if (x instanceof TypeValue)
       {
-        if ((type & STR) && (x.type & NUMSTR))
-        {
-          return true;
-        }
         return ((~type & x.type) === 0) && as.subsumes(x.as);
       }
       // x is prim only
@@ -906,11 +942,7 @@ TypeValue.prototype.subsumes =
         // this is ref only
         return false;
       }
-      var xx = x.abst();
-      if ((type & STR) && (xx.type & NUMSTR))
-      {
-        return true;
-      }
+      const xx = x.abst();
       return (type & xx.type);
     }
 
@@ -928,12 +960,16 @@ TypeValue.prototype.join =
 TypeValue.prototype.meet =
     function (x)
     {
+      if (this.equals(x))
+      {
+        return this;
+      }
       if (x === BOT)
       {
         return BOT;
       }
       var x2 = x.abst();
-      return new TypeValue(this.type ^ x2.type, this.as.meet(x2.as));
+      return new TypeValue(this.type & x2.type, this.as.meet(x2.as));
     }
 
 TypeValue.prototype.addresses =
@@ -947,9 +983,9 @@ TypeValue.prototype.toString =
     {
       var result = [];
       var type = this.type;
-      if (type & STR)
+      if (type & NONNUMSTR)
       {
-        result.push("Str");
+        result.push("NonNumStr");
       }
       if (type & NUMSTR)
       {
@@ -1000,16 +1036,6 @@ TypeValue.prototype.projectObject =
       return BOT;
     }
 
-TypeValue.prototype.projectObject =
-    function ()
-    {
-      if (this.isRef())
-      {
-        return new TypeValue(0, this.as);
-      }
-      return BOT;
-    }
-
 TypeValue.prototype.projectPrimitive =
     function ()
     {
@@ -1019,7 +1045,7 @@ TypeValue.prototype.projectPrimitive =
 TypeValue.prototype.projectString =
     function ()
     {
-      var type = this.type & STRINGMASK;
+      const type = this.type & STR;
       if (type)
       {
         return new TypeValue(type, EMPTY_SET);
@@ -1030,7 +1056,7 @@ TypeValue.prototype.projectString =
 TypeValue.prototype.projectNumber =
     function ()
     {
-      var type = this.type & NUM;
+      const type = this.type & NUM;
       if (type)
       {
         return new TypeValue(type, EMPTY_SET);
@@ -1041,7 +1067,7 @@ TypeValue.prototype.projectNumber =
 TypeValue.prototype.projectBoolean =
     function ()
     {
-      var type = this.type & BOOL;
+      const type = this.type & BOOL;
       if (type)
       {
         return new TypeValue(type, EMPTY_SET);
@@ -1052,7 +1078,7 @@ TypeValue.prototype.projectBoolean =
 TypeValue.prototype.projectDefined =
     function ()
     {
-      const type = this.type & DEFINEDMASK;
+      const type = this.type & DEFINED;
       if (type || this.isRef())
       {
         return new TypeValue(type, this.as);
@@ -1063,7 +1089,7 @@ TypeValue.prototype.projectDefined =
 TypeValue.prototype.projectUndefined =
     function ()
     {
-      var type = this.type & UND;
+      const type = this.type & UND;
       if (type)
       {
         return new TypeValue(type, EMPTY_SET);
@@ -1074,7 +1100,7 @@ TypeValue.prototype.projectUndefined =
 TypeValue.prototype.projectNull =
     function ()
     {
-      var type = this.type & NULL;
+      const type = this.type & NULL;
       if (type)
       {
         return new TypeValue(type, EMPTY_SET);

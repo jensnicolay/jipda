@@ -633,7 +633,7 @@ function createSemantics(lat, cc)
     for (const operatora of operatorAs.values())
     {
       const obj = machine.storeLookup(operatora);
-      const protoRef = obj.getProperty(P_PROTOTYPE).getValue();
+      const protoRef = obj.getProperty(P_PROTOTYPE).getValue().getValue();
       const Call = obj.getInternal("[[Call]]");
       for (const callable of Call)
       {
@@ -3365,20 +3365,20 @@ function createSemantics(lat, cc)
     {
       var a = as.pop();
       var obj = machine.storeLookup(a);
-      if (obj.propertyPresent(name))
+      const desc = obj.getProperty(name);
+      if (desc.isPresent())
       {
-        const desc = obj.getProperty(name);
-        if (IsDataDescriptor(desc).isTrue())
+        if (IsDataDescriptor(desc.getValue()).isTrue())
         {
-          const value = desc.Value.getValue();
+          const value = desc.getValue().Value.getValue();
           result = result.join(value);
         }
-        if (IsAccessorDescriptor(desc).isTrue())
+        if (IsAccessorDescriptor(desc.getValue()).isTrue())
         {
           throw new Error("NIY");
         }
       }
-      if (obj.propertyAbsent(name))
+      if (desc.isAbsent())
       {
         const proto = obj.getInternal("[[Prototype]]");
         if (proto.subsumes(L_NULL))
@@ -3503,7 +3503,7 @@ function createSemantics(lat, cc)
         var i = name.ToUint32();
         if (n.equals(i))
         {
-          var len = obj.getProperty(P_LENGTH).getValue();
+          var len = obj.getProperty(P_LENGTH).getValue().getValue();
           if (lat.gte(i, len).isTrue())
           {
             obj = obj.addProperty(P_LENGTH, Property.fromData(lat.add(i, L_1), L_TRUE, L_TRUE, L_TRUE));
@@ -3885,7 +3885,7 @@ function createSemantics(lat, cc)
   Present.prototype.isPresent =
       function ()
       {
-        return this.present;
+        return true;
       }
 
   Present.prototype.isAbsent =
@@ -4046,58 +4046,74 @@ function createSemantics(lat, cc)
       function (name, value)
       {
         assert(name);
+        assert(name.meet);
         const newFrame = updateFrame(this.frame, name, Present.from(value));
         return new Obj(newFrame, this.internals);
       }
 
-  Obj.prototype.propertyPresent =
-      function (name)
-      {
-        // const value = this.frame.get(name);
-        // return value !== undefined && value.isPresent(); // TODO `frame.get` should return `BOT` iso. `undefined` when no prop
-        var result = BOT;
-        this.frame.iterateEntries(
-            function (entry)
-            {
-              const entryName = entry[0];
-              if (entryName.subsumes(name) || name.subsumes(entryName))
-              {
-                result = result.join(entry[1]);
-              }
-            });
-        return result !== BOT && result.isPresent();
-      }
+  // Obj.prototype.propertyPresent =
+  //     function (name)
+  //     {
+  //       // const value = this.frame.get(name);
+  //       // return value !== undefined && value.isPresent(); // TODO `frame.get` should return `BOT` iso. `undefined` when no prop
+  //       var result = BOT;
+  //       this.frame.iterateEntries(
+  //           function (entry)
+  //           {
+  //             const entryName = entry[0];
+  //             if (entryName.subsumes(name) || name.subsumes(entryName))
+  //             {
+  //               result = result.join(entry[1]);
+  //             }
+  //           });
+  //       return result !== BOT && result.isPresent();
+  //     }
 
-  Obj.prototype.propertyAbsent = // TODO expensive (hiding pres/abs behind abstr)
-      function (name)
-      {
-        var result = BOT;
-        this.frame.iterateEntries(
-            function (entry)
-            {
-              const entryName = entry[0];
-              if (entryName.subsumes(name) || name.subsumes(entryName))
-              {
-                result = result.join(entry[1]);
-              }
-            });
-        return result === BOT || result.isAbsent();
-      }
+  // Obj.prototype.propertyAbsent = // TODO expensive (hiding pres/abs behind abstr)
+  //     function (name)
+  //     {
+  //       var result = BOT;
+  //       this.frame.iterateEntries(
+  //           function (entry)
+  //           {
+  //             const entryName = entry[0];
+  //             if (entryName.subsumes(name) || name.subsumes(entryName))
+  //             {
+  //               result = result.join(entry[1]);
+  //             }
+  //           });
+  //       return result === BOT || result.isAbsent();
+  //     }
 
   Obj.prototype.getProperty =
       function (name)
       {
-        var result = BOT;
+        let result = BOT;
+        let met = BOT;
         this.frame.iterateEntries(
             function (entry)
             {
               const entryName = entry[0];
-              if (entryName.subsumes(name) || name.subsumes(entryName))
+              const meet = entryName.meet(name)
+              if (meet !== BOT)
               {
-                result = result.join(entry[1].getValue());
+                // console.log("entryName " + entryName + " name " + name + " meet " + meet);
+                met = met.join(meet);
+                result = result.join(entry[1]);
               }
             });
-        return result;
+        if (result === BOT)
+        {
+          return new Absent();
+        }
+        if (!name.conc1)
+        {
+          // return new Present(Property.fromData(Present.from(result.getValue().getValue().join(L_UNDEFINED)), result.getValue().getWritable(), result.getValue().getEnumerable(), result.getValue().getConfigurable()), false);
+          return new Present(result.getValue(), false);
+        }
+        const r = met.equals(name) ? result : new Present(result.getValue(), false);
+        // console.log("lookup " + name + " = " + r + " met: " + met);
+        return r;
       }
 
   Obj.prototype.conc =
@@ -4114,7 +4130,7 @@ function createSemantics(lat, cc)
           return this;
         }
         const newFrame = this.frame.join(other.frame, BOT);
-        const newInternals = this.internals.join(other.internals);
+        const newInternals = this.internals.join(other.internals); // wrong: no 'maybe' properties
         return new Obj(newFrame, newInternals);
       }
 
@@ -5542,13 +5558,12 @@ function RequireObjectCoercible(arg, lkont, kont, machine)
     for (const a of O.addresses())
     {
       const obj = machine.storeLookup(a);
-      if (obj.propertyPresent(P))
+      const D = obj.getProperty(P);
+      if (D.isPresent())
       {
-        const D = obj.getProperty(P);
-        assert(D instanceof Property);
-        cont(D);
+        cont(D.getValue());
       }
-      if (obj.propertyAbsent(P))
+      if (D.isAbsent())
       {
         cont(L_UNDEFINED);
       }
@@ -6972,7 +6987,7 @@ function RequireObjectCoercible(arg, lkont, kont, machine)
     for (const thisa of thisValue.addresses())
     {
       var arr = machine.storeLookup(thisa);
-      var len = arr.getProperty(P_LENGTH).getValue();
+      var len = arr.getProperty(P_LENGTH).getValue().getValue();
       var lenStr = len.ToString();
       arr = arr.addProperty(lenStr, Property.fromData(operandValues[0], L_TRUE, L_TRUE, L_TRUE))
       var len1 = lat.add(len, L_1);
@@ -7157,7 +7172,6 @@ function RequireObjectCoercible(arg, lkont, kont, machine)
 
   function baseCallInternal(application, operandValues, thisValue, benv, lkont, kont, machine)
   {
-    console.log("kont", kont._id);
     const [O, Name, ...args] = operandValues;
     const call = callInternal(O, Name.conc1(), args, lkont, kont, machine, value =>
       machine.continue(value, lkont, kont));

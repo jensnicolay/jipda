@@ -74,8 +74,6 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
   const jobs = [];
   let sstorei = 0;
 
-  const ctxCounters = [];
-
   const states = [];
 
 
@@ -251,8 +249,6 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       return s2;
     });
 
-    initialStatesInterned.forEach(s => ctxCounters[s.kont._id] = (ctxCounters[s.kont._id] || 0) + 1);
-
     const todo = [...initialStatesInterned]; // additional copy to be able to return initialStatesInterned
     machine.states.length = 0;
     while (todo.length > 0)
@@ -277,7 +273,6 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
 
       if (s._sstorei === sstorei)
       {
-        ctxCounters[s.kont._id]--;
         continue;
       }
       s._sstorei = sstorei;
@@ -289,7 +284,6 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       {
         endStates.add(s);
         // console.log("end state", s._id);
-        ctxCounters[s.kont._id]--;
         continue;
       }
       // console.log(s._id + " -> " + machine.states.map(s => s._id).join());
@@ -299,7 +293,6 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         const successorInterned = stateRegistry.getState(successor);
         s._successors.push(successorInterned);
         todo.push(successorInterned);
-        ctxCounters[successorInterned.kont._id] = (ctxCounters[successorInterned.kont._id] || 0) + 1;
         if (successor === successorInterned) // new state 
         {
           if (stateRegistry.states.length % 10000 === 0)
@@ -308,7 +301,6 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
           }
         }
       }
-      ctxCounters[s.kont._id]--;
 
       // console.log(s._id + " -> " + todo.map(ss => ss._id).join(",") +  " " + s.node);
       if (stateRegistry.states.length > 1_000_000)

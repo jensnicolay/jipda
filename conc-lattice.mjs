@@ -323,6 +323,16 @@ ConcValue.prototype.join =
       throw new Error("cannot join concrete values " + this + " and " + x);
     }
 
+ConcValue.prototype.meet =
+    function (x)
+    {
+      if (this.equals(x))
+      {
+        return this;
+      }
+      return BOT;  
+    }
+
 ConcValue.prototype.subsumes =
     function (x)
     {
@@ -546,15 +556,25 @@ ConcAddr.prototype.toString =
       return "<addr " + this.addr + ">";
     }
 
-ConcAddr.prototype.join =
-    function (x)
+  ConcAddr.prototype.join =
+  function (x)
+  {
+    // if (x === BOT)
+    // {
+    //   return this;
+    // }
+    throw new Error("cannot join concrete addresses " + this + " and " + x);
+  }
+
+  ConcAddr.prototype.meet =
+  function (x)
+  {
+    if (this.equals(x))
     {
-      // if (x === BOT)
-      // {
-      //   return this;
-      // }
-      throw new Error("cannot join concrete addresses " + this + " and " + x);
+      return this;
     }
+    return BOT;
+  }
 
 ConcAddr.prototype.subsumes =
     function (x)

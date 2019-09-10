@@ -120,7 +120,7 @@
         let S = String(this);
         let len = S.length;
         let intStart = start; // TODO ToInteger
-        var intEnd;
+        let intEnd;
         if (end === undefined)
         {
           intEnd = len;
@@ -135,7 +135,7 @@
         let to = Math.max(finalStart, finalEnd);
 
         let R = "";
-        for (var i = from; i < to; i++)
+        for (let i = from; i < to; i++)
         {
           R += S.charAt(i);
         }
@@ -312,14 +312,14 @@
         sep = String(separator);
       }
       let R = "";
-      let $$$k = 0;
-      while ($$$k < len)
+      let k = 0;
+      while (k < len)
       {
-        if ($$$k > 0)
+        if (k > 0)
         {
           R += sep;
         }
-        let element = this[$$$k];
+        let element = this[k];
         let next;
         if (element === undefined || element === null)
         {
@@ -331,7 +331,7 @@
           //print("element", element, "next", next);
         }
         R += next;
-        $$$k += 1;
+        k += 1;
         //print("::", R, k);
       }
       return R;
@@ -344,7 +344,7 @@
         let result = [];
         for (let i = 0; i < this.length; i++)
         {
-          var x = this[i];
+          let x = this[i];
           if (x === undefined)
           {
             result.push(undefined);
@@ -363,7 +363,7 @@
       {
         if (this.length > 0)
         {
-          var r = this[this.length - 1];
+          let r = this[this.length - 1];
           this.length = this.length - 1;
           return r;
         }
@@ -377,8 +377,8 @@
   Array.prototype.reduce =
       function (f, initialValue)
       {
-        var result;
-        var start;
+        let result;
+        let start;
         if (initialValue === undefined) // TODO not correct, should be absence check (# of args)
         {
           if (this.length === 0)
@@ -394,7 +394,7 @@
           start = 0;
         }
 
-        for (var i = start; i < this.length; i++)
+        for (let i = start; i < this.length; i++)
         {
           result = f(result, this[i]);
         }
