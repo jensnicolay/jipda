@@ -4107,8 +4107,28 @@ function createSemantics(lat, cc)
         {
           return this;
         }
-        const newFrame = this.frame.join(other.frame, BOT);
-        const newInternals = this.internals.join(other.internals); // wrong: no 'maybe' properties
+
+        let newFrame = HashMap.empty();
+        this.frame.iterateEntries(
+          function (entry)
+          {
+            const key = entry[0];
+            const value1 = this.getProperty(key);
+            const value2 = other.getProperty(key);
+            const value = value1.join(value2);
+            newFrame = newFrame.put(key, value);
+          }, this);
+          other.frame.iterateEntries(
+            function (entry)
+            {
+              const key = entry[0];
+              const value1 = other.getProperty(key);
+              const value2 = this.getProperty(key);
+              const value = value1.join(value2);
+              newFrame = newFrame.put(key, value);
+            }, this);
+
+        const newInternals = this.internals.join(other.internals);
         return new Obj(newFrame, newInternals);
       }
 
@@ -6658,7 +6678,7 @@ function RequireObjectCoercible(arg, lkont, kont, machine)
 
       function $join(application, operandValues, thisValue, benv, lkont, kont, machine)
       {
-        var value = operandValues.reduce(Lattice.join, BOT);
+        var value = operandValues.reduce(lat.join, BOT);
         machine.continue(value, lkont, kont);
       }
 
