@@ -709,14 +709,7 @@ function createSemantics(lat, cc)
           const addr = machine.alloc.vr(decl.id, kont);
           const name = decl.id.name;
           forEnv = forEnv.add(name, addr);
-          if (name.startsWith("$$$"))
-          {
-            machine.ctxAlloc(kont, addr, BOT);
-          }
-          else
-          {
-            machine.storeAlloc(addr, BOT);    
-          }
+          machine.storeAlloc(addr, BOT);    
         }
       }
       else
@@ -1200,15 +1193,7 @@ function createSemantics(lat, cc)
       {
         const addr = machine.alloc.vr(decl.id, ctx); // new ctx!
         extendedBenv = extendedBenv.add(name, addr);
-
-        if (name.startsWith("$$$"))
-        {
-          machine.ctxAlloc(ctx, addr, BOT);
-        }
-        else
-        {
-          machine.storeAlloc(addr, BOT);
-        }
+        machine.storeAlloc(addr, BOT);
       }
 
       //machine.evaluate(bodyNode, extendedBenv, [], ctx); // to avoid `evalBlockStatement`
@@ -3476,14 +3461,7 @@ function createSemantics(lat, cc)
     }
     else
     {
-      if (name.startsWith("$$$"))
-      {
-        machine.ctxUpdate(kont, a, value);
-      }
-      else
-      {
-        machine.storeUpdate(a, value);
-      }
+      machine.storeUpdate(a, value);
     }
   }
 
