@@ -127,12 +127,6 @@ export default {
         return oldValue.join(newValue);
       },
 
-  update:
-  function (oldValue, newValue)
-  {
-    return oldValue.join(newValue);
-  },
-
   add:
     function (x, y)
     {

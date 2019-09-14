@@ -1,7 +1,7 @@
 import {ArraySet, HashMap, HashCode, Sets, Formatter, assert, assertDefinedNotNull, assertFalse} from './common.mjs';
 import {FileResource} from "./ast.mjs";
 import {initialStatesToDot, statesToDot} from "./export/dot-graph.mjs";
-import Store from "./store.mjs";
+import Store from "./counting-store.mjs";
 import {BOT} from './lattice.mjs';
 
 export function initializeMachine(semantics, alloc, kalloc, ...resources)
@@ -92,7 +92,6 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
         kalloc,
         // getSstorei: () => sstorei,
         increaseSstorei: () => ++sstorei,
-        storeAlloc, storeUpdate, storeLookup,
 
         // not for semantics? (but are used!)
         contexts,
@@ -102,52 +101,6 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
 
         states
       }
-
-  function storeLookup(store, addr)
-  {
-    const value = store.get(addr);
-    if (value)
-    {
-      return value;
-    }
-    // throw new Error("no value at address " + addr);
-    return BOT;
-  }
-
-  function storeAlloc(store, addr, value)
-  {
-    assert(value);
-    assert(value.toString);
-    assert(value.addresses);
-    if (store.has(addr))
-    {
-      const current = store.get(addr);
-      const updated = semantics.lat.update(current, value);
-      if (!current.equals(updated))
-      {
-        return store.set(addr, updated);
-      }
-      return store;
-    }
-    else
-    {
-      return store.set(addr, value);
-    }
-  }
-
-  function storeUpdate(store, addr, value)
-  {
-    assert(value);
-    assert(value.toString);
-    assert(value.addresses);
-    const current = store.get(addr);
-    const updated = semantics.lat.update(current, value);
-    if (!current.equals(updated))
-    {
-      return store.set(addr, updated);
-    }
-    return store;
-  }
 
   function enqueueJob(job)
   {

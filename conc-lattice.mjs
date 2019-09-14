@@ -35,12 +35,6 @@ export default {
       return new ConcAddr(addr);
     },
 
-  update:
-      function (currentValue, newValue)
-      {
-        return newValue;
-      },
-
   add:
     function (x, y)
     {

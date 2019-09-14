@@ -121,12 +121,6 @@ export default {
 
   abst1,
 
-  update:
-      function (oldValue, newValue)
-      {
-        return oldValue.join(newValue);
-      },
-
   add:
     function (x, y)
     {

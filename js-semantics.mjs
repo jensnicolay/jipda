@@ -2,7 +2,7 @@ import {HashCode, Strings, Sets, MutableHashSet, ArraySet, assert, assertDefined
 import * as Ast from './ast.mjs';
 import {BOT} from './lattice.mjs';
 import Benv from './benv.mjs';
-import Store from './store.mjs';
+import Store from './counting-store.mjs';
 import {Arrays, HashMap, Maps} from "./common.mjs";
 import {blockScopeDeclarations, StringResource} from "./ast.mjs";
 import { isVariableDeclaration } from './ast.mjs';
@@ -16,6 +16,32 @@ const EMPTY_ADDRESS_SET = ArraySet.empty();
 let glcount = 0; // hack to distinguish different initial contexts (should really depend on program,
 // and then kont -> resource becomes almost immediate (pruneGraph)
 
+function storeLookup(store, addr)
+{
+  const value = store.lookup(addr);
+  if (value === undefined)
+  {
+    return BOT;
+  }
+  // throw new Error("no value at address " + addr);
+  return value;
+}
+
+function storeAlloc(store, addr, value)
+{
+  assert(value);
+  assert(value.toString);
+  assert(value.addresses);
+  return store.alloc(addr, value);
+}
+
+function storeUpdate(store, addr, value)
+{
+  assert(value);
+  assert(value.toString);
+  assert(value.addresses);
+  return store.update(addr, value);
+}
 
 // reminder: has `Set` semantics, i.e., based on `===`
 function SetValue(set)
@@ -114,7 +140,7 @@ function createSemantics(lat, cc)
     assert(typeof msg === "string");
     const obj = createError(lat.abst1(msg), kont.realm);
     const addr = machine.alloc.error("@" + msg, kont);
-    store = machine.storeAlloc(store, addr, obj);
+    store = storeAlloc(store, addr, obj);
     const ref = lat.abstRef(addr);
     machine.throw(ref, store, lkont, kont);
   }
@@ -248,7 +274,7 @@ function createSemantics(lat, cc)
     {
       const addr = machine.alloc.vr(decl.id, kont);
       benv = benv.add(name, addr);
-      store = machine.storeAlloc(store, addr, BOT);
+      store = storeAlloc(store, addr, BOT);
     }
 
     return evalStatementList(node, benv, store, lkont, kont, machine);
@@ -263,7 +289,7 @@ function createSemantics(lat, cc)
     {
       const addr = machine.alloc.vr(decl.id, kont);
       extendedBenv = extendedBenv.add(name, addr);
-      store = machine.storeAlloc(store, addr, BOT);
+      store = storeAlloc(store, addr, BOT);
     }
     return evalStatementList(node, extendedBenv, store, lkont, kont, machine);
   }
@@ -545,10 +571,10 @@ function createSemantics(lat, cc)
     var prototypea = machine.alloc.closureProtoObject(node, kont);
     var closureRef = lat.abstRef(closurea);
     prototype = prototype.addProperty(P_CONSTRUCTOR, Property.fromData(closureRef, L_TRUE, L_TRUE, L_TRUE));
-    store = machine.storeAlloc(store, prototypea, prototype);
+    store = storeAlloc(store, prototypea, prototype);
 
     closure = closure.addProperty(P_PROTOTYPE, Property.fromData(lat.abstRef(prototypea), L_TRUE, L_TRUE, L_TRUE));
-    store = machine.storeAlloc(store, closurea, closure);
+    store = storeAlloc(store, closurea, closure);
     return {store, ref:closureRef};
   }
 
@@ -593,7 +619,7 @@ function createSemantics(lat, cc)
 
     for (const operatora of operatorAs.values())
     {
-      const operatorObj = machine.storeLookup(store, operatora);
+      const operatorObj = storeLookup(store, operatora);
       const Call = operatorObj.getInternal("[[Call]]");
       for (const callable of Call)
       {
@@ -616,7 +642,7 @@ function createSemantics(lat, cc)
     const operatorAs = operatorValue.addresses();
     for (const operatora of operatorAs.values())
     {
-      const obj = machine.storeLookup(store, operatora);
+      const obj = storeLookup(store, operatora);
       const protoRef = obj.getProperty(P_PROTOTYPE).getValue().getValue();
       const Call = obj.getInternal("[[Call]]");
       for (const callable of Call)
@@ -693,7 +719,7 @@ function createSemantics(lat, cc)
           const addr = machine.alloc.vr(decl.id, kont);
           const name = decl.id.name;
           forEnv = forEnv.add(name, addr);
-          store = machine.storeAlloc(store, addr, BOT);    
+          store = storeAlloc(store, addr, BOT);    
         }
       }
       else
@@ -741,7 +767,7 @@ function createSemantics(lat, cc)
     {
       const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
       const objectAddress = machine.alloc.object(node, kont);
-      store = machine.storeAlloc(store, objectAddress, obj);
+      store = storeAlloc(store, objectAddress, obj);
       const objectRef = lat.abstRef(objectAddress);
       machine.continue(objectRef, store, lkont, kont);
       return;
@@ -758,7 +784,7 @@ function createSemantics(lat, cc)
       let arr = createArray(kont.realm);
       arr = arr.addProperty(P_LENGTH, Property.fromData(L_0, L_TRUE, L_TRUE, L_TRUE));
       const arrAddress = machine.alloc.array(node, kont);
-      store = machine.storeAlloc(store, arrAddress, arr);
+      store = storeAlloc(store, arrAddress, arr);
       const arrRef = lat.abstRef(arrAddress);
       machine.continue(arrRef, store, lkont, kont);
       return;
@@ -1068,24 +1094,24 @@ function createSemantics(lat, cc)
           const addr = na[1];
           if (Ast.isIdentifier(node)) // param
           {
-            store = machine.storeAlloc(store, addr, node.i < operandValues.length ? operandValues[node.i] : L_UNDEFINED);
+            store = storeAlloc(store, addr, node.i < operandValues.length ? operandValues[node.i] : L_UNDEFINED);
           } 
           else if (Ast.isFunctionDeclaration(node))
           {
             const {ref:closureRef, store:store2} = allocateClosure(node, extendedBenv, store, lkont, kont, machine);
-            store = machine.storeAlloc(store2, addr, closureRef);
+            store = storeAlloc(store2, addr, closureRef);
           } 
           else if (Ast.isVariableDeclarator(node))
           {
-            store = machine.storeAlloc(store, addr, L_UNDEFINED);
+            store = storeAlloc(store, addr, L_UNDEFINED);
           } 
           else if (Ast.isRestElement(node))
           {
             const arr = CreateArrayFromList(operandValues.slice(node.i), node, store, lkont, kont, machine);
             const arrAddress = machine.alloc.array(node, ctx);
-            store = machine.storeAlloc(store, arrAddress, arr);
+            store = storeAlloc(store, arrAddress, arr);
             const arrRef = lat.abstRef(arrAddress);
-            store = machine.storeAlloc(store, addr, arrRef);
+            store = storeAlloc(store, addr, arrRef);
           }
           else
           {
@@ -1099,7 +1125,7 @@ function createSemantics(lat, cc)
       {
         const addr = machine.alloc.vr(decl.id, ctx); // new ctx!
         extendedBenv = extendedBenv.add(name, addr);
-        store = machine.storeAlloc(store, addr, BOT);
+        store = storeAlloc(store, addr, BOT);
       }
 
       //machine.evaluate(bodyNode, extendedBenv, [], ctx); // to avoid `evalBlockStatement`
@@ -1127,7 +1153,7 @@ function createSemantics(lat, cc)
         const funNode = this.node;
         const obj = ObjectCreate(protoRef);
         const thisa = machine.alloc.constructor(funNode, kont, application);
-        store = machine.storeAlloc(store, thisa, obj);
+        store = storeAlloc(store, thisa, obj);
         const thisValue = lat.abstRef(thisa);
         const stackAs = kont.stackAddresses(lkont).join(this.addresses());
         const previousStack = Stackget(new Stack(lkont, kont), machine);
@@ -1961,7 +1987,7 @@ function createSemantics(lat, cc)
         var name = param.name;
         var addr = machine.alloc.vr(param, kont);
         extendedBenv = extendedBenv.add(name, addr);
-        store = machine.storeAlloc(store, addr, throwValue);
+        store = storeAlloc(store, addr, throwValue);
         return evalStatementList(body, extendedBenv, store, lkont, kont, machine);
       }
 
@@ -2649,7 +2675,7 @@ function createSemantics(lat, cc)
         {
           const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
           const objectAddress = machine.alloc.object(node, kont);
-          store = machine.storeAlloc(store, objectAddress, obj);
+          store = storeAlloc(store, objectAddress, obj);
           const object = lat.abstRef(objectAddress);
 
           function cont(j, store)
@@ -2750,7 +2776,7 @@ function createSemantics(lat, cc)
             arr = arr.addProperty(indexName, Property.fromData(initValues[j], L_TRUE, L_TRUE, L_TRUE));
           }
           arr = arr.addProperty(P_LENGTH, Property.fromData(lat.abst1(i), L_TRUE, L_TRUE, L_TRUE));
-          store = machine.storeAlloc(store,arrAddress, arr);
+          store = storeAlloc(store,arrAddress, arr);
           machine.continue(lat.abstRef(arrAddress), store, lkont, kont);
           return;
         }
@@ -3252,7 +3278,7 @@ function createSemantics(lat, cc)
       }
       return value;
     }
-    return machine.storeLookup(store, a);
+    return storeLookup(store, a);
   }
 
   function doProtoLookup(name, as, store, machine)
@@ -3263,7 +3289,7 @@ function createSemantics(lat, cc)
     while (as.length !== 0)
     {
       var a = as.pop();
-      var obj = machine.storeLookup(store, a);
+      var obj = storeLookup(store, a);
       const desc = obj.getProperty(name);
       if (desc.isPresent())
       {
@@ -3298,7 +3324,7 @@ function createSemantics(lat, cc)
     while (as.length > 0)
     {
       const a = as.pop();
-      const obj = machine.storeLookup(store, a);
+      const obj = storeLookup(store, a);
       const value = obj.getInternal(name);
       result = result.join(value);
     }
@@ -3311,7 +3337,7 @@ function createSemantics(lat, cc)
     const as = O.addresses();
     for (const a of as)
     {
-      const obj = machine.storeLookup(store, a);
+      const obj = storeLookup(store, a);
       const fs = obj.getInternal(name);
       if (!fs)
       {
@@ -3330,9 +3356,9 @@ function createSemantics(lat, cc)
     while (as.length > 0)
     {
       const a = as.pop();
-      let obj = machine.storeLookup(store, a);
+      let obj = storeLookup(store, a);
       obj = obj.setInternal(name, value);
-      store = machine.storeUpdate(store, a, obj);
+      store = storeUpdate(store, a, obj);
     }
     return store;
   }
@@ -3345,7 +3371,7 @@ function createSemantics(lat, cc)
     while (as.length > 0)
     {
       const a = as.pop();
-      const obj = machine.storeLookup(store, a);
+      const obj = storeLookup(store, a);
       result = result.join(hasInternalProperty(obj, name));
     }
     return result;
@@ -3359,7 +3385,7 @@ function createSemantics(lat, cc)
     while (as.length > 0)
     {
       const a = as.pop();
-      const obj = machine.storeLookup(store, a);
+      const obj = storeLookup(store, a);
       result = result.join(obj.getInternal(name));
     }
     return result;
@@ -3376,7 +3402,7 @@ function createSemantics(lat, cc)
     }
     else
     {
-      return store = machine.storeUpdate(store, a, value);
+      return store = storeUpdate(store, a, value);
     }
   }
 
@@ -3388,7 +3414,7 @@ function createSemantics(lat, cc)
     while (as.length !== 0)
     {
       var a = as.pop();
-      var obj = machine.storeLookup(store, a);
+      var obj = storeLookup(store, a);
       obj = obj.addProperty(name, Property.fromData(value, L_TRUE, L_TRUE, L_TRUE));
       if (hasInternalProperty(obj, "isArray").isTrue()) // TODO temp
       {
@@ -3404,7 +3430,7 @@ function createSemantics(lat, cc)
           }
         }
       }
-      store = machine.storeUpdate(store, a, obj);
+      store = storeUpdate(store, a, obj);
     }
     return store;
   }
@@ -4464,7 +4490,7 @@ function createSemantics(lat, cc)
   {
     const name = nameNode.name;
     const addr = benv.lookup(name);
-    store = machine.storeAlloc(store, addr, value);
+    store = storeUpdate(store, addr, value);
     return store;
   }
 
@@ -4546,7 +4572,7 @@ function createSemantics(lat, cc)
       const obj = ObjectCreate(kont.realm.Intrinsics.get("%ObjectPrototype%"));
       const objAddr = machine.alloc.object(node, kont);
       const objRef = lat.abstRef(objAddr);
-      store = machine.storeAlloc(store, objAddr, obj);
+      store = storeAlloc(store, objAddr, obj);
       if (Desc.isValuePresent())
       {
         CreateDataProperty(objRef, lat.abst1("value"), Desc.getValue(), store, lkont, kont, machine, (success, store2) =>
@@ -4918,7 +4944,7 @@ function createSemantics(lat, cc)
       let obj = ObjectCreate(kont.realm.Intrinsics.get("%NumberPrototype%"));
       obj = obj.addInternal("[[NumberData]]", narg);
       const addr = machine.alloc.object(node, kont); // no number-specific alloc?
-      store = machine.storeAlloc(store, addr, obj);
+      store = storeAlloc(store, addr, obj);
       const ref = lat.abstRef(addr);
       result = result.join(ref);
     }
@@ -4927,7 +4953,7 @@ function createSemantics(lat, cc)
     {
       let obj = StringCreate(sarg, kont);
       const addr = machine.alloc.string(node, kont);
-      store = machine.storeAlloc(store, addr, obj);
+      store = storeAlloc(store, addr, obj);
       const ref = lat.abstRef(addr);
       result = result.join(ref);
     }
@@ -5252,7 +5278,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     arr = arr.addProperty(P_LENGTH, Property.fromData(lat.abst1(elements.length), L_TRUE, L_TRUE, L_TRUE));
 
 //      const arrAddress = alloc.array(node, kont);
-    //machine.storeAlloc(arrAddress, arr);
+    //storeAlloc(arrAddress, arr);
 
     //const arrRef = lat.abstRef(arrAddress);
     //return cont(arrRef, store);
@@ -5442,7 +5468,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     assert(IsPropertyKey(P).isTrue());
     for (const a of O.addresses())
     {
-      const obj = machine.storeLookup(store, a);
+      const obj = storeLookup(store, a);
       const D = obj.getProperty(P);
       if (D.isPresent())
       {
@@ -5493,9 +5519,9 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
             const as = O.addresses();
             for (const a of as)
             {
-              let obj = machine.storeLookup(store, a);
+              let obj = storeLookup(store, a);
               obj = obj.addProperty(P, D);
-              store = machine.storeUpdate(store, a, obj);
+              store = storeUpdate(store, a, obj);
             }
           }
         }
@@ -5508,9 +5534,9 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
             const as = O.addresses();
             for (const a of as)
             {
-              let obj = machine.storeLookup(store, a);
+              let obj = storeLookup(store, a);
               obj = obj.addProperty(P, D);
-              store = machine.storeUpdate(store, a, obj);
+              store = storeUpdate(store, a, obj);
             }
           }
         }
@@ -5620,7 +5646,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     const as = O.addresses().values();
     for (const a of as)
     {
-      const obj = machine.storeLookup(store, a);
+      const obj = storeLookup(store, a);
       // TODO: symbols, ascending numeric, chronological order, etc.
       // TODO: subsumption checking
 
@@ -5735,7 +5761,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     {
       const objo = ObjectCreate(O);
       const obja = machine.alloc.object(application, kont);
-      store = machine.storeAlloc(store, obja, objo);
+      store = storeAlloc(store, obja, objo);
       const obj = lat.abstRef(obja);
       if (Properties && Properties.isDefined())
       {
@@ -5882,7 +5908,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
         }
         const arr = CreateArrayFromList(nameList, node, store, lkont, kont, machine);
         const arrAddress = machine.alloc.array(node, kont);
-        store = machine.storeAlloc(store, arrAddress, arr);
+        store = storeAlloc(store, arrAddress, arr);
         const ref = lat.abstRef(arrAddress);
         cont(ref, store);
       }));
@@ -6244,7 +6270,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       {
         var primFunObject = createPrimitive(applyFunction, applyConstructor, realm);
         var primFunObjectAddress = allocNative();
-        store = machine.storeAlloc(store, primFunObjectAddress, primFunObject); // TODO: danger, relies on 'init store'
+        store = storeAlloc(store, primFunObjectAddress, primFunObject); // TODO: danger, relies on 'init store'
         return registerProperty(object, propertyName, lat.abstRef(primFunObjectAddress));
       }
 
@@ -6301,12 +6327,12 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       objecto = registerPrimitiveFunction(objecto, "setPrototypeOf", objectSetPrototypeOf);
       // TODO object = registerPrimitiveFunction(objecto, "values", objectValues);
 
-      store = machine.storeAlloc(store, objecta, objecto);
+      store = storeAlloc(store, objecta, objecto);
 
       // 19.1.3
       objectP = registerPrimitiveFunction(objectP, "hasOwnProperty", objectProtoHasOwnProperty);
       objectP = registerPrimitiveFunction(objectP, "isPrototypeOf", objectProtoIsPrototypeOf);
-      store = machine.storeAlloc(store, objectPa, objectP);
+      store = storeAlloc(store, objectPa, objectP);
       // END OBJECT
 
 
@@ -6319,12 +6345,12 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       var fun = createPrimitive(functionFunction, functionConstructor, realm);
       fun = fun.addProperty(P_PROTOTYPE, Property.fromData(functionProtoRef, L_TRUE, L_TRUE, L_TRUE));
       global = global.addProperty(lat.abst1("Function"), Property.fromData(lat.abstRef(functiona), L_TRUE, L_TRUE, L_TRUE));
-      store = machine.storeAlloc(store, functiona, fun);
+      store = storeAlloc(store, functiona, fun);
 
       functionP = registerPrimitiveFunction(functionP, "call", functionCall);
       functionP = registerPrimitiveFunction(functionP, "apply", functionApply);
 
-      store = machine.storeAlloc(store, functionPa, functionP);
+      store = storeAlloc(store, functionPa, functionP);
 
       const emptyFunctionNode = Ast.createAst(new StringResource("(function () {})")).body[0].expression;
 
@@ -6367,8 +6393,8 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       var error = createPrimitive(errorFunction, errorConstructor, realm);
       error = error.addProperty(P_PROTOTYPE, Property.fromData(errorProtoRef, L_TRUE, L_TRUE, L_TRUE));
       global = global.addProperty(lat.abst1("Error"), Property.fromData(lat.abstRef(errora), L_TRUE, L_TRUE, L_TRUE));
-      store = machine.storeAlloc(store, errora, error);
-      store = machine.storeAlloc(store, errorPa, errorP);
+      store = storeAlloc(store, errora, error);
+      store = storeAlloc(store, errorPa, errorP);
       // END ERROR
 
 
@@ -6383,14 +6409,14 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       var string = createPrimitive(stringFunction, null, realm);
       string = string.addProperty(P_PROTOTYPE, Property.fromData(intrinsics.get("%StringPrototype%"), L_TRUE, L_TRUE, L_TRUE));
       global = global.addProperty(lat.abst1("String"), Property.fromData(lat.abstRef(stringa), L_TRUE, L_TRUE, L_TRUE));
-      store = machine.storeAlloc(store, stringa, string);
+      store = storeAlloc(store, stringa, string);
 
 
       stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
       stringP = registerPrimitiveFunction(stringP, "charCodeAt", stringCharCodeAt);
       stringP = registerPrimitiveFunction(stringP, "startsWith", stringStartsWith);
 
-      store = machine.storeAlloc(store, stringPa, stringP);
+      store = storeAlloc(store, stringPa, stringP);
       // END STRING
 
       // BEGIN NUMBER
@@ -6403,11 +6429,11 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       var number = createPrimitive(numberFunction, numberConstructor, realm);
       number = number.addProperty(P_PROTOTYPE, Property.fromData(intrinsics.get("%NumberPrototype%"), L_TRUE, L_TRUE, L_TRUE));
       global = global.addProperty(lat.abst1("Number"), Property.fromData(lat.abstRef(numbera), L_TRUE, L_TRUE, L_TRUE));
-      store = machine.storeAlloc(store, numbera, number);
+      store = storeAlloc(store, numbera, number);
 
       // stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
 
-      store = machine.storeAlloc(store, numberPa, numberP);
+      store = storeAlloc(store, numberPa, numberP);
 
       // END NUMBER
 
@@ -6424,12 +6450,12 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       var array = createPrimitive(arrayFunction, arrayConstructor, realm);
       array = array.addProperty(P_PROTOTYPE, Property.fromData(arrayProtoRef, L_TRUE, L_TRUE, L_TRUE));
       global = global.addProperty(lat.abst1("Array"), Property.fromData(lat.abstRef(arraya), L_TRUE, L_TRUE, L_TRUE));
-      store = machine.storeAlloc(store, arraya, array);
+      store = storeAlloc(store, arraya, array);
 
       arrayP = registerPrimitiveFunction(arrayP, "toString", arrayToString);
       // arrayP = registerPrimitiveFunction(arrayP, "concat", arrayConcat);
       arrayP = registerPrimitiveFunction(arrayP, "push", arrayPush);
-      store = machine.storeAlloc(store, arrayPa, arrayP);
+      store = storeAlloc(store, arrayPa, arrayP);
       // END ARRAY
 
 
@@ -6446,7 +6472,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       math = registerPrimitiveFunction(math, "max", mathMax);
       math = registerPrimitiveFunction(math, "min", mathMin);
 //  math = registerProperty(math, "PI", lat.abst1(Math.PI));
-      store = machine.storeAlloc(store, matha, math);
+      store = storeAlloc(store, matha, math);
       global = global.addProperty(lat.abst1("Math"), Property.fromData(lat.abstRef(matha), L_TRUE, L_TRUE, L_TRUE));
 
 
@@ -6550,7 +6576,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       base = registerPrimitiveFunction(base, "register", baseRegister);
       base = registerPrimitiveFunction(base, "NumberToString", baseNumberToString);
 
-      store = machine.storeAlloc(store, basea, base);
+      store = storeAlloc(store, basea, base);
       global = global.addProperty(lat.abst1("$BASE$"), Property.fromData(lat.abstRef(basea), L_TRUE, L_TRUE, L_TRUE));
       // END BASE
 
@@ -6558,7 +6584,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       let perf = ObjectCreate(realm.Intrinsics.get("%ObjectPrototype%"));
       const perfa = allocNative();
       perf = registerPrimitiveFunction(perf, "now", performanceNow, null);
-      store = machine.storeAlloc(store, perfa, perf);
+      store = storeAlloc(store, perfa, perf);
       global = registerProperty(global, "performance", lat.abstRef(perfa));
 
       function performanceNow(application, operandValues, thisValue, benv, store, lkont, kont, machine)
@@ -6623,16 +6649,16 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
           };
           var primFunObject = createPrimitive(applyFunction, null, kont.realm);
           var primFunObjectAddress = allocNative();
-          store = machine.storeAlloc(store, primFunObjectAddress, primFunObject);
+          store = storeAlloc(store, primFunObjectAddress, primFunObject);
           service = registerProperty(service, operationName, lat.abstRef(primFunObjectAddress));
         }
-        store = machine.storeAlloc(store, servicea, service);
+        store = storeAlloc(store, servicea, service);
         machine.continue(lat.abstRef(servicea), store, lkont, kont);
       }
       global = registerPrimitiveFunction(global, "wrapService", globalWrapService);
 
 
-      store = machine.storeAlloc(store, globala, global);
+      store = storeAlloc(store, globala, global);
       // END GLOBAL
 
       const kont0 = createContext(null, realm.GlobalObject, realm, "globalctx" + (glcount++), ArraySet.empty(), null, machine);
@@ -6648,7 +6674,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
   {
     var obj = ObjectCreate(protoRef);
     var objectAddress = machine.alloc.object(application, kont);
-    store = machine.storeAlloc(store, objectAddress, obj);
+    store = storeAlloc(store, objectAddress, obj);
     var objRef = lat.abstRef(objectAddress);
     machine.continue(objRef, store, lkont, kont);
   }
@@ -6716,7 +6742,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     const message = operandValues.length === 1 && operandValues[0] !== BOT ? operandValues[0].ToString() : L_EMPTY_STRING;
     const obj = createError(message, kont.realm);
     var errAddress = machine.alloc.error(application, kont);
-    store = machine.storeAlloc(store, errAddress, obj);
+    store = storeAlloc(store, errAddress, obj);
     var errRef = lat.abstRef(errAddress);
     machine.continue(errRef, store, lkont, kont);
   }
@@ -6756,7 +6782,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       let obj = ObjectCreate(kont.realm.Intrinsics.get("%NumberPrototype%")); // TODO OrdinaryCreateFromConstructor
       obj = obj.setInternal("[[NumberData]]", value);
       const addr = machine.alloc.object(application, kont); // no number-specific alloc?
-      store = machine.storeAlloc(store, addr, obj);
+      store = storeAlloc(store, addr, obj);
       const ref = lat.abstRef(addr);
       machine.continue(ref, store, lkont, kont);
     }
@@ -6837,7 +6863,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     arr = arr.addProperty(P_LENGTH, Property.fromData(length, L_TRUE, L_TRUE, L_TRUE));
 
     var arrAddress = machine.alloc.array(application, kont);
-    store = machine.storeAlloc(store, arrAddress, arr);
+    store = storeAlloc(store, arrAddress, arr);
     var arrRef = lat.abstRef(arrAddress);
     machine.continue(arrRef, store, lkont, kont);
   }
@@ -6852,7 +6878,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     arr = arr.addProperty(P_LENGTH, Property.fromData(lat.abst1(operandValues.length), L_TRUE, L_TRUE, L_TRUE));
 
     var arrAddress = machine.alloc.array(application, kont);
-    store = machine.storeAlloc(store, arrAddress, arr);
+    store = storeAlloc(store, arrAddress, arr);
     var arrRef = lat.abstRef(arrAddress);
     machine.continue(arrRef, store, lkont, kont);
   }
@@ -6876,13 +6902,13 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
   {
     for (const thisa of thisValue.addresses())
     {
-      var arr = machine.storeLookup(store, thisa);
+      var arr = storeLookup(store, thisa);
       var len = arr.getProperty(P_LENGTH).getValue().getValue();
       var lenStr = len.ToString();
       arr = arr.addProperty(lenStr, Property.fromData(operandValues[0], L_TRUE, L_TRUE, L_TRUE))
       var len1 = lat.add(len, L_1);
       arr = arr.addProperty(P_LENGTH, Property.fromData(len1, L_TRUE, L_TRUE, L_TRUE));
-      store = machine.storeUpdate(store, thisa, arr);
+      store = storeUpdate(store, thisa, arr);
       machine.continue(len1, store, lkont, kont);
     }
   }
@@ -6948,7 +6974,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     const [value] = operandValues; // TODO pass prototype as second param
     const obj = StringCreate(value, kont);
     const obja = machine.alloc.string(application, kont);
-    store = machine.storeAlloc(store, obja, obj);
+    store = storeAlloc(store, obja, obj);
     const ref = lat.abstRef(obja);
     machine.continue(ref, store, lkont, kont);
   }
@@ -6958,7 +6984,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     const [proto, internalSlotsList] = operandValues;
     const obj = ObjectCreate(proto, internalSlotsList);
     const objAddr = machine.alloc.object(application, kont);
-    store = machine.storeAlloc(store, objAddr, obj);
+    store = storeAlloc(store, objAddr, obj);
     const ref = lat.abstRef(objAddr);
     machine.continue(ref, store, lkont, kont);
   }

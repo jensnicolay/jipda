@@ -16,4 +16,4 @@ BOT.isUndefined = function () { return false };
 BOT.conc = function () { return [] };
 BOT.toString = function () { return "_" };
 BOT.nice = function () { return "_" };
-BOT.accept = function (visitor) { return visitor.visitBOT(this) };
+BOT.abst = function () { throw new Error("cannot abstract _")}
