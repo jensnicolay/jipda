@@ -39,7 +39,9 @@ function handleState(value, s)
   }
   else
   {
-    throw new Error("no progress: " + s);
+    console.warn("no progress: " + s);
+    // throw new Error("no progress: " + s);
+    return value;
   }
 }
 
