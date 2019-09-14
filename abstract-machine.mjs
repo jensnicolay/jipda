@@ -2,34 +2,42 @@ import {ArraySet, HashMap, HashCode, Sets, Formatter, assert, assertDefinedNotNu
 import {FileResource} from "./ast.mjs";
 import {initialStatesToDot, statesToDot} from "./export/dot-graph.mjs";
 import Store from "./store.mjs";
+import {BOT} from './lattice.mjs';
 
 export function initializeMachine(semantics, alloc, kalloc, ...resources)
 {
   const machineConfig = createMachine(semantics, Store.empty(), undefined, alloc, kalloc, {errors:true, hardAsserts:true});
-  const kont0 = semantics.initialize(machineConfig.machine);
+  semantics.initialize(machineConfig.machine);
+  // const s0 = machineConfig.machine.states.pop();
   for (const resource of resources)
   {
     //console.info("enqueing %s", resource);
     semantics.enqueueScriptEvaluation(resource, machineConfig.machine);
   }
   // console.debug("running %i init resources", resources.length);
-  const startTime = Date.now();
-  machineConfig.machine.nextJob([], kont0);
+  // const startTime = Date.now();
+  // machineConfig.machine.nextJob(s0.store, [], s0.kont);
   const system0 = machineConfig.run();
-  const duration = Date.now() - startTime;
+  // const duration = Date.now() - startTime;
   // console.debug("initialization took %i ms", duration);
+
+  // UGLY!
+  
+
   return system0;
 }
 
 function createInternalMachine(semantics, store, kont, alloc, kalloc)
 {
+  assertDefinedNotNull(store);
   assertDefinedNotNull(kont);
+  assertDefinedNotNull(kalloc);
 
   function explore(resource, cc)
   {
     const machineConfig = createMachine(semantics, store, kont, alloc, kalloc, Object.assign((cc || {}), {errors: true, hardAsserts: true}));
     semantics.enqueueScriptEvaluation(resource, machineConfig.machine);
-    const system = machineConfig.explore(machineConfig.machine.nextJob([], kont));
+    const system = machineConfig.explore(machineConfig.machine.nextJob(store, [], kont));
     return system;
   }
 
@@ -51,17 +59,14 @@ function createInternalMachine(semantics, store, kont, alloc, kalloc)
 
 export function createEvalMachine(system)
 {
-  return createInternalMachine(system.semantics, system.store, system.kont0, system.alloc, system.kalloc);
+  return createInternalMachine(system.semantics, system.endState.store, system.kont0, system.alloc, system.kalloc);
 }
 
-export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
+export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
 {
   cc = cc || {};
   // const rootSet = cc.rootSet || ArraySet.empty();
   const pruneGraphOption = cc.pruneGraph === undefined ? true : cc.pruneGraph;
-
-  // `store` (param) is shortcut to stores[stores.length - 1]
-  const stores = [store];
 
   if (kont0)
   {
@@ -72,24 +77,22 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
   const contexts = kont0 ? [kont0] : [];
   const stacks = [];
   const jobs = [];
+  
   let sstorei = 0;
-
   const states = [];
-
 
   const machine =
       {
-        evaluate: (exp, benv, lkont, kont) => states.push(new EvalState(exp, benv, store, lkont, kont)),
-        continue: (value, lkont, kont) => states.push(new KontState(value, store, lkont, kont)),
-        return: (value, lkont, kont) => states.push(new ReturnState(value, store, lkont, kont)),
-        throw: (value, lkont, kont) => states.push(new ThrowState(value, store, lkont, kont)),
-        break: (lkont, kont) => states.push(new BreakState(store, lkont, kont)),
+        evaluate: (exp, benv, store, lkont, kont) => states.push(new EvalState(exp, benv, store, lkont, kont)),
+        continue: (value, store, lkont, kont) => states.push(new KontState(value, store, lkont, kont)),
+        return: (value, store, lkont, kont) => states.push(new ReturnState(value, store, lkont, kont)),
+        throw: (value, store, lkont, kont) => states.push(new ThrowState(value, store, lkont, kont)),
+        break: (store, lkont, kont) => states.push(new BreakState(store, lkont, kont)),
         alloc,
         kalloc,
         // getSstorei: () => sstorei,
         increaseSstorei: () => ++sstorei,
         storeAlloc, storeUpdate, storeLookup,
-        ctxAlloc, ctxUpdate,
 
         // not for semantics? (but are used!)
         contexts,
@@ -100,17 +103,18 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         states
       }
 
-  function storeLookup(addr)
+  function storeLookup(store, addr)
   {
     const value = store.get(addr);
     if (value)
     {
       return value;
     }
-    throw new Error("no value at address " + addr);
+    // throw new Error("no value at address " + addr);
+    return BOT;
   }
 
-  function storeAlloc(addr, value)
+  function storeAlloc(store, addr, value)
   {
     assert(value);
     assert(value.toString);
@@ -121,36 +125,17 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
       const updated = semantics.lat.update(current, value);
       if (!current.equals(updated))
       {
-        store = store.set(addr, updated);
-        stores.push(store);
+        return store.set(addr, updated);
       }
+      return store;
     }
     else
     {
-      store = store.set(addr, value);
-      stores.push(store);
+      return store.set(addr, value);
     }
   }
 
-
-  function ctxAlloc(ctx, addr, value)
-  {
-    if ((ctxCounters[ctx._id] || 0) <= 1)
-    {
-      store = store.set(addr, value);
-      stores.push(store);
-      // console.log("ctxAllox %s %s %s", ctx._id, addr, value);
-    }
-    else
-    {
-      console.warning("ctx alloc while exploring more than one branch");
-      //throw new Error("ctx alloc while exploring more than one branch");
-      storeAlloc(addr, value);
-    }
-  }
-
-  
-  function storeUpdate(addr, value)
+  function storeUpdate(store, addr, value)
   {
     assert(value);
     assert(value.toString);
@@ -159,24 +144,9 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     const updated = semantics.lat.update(current, value);
     if (!current.equals(updated))
     {
-      store = store.set(addr, updated);
-      stores.push(store);
+      return store.set(addr, updated);
     }
-  }
-
-  function ctxUpdate(ctx, addr, value)
-  {
-    if ((ctxCounters[ctx._id] || 0) <= 1)
-    {
-      // console.log("ctxUpdate %s %s %s", ctx._id, addr, value);
-      store = store.set(addr, value);
-      stores.push(store);
-    }
-    else
-    {
-      storeUpdate(addr, value);
-      // console.log("fallback to regular update ctxUpdate %s %s %s", ctx._id, addr, value);
-    }
+    return store;
   }
 
   function enqueueJob(job)
@@ -184,13 +154,13 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     jobs.push(job);
   }
 
-  function nextJob(lkont, kont)
+  function nextJob(store, lkont, kont)
   {
     const job = jobs.shift();
     if (job)
     {
       // console.debug("popped %o", job);
-      job.execute(lkont, kont, machine);
+      job.execute(store, lkont, kont, machine);
     }
     else
     {
@@ -232,7 +202,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     const system = {time: performance.now() - startTime, 
       endState: [...endStates][0], 
       semantics, alloc, kalloc,
-      store, kont0: contexts[0]};
+      kont0: contexts[0]};
     return system;
   }
 
@@ -254,21 +224,16 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     while (todo.length > 0)
     {
       const s = todo.pop();
-      assert(typeof s._id === "number");
-      // console.log("popped " + s._id + " storei " + stores.indexOf(s.store) + " (" + (stores.length-1) + ") sstorei " + s._sstorei + " (" + sstorei + ")" + " ctx id " + s.kont._id);
+      // assert(typeof s._id === "number");
+      // console.log("popped " + s._id + " s._sstorei " + s._sstorei + " (" + sstorei + ")" + " ctx id " + s.kont._id);
       // if (s.isEvalState) {console.log("EVAL " + s.node)}
-      // else if (s.isKontState) {console.log("KONT " + s.value)}
+      // else if (s.isKontState) {console.log("KONT " + s.value + " " + s.toString())}
       // else if (s.isReturnState) {console.log("RET " + s.value)}
       // else if (s.isThrowState) {console.log("THROW " + s.msg)}
 
       // if (s.kont._sstorei > sstorei)
       // {
       //   sstorei = s.kont._sstorei;
-      // }
-
-      // if (ctxCounters[s.kont._id] === 1)
-      // {
-      //   console.log("%i: %i", s._id, ctxCounters[s.kont._id]);
       // }
 
       if (s._sstorei === sstorei)
@@ -297,12 +262,12 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
         {
           if (stateRegistry.states.length % 10000 === 0)
           {
-            console.log(Formatter.displayTime(performance.now() - startTime), "states", stateRegistry.states.length, "todo", todo.length, "stores", stores.length, "contexts", contexts.length);
+            console.log(Formatter.displayTime(performance.now() - startTime), "states", stateRegistry.states.length, "todo", todo.length, "contexts", contexts.length);
           }
         }
       }
 
-      // console.log(s._id + " -> " + todo.map(ss => ss._id).join(",") +  " " + s.node);
+      // console.log(s._id + " -> " + s._successors.map(ss => ss._id).join(","));
       if (stateRegistry.states.length > 1_000_000)
       {
         console.log("STATE SIZE LIMIT", stateRegistry.states.length);
@@ -332,7 +297,7 @@ export function createMachine(semantics, store, kont0, alloc, kalloc, cc)
     }
     const system = {time: performance.now() - startTime, 
       states:stateRegistry.states, initialStates: initialStatesResult, endStates,
-      store, kont0: contexts[0], statistics};
+      kont0: contexts[0], statistics};
     return system;
   }
 
@@ -589,7 +554,7 @@ EvalState.prototype.equals =
       return (x instanceof EvalState)
           && this.node === x.node
           && (this.benv === x.benv || this.benv.equals(x.benv))
-          && this.store === x.store
+          && (this.store === x.store || this.store.equals(x.store))
           && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
           && this.kont === x.kont
     }
@@ -607,7 +572,7 @@ EvalState.prototype.hashCode =
 EvalState.prototype.next =
     function (semantics, machine)
     {
-      return semantics.evaluate(this.node, this.benv, this.lkont, this.kont, machine);
+      return semantics.evaluate(this.node, this.benv, this.store, this.lkont, this.kont, machine);
     }
 // EvalState.prototype.gc =
 //     function ()
@@ -641,7 +606,7 @@ KontState.prototype.equals =
     {
       return (x instanceof KontState)
           && (this.value === x.value || this.value.equals(x.value))
-          && this.store === x.store
+          && (this.store === x.store || this.store.equals(x.store))
           && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
           && this.kont === x.kont
     }
@@ -668,7 +633,7 @@ KontState.prototype.nice =
 KontState.prototype.next =
     function (semantics, machine)
     {
-      return semantics.continue(this.value, this.lkont, this.kont, machine);
+      return semantics.continue(this.value, this.store, this.lkont, this.kont, machine);
     }
 
 // KontState.prototype.gc =
@@ -691,6 +656,7 @@ function ()
 
 function ReturnState(value, store, lkont, kont)
 {
+  assertDefinedNotNull(kont);
   this.value = value;
   this.store = store;
   this.lkont = lkont;
@@ -707,7 +673,7 @@ ReturnState.prototype.equals =
     {
       return x.isReturnState
           && (this.value === x.value || this.value.equals(x.value))
-          && this.store === x.store
+          && (this.store === x.store || this.store.equals(x.store))
           && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
           && this.kont === x.kont
     }
@@ -734,7 +700,7 @@ ReturnState.prototype.nice =
 ReturnState.prototype.next =
     function (semantics, machine)
     {
-      return semantics.return(this.value, this.lkont, this.kont, machine);
+      return semantics.return(this.value, this.store, this.lkont, this.kont, machine);
     }
 
 // ReturnState.prototype.gc =
@@ -750,6 +716,7 @@ ReturnState.prototype.addresses =
 
 function ThrowState(value, store, lkont, kont)
 {
+  assertDefinedNotNull(kont);
   this.value = value;
   this.store = store;
   this.lkont = lkont;
@@ -766,7 +733,7 @@ ThrowState.prototype.equals =
     {
       return x.isThrowState
           && (this.value === x.value || this.value.equals(x.value))
-          && this.store === x.store
+          && (this.store === x.store || this.store.equals(x.store))
           && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
           && this.kont === x.kont
     }
@@ -793,7 +760,7 @@ ThrowState.prototype.nice =
 ThrowState.prototype.next =
     function (semantics, machine)
     {
-      return semantics.throw(this.value, this.lkont, this.kont, machine);
+      return semantics.throw(this.value, this.store, this.lkont, this.kont, machine);
     }
 
 // ThrowState.prototype.gc =
@@ -816,6 +783,7 @@ ThrowState.prototype.stackTrace =
 
 function BreakState(store, lkont, kont)
 {
+  assertDefinedNotNull(kont);
   this.store = store;
   this.lkont = lkont;
   this.kont = kont;
@@ -830,7 +798,7 @@ BreakState.prototype.equals =
     function (x)
     {
       return x.isBreakState
-          && this.store === x.store
+          && (this.store === x.store || this.store.equals(x.store))
           && (this.lkont === x.lkont || this.lkont.equals(x.lkont))
           && this.kont === x.kont
     }
@@ -856,7 +824,7 @@ BreakState.prototype.nice =
 BreakState.prototype.next =
     function (semantics, machine)
     {
-      return semantics.break(this.lkont, this.kont, machine);
+      return semantics.break(this.store, this.lkont, this.kont, machine);
     }
 BreakState.prototype.gc =
     function ()
@@ -871,6 +839,7 @@ BreakState.prototype.addresses =
 
 function ErrorState(node, msg, store, kont)
 {
+  assertDefinedNotNull(kont);
   this.node = node;
   this.msg = msg;
   this.store = store;
@@ -898,7 +867,7 @@ ErrorState.prototype.equals =
       return x.isErrorState
           && this.node === x.node
           && this.msg === x.msg
-          && this.store === x.store
+          && (this.store === x.store || this.store.equals(x.store))
           && this.kont == kont
     }
 ErrorState.prototype.hashCode =

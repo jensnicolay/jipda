@@ -55,13 +55,8 @@ function runFile(path, machine, cc)
 }
 
 
-//runSource("function f() {let a = 1; {let a = 2; return a}}; f()", 2);
-
-// const system = runSource("function f() { let i = 0; i++; return i }; f()", typeMachineNoPrel(), {pruneGraph: true});
-//const system = runSource("let arr = []; arr[0] = true; arr[1]", typeMachineNoPrel(), {pruneGraph: false});
-const system = runSource("'8249823789237'.substring(3, 5)", typeMachine(), {pruneGraph: false});
-// const system = runSource("let o = {x:4}; o['y']", typeMachineNoPrel(), {pruneGraph: false});
-// const system = runFile("resources/octane/navier-stokes.js", typeMachine(), {pruneGraph: true});
+// const system = runFile("resources/fib.js", typeMachineNoPrel(), {pruneGraph: false});
+const system = runSource("var o={}; Object.defineProperty(o, 'x', {value:42}); o.x", concMachine(), {pruneGraph: false});
 console.log("visited states: %i", system.statistics.numStatesVisited);
 console.log("reachable states: %i", system.statistics.numStatesReachable);
 if (system.statistics.pruned)

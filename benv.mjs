@@ -96,7 +96,8 @@ Benv.prototype.add =
 Benv.prototype.lookup =
   function (name)
   {
-    return this._map.get(name) || BOT;
+    const addr = this._map.get(name);
+    return addr === undefined ? BOT : addr;
   }
 
 Benv.prototype.addresses =

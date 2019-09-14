@@ -35,11 +35,11 @@ Store.prototype.subsumes =
     return Maps.subsumes(this.map, x.map, x.subsumes(y), BOT);
   }
 
-// Store.prototype.join =
-//     function (store)
-//     {
-//       return new Store(this.map.join(store.map, BOT));
-//     }
+  Store.prototype.join =
+      function (other)
+      {
+        return new Store(Maps.join(this.map, other.map, (x ,y) => x.join(y), BOT));
+      }
 
 // Store.prototype.diff = // debug
 //   function (x)
@@ -118,15 +118,15 @@ Store.prototype.has =
     }
 
 Store.prototype.narrow =
-function (addresses)
-{
-  const newMap = new Map();
-  for (const [key, value] of this.map)
-  {
-    if (addresses.contains(key))
+    function (addresses)
     {
-      newMap.set(key, value);
+      const newMap = new Map();
+      for (const [key, value] of this.map)
+      {
+        if (addresses.contains(key))
+        {
+          newMap.set(key, value);
+        }
+      }
+      return new Store(newMap);
     }
-  }
-  return new Store(newMap);
-}
