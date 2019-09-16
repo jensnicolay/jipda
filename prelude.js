@@ -110,7 +110,7 @@
         // print(cur, next, spl.length, sub);
         cur = next + spl.length;
       }
-        return result;
+      return result;
     }
 
   // 21.1.3.22

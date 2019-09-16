@@ -529,15 +529,6 @@ export default {
       assert(__TRUE.isTruthy());
       assert(__FALSE.isFalsy());
 
-      assert(this.abst1(0).isFalsy());
-      assert(this.abst1(1).isTruthy());
-      assert(this.abst1(-1).isTruthy());
-      assert(this.abst1("").isFalsy());
-      assert(this.abst1("0").isTruthy());
-      assert(this.abst1("xyz").isTruthy());
-      assert(this.abst1(true).isTruthy());
-      assert(this.abst1(false).isFalsy());
-
       assert(this.abst1(0).abst().isFalsy());
       assert(this.abst1(1).abst().isTruthy());
       assert(this.abst1(-1).abst().isTruthy());

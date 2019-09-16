@@ -56,7 +56,7 @@ function runFile(path, machine, cc)
 
 
 // const system = runFile("resources/fib.js", typeMachineNoPrel(), {pruneGraph: false});
-const system = runSource("var o={}; Object.defineProperty(o, 'x', {value:42}); o.x", concMachine(), {pruneGraph: false});
+const system = runSource("'0,1,hello'.split(',').length", typeMachine(), {pruneGraph: false});
 console.log("visited states: %i", system.statistics.numStatesVisited);
 console.log("reachable states: %i", system.statistics.numStatesReachable);
 if (system.statistics.pruned)
