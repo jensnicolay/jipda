@@ -1,8 +1,9 @@
 import {BOT} from './lattice.mjs';
-import {Sets, Maps} from "./common.mjs";
+import {Sets, Maps, assertFalse} from "./common.mjs";
 
 function Entry(value, fresh)
 {
+  // assertFalse(value === BOT && fresh === false);
   this.value = value;
   this.fresh = fresh;
 }

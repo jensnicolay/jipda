@@ -64,26 +64,6 @@
   
   global.TypeError = TypeError;
 
-  // 21.1.3
-  function thisStringValue(value)
-  {
-    if (typeof value === "string")
-    {
-      return value;
-    }
-    
-    if (typeof value === "object")
-    {
-      if ($BASE$.hasInternal(value, "[[StringData]]"))
-      {
-        return $BASE$.lookupInternal(value, "[[StringData]]");
-      }
-    }
-    
-    throw new TypeError("cannot convert to string: " + value);
-  }
-
-
   // 21.1.3.18
   String.prototype.slice =
   function (begin, end)
@@ -95,7 +75,7 @@
   String.prototype.split =
     function (spl)
     {
-      let stringValue = thisStringValue(this);
+      let stringValue = String(this);
       let result = [];
       let cur = 0;
       while (cur < stringValue.length)
@@ -107,8 +87,8 @@
         }
         var sub = stringValue.substring(cur, next);
         result.push(sub);
-        // print(cur, next, spl.length, sub);
         cur = next + spl.length;
+        // print(cur, next, sub);
       }
       return result;
     }
@@ -140,13 +120,6 @@
           R += S.charAt(i);
         }
         return R;
-      }
-
-  // 21.1.3.25
-  String.prototype.toString =
-      function ()
-      {
-        return thisStringValue(this);
       }
 
   // 21.1.3.8

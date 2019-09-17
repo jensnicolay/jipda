@@ -960,7 +960,7 @@ ArrayMap.prototype.put =
   }
 
 ArrayMap.prototype.get =
-  function (key)
+  function (key, bot) // TODO:`bot` only added here
   {
     var arr = this._arr;
     for (var i = 0; i < arr.length; i++)
@@ -972,13 +972,19 @@ ArrayMap.prototype.get =
         return entry[1];
       }
     }
-    return undefined;
+    return bot; 
   }
 
 ArrayMap.prototype.entries =
   function ()
   {
     return this._arr.slice(0);
+  }
+
+ArrayMap.prototype[Symbol.iterator] =
+  function* ()
+  {
+    yield* this._arr;
   }
 
 ArrayMap.prototype.iterateEntries =

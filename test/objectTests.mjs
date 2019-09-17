@@ -81,10 +81,12 @@ function sanityCheck(lat)
     assertFalse(obj1.getProperty(P_X).isAbsent());
 
     let obj3 = obj1.join(obj2);
-    assert(obj1.equals(obj3));
-    assert(obj2.equals(obj3));
+    assertFalse(obj1.equals(obj3));
+    assertFalse(obj2.equals(obj3));
     assert(obj3.getProperty(P_X).isPresent());
-    assertFalse(obj3.getProperty(P_X).isAbsent());
+    assert(obj3.getProperty(P_X).isAbsent());
+    assert(obj3.getProperty(P_X).isPresent());
+    assert(obj3.getProperty(P_X).isAbsent());
   }
 
   t1();

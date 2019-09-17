@@ -3595,7 +3595,7 @@ function createSemantics(lat, cc)
     return x.isRef();
   }
 
-  // helper
+  // helpers
   function projectNonNumber(value)
   {
     let result = BOT;
@@ -3637,7 +3637,7 @@ function createSemantics(lat, cc)
         assertDefinedNotNull(Set);
         assertDefinedNotNull(Enumerable);
         assertDefinedNotNull(Configurable);
-        return new Property(ABSENT, Get === BOT ? L_UNDEFINED : Get, Set === BOT ? L_UNDEFINED : Set, L_UNDEFINED, Enumerable === BOT ? L_FALSE : Enumerable, Configurable === BOT ? L_FALSE : Configurable);
+        return new Property(new Absent(), Get === BOT ? L_UNDEFINED : Get, Set === BOT ? L_UNDEFINED : Set, L_UNDEFINED, Enumerable === BOT ? L_FALSE : Enumerable, Configurable === BOT ? L_FALSE : Configurable);
       }
 
   Property.default =
@@ -3649,7 +3649,7 @@ function createSemantics(lat, cc)
   Property.empty =
       function ()
       {
-        return new Property(ABSENT, L_UNDEFINED, L_UNDEFINED, L_UNDEFINED, L_UNDEFINED, L_UNDEFINED);
+        return new Property(new Absent(), L_UNDEFINED, L_UNDEFINED, L_UNDEFINED, L_UNDEFINED, L_UNDEFINED); // TODO
       }
 
   Property.prototype.equals =
@@ -4243,7 +4243,7 @@ function createSemantics(lat, cc)
           const isCallable = IsCallable(method, store, machine);
           if (isCallable.isTrue())
           {
-            Call(method, O, [], null, null, store, lkont, kont, machine, (result, store) =>
+            Call(method, O, [], [i, methodNames], null, null, store, lkont, kont, machine, (result, store) =>
             {
               if (result.isNonRef())
               {
@@ -4597,9 +4597,14 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
   }
 
   // 7.3.12
-  function Call(F, V, argumentsList, node, benv, store, lkont, kont, machine, cont)
+  function Call(F, V, argumentsList, internalState, node, benv, store, lkont, kont, machine, cont)
   {
+    // F is function object, V is `this` value
+   
+    // assertDefinedNotNull(node);
+    // assertDefinedNotNull(benv);
     assert(typeof cont === "function");
+    
     // non-spec: argumentsList should be optional, and [] if not passed
     assert(Array.isArray(argumentsList));
     const ic = IsCallable(F, store, machine);
@@ -4609,19 +4614,23 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     }
     if (ic.isTrue())
     {
-      const frame = new CallKont(cont, F, V, argumentsList, node, benv);
+      const frame = new CallKont(cont, F, V, argumentsList, null, null, internalState);
       applyProc(node, F, argumentsList, V, benv, store, [frame].concat(lkont), kont, machine);
     }
   }
 
-  function CallKont(cont, F, V, argumentsList, node, benv)
+  function CallKont(cont, F, V, argumentsList, node, benv, internalState)
   {
+    // assertDefinedNotNull(node);
+    // assertDefinedNotNull(benv);
+    assertDefinedNotNull(internalState);
     this.cont = cont;
     this.F = F;
     this.V = V;
     this.argumentsList = argumentsList;
     this.node = node;
     this.benv = benv;
+    this.internalState = internalState;
   }
 
   CallKont.prototype.equals =
@@ -4633,6 +4642,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
             && this.argumentsList.equals(x.argumentsList)
             && this.node === x.node
             && (this.benv === x.benv || this.benv.equals(x.benv))
+            && this.internalState.equals(x.internalState)
       }
   CallKont.prototype.hashCode =
       function ()
@@ -4644,17 +4654,26 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
         result = prime * result + this.argumentsList.hashCode();
         result = prime * result + this.node.hashCode();
         result = prime * result + this.benv.hashCode();
+        result = prime * result + HashCode.hashCode(this.internalState);
         return result;
       }
   CallKont.prototype.toString =
       function ()
       {
-        return "call-" + this.V + "-" + this.node.tag;
+        return "call-" + this.V + "-" + (this.node ? this.node.tag : "no-node");
       }
   CallKont.prototype.addresses =
       function ()
       {
-        return EMPTY_ADDRESS_SET;
+        let addrs = this.benv.addresses();
+        for (const x of internalState)
+        {
+          if (x.addresses)
+          {
+            addr = addrs.join(x.addresses());
+          }
+        }
+        return addrs;
       }
   CallKont.prototype.apply =
       function (value, store, lkont, kont, machine)
@@ -5815,10 +5834,11 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       global = global.addProperty(lat.abst1("String"), Property.fromData(lat.abstRef(stringa), L_TRUE, L_TRUE, L_TRUE));
       store = storeAlloc(store, stringa, string);
 
-
+      // 21.1.3
       stringP = registerPrimitiveFunction(stringP, "charAt", stringCharAt);
       stringP = registerPrimitiveFunction(stringP, "charCodeAt", stringCharCodeAt);
       stringP = registerPrimitiveFunction(stringP, "startsWith", stringStartsWith);
+      stringP = registerPrimitiveFunction(stringP, "toString", stringToString);
 
       store = storeAlloc(store, stringPa, stringP);
       // END STRING
@@ -6206,6 +6226,29 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     }
   }
 
+  // 21.1.3
+  function thisStringValue(value, store, lkont, kont, machine, cont)
+  {
+    const stringp = value.projectString();
+    if (stringp !== BOT)
+    {
+      cont(stringp, store);
+    }
+    if (value.isRef())
+    {
+      if (hasInternal(value, "[[StringData]]", store, machine))
+      {
+        const s = getInternal(value, "[[StringData]]", store, machine);
+        assert(s.projectString() !== BOT); 
+        cont(s, store);
+      }
+    }
+    if (value !== BOT && stringp === BOT && value.isNonRef())
+    {
+      throwTypeError("21.1.3", store, lkont, kont, machine);
+    }
+  }
+
   // 21.1.3.1
   function stringCharAt(application, operandValues, thisValue, benv, store, lkont, kont, machine)
   {
@@ -6245,8 +6288,12 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
   // 21.1.3.22
   // substring: prelude
 
-  // 21.1.3.25
-  // toString: prelude
+  // 21.1.3.26
+  function stringToString(application, operandValues, thisValue, benv, store, lkont, kont, machine)
+  {
+    return thisStringValue(thisValue, store, lkont, kont, machine, (value, store) =>
+      machine.continue(value, store, lkont, kont));
+  }
 
   function arrayConstructor(application, operandValues, protoRef, benv, store, lkont, kont, machine)
   {

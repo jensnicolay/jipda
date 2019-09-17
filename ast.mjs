@@ -195,6 +195,11 @@ function isFunctionExpression(n)
   return n.type === "FunctionExpression";
 }
   
+function isForStatement(n)
+{
+  return n.type === "ForStatement";
+}
+  
 export function isNewExpression(n)
 {
   return n.type === "NewExpression";
@@ -852,7 +857,7 @@ export function blockScopeDeclarations(nodeWithBody)
 
   function helper(node)
   {
-    if (node === null || isFunctionExpression(node))// || isBlockStatement(node))
+    if (node === null || isFunctionExpression(node) || isFunctionDeclaration(node) || isForStatement(node))// || isBlockStatement(node))
     {
       return;
     }

@@ -1,4 +1,4 @@
-import {HashCode, Maps, HashMap, assertDefinedNotNull, assert} from './common.mjs';
+import {HashCode, Maps, ArrayMap, ArraySet, assertDefinedNotNull, assert} from './common.mjs';
 import {BOT} from './lattice.mjs';
 
 const ABSENT = new Absent();
@@ -201,7 +201,7 @@ Record.prototype.equals =
 Record.prototype.join =
     function (other)
     {
-      const joinedMap = Maps.join(this.map, other.map, (x,y) => x.join(y), BOT);
+      const joinedMap = Maps.join(this.map, other.map, (x,y) => x.join(y), BOT); // TODO WRONG! no introduction of Absent
       return new Record(joinedMap);
     }
 
@@ -216,21 +216,21 @@ Record.prototype.addresses =
     }
 
 
-export function Obj(frame, internals)
+export function Obj(cprops, aprops, internals)
 {
-  assertDefinedNotNull(frame);
+  assertDefinedNotNull(cprops);
+  assertDefinedNotNull(aprops);
   assertDefinedNotNull(internals);
-  this.frame = frame;//Obj.EMPTY_FRAME;
-  this.internals = internals;//Record.empty();
+  this.cprops = cprops;
+  this.aprops = aprops;
+  this.internals = internals;
 }
 
 Obj.empty =
     function ()
     {
-      return new Obj(Obj.EMPTY_FRAME, Record.empty());
+      return new Obj(ArrayMap.empty(), ArrayMap.empty(), Record.empty()); // TODO: specifically written against ArrayMap! (commons.mjs)
     }
-
-Obj.EMPTY_FRAME = HashMap.empty();
 
 Obj.prototype.toString =
     function ()
@@ -238,23 +238,16 @@ Obj.prototype.toString =
       return "<" + this.names() + ">";
     };
 
-Obj.prototype.nice =
-    function ()
-    {
-      return this.frame.nice();
-    }
-
-
 Obj.prototype.addInternal =
     function (name, value)
     {
-      return new Obj(this.frame, this.internals.add(name, value));
+      return new Obj(this.cprops, this.aprops, this.internals.add(name, value));
     }
 
 Obj.prototype.setInternal = // TODO duplicate w.r.t. `set`? (do we need different add/update semantics?)
     function (name, value)
     {
-      return new Obj(this.frame, this.internals.add(name, value));
+      return new Obj(this.cprops, this.aprops, this.internals.add(name, value));
     }
 
 Obj.prototype.internalPresent =
@@ -280,8 +273,18 @@ Obj.prototype.addProperty =
     {
       assert(name);
       assert(name.meet);
-      const newFrame = this.frame.put(name, Present.from(value));
-      return new Obj(newFrame, this.internals);
+      if (name.conc1)
+      {
+        // name has single concrete rep: strong update in cprops (update of entire Obj in store can still be strong or weak)
+        const newCprops = this.cprops.put(name, Present.from(value));
+        return new Obj(newCprops, this.aprops, this.internals);
+      }
+      else
+      {
+        // name does not have single concrete rep: weak update in aprops
+        const newAprops = this.aprops.put(name, this.aprops.get(name, ABSENT).join(Present.from(value)));
+        return new Obj(this.cprops, newAprops, this.internals);
+      }
     }
 
 // Obj.prototype.propertyPresent =
@@ -321,39 +324,48 @@ Obj.prototype.addProperty =
 Obj.prototype.getProperty =
     function (name)
     {
-      let result = BOT;
-      let met = BOT;
-      this.frame.iterateEntries(
-          function (entry)
+      if (name.conc1)
+      {
+        let value = this.cprops.get(name, ABSENT);
+
+        for (const [aname, avalue] of this.aprops)
+        {
+          if (aname.subsumes(name))
           {
-            const entryName = entry[0];
-            const meet = entryName.meet(name)
-            if (meet !== BOT)
-            {
-              // console.log("entryName " + entryName + " name " + name + " meet " + meet);
-              met = met.join(meet);
-              result = result.join(entry[1]);
-            }
-          });
-      if (result === BOT)
-      {
-        return new Absent();
+            value = value.join(avalue);
+          }
+        }
+        return value;
       }
-      if (!name.conc1)
+      else
       {
-        // return new Present(Property.fromData(Present.from(result.getValue().getValue().join(L_UNDEFINED)), result.getValue().getWritable(), result.getValue().getEnumerable(), result.getValue().getConfigurable()), false);
-        return new Present(result.getValue(), false);
+        let value = ABSENT; // looking up abstract name always incurs imprecision!
+        for (const [cname, cvalue] of this.cprops)
+        {
+          if (name.subsumes(cname))
+          {
+            value = value.join(cvalue);
+          }
+        }
+
+        for (const [aname, avalue] of this.aprops)
+        {
+          const meet = aname.meet(name);
+          if (meet !== BOT)
+          {
+            value = value.join(avalue);
+          }
+        }
+
+        return value;
       }
-      const r = met.equals(name) ? result : new Present(result.getValue(), false);
-      // console.log("lookup " + name + " = " + r + " met: " + met);
-      return r;
     }
 
-Obj.prototype.conc =
-    function ()
-    {
-      return [this];
-    }
+// Obj.prototype.conc =
+//     function ()
+//     {
+//       return [this];
+//     }
 
 Obj.prototype.join =
     function (other)
@@ -363,28 +375,23 @@ Obj.prototype.join =
         return this;
       }
 
-      let newFrame = HashMap.empty();
-      this.frame.iterateEntries(
-        function (entry)
-        {
-          const key = entry[0];
-          const value1 = this.getProperty(key);
-          const value2 = other.getProperty(key);
-          const value = value1.join(value2);
-          newFrame = newFrame.put(key, value);
-        }, this);
-        other.frame.iterateEntries(
-          function (entry)
-          {
-            const key = entry[0];
-            const value1 = other.getProperty(key);
-            const value2 = this.getProperty(key);
-            const value = value1.join(value2);
-            newFrame = newFrame.put(key, value);
-          }, this);
+      let newCprops = ArrayMap.empty();
+      const ckeys = ArraySet.from(this.cprops.keys().concat(other.cprops.keys()));
+      for (const ckey of ckeys)
+      {
+        newCprops = newCprops.put(ckey, this.cprops.get(ckey, ABSENT).join(other.cprops.get(ckey, ABSENT)));
+      }
+
+      let newAprops = ArrayMap.empty();
+      const akeys = ArraySet.from(this.aprops.keys().concat(other.aprops.keys()));
+      for (const akey of akeys)
+      {
+        newAprops = newAprops.put(akey, this.aprops.get(akey, ABSENT).join(other.aprops.get(akey, ABSENT)));
+      }
 
       const newInternals = this.internals.join(other.internals);
-      return new Obj(newFrame, newInternals);
+
+      return new Obj(newCprops, newAprops, newInternals);
     }
 
 Obj.prototype.equals =
@@ -394,12 +401,9 @@ Obj.prototype.equals =
       {
         return true;
       }
-      if (!(x instanceof Obj))
-      {
-        return false;
-      }
-      return this.frame.equals(x.frame)
-          && this.internals.equals(x.internals);
+      return this.cprops.equals(x.cprops)
+        && this.aprops.equals(x.aprops)
+        && this.internals.equals(x.internals);
     }
 
 Obj.prototype.hashCode =
@@ -407,7 +411,9 @@ Obj.prototype.hashCode =
     {
       var prime = 31;
       var result = 1;
-      result = prime * result + this.frame.hashCode();
+      result = prime * result + this.cprops.hashCode();
+      result = prime * result + this.aprops.hashCode();
+      // result = prime * result + this.internals.hashCode(); // NYI
       return result;
     }
 
@@ -425,20 +431,15 @@ Obj.prototype.diff = //DEBUG
 Obj.prototype.names =
     function ()
     {
-      return this.frame.keys();
+      return this.cprops.keys().concat(this.aprops.keys());
     }
-
-//  Obj.prototype.values =
-//    function ()
-//    {
-//      return this.frame.map(function (entry) { return entry[1]; }).toSet();
-//    }
 
 Obj.prototype.addresses =
     function ()
     {
       let addresses = ArraySet.empty();
-      this.frame.values().forEach(function (value) {addresses = addresses.join(value.addresses())});
+      this.cprops.values().forEach(function (value) {addresses = addresses.join(value.addresses())});
+      this.aprops.values().forEach(function (value) {addresses = addresses.join(value.addresses())});
       addresses = addresses.join(this.internals.addresses());
       return addresses;
     }

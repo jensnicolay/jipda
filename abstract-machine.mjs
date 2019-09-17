@@ -172,6 +172,8 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
       return s2;
     });
 
+    // const stores = [];
+
     const todo = [...initialStatesInterned]; // additional copy to be able to return initialStatesInterned
     machine.states.length = 0;
     while (todo.length > 0)
@@ -184,6 +186,26 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
       // else if (s.isReturnState) {console.log("RET " + s.value)}
       // else if (s.isThrowState) {console.log("THROW " + s.msg)}
 
+      // let found = false;
+      // for (const st of stores)
+      // {
+      //   if (s.store.equals(st))
+      //   {
+      //     found = true;
+      //     break;
+      //   }
+      // }
+      // if (found)
+      // {
+      //   // console.log(s._id + ": existing store");
+      //   1+1;
+      // }
+      // else
+      // {
+      //   console.log(s._id + ": new store " + stores.length);
+      //   stores.push(s.store);
+      // }
+
       // if (s.kont._sstorei > sstorei)
       // {
       //   sstorei = s.kont._sstorei;
@@ -195,6 +217,11 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
       }
       s._sstorei = sstorei;
 
+      // if (s._id === 587)
+      // {
+      //   break;
+      // }
+
       s.next(semantics, machine); // `states` gets pushed
 
       s._successors = [];
@@ -204,13 +231,15 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
         // console.log("end state", s._id);
         continue;
       }
-      // console.log(s._id + " -> " + machine.states.map(s => s._id).join());
       while (machine.states.length > 0)
       {
         const successor = machine.states.pop();
         const successorInterned = stateRegistry.getState(successor);
         s._successors.push(successorInterned);
         todo.push(successorInterned);
+        
+        // successorInterned.store.diff(s.store);
+        
         if (successor === successorInterned) // new state 
         {
           if (stateRegistry.states.length % 10000 === 0)
@@ -219,9 +248,8 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
           }
         }
       }
-
       // console.log(s._id + " -> " + s._successors.map(ss => ss._id).join(","));
-      if (stateRegistry.states.length > 1_000_000)
+      if (stateRegistry.states.length > 100_000)
       {
         console.log("STATE SIZE LIMIT", stateRegistry.states.length);
         break;
