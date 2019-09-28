@@ -565,6 +565,8 @@ function createSemantics(lat, cc)
 
   function allocateClosure(node, benv, store, lkont, kont, machine)
   {
+    assertDefinedNotNull(kont);
+    assertDefinedNotNull(kont.realm);
     var closure = createClosure(node, benv, kont.realm);
     var closurea = machine.alloc.closure(node, kont);
 

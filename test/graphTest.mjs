@@ -11,13 +11,19 @@ import typeLattice from "../type-lattice.mjs";
 import aacKalloc from "../aac-kalloc.mjs";
 import tagAlloc from "../tag-alloc.mjs";
 
-const ast0resource = new FileResource("../prelude.js");
+const preludeResource = new FileResource("../prelude.js");
+const webPreludeResource = new FileResource("../web-prelude.js");
 const jsConcSemantics = createSemantics(concLattice, {errors: true});
 const jsTypeSemantics = createSemantics(typeLattice, {errors: true});
 
 function concMachine()
 {
-  return createEvalMachine(initializeMachine(jsConcSemantics, concAlloc, concKalloc, ast0resource));
+  return createEvalMachine(initializeMachine(jsConcSemantics, concAlloc, concKalloc, preludeResource));
+}
+
+function concMachineWeb()
+{
+  return createEvalMachine(initializeMachine(jsConcSemantics, concAlloc, concKalloc, preludeResource, webPreludeResource));
 }
 
 function concMachineNoPrel()
@@ -27,7 +33,7 @@ function concMachineNoPrel()
 
 function typeMachine()
 {
-  return createEvalMachine(initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource)).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
+  return createEvalMachine(initializeMachine(jsTypeSemantics, concAlloc, concKalloc, preludeResource)).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
 }
 
 function typeMachineNoPrel()
@@ -55,8 +61,8 @@ function runFile(path, machine, cc)
 }
 
 
-// const system = runFile("resources/fib.js", typeMachineNoPrel(), {pruneGraph: false});
-const system = runSource("'0,1,hello'.split(',').length", typeMachine(), {pruneGraph: false});
+// const system = runFile("resources/whileloop.js", typeMachine(), {pruneGraph: false});
+const system = runSource("", concMachineWeb(), {pruneGraph: false});
 console.log("visited states: %i", system.statistics.numStatesVisited);
 console.log("reachable states: %i", system.statistics.numStatesReachable);
 if (system.statistics.pruned)

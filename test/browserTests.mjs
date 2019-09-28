@@ -22,7 +22,7 @@ let c = 0;
 function run(html, expected)
 {
   console.log(++c + "\t" + html.substring(0, 80).replace(/(\r\n\t|\n|\r\t)/gm, ' '));
-  const jsContext = new JsContext(system0.semantics, system0.store, system0.kont0, system0.alloc, system0.kalloc);
+  const jsContext = new JsContext(system0.semantics, system0.endState.store, system0.kont0, system0.alloc, system0.kalloc);
   const browser = new Browser(jsContext);
   browser.parse(new StringResource(html));
   const result = jsContext.globalObject().getProperty("$result$");
