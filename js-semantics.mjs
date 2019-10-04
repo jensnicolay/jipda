@@ -1142,9 +1142,8 @@ function createSemantics(lat, cc)
       {
         assertDefinedNotNull(machine);
         const userContext = machine.kalloc(this, operandValues);
-        var previousStack = Stackget(new Stack(lkont, kont), machine);
-        var stackAs = kont.stackAddresses(lkont).join(this.addresses());
-        var ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack, machine);
+        const previousStack = Stackget(new Stack(lkont, kont), machine);
+        const ctx = createContext(application, thisValue, kont.realm, userContext, previousStack, machine);
         performApply(operandValues, this.node, this.scope, store, lkont, kont, ctx, machine);
       }
 
@@ -1160,7 +1159,7 @@ function createSemantics(lat, cc)
         const thisValue = lat.abstRef(thisa);
         const stackAs = kont.stackAddresses(lkont).join(this.addresses());
         const previousStack = Stackget(new Stack(lkont, kont), machine);
-        const ctx = createContext(application, thisValue, kont.realm, userContext, stackAs, previousStack, machine);
+        const ctx = createContext(application, thisValue, kont.realm, userContext, previousStack, machine);
         return performApply(operandValues, funNode, this.scope, store, lkont, kont, ctx, machine);
       }
 
@@ -4829,6 +4828,13 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
         throw new Error("TODO: multi-realm");
       }
 
+  // Realm.prototype.addresses = 
+  //     function ()
+  //     {
+  //       // if (this.GlobalObject.addresses().join(this.GlobalEnvironment.addresses());)
+  //       return this.GlobalObject.addresses().join(this.GlobalEnvironment.addresses());
+  //     }
+
   // // 8.2.1
   // function CreateRealm()
   // {
@@ -5467,10 +5473,10 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     return obj;
   }
 
-  function createContext(application, thisValue, realm, userContext, stackAs, previousStack, machine)
+  function createContext(application, thisValue, realm, userContext, previousStack, machine)
   {
-    var ctx0 = new JipdaContext(application, thisValue, realm, userContext, EMPTY_ADDRESS_SET /*stackAs*/);
-    var ctx = ctx0.intern(machine.contexts);
+    const ctx0 = new JipdaContext(application, thisValue, realm, userContext);
+    const ctx = ctx0.intern(machine.contexts);
     if (ctx === ctx0)
     {
       // console.log("created new context", ctx._id, (application || "<root>").toString(), "this", thisValue.toString(), "as", stackAs.toString());
@@ -5495,16 +5501,14 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
     return ctx;
   }
 
-  function JipdaContext(ex, thisValue, realm, userContext, as)
+  function JipdaContext(ex, thisValue, realm, userContext)
   {
     assert(thisValue);
     assert(realm);
-    assert(as instanceof ArraySet);
     this.ex = ex;
     this.thisValue = thisValue;
     this.realm = realm;
     this.userContext = userContext;
-    this.as = as;
     this._stacks = null;
     this._id = -1;
     // this._sstorei = -1;
@@ -5521,7 +5525,6 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
             && this.thisValue.equals(ctx.thisValue)
             && this.realm.equals(ctx.realm)
             && this.userContext.equals(ctx.userContext)
-            && this.as.equals(ctx.as)
       }
 
   JipdaContext.prototype.intern =
@@ -5542,7 +5545,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
   JipdaContext.prototype.addresses =
       function ()
       {
-        return this.as.join(this.thisValue.addresses());
+        return /*this.realm.addresses().join(*/this.thisValue.addresses();
       }
 
   JipdaContext.prototype.stackAddresses =
@@ -5552,6 +5555,22 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
         for (const frame of lkont)
         {
           addresses = addresses.join(frame.addresses());
+        }
+        const todo = [...this._stacks]; 
+        const seen = new Set();
+        while (todo.length > 0)
+        {
+          const stack = todo.pop();
+          if (seen.has(stack))
+          {
+            continue;
+          }
+          seen.add(stack);
+          addresses = addresses.join(stack.addresses());
+          for (const st of stack.kont._stacks)
+          {
+            todo.push(st);
+          }
         }
         return addresses;
       }
@@ -5576,11 +5595,6 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
         return reachable;
       }
 
-  // JipdaContext.prototype.topmostApplicationReachable = // is context.ex reachable?
-  //     function ()
-  //     {
-  //       return ([...this.getReachableContexts()].map((ctx) => ctx.ex).includes(this.ex));
-  //     }
 
   JipdaContext.prototype.toString =
       function ()
@@ -5608,6 +5622,18 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
         return this.lkont.equals(x.lkont)
             && this.kont === x.kont;
       }
+
+  Stack.prototype.addresses =
+      function ()
+      {
+        let addresses = this.kont.addresses();
+        for (const frame of this.lkont)
+        {
+          addresses = addresses.join(frame.addresses());
+        }
+        return addresses;
+      }
+
 
   Stack.prototype.toString =
       function ()
@@ -6087,7 +6113,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       store = storeAlloc(store, globala, global);
       // END GLOBAL
 
-      const kont0 = createContext(null, realm.GlobalObject, realm, "globalctx" + (glcount++), ArraySet.empty(), null, machine);
+      const kont0 = createContext(null, realm.GlobalObject, realm, "globalctx" + (glcount++), null, machine);
       // console.log("CREATED context " + kont);
       machine.continue(L_UNDEFINED, store, [], kont0);
       return;
@@ -6717,7 +6743,7 @@ Agc.addressReachable =
       {
         return;
       }
-      const value = store.get(address);
+      const value = store.lookup(address);
       const addresses = value.addresses();
       reachable.add(address);
       Agc.addressesReachable(addresses, store, reachable);

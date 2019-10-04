@@ -234,7 +234,8 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
       while (machine.states.length > 0)
       {
         const successor = machine.states.pop();
-        const successorInterned = stateRegistry.getState(successor);
+        const successorGc = successor.gc(semantics);
+        const successorInterned = stateRegistry.getState(successorGc);
         s._successors.push(successorInterned);
         todo.push(successorInterned);
         
@@ -555,11 +556,12 @@ EvalState.prototype.next =
     {
       return semantics.evaluate(this.node, this.benv, this.store, this.lkont, this.kont, machine);
     }
-// EvalState.prototype.gc =
-//     function ()
-//     {
-//       return new EvalState(this.node, this.benv, Agc.collect(this.store, this.addresses()), this.lkont, this.kont);
-//     }
+EvalState.prototype.gc =
+    function (semantics)
+    {
+      const store = semantics.gc(this.store, this.addresses());
+      return new EvalState(this.node, this.benv, store, this.lkont, this.kont)
+    }
 EvalState.prototype.addresses =
     function ()
     {
@@ -616,13 +618,11 @@ KontState.prototype.next =
     {
       return semantics.continue(this.value, this.store, this.lkont, this.kont, machine);
     }
-
-// KontState.prototype.gc =
-//     function ()
-//     {
-//       return this;
-//     }
-
+KontState.prototype.gc =
+    function ()
+    {
+      return this;
+    }
 KontState.prototype.addresses =
 function ()
 {
@@ -683,12 +683,11 @@ ReturnState.prototype.next =
     {
       return semantics.return(this.value, this.store, this.lkont, this.kont, machine);
     }
-
-// ReturnState.prototype.gc =
-//     function ()
-//     {
-//       return this;
-//     }
+ReturnState.prototype.gc =
+    function ()
+    {
+      return this;
+    }
 ReturnState.prototype.addresses =
     function ()
     {
@@ -743,12 +742,11 @@ ThrowState.prototype.next =
     {
       return semantics.throw(this.value, this.store, this.lkont, this.kont, machine);
     }
-
-// ThrowState.prototype.gc =
-//     function ()
-//     {
-//       return this;
-//     }
+ThrowState.prototype.gc =
+    function ()
+    {
+      return this;
+    }
 ThrowState.prototype.addresses =
     function ()
     {

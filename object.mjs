@@ -22,7 +22,7 @@ Absent.prototype.hashCode =
 Absent.prototype.addresses =
     function ()
     {
-      return EMPTY_ADDRESS_SET;
+      return ArraySet.empty();
     }
 
 Absent.prototype.join =
