@@ -69,62 +69,9 @@ run("<input/>", undefined);
 run("<body><input type='input'><script>$result$ = document.body.children[0].type</script></body>", "input");
 run("<body><input type='input' onclick='$result$ = 21 * 2;'><script>document.body.children[0].onclick()</script></body>", 42);
 
-run("<body>\n" +
-    "<input id='value' value=\"someValue\" type='text'/>\n" +
-    "<input type='button' value='CLICK' onclick='doIt()'/>\n" +
-    "<script>\n" +
-    "  function doIt()\n" +
-    "  {\n" +
-    "    var value = document.getElementById('value').value;\n" +
-    "    $result$ = value;\n" +
-    "  }\n" +
-    "\n" +
-    "  function doVisit()\n" +
-    "  {\n" +
-    "    visit(document);\n" +
-    "  }\n" +
-    "\n" +
-    "  function visit(element)\n" +
-    "  {\n" +
-    "    var onclick = element.onclick;\n" +
-    "    if (onclick)\n" +
-    "    {\n" +
-    "      onclick.apply(element, []);\n" +
-    "    }\n" +
-    "    var children = element.children;\n" +
-    "    for (var i = 0; i < children.length; i++)\n" +
-    "    {\n" +
-    "      visit(children[i]);\n" +
-    "    }\n" +
-    "  }\n" +
-    "\n" +
-    "  doVisit();\n" +
-    "\n" +
-    "</script>\n" +
-    "</body>", "someValue");
-
-run(`<html><body>
-      <table id="tbl" >
-       <tbody>
-       <tr>
-       <td>Month</td>
-       <td>Savings</td>
-     </tr>
-     <tr>
-       <td>January</td>
-       <td>$100</td>
-     </tr>
-     <tr>
-       <td>January</td>
-       <td>$100</td>
-    </tr>
-       </tbody>
-      </table> 
-      <script>
-      $result$ = document.getElementById('tbl').id
-      </script>
-      </body></html>`, 'tbl');
-
 run("<body><p>foo<p><script>$result$ = document.body.children[0].tagName</script></body>", "P");
 run("<body><p id='myid'>foo<p><script>$result$ = document.body.children[0].id</script></body>", "myid");
 run("<body><p class='myclass class2'>foo<p><script>$result$ = document.body.children[0].className</script></body>", "myclass class2");
+
+run(read("resources/html/test3.html"), "someValue");
+run(read("resources/html/test4.html"), 'tbl');
