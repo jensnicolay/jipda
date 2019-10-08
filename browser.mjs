@@ -85,6 +85,7 @@ Browser.prototype.parseElement =
         case 'TABLE': return this.parseTable(element, jsChildren);
         case 'TBODY': return this.parseTBody(element, jsChildren);
         case 'P': return this.parseP(element, jsChildren);
+        case 'A': return this.parseA(element, jsChildren);
         default: throw new Error("cannot handle element name " + element.nodeName);
       }
     }
@@ -114,6 +115,12 @@ Browser.prototype.parseBody =
       const jsBody = this.jsContext.globalObject().getProperty("HTMLBodyElement").construct([]);
       jsChildren.push(jsBody);
       this.jsContext.globalObject().getProperty("document").assignProperty("body", jsBody);
+      const onload = body.getAttribute("onload");
+      if(onload)
+      {
+        const handler = this.jsContext.createFunction([], onload);
+        jsBody.assignProperty("onload",handler);
+      }
       this.parseChildren(body, jsBody);
       return jsBody;
     }
@@ -160,6 +167,11 @@ Browser.prototype.parseDiv =
       {
         jsDiv.assignProperty("id", id);
       }
+      const className = div.getAttribute("class");
+      if (className)
+      {
+        jsDiv.assignProperty("className", className);
+      }
       this.parseChildren(div, jsDiv);
       return jsDiv;
     }
@@ -173,6 +185,11 @@ Browser.prototype.parseInput =
       if (id)
       {
         jsInput.assignProperty("id", id);
+      }
+      const className = input.getAttribute("class");
+      if (className)
+      {
+        jsInput.assignProperty("className", className);
       }
       const type = input.getAttribute("type");
       jsInput.assignProperty("type", type || "input");
@@ -201,6 +218,11 @@ Browser.prototype.parseTd =
       {
         jsTd.assignProperty("id", id);
       }
+      const className = td.getAttribute("class");
+      if (className)
+      {
+        jsTd.assignProperty("className", className);
+      }
       this.parseChildren(td, jsTd);
       return jsTd;
     }
@@ -214,6 +236,11 @@ Browser.prototype.parseTr =
       if (id)
       {
         jsTr.assignProperty("id", id);
+      }
+      const className = tr.getAttribute("class");
+      if (className)
+      {
+        jsTr.assignProperty("className", className);
       }
       this.parseChildren(tr, jsTr);
       return jsTr;
@@ -230,6 +257,11 @@ Browser.prototype.parseTBody =
       {
         jsTBody.assignProperty("id", id);
       }
+      const className = tbody.getAttribute("class");
+      if (className)
+      {
+        jsTBody.assignProperty("className", className);
+      }
        this.parseChildren(tbody, jsTBody);
       return jsTBody;
     }
@@ -243,6 +275,11 @@ Browser.prototype.parseTable =
       if (id)
       {
         jsTable.assignProperty("id", id);
+      }
+      const className = table.getAttribute("class");
+      if (className)
+      {
+        jsTable.assignProperty("className", className);
       }
       this.parseChildren(table, jsTable);
       return jsTable;
@@ -267,6 +304,25 @@ Browser.prototype.parseP =
       return jsParagraph;
     }
     
+Browser.prototype.parseA =
+    function (anchor, jsChildren)
+    {
+      const jsAnchor = this.jsContext.globalObject().getProperty("HTMLAnchorElement").construct([]);
+      jsChildren.push(jsAnchor);
+      jsAnchor.assignProperty("href",anchor.getAttribute("href"));
+      const id = anchor.getAttribute("id");
+      if (id)
+      {
+        jsAnchor.assignProperty("id", id);
+      }
+      const className = anchor.getAttribute("class");
+      if(className)
+      {
+        jsAnchor.assignProperty("className",className);
+      }
+      this.parseChildren(anchor, jsAnchor);
+      return jsAnchor;
+    }
 
 Browser.prototype.click =
     function(elemID)

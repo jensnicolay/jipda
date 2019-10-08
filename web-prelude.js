@@ -34,6 +34,7 @@
   global.HTMLTableSectionElement = HTMLTableSectionElement;
   global.HTMLTitleElement = HTMLTitleElement;
   global.HTMLParagraphElement = HTMLParagraphElement;
+  global.HTMLAnchorElement = HTMLAnchorElement;
   global.Node = Node;
   global.Text = Text;
   global.XMLHttpRequest = XMLHttpRequest;
@@ -87,10 +88,23 @@
   {
     this.children = [];
   }
+
   ParentNode.prototype.getElementById =
       function (id)
       {
         return getElementById(this, id);
+      }
+
+  ParentNode.prototype.getElementsByTagName =
+      function (tagName)
+      {
+        return getElementsByTagName(this, tagName);
+      }
+
+  ParentNode.prototype.getElementsByClassName =
+      function (name)
+      {
+        return getElementsByClassName(this, name);
       }
 
   function getElementById(node, id)
@@ -113,6 +127,40 @@
     return null;
   }
 
+  function getElementsByTagName(node, tagName)
+  {
+    var children = node.children;
+    var elements = [];
+    for (var i = 0; i < children.length; i++)
+    {
+      var child = children[i];
+      if (child.tagName === tagName)
+      {
+        elements.push(child);
+      }
+      var elms = getElementsByTagName(child, tagName);
+      elements = elements.concat(elms);
+    }
+    return elements;
+  }
+
+function getElementsByClassName(node, name) //FIXME: I the following assumes just ONE class per element e.g <p class="myClass"> not <p class="one two">.
+  {
+    var children = node.children;
+    var elements = [];
+    for (var i = 0; i < children.length; i++)
+    {
+      var child = children[i];
+      if (child.className === name)
+      {
+        elements.push(child);
+      }
+      var elms = getElementsByClassName(child, name);
+      elements = elements.concat(elms);
+    }
+    return elements;
+  }
+
   function Document()
   {
     Node.call(this);
@@ -124,6 +172,8 @@
   Document.prototype.constructor = Document;
   // mixin ParentNode
   Document.prototype.getElementById = ParentNode.prototype.getElementById;
+  Document.prototype.getElementsByTagName = ParentNode.prototype.getElementsByTagName;
+  Document.prototype.getElementsByClassName = ParentNode.prototype.getElementsByClassName;
   // end
 
 
@@ -161,6 +211,14 @@
         if (localName === "input")
         {
           return new HTMLInputElement();
+        }
+        if (localName === "p")
+        {
+          return new HTMLParagraphElement();
+        }
+        if (localName === "a")
+        {
+          return new HTMLAnchorElement();
         }
         throw new Error("no custom element support yet ["+localName+"]");
       }
@@ -240,6 +298,7 @@
   }
   HTMLScriptElement.prototype = Object.create(HTMLElement.prototype);
   HTMLScriptElement.prototype.constructor = HTMLScriptElement;
+  HTMLScriptElement.prototype.tagName = "SCRIPT";
 
   function HTMLDivElement()
   {
@@ -247,6 +306,7 @@
   }
   HTMLDivElement.prototype = Object.create(HTMLElement.prototype);
   HTMLDivElement.prototype.constructor = HTMLDivElement;
+  HTMLDivElement.prototype.tagName = "DIV";
 
   function HTMLTitleElement()
   {
@@ -254,6 +314,7 @@
   }
   HTMLTitleElement.prototype = Object.create(HTMLElement.prototype);
   HTMLTitleElement.prototype.constructor = HTMLTitleElement;
+  HTMLTitleElement.prototype.tagName = "TITLE";
 
   function HTMLMetaElement()
   {
@@ -261,6 +322,7 @@
   }
   HTMLMetaElement.prototype = Object.create(HTMLElement.prototype);
   HTMLMetaElement.prototype.constructor = HTMLMetaElement;
+  HTMLMetaElement.prototype.tagName = "META";
 
   function HTMLIframeElement()
   {
@@ -268,6 +330,7 @@
   }
   HTMLIframeElement.prototype = Object.create(HTMLElement.prototype);
   HTMLIframeElement.prototype.constructor = HTMLIframeElement;
+  HTMLIframeElement.prototype.tagName = "IFRAME";
 
   function HTMLImageElement()
   {
@@ -276,6 +339,7 @@
   }
   HTMLImageElement.prototype = Object.create(HTMLElement.prototype);
   HTMLImageElement.prototype.constructor = HTMLImageElement;
+  HTMLImageElement.prototype.tagName = "IMAGE";
 
   function HTMLInputElement()
   {
@@ -324,6 +388,14 @@
   HTMLParagraphElement.prototype = Object.create(HTMLElement.prototype);
   HTMLParagraphElement.prototype.constructor = HTMLParagraphElement;
   HTMLParagraphElement.prototype.tagName = "P";
+
+  function HTMLAnchorElement()
+  {
+    HTMLElement.call(this);
+  }
+  HTMLAnchorElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLAnchorElement.prototype.constructor = HTMLAnchorElement;
+  HTMLAnchorElement.prototype.tagName = "A";
 
   function HTMLCollection()
   {

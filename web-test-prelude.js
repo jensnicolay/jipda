@@ -12,9 +12,9 @@
     var children = element.children;
     for (var i = 0; i < children.length; i++)
     {
-      triggerEvents(children[i]);
+      if(children[i] instanceof HTMLElement){
+        triggerEvents(children[i]);
+      }
     }
   }
-
-
 })(this);

@@ -73,5 +73,9 @@ run("<body><p>foo<p><script>$result$ = document.body.children[0].tagName</script
 run("<body><p id='myid'>foo<p><script>$result$ = document.body.children[0].id</script></body>", "myid");
 run("<body><p class='myclass class2'>foo<p><script>$result$ = document.body.children[0].className</script></body>", "myclass class2");
 
+run("<body><a href='evil.com'>Heaven</a> <script>$result$ = document.body.children[0].href</script></body>", "evil.com");
+
 run(read("resources/html/test3.html"), "someValue");
 run(read("resources/html/test4.html"), 'tbl');
+run(read("resources/html/test5.html"), 6);
+run(read("resources/html/test6.html"), 4);
