@@ -124,3 +124,7 @@ run(`<html><body>
       $result$ = document.getElementById('tbl').id
       </script>
       </body></html>`, 'tbl');
+
+run("<body><p>foo<p><script>$result$ = document.body.children[0].tagName</script></body>", "P");
+run("<body><p id='myid'>foo<p><script>$result$ = document.body.children[0].id</script></body>", "myid");
+run("<body><p class='myclass class2'>foo<p><script>$result$ = document.body.children[0].className</script></body>", "myclass class2");

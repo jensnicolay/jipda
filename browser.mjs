@@ -84,6 +84,7 @@ Browser.prototype.parseElement =
         case 'TR': return this.parseTr(element, jsChildren);
         case 'TABLE': return this.parseTable(element, jsChildren);
         case 'TBODY': return this.parseTBody(element, jsChildren);
+        case 'P': return this.parseP(element, jsChildren);
         default: throw new Error("cannot handle element name " + element.nodeName);
       }
     }
@@ -246,6 +247,26 @@ Browser.prototype.parseTable =
       this.parseChildren(table, jsTable);
       return jsTable;
     }
+
+Browser.prototype.parseP =
+    function (paragraph, jsChildren)
+    {
+      const jsParagraph = this.jsContext.globalObject().getProperty("HTMLParagraphElement").construct([]);
+      jsChildren.push(jsParagraph);
+      const id = paragraph.getAttribute("id");
+      if (id)
+      {
+        jsParagraph.assignProperty("id", id);
+      }
+      const className = paragraph.getAttribute("class");
+      if(className)
+      {
+        jsParagraph.assignProperty("className",className);
+      }
+      this.parseChildren(paragraph, jsParagraph);
+      return jsParagraph;
+    }
+    
 
 Browser.prototype.click =
     function(elemID)

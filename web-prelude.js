@@ -33,6 +33,7 @@
   global.HTMLTableCellElement = HTMLTableCellElement;
   global.HTMLTableSectionElement = HTMLTableSectionElement;
   global.HTMLTitleElement = HTMLTitleElement;
+  global.HTMLParagraphElement = HTMLParagraphElement;
   global.Node = Node;
   global.Text = Text;
   global.XMLHttpRequest = XMLHttpRequest;
@@ -315,6 +316,14 @@
   HTMLTableSectionElement.prototype = Object.create(HTMLElement.prototype);
   HTMLTableSectionElement.prototype.constructor = HTMLTableSectionElement;
   HTMLTableSectionElement.prototype.tagName = "TBODY";
+
+  function HTMLParagraphElement()
+  {
+    HTMLElement.call(this);
+  }
+  HTMLParagraphElement.prototype = Object.create(HTMLElement.prototype);
+  HTMLParagraphElement.prototype.constructor = HTMLParagraphElement;
+  HTMLParagraphElement.prototype.tagName = "P";
 
   function HTMLCollection()
   {
