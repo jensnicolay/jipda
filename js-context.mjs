@@ -81,7 +81,7 @@ JsContext.prototype.explore =
           // }
           // warning: NESTING JsContexts!
           // cannot wrap jsValue here, because context store doesn't match; therefore: new JsValue(..., new JsC(...))
-          console.warn("Uncaught exception: " + new JsValue(s.value, new JsContext(this.semantics, this.explorer, this.alloc, this.kalloc, s.store, this.kont0)).introspectiveToString());
+          console.warn("Uncaught exception: " + new JsValue(s.value, new JsContext(this.semantics, s.store, this.kont0, this.alloc, this.kalloc)).introspectiveToString());
           console.warn(s.stackTrace());
         }
         else

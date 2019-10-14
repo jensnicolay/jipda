@@ -29,14 +29,14 @@ function concMachine()
   return initializeMachine(jsConcSemantics, concAlloc, concKalloc, preludeResource, webPreludeResource);
 }
 
-// function typeMachine()
-// {
-//   return initializeMachine(jsTypeSemantics, concAlloc, concKalloc, preludeResource, webPreludeResource);
-// }
+function typeMachine()
+{
+  return initializeMachine(jsTypeSemantics, concAlloc, concKalloc, preludeResource, webPreludeResource);
+}
 
 function run(resource, system0, cc)
 {
-  const jsContext = new JsContext(system0.semantics, system0.store, system0.kont0, system0.alloc, system0.kalloc);
+  const jsContext = new JsContext(system0.semantics, system0.endState.store, system0.endState.kont, system0.alloc, system0.kalloc);
   const browser = new Browser(jsContext);
   browser.parse(resource);
   const result = jsContext.globalObject().getProperty("$result$");
@@ -56,8 +56,8 @@ function runFile(path, machine, cc)
 //run("<body><div id='hopla'></div><script>$result$ = document.getElementById('hopla').id</script></body>", "hopla");
 
 
-const system = runSource("<body><div id='hopla'></div><script>$result$ = document.getElementById('hopla').id</script></body>", 
-	concMachine(), {pruneGraph: false});
+const system = runFile("resources/html/scull1.html", 
+	typeMachine(), {pruneGraph: false});
 const initialStates = system.initialStates;
 const dot = initialStatesToDot(initialStates);
 fs.writeFileSync('webGraph.dot', dot);

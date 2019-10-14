@@ -1,0 +1,41 @@
+<html>
+<body id=“sss”>
+       <script>
+               // print(undefined === null)
+               let doc = {
+                       id: "no",
+                       children: [{
+                               id: "00",
+                               children: [{
+                                               id: "123",
+                                               children: []
+                                       },
+                                       {
+                                               id: "dddd",
+                                               children: [{
+                                                       id: "ddd",
+                                                       children: []
+                                               }]
+                                       }
+                               ]
+                       }]
+               }
+               function getElementById(node, id) {
+                       let children = node.children;
+                       let l = children.length;
+                       for (let i = 0; i < l; i++) {
+                               let child = children[i];
+                               if (child.id === id) {
+                                       return child;
+                               }
+                               let desc = getElementById(child, id);
+                               if (desc) {
+                                       return desc;
+                               }
+                       }
+                       return null;
+               }
+               print(getElementById(doc, "123").id);
+       </script>
+</body>
+</html>
