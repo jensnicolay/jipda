@@ -304,11 +304,12 @@ function introspectiveToString(d, store, semantics)
     let sb = "";
     for (const a of d.addresses())
     {
-      const obj = store.lookupAval(a);
+      const obj = store.lookup(a);
       sb += a + ":";
-      for (const entry of obj.frame.entries())
+      for (const name of obj.names())
       {
-        sb += "(" + entry[0] + "=>" + entry[1].value + ")";
+        const value = obj.getProperty(name);
+        sb += "(" + name + "=>" + value + ")";
       }
     }
     str.push(sb);

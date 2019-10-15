@@ -1,0 +1,25 @@
+<html>
+
+<body>
+    <div id="text1">Editable Component</div>
+    <script>
+        if (window.acme === undefined) {
+            window.acme = {};
+        }
+
+        acme.namespace = function (names) {
+            let parts = names.split('.');
+           // let parts = names;
+            let o = window;
+            for (let i = 0; i < parts.length; ++i) {
+                if (o[parts[i]] === undefined)
+                    o[parts[i]] = {};
+                o = o[parts[i]];
+            }
+        };
+
+         acme.namespace('acme.editinplace');
+    </script>
+</body>
+
+</html>

@@ -624,10 +624,17 @@ function createSemantics(lat, cc)
     {
       const operatorObj = storeLookup(store, operatora);
       const Call = operatorObj.getInternal("[[Call]]");
-      for (const callable of Call)
+      if (Call === BOT)
       {
-        //if (!callable.applyFunction) {print(application, callable, Object.keys(callable))};
-        callable.applyFunction(application, operandValues, thisValue, benv, store, lkont, kont, machine);
+        throwTypeError(application.callee + " is not a function (" + operatorValue + ")", store, lkont, kont, machine);
+      }
+      else
+      {
+        for (const callable of Call)
+        {
+          //if (!callable.applyFunction) {print(application, callable, Object.keys(callable))};
+          callable.applyFunction(application, operandValues, thisValue, benv, store, lkont, kont, machine);
+        }  
       }
     }
   }

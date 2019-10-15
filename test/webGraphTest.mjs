@@ -56,7 +56,7 @@ function runFile(path, machine, cc)
 //run("<body><div id='hopla'></div><script>$result$ = document.getElementById('hopla').id</script></body>", "hopla");
 
 
-const system = runFile("resources/html/scull1.html", 
+const system = runFile("resources/html/scull2.html", 
 	typeMachine(), {pruneGraph: false});
 const initialStates = system.initialStates;
 const dot = initialStatesToDot(initialStates);
