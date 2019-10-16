@@ -249,7 +249,7 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
           }
         }
       }
-      // console.log(s._id + " -> " + s._successors.map(ss => ss._id).join(","));
+      console.log(s._id + " -> " + s._successors.map(ss => ss._id).join(","));
       if (stateRegistry.states.length > 100_000)
       {
         console.log("STATE SIZE LIMIT", stateRegistry.states.length);
@@ -462,7 +462,6 @@ function pruneMarkedGraph(initialStates)
 
   function scanForNonPreludeStates(W)
   {
-    // const W = [...W2];
     const S = [];
     const nonPreludeStates = [];
     while (W.length > 0)
@@ -486,8 +485,10 @@ function pruneMarkedGraph(initialStates)
     return nonPreludeStates;
   }
 
-  const W = [...initialStates].filter(s => !isPreludeState(s));
-  const W2 = [...W];
+  // synthetic start state to handle prelude initialStates
+  const syntheticStartState = {_resource:"synth", _successors: [...initialStates], _id: -1}; // TODO: non-array index -1
+  const W = [syntheticStartState];
+  // const W2 = [...W];
   const S = [];
   while (W.length > 0)
   {
@@ -501,7 +502,7 @@ function pruneMarkedGraph(initialStates)
     s._successors = scanForNonPreludeStates(s._successors || []);
     s._successors.forEach(s2 => W.push(s2));
   }
-  return W2;
+  return syntheticStartState._successors;
 }
 
 function EvalState(node, benv, store, lkont, kont)

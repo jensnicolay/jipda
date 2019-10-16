@@ -1,6 +1,7 @@
 import {createAst, StringResource} from "./ast.mjs";
 import {ArraySet, assert, assertDefinedNotNull, Sets} from "./common.mjs";
 import {StateRegistry, createMachine, isSuccessState} from "./abstract-machine.mjs";
+import {BOT} from "./lattice.mjs";
 
 import fs from 'fs';
 import {initialStatesToDot} from "./export/dot-graph.mjs";
@@ -90,6 +91,7 @@ JsContext.prototype.explore =
         }
       }
       assertDefinedNotNull(store);
+      assert(store !== BOT);
       this.store = store;
       this.managedValues = this.managedValues.add(value);
       assert(typeof value.addresses === 'function');
@@ -177,6 +179,7 @@ function JsValue(d, context)
 {
   this.d = d;
   this.context = context;
+  assertDefinedNotNull(context.store.lookup);
 }
 
 JsValue.prototype.isNonUndefined =

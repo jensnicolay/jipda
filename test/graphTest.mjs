@@ -62,7 +62,7 @@ function runFile(path, machine, cc)
 
 
 //const system = runFile("resources/simple-gc-test.js", typeMachine(), {pruneGraph: false});
-const system = runSource("'1 2 3'.split(' ')", typeMachine(), {pruneGraph: false});
+const system = runSource("'1 2 3'.split(' ')", typeMachine(), {pruneGraph: true});
 console.log("visited states: %i", system.statistics.numStatesVisited);
 console.log("reachable states: %i", system.statistics.numStatesReachable);
 if (system.statistics.pruned)

@@ -31,7 +31,10 @@ function concMachine()
 
 function typeMachine()
 {
-  return initializeMachine(jsTypeSemantics, concAlloc, concKalloc, preludeResource, webPreludeResource);
+  const system0 = initializeMachine(jsTypeSemantics, concAlloc, concKalloc, preludeResource, webPreludeResource);
+  system0.alloc = tagAlloc;
+  system0.kalloc = aacKalloc;
+  return system0;
 }
 
 function run(resource, system0, cc)
@@ -56,7 +59,7 @@ function runFile(path, machine, cc)
 //run("<body><div id='hopla'></div><script>$result$ = document.getElementById('hopla').id</script></body>", "hopla");
 
 
-const system = runFile("resources/html/scull2.html", 
+const system = runFile("resources/html/scull3.html", 
 	typeMachine(), {pruneGraph: false});
 const initialStates = system.initialStates;
 const dot = initialStatesToDot(initialStates);
