@@ -249,7 +249,7 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
           }
         }
       }
-      console.log(s._id + " -> " + s._successors.map(ss => ss._id).join(","));
+      //console.log(s._id + " -> " + s._successors.map(ss => ss._id).join(","));
       if (stateRegistry.states.length > 100_000)
       {
         console.log("STATE SIZE LIMIT", stateRegistry.states.length);
@@ -278,7 +278,9 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
       initialStatesResult = initialStatesInterned;
     }
     const system = {time: performance.now() - startTime, 
-      states:stateRegistry.states, initialStates: initialStatesResult, endStates,
+      states:stateRegistry.states,
+      initialStates: initialStatesResult, 
+      endStates, // these are only the end states encountered during exploration (this matters when a state reg is passed in)
       kont0: contexts[0], statistics};
     return system;
   }
@@ -399,7 +401,7 @@ StateRegistry.prototype.getState =
       return s;
     }
 
-function reachableStates(initialStates)
+export function reachableStates(initialStates)
 {
   const result = [];
   const V = [];

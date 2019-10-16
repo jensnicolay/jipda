@@ -1,6 +1,6 @@
 import {createAst, StringResource} from "./ast.mjs";
 import {ArraySet, assert, assertDefinedNotNull, Sets} from "./common.mjs";
-import {StateRegistry, createMachine, isSuccessState} from "./abstract-machine.mjs";
+import {StateRegistry, createMachine, isSuccessState, reachableStates} from "./abstract-machine.mjs";
 import {BOT} from "./lattice.mjs";
 
 import fs from 'fs';
@@ -37,15 +37,12 @@ JsContext.prototype.explore =
       this.initialStates = this.initialStates.concat(system.initialStates);
       let value = this.semantics.lat.bot();
       let store = this.semantics.lat.bot();
-      let resultStates = system.endStates;
-      if (resultStates.size === 0)
+      // let resultStates = system.endStates; // cannot rely on this because of state registry!
+      const resultStates = reachableStates(system.initialStates).filter(s => s._successors.length === 0);
+      if (resultStates.size === 0 )
       {
-        resultStates = system.initialStates.filter(isSuccessState);
-        if (resultStates.size === 0 )
-        {
-          throw new Error("no result states");
-          // console.warn("no result states!");
-        }
+        throw new Error("no result states");
+        // console.warn("no result states!");
       }
       for (const s of resultStates)
       {
