@@ -129,35 +129,39 @@
 
   function getElementsByTagName(node, tagName)
   {
-    var children = node.children;
-    var elements = [];
-    for (var i = 0; i < children.length; i++)
+    function _findElementsByTagName(node, name, results)
     {
-      var child = children[i];
-      if (child.tagName === tagName)
+      let children = node.children;
+      for (let i = 0; i < children.length; i++)
       {
-        elements.push(child);
+        let child = children[i];
+        if (child.tagName === name)
+        {
+          results.push(child);
+        }
+        _findElementsByTagName(child, name,results);
       }
-      var elms = getElementsByTagName(child, tagName);
-      elements = elements.concat(elms);
     }
+    let elements = [];
+    _findElementsByTagName(node, tagName, elements);
     return elements;
   }
 
-function getElementsByClassName(node, name) //FIXME: I the following assumes just ONE class per element e.g <p class="myClass"> not <p class="one two">.
-  {
-    var children = node.children;
-    var elements = [];
-    for (var i = 0; i < children.length; i++)
-    {
-      var child = children[i];
-      if (child.className === name)
+  function getElementsByClassName(node, name){ //FIXME: I the following assumes just ONE class per element e.g <p class="myClass"> not <p class="one two">.
+    function _findElementsByClassName(node,name, results){
+      let children = node.children;
+      for (let i = 0; i < children.length; i++)
       {
-        elements.push(child);
+        let child = children[i];
+        if (child.className === name)
+        {
+          results.push(child);
+        }
+        _findElementsByClassName(child, name,results);
       }
-      var elms = getElementsByClassName(child, name);
-      elements = elements.concat(elms);
     }
+    let elements = [];
+    _findElementsByClassName(node, name, elements);
     return elements;
   }
 

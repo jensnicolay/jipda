@@ -121,6 +121,11 @@ Browser.prototype.parseBody =
         const handler = this.jsContext.createFunction([], onload);
         jsBody.assignProperty("onload",handler);
       }
+      const className = body.getAttribute("class");
+      if (className)
+      {
+        jsBody.assignProperty("className", className);
+      }
       this.parseChildren(body, jsBody);
       return jsBody;
     }
