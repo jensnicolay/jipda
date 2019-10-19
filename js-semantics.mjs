@@ -6751,6 +6751,10 @@ Agc.addressReachable =
         return;
       }
       const value = store.lookup(address);
+      if (value === undefined)
+      {
+        return;
+      }    
       const addresses = value.addresses();
       reachable.add(address);
       Agc.addressesReachable(addresses, store, reachable);
