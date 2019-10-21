@@ -140,7 +140,11 @@ Store.prototype.lookup =
     function (addr)
     {
       const entry = this.map.get(addr);
-      return entry ? entry.value : undefined;
+      if (entry)
+      {
+        return entry.value;
+      }
+      throw new Error("address not found: " + addr);
     }
 
 Store.prototype.alloc =
@@ -178,12 +182,9 @@ Store.prototype.alloc =
       }
       else
       {
-        console.warn("addr " + addr + " does not exist");
-        return undefined;
-        // const newMap = new Map(this.map);
-        // newMap.set(addr, new Entry(value, true));
-        // return new Store(newMap);        
-        //throw new Error("addr " + addr + " does not exist");
+        // console.warn("addr " + addr + " does not exist");
+        // return undefined;
+        throw new Error("addr " + addr + " does not exist");
       }
     }
 
