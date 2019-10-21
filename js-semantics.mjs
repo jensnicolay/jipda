@@ -3367,7 +3367,15 @@ function createSemantics(lat, cc)
       const a = as.pop();
       let obj = storeLookup(store, a);
       obj = obj.setInternal(name, value);
-      store = storeUpdate(store, a, obj);
+      const store2 = storeUpdate(store, a, obj);
+      if (store2)
+      {
+        store = store2;
+      }
+      else
+      {
+        console.warn("update of nonexisting address " + a);
+      }
     }
     return store;
   }
@@ -3411,7 +3419,16 @@ function createSemantics(lat, cc)
     }
     else
     {
-      return store = storeUpdate(store, a, value);
+      const store2 = storeUpdate(store, a, value);
+      if (store2)
+      {
+        return store2;
+      }
+      else
+      {
+        console.warn("update of nonexisting address " + a);
+        return store;
+      }
     }
   }
 
@@ -3439,7 +3456,15 @@ function createSemantics(lat, cc)
           }
         }
       }
-      store = storeUpdate(store, a, obj);
+      const store2 = storeUpdate(store, a, obj);
+      if (store2)
+      {
+        store = store2;
+      }
+      else
+      {
+        console.warn("update of nonexisting address " + a);
+      }
     }
     return store;
   }
@@ -3902,8 +3927,16 @@ function createSemantics(lat, cc)
   {
     const name = nameNode.name;
     const addr = benv.lookup(name);
-    store = storeUpdate(store, addr, value);
-    return store;
+    const store2 = storeUpdate(store, addr, value);
+    if (store2)
+    {
+      return store2;
+    }
+    else
+    {
+      console.warn("update of nonexisting address " + addr);
+      return store;
+    }
   }
 
   // 6.2.5.1
@@ -4959,7 +4992,15 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
             {
               let obj = storeLookup(store, a);
               obj = obj.addProperty(P, D);
-              store = storeUpdate(store, a, obj);
+              const store2 = storeUpdate(store, a, obj);
+              if (store2)
+              {
+                store = store2;
+              }
+              else
+              {
+                console.warn("update of nonexisting address " + a);
+              }
             }
           }
         }
@@ -4974,7 +5015,15 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
             {
               let obj = storeLookup(store, a);
               obj = obj.addProperty(P, D);
-              store = storeUpdate(store, a, obj);
+              const store2 = storeUpdate(store, a, obj);
+              if (store2)
+              {
+                store = store2;
+              }
+              else
+              {
+                console.warn("update of nonexisting address " + a);
+              }
             }
           }
         }
@@ -6394,7 +6443,15 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       arr = arr.addProperty(lenStr, Property.fromData(operandValues[0], L_TRUE, L_TRUE, L_TRUE))
       var len1 = lat.add(len, L_1);
       arr = arr.addProperty(P_LENGTH, Property.fromData(len1, L_TRUE, L_TRUE, L_TRUE));
-      store = storeUpdate(store, thisa, arr);
+      const store2 = storeUpdate(store, thisa, arr);
+      if (store2)
+      {
+        store = store2;
+      }
+      else
+      {
+        console.warn("update of nonexisting address " + thisa);
+      }
       machine.continue(len1, store, lkont, kont);
     }
   }

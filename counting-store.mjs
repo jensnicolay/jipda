@@ -178,7 +178,12 @@ Store.prototype.alloc =
       }
       else
       {
-        throw new Error("addr " + addr + " does not exist");
+        console.warn("addr " + addr + " does not exist");
+        return undefined;
+        // const newMap = new Map(this.map);
+        // newMap.set(addr, new Entry(value, true));
+        // return new Store(newMap);        
+        //throw new Error("addr " + addr + " does not exist");
       }
     }
 
