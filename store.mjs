@@ -144,3 +144,10 @@ Store.prototype.narrow =
       }
       return new Store(newMap);
     }
+
+Store.prototype[Symbol.iterator] =
+    function* ()
+    {
+      yield* this.map;
+    }
+

@@ -36,7 +36,7 @@ Entry.prototype.join =
     {
       return this;
     }
-    return new Entry(this.value.join(other.value), this.fresh && other.fresh);
+    return new Entry(this.value.join(other.value), false);
   }
 
 Entry.prototype.subsumes =
@@ -64,6 +64,16 @@ Store.empty =
   function ()
   {
     return new Store(new Map());
+  }
+
+Store.from =
+  function (store)
+  {
+    const map = new Map();
+    for (const [addr, value] of store)
+    {
+      map.set(addr, new Entry(value, false));
+    }
   }
 
 Store.prototype.equals =

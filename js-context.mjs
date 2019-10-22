@@ -2,6 +2,8 @@ import {createAst, StringResource} from "./ast.mjs";
 import {ArraySet, assert, assertDefinedNotNull, Sets} from "./common.mjs";
 import {StateRegistry, createMachine, isSuccessState, reachableStates} from "./abstract-machine.mjs";
 import {BOT} from "./lattice.mjs";
+import CountingStore from "./counting-store.mjs";
+import GlobalStore from "./global-store.mjs";
 
 import fs from 'fs';
 import {initialStatesToDot} from "./export/dot-graph.mjs";
@@ -22,6 +24,22 @@ export function JsContext(semantics, store, kont, alloc, kalloc)
   this.managedValues = ArraySet.empty();
 }
 
+JsContext.prototype.switchLocalStore =
+  function ()
+  {
+    const context = new JsContext(this.semantics, CountingStore.from(this.store), this.kont, this.alloc, this.kalloc);
+    context.storeMode = "local";
+    return context;
+  }
+
+JsContext.prototype.switchGlobalStore =
+  function ()
+  {
+    const context = new JsContext(this.semantics, GlobalStore.from(this.store), this.kont, this.alloc, this.kalloc);
+    context.storeMode = "global";
+    return context;
+  }
+
 JsContext.prototype.createMachine =
   function ()
   {
@@ -33,7 +51,7 @@ JsContext.prototype.explore =
     function (machine)
     {
       assertDefinedNotNull(machine);
-      const system = machine.explore({stateRegistry: this.stateRegistry});
+      const system = this.storeMode === "global" ? machine.exploreGS({stateRegistry: this.stateRegistry}) : machine.explore({stateRegistry: this.stateRegistry});
       this.initialStates = this.initialStates.concat(system.initialStates);
       let value = this.semantics.lat.bot();
       let store = this.semantics.lat.bot();

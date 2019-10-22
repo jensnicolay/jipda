@@ -76,3 +76,9 @@ Store.prototype.has =
     {
       return this.map.has(addr);
     }
+
+Store.prototype[Symbol.iterator] =
+    function* ()
+    {
+      yield* this.map;
+    }
