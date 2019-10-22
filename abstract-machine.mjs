@@ -166,7 +166,7 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
   {
     exploreCc = exploreCc || {};
 
-    const gc = exploreCc.gc;
+    const gc = exploreCc.gc === undefined ? true : exploreCc.gc;
 
     const startTime = performance.now();
     const stateRegistry = exploreCc.stateRegistry || new StateRegistry();

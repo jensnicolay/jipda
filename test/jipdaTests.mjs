@@ -61,7 +61,7 @@ function run(resource, expected)
   }
 
   process.stdout.write("type ");
-  const systemType = typeMachine.explore(resource, {gc:true});
+  const systemType = typeMachine.explore(resource);
   const actualType = [...systemType.endStates].reduce(handleState, jsTypeSemantics.lat.bot());
   if (!actualType.subsumes(jsTypeSemantics.lat.abst1(expected)))
   {
