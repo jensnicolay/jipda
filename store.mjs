@@ -1,59 +1,5 @@
 import {BOT} from './lattice.mjs';
-import {Sets, Maps, assertFalse} from "./common.mjs";
-
-function Entry(value, fresh)
-{
-  // assertFalse(value === BOT && fresh === false);
-  this.value = value;
-  this.fresh = fresh;
-}
-
-Entry.prototype.equals =
-  function (other)
-  {
-    if (this === other)
-    {
-      return true;
-    }
-    return this.value.equals(other.value)
-      && this.fresh === other.fresh;
-  }
-
-Entry.prototype.hashCode =
-  function ()
-  {
-    var prime = 31;
-    var result = 1;
-    result = prime * result + this.value.hashCode();
-    result = prime * result + Hashcode.hashCode(this.fresh);
-    return result;
-}
-
-Entry.prototype.join =
-  function (other)
-  {
-    if (other === BOT)
-    {
-      return this;
-    }
-    return new Entry(this.value.join(other.value), this.fresh && other.fresh);
-  }
-
-Entry.prototype.subsumes =
-  function (other)
-  {
-    if (other === BOT)
-    {
-      return true;
-    }
-    return this.value.subsumes(other.value) && (!this.fresh || other.fresh);
-  }
-
-Entry.prototype.toString =
-  function ()
-  {
-    return "[" + this.value + ", fresh: " + this.fresh + "]";
-  }
+import {Sets, Maps, assertDefinedNotNull} from "./common.mjs";
 
 export default function Store(map)
 {
@@ -74,7 +20,7 @@ Store.prototype.equals =
       return true;
     }
     return Maps.equals(this.map, x.map, (x, y) => x.equals(y));
-  }  
+  }
 
 Store.prototype.subsumes =
   function (x)
@@ -86,15 +32,6 @@ Store.prototype.join =
     function (other)
     {
       return new Store(Maps.join(this.map, other.map, (x ,y) => x.join(y), BOT));
-    }
-
-Store.prototype[Symbol.iterator] =
-    function* ()
-    {
-      for (const [addr, entry] of this.map)
-      {
-        yield [addr, entry.value];
-      }
     }
 
 Store.prototype.diff = // debug
@@ -148,10 +85,10 @@ Store.prototype.nice =
 Store.prototype.lookup =
     function (addr)
     {
-      const entry = this.map.get(addr);
-      if (entry)
+      const value = this.map.get(addr);
+      if (value)
       {
-        return entry.value;
+        return value;
       }
       throw new Error("address not found: " + addr);
     }
@@ -159,15 +96,15 @@ Store.prototype.lookup =
 Store.prototype.alloc =
     function (addr, value)
     {
-      const existingEntry = this.map.get(addr);
+      const existingValue = this.map.get(addr);
       const newMap = new Map(this.map);
-      if (existingEntry)
+      if (existingValue)
       {
-        newMap.set(addr, new Entry(existingEntry.value.join(value), false));
+        newMap.set(addr, existingValue.join(value));
       }
       else
       {
-        newMap.set(addr, new Entry(value, true));
+        newMap.set(addr, value);
       }
       return new Store(newMap);
     }
@@ -175,24 +112,15 @@ Store.prototype.alloc =
   Store.prototype.update =
     function (addr, value)
     {
-      const existingEntry = this.map.get(addr);
-      if (existingEntry)
+      const existingValue = this.map.get(addr);
+      if (existingValue)
       {
         const newMap = new Map(this.map);
-        if (existingEntry.fresh)
-        {
-          newMap.set(addr, new Entry(value, true));
-        }
-        else
-        {
-          newMap.set(addr, new Entry(existingEntry.value.join(value), false));
-        }
+        newMap.set(addr, existingValue.join(value));
         return new Store(newMap);
       }
       else
       {
-        // console.warn("addr " + addr + " does not exist");
-        // return undefined;
         throw new Error("addr " + addr + " does not exist");
       }
     }

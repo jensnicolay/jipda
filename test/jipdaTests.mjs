@@ -10,6 +10,7 @@ import {initializeMachine, createEvalMachine, isSuccessState} from '../abstract-
 import typeLattice from "../type-lattice.mjs";
 import aacKalloc from "../aac-kalloc.mjs";
 import tagAlloc from "../tag-alloc.mjs";
+import tagCtxAlloc from "../tag-ctx-alloc.mjs";
 
 const ast0resource = new FileResource("../prelude.js");
 
@@ -58,7 +59,7 @@ function run(resource, expected)
 
   process.stdout.write("type ");
   const typeMachine2 = typeMachine.switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
-  const systemType = typeMachine2.explore(resource);
+  const systemType = typeMachine2.exploreGS(resource);
   const actualType = [...systemType.endStates].reduce(handleState, jsTypeSemantics.lat.bot());
   if (!actualType.subsumes(jsTypeSemantics.lat.abst1(expected)))
   {

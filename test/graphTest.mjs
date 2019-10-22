@@ -44,7 +44,7 @@ function typeMachineNoPrel()
 
 function run(resource, machine, cc)
 {
-  const system = machine.explore(resource, cc);
+  const system = machine.exploreGS(resource, cc);
   const actual = [...system.endStates].reduce((result, s) => isSuccessState(s) ? result.join(s.value) : result, machine.semantics.lat.bot());
   console.log("result value: "+ actual);
   return system;
@@ -62,7 +62,7 @@ function runFile(path, machine, cc)
 
 
 //const system = runFile("resources/simple-gc-test.js", typeMachine(), {pruneGraph: false});
-const system = runSource("'1 2 3'.split(' ')", typeMachine(), {pruneGraph: true});
+const system = runSource("function Circle(x,y,r){this.x=x;this.y=y;this.r=r};function area(s){return 3*s.r*s.r};var circles=[[10,100,4],[-10,-10,3],[0,50,5]].map(function (xyr){return new Circle(xyr[0], xyr[1], xyr[2])});var totalArea = circles.map(area).reduce(function (x,y) {return x+y});totalArea", typeMachine(), {pruneGraph: true});
 console.log("visited states: %i", system.statistics.numStatesVisited);
 console.log("reachable states: %i", system.statistics.numStatesReachable);
 if (system.statistics.pruned)
