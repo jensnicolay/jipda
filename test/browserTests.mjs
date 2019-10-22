@@ -9,13 +9,14 @@ import {Browser} from '../browser.mjs';
 import {JsContext} from '../js-context.mjs';
 import {initializeMachine} from "../abstract-machine.mjs";
 import {StringResource, FileResource} from "../ast.mjs";
+import CountingStore from "../counting-store.mjs"
 
 const read = name => fs.readFileSync(name).toString();
 const preludeResource = new FileResource("../prelude.js");
 const webPreludeResource = new FileResource("../web-prelude.js");
 const jsConcSemantics = createSemantics(concLattice, {errors: true});
 
-const system0 = initializeMachine(jsConcSemantics, concAlloc, concKalloc, preludeResource, webPreludeResource);
+const system0 = initializeMachine(jsConcSemantics, CountingStore.empty(), concAlloc, concKalloc, preludeResource, webPreludeResource);
 
 let c = 0;
 

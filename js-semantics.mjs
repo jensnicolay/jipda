@@ -2,7 +2,6 @@ import {HashCode, Strings, Sets, MutableHashSet, ArraySet, assert, assertDefined
 import * as Ast from './ast.mjs';
 import {BOT} from './lattice.mjs';
 import Benv from './benv.mjs';
-import Store from './counting-store.mjs';
 import {Obj, Present, Absent} from './object.mjs';
 import {Arrays, HashMap, Maps} from "./common.mjs";
 import {blockScopeDeclarations, StringResource} from "./ast.mjs";
@@ -6107,7 +6106,7 @@ function RequireObjectCoercible(arg, store, lkont, kont, machine)
       return;
     } // end initialize2
 
-    initialize2(Benv.empty(), Store.empty());
+    initialize2(Benv.empty(), machine.store0());
   }
 
   function objectConstructor(application, operandValues, protoRef, benv, store, lkont, kont, machine)

@@ -8,11 +8,12 @@ import tagAlloc from '../tag-alloc.mjs';
 import aacKalloc from '../aac-kalloc.mjs';
 import {isSuccessState, initializeMachine, createEvalMachine} from '../abstract-machine.mjs';
 import createSemantics from '../js-semantics.mjs';
+import CountingStore from "../counting-store.mjs";
 
 const ast0resource = new FileResource("../prelude.js");
 
 const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
-const typeMachine = createEvalMachine(initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource)).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
+const typeMachine = createEvalMachine(initializeMachine(jsTypeSemantics, CountingStore.empty(), concAlloc, concKalloc, ast0resource)).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
 
 let c = 0;
 
@@ -44,8 +45,7 @@ function run(resource, expected)
   console.log(++c + "\t" + resource);
 
   process.stdout.write("type ");
-  const typeMachine2 = typeMachine.switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
-  const systemType = typeMachine2.explore(resource);
+  const systemType = typeMachine.explore(resource);
   const actualType = [...systemType.endStates].reduce(handleState, jsTypeSemantics.lat.bot());
   assert(actualType.equals(expected))
   console.log();

@@ -27,16 +27,22 @@ export function JsContext(semantics, store, kont, alloc, kalloc)
 JsContext.prototype.switchLocalStore =
   function ()
   {
-    const context = new JsContext(this.semantics, CountingStore.from(this.store), this.kont, this.alloc, this.kalloc);
+    const context = new JsContext(this.semantics, CountingStore.from(this.store), this.kont0, this.alloc, this.kalloc);
     context.storeMode = "local";
+    context.initialStates = this.initialStates;
+    context.stateRegistry = this.stateRegistry;
+    context.managedValues = this.managedValues;
     return context;
   }
 
-JsContext.prototype.switchGlobalStore =
+  JsContext.prototype.switchGlobalStore =
   function ()
   {
-    const context = new JsContext(this.semantics, GlobalStore.from(this.store), this.kont, this.alloc, this.kalloc);
+    const context = new JsContext(this.semantics, GlobalStore.from(this.store), this.kont0, this.alloc, this.kalloc);
     context.storeMode = "global";
+    context.initialStates = this.initialStates;
+    context.stateRegistry = this.stateRegistry;
+    context.managedValues = this.managedValues;
     return context;
   }
 
@@ -51,7 +57,7 @@ JsContext.prototype.explore =
     function (machine)
     {
       assertDefinedNotNull(machine);
-      const system = this.storeMode === "global" ? machine.exploreGS({stateRegistry: this.stateRegistry}) : machine.explore({stateRegistry: this.stateRegistry});
+      const system = machine.explore({stateRegistry: this.stateRegistry});
       this.initialStates = this.initialStates.concat(system.initialStates);
       let value = this.semantics.lat.bot();
       let store = this.semantics.lat.bot();

@@ -5,9 +5,9 @@ import Store from "./counting-store.mjs";
 import GlobalStore from "./global-store.mjs";
 import {BOT} from './lattice.mjs';
 
-export function initializeMachine(semantics, alloc, kalloc, ...resources)
+export function initializeMachine(semantics, store0, alloc, kalloc, ...resources)
 {
-  const machineConfig = createMachine(semantics, Store.empty(), undefined, alloc, kalloc, {errors:true, hardAsserts:true});
+  const machineConfig = createMachine(semantics, store0, undefined, alloc, kalloc, {errors:true, hardAsserts:true});
   semantics.initialize(machineConfig.machine);
   // const s0 = machineConfig.machine.states.pop();
   for (const resource of resources)
@@ -38,15 +38,8 @@ function createInternalMachine(semantics, store, kont, alloc, kalloc)
   {
     const machineConfig = createMachine(semantics, store, kont, alloc, kalloc, Object.assign((cc || {}), {errors: true, hardAsserts: true}));
     semantics.enqueueScriptEvaluation(resource, machineConfig.machine);
-    const system = machineConfig.explore(machineConfig.machine.nextJob(store, [], kont));
-    return system;
-  }
-
-  function exploreGS(resource, cc)
-  {
-    const machineConfig = createMachine(semantics, store, kont, alloc, kalloc, Object.assign((cc || {}), {errors: true, hardAsserts: true}));
-    semantics.enqueueScriptEvaluation(resource, machineConfig.machine);
-    const system = machineConfig.exploreGS(machineConfig.machine.nextJob(store, [], kont));
+    machineConfig.machine.nextJob(store, [], kont)
+    const system = machineConfig.explore(cc);
     return system;
   }
 
@@ -63,7 +56,7 @@ function createInternalMachine(semantics, store, kont, alloc, kalloc)
     return createInternalMachine(semantics, store, kont, alloc, kalloc, cc);
   }
 
-  return {explore, exploreGS, switchConfiguration, semantics};
+  return {explore, switchConfiguration, semantics};
 }
 
 export function createEvalMachine(system)
@@ -101,6 +94,7 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
         kalloc,
         // getSstorei: () => sstorei,
         increaseSstorei: () => ++sstorei,
+        store0: () => store0,
 
         // not for semantics? (but are used!)
         contexts,
@@ -172,6 +166,8 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
   {
     exploreCc = exploreCc || {};
 
+    const gc = exploreCc.gc;
+
     const startTime = performance.now();
     const stateRegistry = exploreCc.stateRegistry || new StateRegistry();
     const endStates = new Set();
@@ -223,7 +219,7 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
       while (machine.states.length > 0)
       {
         const successor = machine.states.pop();
-        const successorGc = successor.gc(semantics);
+        const successorGc = gc ? successor.gc(semantics) : successor;
         const successorInterned = stateRegistry.getState(successorGc);
         s._successors.push(successorInterned);
         todo.push(successorInterned);
@@ -274,108 +270,7 @@ export function createMachine(semantics, store0, kont0, alloc, kalloc, cc)
     return system;
   }
 
-  function exploreGS(exploreCc)
-  {
-    exploreCc = exploreCc || {};
-
-    const startTime = performance.now();
-    const stateRegistry = exploreCc.stateRegistry || new StateRegistry();
-    const endStates = new Set();
-    const gstore = GlobalStore.from(machine.states.reduce((acc, s) => acc.join(s.store), BOT));
-    const initialStatesInterned = machine.states.map(function (s)   // invariant: all to-do states are interned
-    {
-      s.store = gstore;
-      const s2 = stateRegistry.getState(s);
-      return s2;
-    });
-
-    const todo = [...initialStatesInterned]; // additional copy to be able to return initialStatesInterned
-    machine.states.length = 0;
-    while (todo.length > 0)
-    {
-      const s = todo.pop();
-      // assert(typeof s._id === "number");
-      // console.log("popped " + s._id + " s._sstorei " + s._sstorei + " (" + sstorei + ")" + " ctx id " + s.kont._id);
-      // if (s.isEvalState) {console.log("EVAL " + s.node)}
-      // else if (s.isKontState) {console.log("KONT " + s.value + " " + s.toString())}
-      // else if (s.isReturnState) {console.log("RET " + s.value)}
-      // else if (s.isThrowState) {console.log("THROW " + s.msg)}
-
-      if (s._sstorei === sstorei)
-      {
-        continue;
-      }
-      s._sstorei = sstorei;
-
-      // if (s._id === 587)
-      // {
-      //   break;
-      // }
-
-      s.next(semantics, machine); // `states` gets pushed
-
-      s._successors = [];
-      if (machine.states.length === 0)
-      {
-        endStates.add(s);
-        // console.log("end state", s._id);
-        continue;
-      }
-
-      while (machine.states.length > 0)
-      {
-        const successor = machine.states.pop();
-        const successorInterned = stateRegistry.getState(successor);
-        s._successors.push(successorInterned);
-        todo.push(successorInterned);
-        
-        // successorInterned.store.diff(s.store);
-        
-        if (successor === successorInterned) // new state 
-        {
-          if (stateRegistry.states.length % 10000 === 0)
-          {
-            console.log(Formatter.displayTime(performance.now() - startTime), "states", stateRegistry.states.length, "todo", todo.length, "contexts", contexts.length);
-          }
-        }
-      }
-      //console.log(s._id + " -> " + s._successors.map(ss => ss._id).join(","));
-      if (stateRegistry.states.length > 100_000)
-      {
-        console.log("STATE SIZE LIMIT", stateRegistry.states.length);
-        break;
-      }
-    }
-
-    const statistics = {};
-    statistics.numStatesVisited = stateRegistry.states.length;
-    let initialStatesResult;
-    const reachable = reachableStates(initialStatesInterned);
-    statistics.numStatesReachable = reachable.length;
-    markResources(reachable);
-    if (pruneGraphOption)
-    {
-      const initialStatesPruned = pruneMarkedGraph(initialStatesInterned);
-      const reachablePruned = reachableStates(initialStatesPruned); // fold count into pruneMarkedGraph
-      statistics.pruned = true;
-      statistics.numStatesReachablePruned = reachablePruned.length;
-      initialStatesResult = initialStatesPruned;
-    }
-    else
-    {
-      statistics.pruned = false;
-      console.warn("not pruning graph");
-      initialStatesResult = initialStatesInterned;
-    }
-    const system = {time: performance.now() - startTime, 
-      states:stateRegistry.states,
-      initialStates: initialStatesResult, 
-      endStates, // these are only the end states encountered during exploration (this matters when a state reg is passed in)
-      kont0: contexts[0], statistics};
-    return system;
-  }
-
-  return {machine, run, explore, exploreGS};
+  return {machine, run, explore};
 }
 
 

@@ -5,10 +5,11 @@ import concKalloc from '../conc-kalloc.mjs';
 import createSemantics from '../js-semantics.mjs';
 import {initializeMachine, createEvalMachine, isSuccessState} from '../abstract-machine.mjs';
 import {FileResource, StringResource} from "../ast.mjs";
+import CountingStore from "../counting-store.mjs";
 
 const preludeResource = new FileResource("../prelude.js");
 const jsSemantics = createSemantics(concLattice, {errors: true});
-const machine = createEvalMachine(initializeMachine(jsSemantics, concAlloc, concKalloc, preludeResource));
+const machine = createEvalMachine(initializeMachine(jsSemantics, CountingStore.empty(), concAlloc, concKalloc, preludeResource));
 
 let c = 0;
 

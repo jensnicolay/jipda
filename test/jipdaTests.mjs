@@ -11,14 +11,17 @@ import typeLattice from "../type-lattice.mjs";
 import aacKalloc from "../aac-kalloc.mjs";
 import tagAlloc from "../tag-alloc.mjs";
 import tagCtxAlloc from "../tag-ctx-alloc.mjs";
+import CountingStore from "../counting-store.mjs";
+import GlobalStore from "../global-store.mjs";
+
 
 const ast0resource = new FileResource("../prelude.js");
 
 const jsConcSemantics = createSemantics(concLattice, {errors: true});
 const jsTypeSemantics = createSemantics(typeLattice, {errors:true});
 
-const concMachine = createEvalMachine(initializeMachine(jsConcSemantics, concAlloc, concKalloc, ast0resource));
-const typeMachine = createEvalMachine(initializeMachine(jsTypeSemantics, concAlloc, concKalloc, ast0resource)).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
+const concMachine = createEvalMachine(initializeMachine(jsConcSemantics, CountingStore.empty(), concAlloc, concKalloc, ast0resource));
+const typeMachine = createEvalMachine(initializeMachine(jsTypeSemantics, CountingStore.empty(), concAlloc, concKalloc, ast0resource)).switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
 
 let c = 0;
 
@@ -58,8 +61,7 @@ function run(resource, expected)
   }
 
   process.stdout.write("type ");
-  const typeMachine2 = typeMachine.switchConfiguration(jsTypeSemantics, tagAlloc, aacKalloc);
-  const systemType = typeMachine2.exploreGS(resource);
+  const systemType = typeMachine.explore(resource, {gc:true});
   const actualType = [...systemType.endStates].reduce(handleState, jsTypeSemantics.lat.bot());
   if (!actualType.subsumes(jsTypeSemantics.lat.abst1(expected)))
   {
