@@ -180,6 +180,11 @@
   Document.prototype.getElementsByClassName = ParentNode.prototype.getElementsByClassName;
   // end
 
+  Document.prototype.write = 
+      function (text)
+      {
+        //TODO: not implemented yet
+      } 
 
   Document.prototype.createElement =
       function (localName)
