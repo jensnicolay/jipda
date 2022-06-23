@@ -10,7 +10,7 @@
   "dependencies": {
     "bufferutil": "^4.0.1",
     "canvas": "^2.5.0",
-    "jsdom": "^15.1.1",
+    "jsdom": "^16.5.0",
     "utf-8-validate": "^5.0.2"
   },
   "devDependencies": {},
